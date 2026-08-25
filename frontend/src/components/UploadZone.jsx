@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 
-export default function UploadZone({ onScan }) {
+export default function UploadZone({ onUpload }) {
   const [dragActive, setDragActive] = useState(false);
   const [files, setFiles] = useState([]);
   const inputRef = useRef(null);
@@ -35,7 +35,7 @@ export default function UploadZone({ onScan }) {
 
   const handleScanClick = () => {
     if (files.length > 0) {
-      onScan(files);
+      onUpload(files);
     }
   };
 
