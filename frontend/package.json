@@ -1,15 +1,19 @@
 {
-  "name": "frontend",
+  "name": "netauditai-frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build",
     "preview": "vite preview"
   },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
   "devDependencies": {
-    "typescript": "~6.0.2",
-    "vite": "^8.2.2"
+    "@vitejs/plugin-react": "^4.5.2",
+    "vite": "^6.3.0"
   }
 }
