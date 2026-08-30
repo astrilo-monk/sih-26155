@@ -111,7 +111,7 @@ export default function App() {
 
   return (
     <div className="app-layout">
-      <Sidebar view={view} setView={setView} />
+      <Sidebar view={view} setView={setView} devices={scanResult?.devices} />
       
       <div className="main-wrapper">
         <Header 
