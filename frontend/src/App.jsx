@@ -64,6 +64,12 @@ export default function App() {
   const [selectedFinding, setSelectedFinding] = useState(null);
   const [remediation, setRemediation] = useState(null);
   const [comparison, setComparison] = useState(null);
+  const [notification, setNotification] = useState(null);
+
+  const showNotification = (msg) => {
+    setNotification(msg);
+    setTimeout(() => setNotification(null), 3000);
+  };
 
   const handleUpload = async (files) => {
     setView('loading');
@@ -72,6 +78,7 @@ export default function App() {
       const result = await apiClient.scanConfigs(files);
       setScanResult(result);
       setView('dashboard');
+      showNotification('Scan completed successfully');
     } catch (err) {
       setError(err.message);
       setView('upload');
@@ -186,6 +193,27 @@ export default function App() {
           comparison={comparison}
           onClose={handleCloseModal}
         />
+      )}
+
+      {notification && (
+        <div style={{
+          position: 'fixed',
+          bottom: '2rem',
+          right: '2rem',
+          backgroundColor: 'var(--surface)',
+          border: '1px solid var(--border)',
+          padding: '1rem 1.25rem',
+          borderRadius: 'var(--radius)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          zIndex: 1000,
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <CheckCircle size={18} color="var(--success)" />
+          <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{notification}</span>
+        </div>
       )}
     </div>
   );
