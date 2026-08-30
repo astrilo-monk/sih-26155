@@ -21,21 +21,12 @@ export default function Sidebar({ view, setView, devices }) {
           <div key={item.id}>
             <button
               className={`nav-item ${view === item.id || (view === 'loading' && item.id === 'upload') ? 'active' : ''}`}
-              onClick={() => setView(item.id === 'upload' ? 'upload' : 'dashboard')}
+              onClick={() => setView(item.id === 'upload' ? 'upload' : (item.id === 'dashboard' || item.id === 'devices' || item.id === 'findings' || item.id === 'remediation' || item.id === 'settings' ? item.id : 'dashboard'))}
               style={{ width: '100%', justifyContent: 'flex-start' }}
             >
               <item.icon size={16} />
               {item.label}
             </button>
-            {item.id === 'devices' && devices && devices.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '0.25rem', paddingLeft: '2.5rem' }}>
-                {devices.map((d, i) => (
-                  <div key={i} style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
-                    {d.hostname}
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         ))}
       </div>

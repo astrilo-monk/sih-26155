@@ -142,8 +142,6 @@ export default function App() {
                   low={scanResult.low}
                 />
                 
-                <DeviceInfo devices={scanResult.devices} findings={scanResult.findings} />
-                
                 <FindingsTable
                   findings={scanResult.findings}
                   onSelectFinding={handleSelectFinding}
