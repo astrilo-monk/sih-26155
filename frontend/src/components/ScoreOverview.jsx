@@ -33,27 +33,56 @@ export default function ScoreOverview({ score, critical, high, medium, low }) {
           </div>
         </div>
 
-        <div>
-          <div className="severity-breakdown">
-            <div className="sev-item">
-              <span className="sev-label">Critical</span>
-              <span className="sev-count" style={{ color: critical > 0 ? 'var(--critical)' : 'var(--text-tertiary)' }}>{critical}</span>
+        <div style={{ paddingTop: '0.5rem' }}>
+          {total === 0 ? (
+            <div className="severity-breakdown">
+              <div className="sev-item">
+                <span className="sev-label">Critical</span>
+                <span className="sev-count" style={{ color: 'var(--text-tertiary)' }}>0</span>
+              </div>
+              <div className="sev-item">
+                <span className="sev-label">High</span>
+                <span className="sev-count" style={{ color: 'var(--text-tertiary)' }}>0</span>
+              </div>
+              <div className="sev-item">
+                <span className="sev-label">Medium</span>
+                <span className="sev-count" style={{ color: 'var(--text-tertiary)' }}>0</span>
+              </div>
+              <div className="sev-item">
+                <span className="sev-label">Low</span>
+                <span className="sev-count" style={{ color: 'var(--text-tertiary)' }}>0</span>
+              </div>
             </div>
-            <div className="sev-item">
-              <span className="sev-label">High</span>
-              <span className="sev-count" style={{ color: high > 0 ? 'var(--high)' : 'var(--text-tertiary)' }}>{high}</span>
+          ) : (
+            <div style={{ display: 'flex', width: '100%', marginBottom: '1rem' }}>
+              {cWidth > 0 && (
+                <div className="sev-item" style={{ width: `${cWidth}%`, flexShrink: 0, overflow: 'visible' }}>
+                  <span className="sev-label">Critical</span>
+                  <span className="sev-count" style={{ color: 'var(--critical)' }}>{critical}</span>
+                </div>
+              )}
+              {hWidth > 0 && (
+                <div className="sev-item" style={{ width: `${hWidth}%`, flexShrink: 0, overflow: 'visible' }}>
+                  <span className="sev-label">High</span>
+                  <span className="sev-count" style={{ color: 'var(--high)' }}>{high}</span>
+                </div>
+              )}
+              {mWidth > 0 && (
+                <div className="sev-item" style={{ width: `${mWidth}%`, flexShrink: 0, overflow: 'visible' }}>
+                  <span className="sev-label">Medium</span>
+                  <span className="sev-count" style={{ color: 'var(--medium)' }}>{medium}</span>
+                </div>
+              )}
+              {lWidth > 0 && (
+                <div className="sev-item" style={{ width: `${lWidth}%`, flexShrink: 0, overflow: 'visible' }}>
+                  <span className="sev-label">Low</span>
+                  <span className="sev-count" style={{ color: 'var(--low)' }}>{low}</span>
+                </div>
+              )}
             </div>
-            <div className="sev-item">
-              <span className="sev-label">Medium</span>
-              <span className="sev-count" style={{ color: medium > 0 ? 'var(--medium)' : 'var(--text-tertiary)' }}>{medium}</span>
-            </div>
-            <div className="sev-item">
-              <span className="sev-label">Low</span>
-              <span className="sev-count" style={{ color: low > 0 ? 'var(--low)' : 'var(--text-tertiary)' }}>{low}</span>
-            </div>
-          </div>
+          )}
 
-          <div className="severity-bar-container">
+          <div className="severity-bar-container" style={{ marginTop: total === 0 ? '1.5rem' : '0' }}>
             {total === 0 ? (
               <div className="severity-segment" style={{ width: '100%', backgroundColor: 'var(--success)' }} />
             ) : (
