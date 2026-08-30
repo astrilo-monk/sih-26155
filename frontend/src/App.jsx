@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { AlertCircle, CheckCircle } from 'lucide-react';
 import { apiClient } from './api/client';
+
+import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import UploadZone from './components/UploadZone';
-import LoadingSpinner from './components/LoadingSpinner';
 import ScoreOverview from './components/ScoreOverview';
 import DeviceInfo from './components/DeviceInfo';
 import FindingsTable from './components/FindingsTable';
@@ -11,8 +12,52 @@ import FindingDetail from './components/FindingDetail';
 import RemediationView from './components/RemediationView';
 import BeforeAfter from './components/BeforeAfter';
 
+function LoadingState() {
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const intervals = [
+      setTimeout(() => setStep(1), 800),
+      setTimeout(() => setStep(2), 1500),
+      setTimeout(() => setStep(3), 2200),
+      setTimeout(() => setStep(4), 2800)
+    ];
+    return () => intervals.forEach(clearTimeout);
+  }, []);
+
+  const steps = [
+    'Parsing configuration',
+    'Detecting devices',
+    'Running security rules',
+    'Generating findings',
+    'Calculating security score'
+  ];
+
+  return (
+    <div className="upload-wrapper">
+      <div className="loading-steps">
+        <div style={{ marginBottom: '1rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '0.05em' }}>
+          ANALYZING CONFIGURATION
+        </div>
+        {steps.map((s, i) => (
+          <div key={i} className={`loading-step ${i < step ? 'done' : (i === step ? 'active' : '')}`}>
+            {i < step ? (
+              <CheckCircle size={14} color="var(--success)" />
+            ) : i === step ? (
+              <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+            ) : (
+              <span style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid var(--border)' }} />
+            )}
+            {s}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
-  const [view, setView] = useState('upload'); // upload | loading | dashboard
+  const [view, setView] = useState('upload'); // upload | loading | dashboard | devices | findings
   const [error, setError] = useState(null);
   const [scanResult, setScanResult] = useState(null);
 
@@ -65,46 +110,61 @@ export default function App() {
   };
 
   return (
-    <div className="app-container">
-      <Header
-        showNewScan={view === 'dashboard'}
-        onNewScan={handleNewScan}
-        timestamp={scanResult?.timestamp}
-      />
+    <div className="app-layout">
+      <Sidebar view={view} setView={setView} />
+      
+      <div className="main-wrapper">
+        <Header 
+          onNewScan={handleNewScan}
+          timestamp={scanResult?.timestamp}
+        />
 
-      <main className="main-content">
-        {error && (
-          <div className="error-banner">
-            <AlertCircle size={18} />
-            {error}
-          </div>
-        )}
+        <main className="main-content">
+          <div className="dashboard-container">
+            {error && (
+              <div style={{ backgroundColor: 'var(--critical-bg)', border: '1px solid var(--critical-border)', padding: '1rem', borderRadius: 'var(--radius)', color: 'var(--critical)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <AlertCircle size={16} />
+                {error}
+              </div>
+            )}
 
-        {view === 'upload' && <UploadZone onUpload={handleUpload} />}
+            {view === 'upload' && <UploadZone onUpload={handleUpload} />}
 
-        {view === 'loading' && <LoadingSpinner />}
+            {view === 'loading' && <LoadingState />}
 
-        {view === 'dashboard' && scanResult && (
-          <div className="dashboard-grid">
-            <ScoreOverview 
-              score={scanResult.score} 
-              critical={scanResult.critical}
-              high={scanResult.high}
-              medium={scanResult.medium}
-              low={scanResult.low}
-            />
+            {view === 'dashboard' && scanResult && (
+              <>
+                <ScoreOverview 
+                  score={scanResult.score} 
+                  critical={scanResult.critical}
+                  high={scanResult.high}
+                  medium={scanResult.medium}
+                  low={scanResult.low}
+                />
+                
+                <DeviceInfo devices={scanResult.devices} findings={scanResult.findings} />
+                
+                <FindingsTable
+                  findings={scanResult.findings}
+                  onSelectFinding={handleSelectFinding}
+                />
+              </>
+            )}
             
-            <DeviceInfo devices={scanResult.devices} />
+            {view === 'devices' && scanResult && (
+              <DeviceInfo devices={scanResult.devices} findings={scanResult.findings} />
+            )}
             
-            <FindingsTable
-              findings={scanResult.findings}
-              onSelectFinding={handleSelectFinding}
-            />
+            {view === 'findings' && scanResult && (
+              <FindingsTable
+                findings={scanResult.findings}
+                onSelectFinding={handleSelectFinding}
+              />
+            )}
           </div>
-        )}
-      </main>
+        </main>
+      </div>
 
-      {/* Modals */}
       {selectedFinding && (
         <FindingDetail
           finding={selectedFinding}

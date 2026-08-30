@@ -1,59 +1,70 @@
-import { ShieldAlert, ShieldCheck, AlertTriangle, AlertCircle, Info } from 'lucide-react';
-
 export default function ScoreOverview({ score, critical, high, medium, low }) {
   const getStatus = (s) => {
-    if (s < 40) return { label: 'Critical', color: 'var(--critical)', Icon: ShieldAlert };
-    if (s < 70) return { label: 'Needs Attention', color: 'var(--high)', Icon: AlertTriangle };
-    if (s < 90) return { label: 'Fair', color: 'var(--medium)', Icon: Info };
-    return { label: 'Good', color: 'var(--success)', Icon: ShieldCheck };
+    if (s < 40) return { label: 'CRITICAL RISK', desc: 'Immediate remediation required.', color: 'var(--critical)' };
+    if (s < 70) return { label: 'NEEDS ATTENTION', desc: 'Multiple security vulnerabilities detected.', color: 'var(--high)' };
+    if (s < 90) return { label: 'FAIR', desc: 'Minor configuration issues present.', color: 'var(--medium)' };
+    return { label: 'GOOD', desc: 'Configuration is largely secure.', color: 'var(--success)' };
   };
 
   const status = getStatus(score);
-  const StatusIcon = status.Icon;
+  const total = critical + high + medium + low;
+  
+  // Calculate widths for the severity distribution bar
+  const safeTotal = total === 0 ? 1 : total;
+  const cWidth = (critical / safeTotal) * 100;
+  const hWidth = (high / safeTotal) * 100;
+  const mWidth = (medium / safeTotal) * 100;
+  const lWidth = (low / safeTotal) * 100;
 
   return (
-    <div className="overview-section">
-      <div className="overview-card score-panel">
-        <div className="score-value-group">
-          <div className="section-title">Security Score</div>
-          <div className="score-number" style={{ color: status.color }}>
-            {score}<span style={{ fontSize: '1rem', color: 'var(--text-tertiary)', fontWeight: 500 }}>/100</span>
-          </div>
-          <div className="score-status" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', color: status.color }}>
-            <StatusIcon size={16} />
-            {status.label}
-          </div>
-        </div>
+    <div className="posture-section">
+      <div className="section-header">
+        <span>Security Posture</span>
       </div>
       
-      <div className="severity-stats">
-        <div className="stat-box" style={{ borderTop: '3px solid var(--critical)' }}>
-          <div className="stat-header">
-            Critical
-            <AlertCircle size={14} color="var(--critical)" />
+      <div className="posture-grid">
+        <div className="score-display">
+          <div className="score-value" style={{ color: status.color }}>
+            {score}<span className="max">/100</span>
           </div>
-          <div className="stat-value" style={{ color: 'var(--text-primary)' }}>{critical}</div>
+          <div className="score-info">
+            <div className="score-status" style={{ color: status.color }}>{status.label}</div>
+            <div className="score-desc">{status.desc}</div>
+          </div>
         </div>
-        <div className="stat-box" style={{ borderTop: '3px solid var(--high)' }}>
-          <div className="stat-header">
-            High
-            <AlertTriangle size={14} color="var(--high)" />
+
+        <div>
+          <div className="severity-breakdown">
+            <div className="sev-item">
+              <span className="sev-label">Critical</span>
+              <span className="sev-count" style={{ color: critical > 0 ? 'var(--critical)' : 'var(--text-tertiary)' }}>{critical}</span>
+            </div>
+            <div className="sev-item">
+              <span className="sev-label">High</span>
+              <span className="sev-count" style={{ color: high > 0 ? 'var(--high)' : 'var(--text-tertiary)' }}>{high}</span>
+            </div>
+            <div className="sev-item">
+              <span className="sev-label">Medium</span>
+              <span className="sev-count" style={{ color: medium > 0 ? 'var(--medium)' : 'var(--text-tertiary)' }}>{medium}</span>
+            </div>
+            <div className="sev-item">
+              <span className="sev-label">Low</span>
+              <span className="sev-count" style={{ color: low > 0 ? 'var(--low)' : 'var(--text-tertiary)' }}>{low}</span>
+            </div>
           </div>
-          <div className="stat-value" style={{ color: 'var(--text-primary)' }}>{high}</div>
-        </div>
-        <div className="stat-box" style={{ borderTop: '3px solid var(--medium)' }}>
-          <div className="stat-header">
-            Medium
-            <Info size={14} color="var(--medium)" />
+
+          <div className="severity-bar-container">
+            {total === 0 ? (
+              <div className="severity-segment" style={{ width: '100%', backgroundColor: 'var(--success)' }} />
+            ) : (
+              <>
+                {cWidth > 0 && <div className="severity-segment" style={{ width: `${cWidth}%`, backgroundColor: 'var(--critical)' }} />}
+                {hWidth > 0 && <div className="severity-segment" style={{ width: `${hWidth}%`, backgroundColor: 'var(--high)' }} />}
+                {mWidth > 0 && <div className="severity-segment" style={{ width: `${mWidth}%`, backgroundColor: 'var(--medium)' }} />}
+                {lWidth > 0 && <div className="severity-segment" style={{ width: `${lWidth}%`, backgroundColor: 'var(--low)' }} />}
+              </>
+            )}
           </div>
-          <div className="stat-value" style={{ color: 'var(--text-primary)' }}>{medium}</div>
-        </div>
-        <div className="stat-box" style={{ borderTop: '3px solid var(--low)' }}>
-          <div className="stat-header">
-            Low
-            <ShieldCheck size={14} color="var(--low)" />
-          </div>
-          <div className="stat-value" style={{ color: 'var(--text-primary)' }}>{low}</div>
         </div>
       </div>
     </div>

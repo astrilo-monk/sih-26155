@@ -1,6 +1,6 @@
-import { Shield, Plus } from 'lucide-react';
+import { Search, Plus, Bell, User } from 'lucide-react';
 
-export default function Header({ onNewScan, showNewScan, timestamp }) {
+export default function Header({ onNewScan, timestamp }) {
   const formatTime = (ts) => {
     if (!ts) return '';
     const d = new Date(ts);
@@ -9,25 +9,30 @@ export default function Header({ onNewScan, showNewScan, timestamp }) {
 
   return (
     <header className="header">
-      <div className="logo-container">
-        <Shield className="logo-icon" size={20} color="var(--accent)" />
-        <div style={{ display: 'flex', alignItems: 'baseline' }}>
-          <span className="logo-title">NetAuditAI</span>
-          <span className="logo-subtitle">Network Security Configuration Analyzer</span>
-        </div>
+      <div className="header-title">
+        <span>Network Security Configuration Analyzer</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+      <div className="header-actions">
         {timestamp && (
-          <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}>
-            Last Scan: {formatTime(timestamp)}
-          </span>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span className="mono">LAST SCAN</span>
+            <span className="mono" style={{ color: 'var(--text-secondary)' }}>{formatTime(timestamp)}</span>
+          </div>
         )}
-        {showNewScan && (
-          <button className="btn-primary" onClick={onNewScan}>
-            <Plus size={16} />
-            New Scan
-          </button>
-        )}
+        <div style={{ width: '1px', height: '16px', backgroundColor: 'var(--border)' }} />
+        <button className="btn-ghost">
+          <Search size={16} />
+        </button>
+        <button className="btn-ghost">
+          <Bell size={16} />
+        </button>
+        <button className="btn-ghost">
+          <User size={16} />
+        </button>
+        <button className="btn-primary" onClick={onNewScan} style={{ marginLeft: '0.5rem' }}>
+          <Plus size={14} />
+          New Scan
+        </button>
       </div>
     </header>
   );

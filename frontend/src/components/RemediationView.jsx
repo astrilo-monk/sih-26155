@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, CheckCircle, FileText, Code } from 'lucide-react';
+import { X, Copy, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { apiClient } from '../api/client';
 
 export default function RemediationView({ remediation, scanId, onClose, onVerified }) {
@@ -25,103 +25,98 @@ export default function RemediationView({ remediation, scanId, onClose, onVerifi
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="modal-title-group">
-            <span className="badge" style={{
-              backgroundColor: 'var(--success-bg)',
-              color: 'var(--success)',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
-            }}>remediation</span>
-            <h2>{remediation.title}</h2>
-            <div className="finding-meta">
-              {remediation.rule_id}
+    <div className="drawer-overlay" onClick={onClose}>
+      <div className="drawer" style={{ maxWidth: '800px' }} onClick={e => e.stopPropagation()}>
+        <div className="drawer-header">
+          <div className="drawer-title-group">
+            <span className="badge" style={{ backgroundColor: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success)' }}>
+              Remediation
+            </span>
+            <div className="drawer-title">{remediation.title}</div>
+            <div className="drawer-meta">
+              <span>{remediation.rule_id}</span>
               <span className="dot-separator" />
-              {remediation.device_hostname}
+              <span>{remediation.device_hostname}</span>
               <span className="dot-separator" />
-              {remediation.vendor}
+              <span>{remediation.vendor}</span>
             </div>
           </div>
-          <button className="close-btn" onClick={onClose}>
-            <X size={20} />
+          <button className="btn-ghost" onClick={onClose}>
+            <X size={18} />
           </button>
         </div>
 
-        <div className="modal-body">
-          <div className="section">
-            <h3>Original Configuration</h3>
-            <div className="code-container">
-              <div className="code-header">
-                <FileText size={12} style={{ display: 'inline', marginRight: '4px' }}/>
-                current config
+        <div className="drawer-content">
+          <div className="remediation-grid">
+            <div>
+              <div className="drawer-section-title">Original Configuration</div>
+              <div className="config-block">
+                <div className="config-header">
+                  <span>current</span>
+                </div>
+                <div className="config-body">
+                  {remediation.original_lines.map((line, i) => (
+                    <div key={i} className="config-line highlight">
+                      <span className="line-num">{i + 1}</span>
+                      <span>{line}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="code-block">
-                {remediation.original_lines.map((line, i) => (
-                  <div key={i} className="code-line highlight">
-                    <span className="line-number">{i + 1}</span>
-                    {line}
-                  </div>
-                ))}
+            </div>
+
+            <div>
+              <div className="drawer-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                <span>Proposed Fix</span>
+                <button className="btn-ghost" style={{ padding: 0, fontSize: '0.6875rem' }} onClick={handleCopy}>
+                  {copied ? <CheckCircle2 size={12} style={{ marginRight: 4 }}/> : <Copy size={12} style={{ marginRight: 4 }}/>}
+                  {copied ? 'COPIED' : 'COPY'}
+                </button>
+              </div>
+              <div className="config-block">
+                <div className="config-header">
+                  <span style={{ color: 'var(--success)' }}>remediation commands</span>
+                </div>
+                <div className="config-body">
+                  {remediation.remediation_commands.split('\n').map((line, i) => (
+                    <div key={i} className="config-line fix-highlight">
+                      <span className="line-num">{i + 1}</span>
+                      <span>{line}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="section">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '0.75rem' }}>
-              <h3 style={{ margin: 0 }}>Proposed Fix</h3>
-              <button 
-                onClick={handleCopy}
-                style={{ fontSize: '0.75rem', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-              >
-                {copied ? <CheckCircle size={12} /> : <Code size={12} />}
-                {copied ? 'Copied' : 'Copy Fix'}
-              </button>
-            </div>
-            <div className="code-container">
-              <div className="code-header" style={{ borderBottomColor: 'rgba(16, 185, 129, 0.3)' }}>
-                <Code size={12} style={{ display: 'inline', marginRight: '4px' }}/>
-                remediation commands
-              </div>
-              <div className="code-block fix">
-                {remediation.remediation_commands.split('\n').map((line, i) => (
-                  <div key={i} className="code-line highlight">
-                    <span className="line-number">{i + 1}</span>
-                    {line}
-                  </div>
-                ))}
-              </div>
-            </div>
+          <div>
+            <div className="drawer-section-title">Why This Fix</div>
+            <div className="drawer-text">{remediation.explanation}</div>
           </div>
+        </div>
 
-          <div className="section">
-            <h3>Explanation</h3>
-            <p>{remediation.explanation}</p>
-          </div>
-
-          <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>
-            <button
-              className="btn-primary"
-              onClick={handleVerify}
-              disabled={loading}
-              style={{
-                width: '100%',
-                justifyContent: 'center',
-                padding: '0.75rem',
-                fontSize: '0.875rem',
-                backgroundColor: 'var(--success)',
-              }}
-            >
-              {loading ? (
-                <>⏳ Verifying...</>
-              ) : (
-                <>
-                  <CheckCircle size={16} />
-                  Verify Fix / Re-analyze
-                </>
-              )}
-            </button>
-          </div>
+        <div className="drawer-footer" style={{ display: 'flex', gap: '1rem' }}>
+          <button
+            className="btn-secondary"
+            onClick={handleCopy}
+            style={{ flex: 1, justifyContent: 'center' }}
+          >
+            <Copy size={14} />
+            Copy Fix
+          </button>
+          <button
+            className="btn-primary"
+            onClick={handleVerify}
+            disabled={loading}
+            style={{ flex: 1, justifyContent: 'center', backgroundColor: 'var(--text-primary)', color: 'var(--bg-dark)' }}
+          >
+            {loading ? 'Verifying...' : (
+              <>
+                <ShieldCheck size={14} />
+                Verify Fix
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>

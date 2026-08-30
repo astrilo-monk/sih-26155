@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { X, Wrench, Shield, Server, FileText } from 'lucide-react';
+import { X, Copy, CheckCircle2 } from 'lucide-react';
 import { apiClient } from '../api/client';
 
 export default function FindingDetail({ finding, scanId, onClose, onRemediation }) {
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const handleGenerateFix = async () => {
     setLoading(true);
@@ -19,73 +20,78 @@ export default function FindingDetail({ finding, scanId, onClose, onRemediation 
     }
   };
 
+  const handleCopy = () => {
+    const text = finding.evidence_lines?.join('\n') || '';
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="modal-title-group">
+    <div className="drawer-overlay" onClick={onClose}>
+      <div className="drawer" onClick={e => e.stopPropagation()}>
+        <div className="drawer-header">
+          <div className="drawer-title-group">
             <span className={`badge ${finding.severity}`}>{finding.severity}</span>
-            <h2>{finding.title}</h2>
-            <div className="finding-meta">
-              <Shield size={12} /> {finding.rule_id}
+            <div className="drawer-title">{finding.title}</div>
+            <div className="drawer-meta">
+              <span>{finding.rule_id}</span>
               <span className="dot-separator" />
-              <Server size={12} /> {finding.device_hostname}
+              <span>{finding.device_hostname}</span>
               <span className="dot-separator" />
-              {finding.vendor}
+              <span>{finding.vendor}</span>
             </div>
           </div>
-          <button className="close-btn" onClick={onClose}>
-            <X size={20} />
+          <button className="btn-ghost" onClick={onClose}>
+            <X size={18} />
           </button>
         </div>
 
-        <div className="modal-body">
-          <div className="section">
-            <h3>Description</h3>
-            <p>{finding.description}</p>
+        <div className="drawer-content">
+          <div>
+            <div className="drawer-section-title">Description</div>
+            <div className="drawer-text">{finding.description}</div>
           </div>
 
-          <div className="section">
-            <h3>Security Impact</h3>
-            <p>{finding.security_impact}</p>
+          <div>
+            <div className="drawer-section-title">Security Impact</div>
+            <div className="drawer-text">{finding.security_impact}</div>
           </div>
 
           {finding.evidence_lines && finding.evidence_lines.length > 0 && (
-            <div className="section">
-              <h3>Configuration Evidence</h3>
-              <div className="code-container">
-                <div className="code-header">
-                  <FileText size={12} style={{ display: 'inline', marginRight: '4px' }}/>
-                  configuration snippet
+            <div>
+              <div className="drawer-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                <span>Configuration Evidence</span>
+                <button className="btn-ghost" style={{ padding: 0, fontSize: '0.6875rem' }} onClick={handleCopy}>
+                  {copied ? <CheckCircle2 size={12} style={{ marginRight: 4 }}/> : <Copy size={12} style={{ marginRight: 4 }}/>}
+                  {copied ? 'COPIED' : 'COPY'}
+                </button>
+              </div>
+              <div className="config-block">
+                <div className="config-header">
+                  <span>snippet</span>
                 </div>
-                <div className="code-block">
-                  {finding.evidence_lines.map((line, i) => (
-                    <div key={i} className="code-line highlight">
-                      {finding.line_numbers && finding.line_numbers[i] ? (
-                        <span className="line-number">
-                          {String(finding.line_numbers[i])}
-                        </span>
-                      ) : (
-                        <span className="line-number">{i + 1}</span>
-                      )}
-                      {line}
-                    </div>
-                  ))}
+                <div className="config-body">
+                  {finding.evidence_lines.map((line, i) => {
+                    const lineNum = finding.line_numbers?.[i] || (i + 1);
+                    return (
+                      <div key={i} className="config-line highlight">
+                        <span className="line-num">{lineNum}</span>
+                        <span>{line}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
           )}
 
           {finding.compliance && finding.compliance.length > 0 && (
-            <div className="section">
-              <h3>Compliance</h3>
+            <div>
+              <div className="drawer-section-title">Compliance</div>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 {finding.compliance.map((c, i) => (
-                  <span key={i} className="badge" style={{
-                    backgroundColor: 'var(--surface-hover)',
-                    color: 'var(--text-primary)',
-                    border: '1px solid var(--border)',
-                  }}>
+                  <span key={i} className="badge neutral">
                     {c.framework} {c.control_id}
                   </span>
                 ))}
@@ -93,28 +99,21 @@ export default function FindingDetail({ finding, scanId, onClose, onRemediation 
             </div>
           )}
 
-          <div className="section">
-            <h3>Recommendation</h3>
-            <p>{finding.recommendation}</p>
+          <div>
+            <div className="drawer-section-title">Recommendation</div>
+            <div className="drawer-text">{finding.recommendation}</div>
           </div>
+        </div>
 
-          <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>
-            <button
-              className="btn-primary"
-              onClick={handleGenerateFix}
-              disabled={loading}
-              style={{ width: '100%', justifyContent: 'center', padding: '0.75rem', fontSize: '0.875rem' }}
-            >
-              {loading ? (
-                <>⏳ Generating Fix...</>
-              ) : (
-                <>
-                  <Wrench size={16} />
-                  Generate Remediation
-                </>
-              )}
-            </button>
-          </div>
+        <div className="drawer-footer">
+          <button
+            className="btn-primary"
+            onClick={handleGenerateFix}
+            disabled={loading}
+            style={{ width: '100%', justifyContent: 'center' }}
+          >
+            {loading ? 'Generating Fix...' : 'Generate Remediation'}
+          </button>
         </div>
       </div>
     </div>
