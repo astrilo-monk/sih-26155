@@ -48,18 +48,22 @@ export default function DeviceInfo({ devices, findings }) {
           <tbody>
             {deviceStats.map((d, i) => (
               <tr key={i} className="clickable">
-                <td className="strong" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Server size={14} color="var(--text-tertiary)" />
-                  <span className="mono">{d.hostname}</span>
+                <td className="strong">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Server size={14} color="var(--text-tertiary)" />
+                    <span className="mono">{d.hostname}</span>
+                  </div>
                 </td>
                 <td>{d.vendor || 'Unknown'}</td>
                 <td className="mono">{d.findingCount}</td>
                 <td>
                   <span className={`badge ${d.risk.toLowerCase()}`}>{d.risk}</span>
                 </td>
-                <td style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                  <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'var(--success)' }} />
-                  Active
+                <td style={{ color: 'var(--text-secondary)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'var(--success)' }} />
+                    Active
+                  </div>
                 </td>
               </tr>
             ))}
