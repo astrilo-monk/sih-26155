@@ -1,30 +1,32 @@
-export default function Header({ onNewScan, showNewScan, onExport, timestamp }) {
+import { Shield, Plus } from 'lucide-react';
+
+export default function Header({ onNewScan, showNewScan, timestamp }) {
   const formatTime = (ts) => {
     if (!ts) return '';
-    return new Date(ts).toLocaleString();
+    const d = new Date(ts);
+    return `${d.toLocaleDateString()} ${d.toLocaleTimeString()}`;
   };
 
   return (
     <header className="header">
       <div className="logo-container">
-        <span className="logo-icon">🛡️</span>
-        NetAuditAI
+        <Shield className="logo-icon" size={20} color="var(--accent)" />
+        <div style={{ display: 'flex', alignItems: 'baseline' }}>
+          <span className="logo-title">NetAuditAI</span>
+          <span className="logo-subtitle">Network Security Configuration Analyzer</span>
+        </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
         {timestamp && (
-          <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            Scanned: {formatTime(timestamp)}
+          <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}>
+            Last Scan: {formatTime(timestamp)}
           </span>
         )}
         {showNewScan && (
-          <>
-            <button className="btn-secondary" onClick={onExport} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span>📥</span> Export (.txt)
-            </button>
-            <button className="btn-secondary" onClick={onNewScan}>
-              + New Scan
-            </button>
-          </>
+          <button className="btn-primary" onClick={onNewScan}>
+            <Plus size={16} />
+            New Scan
+          </button>
         )}
       </div>
     </header>

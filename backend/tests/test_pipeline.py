@@ -56,6 +56,7 @@ def test_cisco_vulnerable_finds_issues():
     assert result.score < 80, f"Score should be low for vulnerable config, got {result.score}"
     assert result.total_findings >= 5, f"Expected at least 5 findings, got {result.total_findings}"
     assert result.critical_count >= 1, "Expected at least 1 critical finding"
+    assert any(f.rule_id == "BOUNDARY-001" for f in result.findings), "Cisco vulnerable should trigger BOUNDARY-001 (any-any ACL rule)"
 
     rule_ids = [f.rule_id for f in result.findings]
     print(f"\nCisco vulnerable: score={result.score}, findings={result.total_findings}")

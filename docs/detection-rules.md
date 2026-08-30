@@ -1,95 +1,80 @@
 # Detection Rules Reference
 
-This document details the exact logic planned for our 15 core security rules.
+This document details the exact logic for our 15 core security rules, which are currently implemented in the codebase.
 
-*(Status: All rules are currently planned and not yet implemented in code.)*
+*(Status: All rules are fully implemented and mapped to CIS/NIST compliance frameworks.)*
 
-### SEC-001: Default Credentials Enabled
-* **Severity:** Critical
-* **Why it's dangerous:** Attackers can immediately gain admin access using known default passwords.
-* **Detection Logic:** Check `NormalizedConfig.users` for username/password combinations like `admin/admin` or missing password definitions where default applies.
-* **Coverage:** Cisco, FortiGate
-
-### SEC-002: Weak Password Encryption
-* **Severity:** High
-* **Why it's dangerous:** Weak hashes (like Cisco Type 7) can be cracked in seconds using rainbow tables.
-* **Detection Logic:** Check user accounts and enable passwords for weak encryption algorithms (e.g., `encryption_type == 7`).
-* **Coverage:** Cisco
-
-### SEC-003: Telnet Enabled
+### MGMT-001: Insecure Management Protocol (Telnet) Enabled
 * **Severity:** Critical
 * **Why it's dangerous:** Telnet transmits data, including passwords, in plain text.
-* **Detection Logic:** Check `NormalizedConfig.management_protocols`. Fail if Telnet is present.
 * **Coverage:** Cisco, FortiGate
 
-### SEC-004: Insecure SNMP Version
+### MGMT-002: Insecure HTTP Management Enabled
 * **Severity:** High
-* **Why it's dangerous:** SNMP v1/v2c send community strings in plain text.
-* **Detection Logic:** Check `NormalizedConfig.snmp`. Fail if version is 1 or 2c.
+* **Why it's dangerous:** Web admin traffic can be sniffed if not using HTTPS.
 * **Coverage:** Cisco, FortiGate
 
-### SEC-005: Missing ACL on VTY Lines
+### MGMT-003: Unrestricted Management Access
+* **Severity:** Critical
+* **Why it's dangerous:** Anyone on the internet could attempt to SSH into the device without source IP restrictions.
+* **Coverage:** Cisco, FortiGate
+
+### MGMT-004: Weak or Default SNMP Community Strings
 * **Severity:** High
-* **Why it's dangerous:** Anyone on the internet could attempt to SSH/Telnet into the device.
-* **Detection Logic:** Check `NormalizedConfig.management_lines` (VTY). Fail if no ACL/access-class is attached.
+* **Why it's dangerous:** 'public' and 'private' are universally known default SNMP strings, allowing attackers to read or write config.
+* **Coverage:** Cisco, FortiGate
+
+### MGMT-005: Plaintext or Weakly Encrypted Passwords
+* **Severity:** Critical
+* **Why it's dangerous:** Weak hashes (like Cisco Type 7) can be cracked in seconds using rainbow tables.
+* **Coverage:** Cisco, FortiGate
+
+### MGMT-006: Missing or Disabled Session Timeout
+* **Severity:** Medium
+* **Why it's dangerous:** Idle admin sessions remain open, allowing local attackers to hijack the console.
+* **Coverage:** Cisco, FortiGate
+
+### MGMT-007: SSH Version 1 or Weak SSH Configuration
+* **Severity:** High
+* **Why it's dangerous:** SSHv1 has known cryptographic vulnerabilities.
+* **Coverage:** Cisco, FortiGate
+
+### MGMT-008: AAA (Authentication, Authorization, Accounting) Not Configured
+* **Severity:** High
+* **Why it's dangerous:** Prevents centralized credential management and auditing.
 * **Coverage:** Cisco
 
-### SEC-006: Open DNS Resolver
-* **Severity:** Medium
-* **Why it's dangerous:** Can be used in DNS amplification DDoS attacks.
-* **Detection Logic:** Check if DNS server service is running and accessible from outside interfaces without restrictions.
-* **Coverage:** Cisco, FortiGate
-
-### SEC-007: Missing Password Prefix
+### MGMT-009: Missing Login Banner
 * **Severity:** Low
-* **Why it's dangerous:** Allows users to set weak passwords like 'password123'.
-* **Detection Logic:** Check for global password complexity rules (e.g., `security passwords min-length`).
+* **Why it's dangerous:** Missing legal warning banners can complicate prosecution of unauthorized access.
 * **Coverage:** Cisco, FortiGate
 
-### SEC-008: Unencrypted Traffic on HTTP
-* **Severity:** Medium
-* **Why it's dangerous:** Web admin traffic can be sniffed.
-* **Detection Logic:** Check `NormalizedConfig.management_protocols`. Fail if HTTP is enabled and HTTPS is not exclusively forced.
-* **Coverage:** Cisco, FortiGate
-
-### SEC-009: Permissive Any-Any Rule
+### BOUNDARY-001: Overly Permissive Firewall/ACL Rules
 * **Severity:** Critical
-* **Why it's dangerous:** Completely bypasses the firewall.
-* **Detection Logic:** Check `NormalizedConfig.firewall_policies`. Fail if a policy exists with `source=any`, `dest=any`, `action=permit` on external interfaces.
-* **Coverage:** FortiGate, Cisco (ACLs)
+* **Why it's dangerous:** `any-any` permit rules completely bypass the firewall for that traffic.
+* **Coverage:** Cisco, FortiGate
 
-### SEC-010: Missing Logging
+### BOUNDARY-002: IP Source Routing Enabled
 * **Severity:** Medium
-* **Why it's dangerous:** Makes incident response and forensics impossible.
-* **Detection Logic:** Check `NormalizedConfig.syslog_servers`. Fail if list is empty.
+* **Why it's dangerous:** Allows an attacker to specify the return path of a packet, bypassing routing table security.
 * **Coverage:** Cisco, FortiGate
 
-### SEC-011: Unused Interfaces UP
-* **Severity:** Low
-* **Why it's dangerous:** An attacker could plug into an active but unmonitored port.
-* **Detection Logic:** Find interfaces in `NormalizedConfig.interfaces` where `is_up == True` but `ip_address == null` and no specific role is assigned.
-* **Coverage:** Cisco, FortiGate
-
-### SEC-012: Weak IKE/IPSec Policies
-* **Severity:** High
-* **Why it's dangerous:** Allows decryption of VPN traffic.
-* **Detection Logic:** Check `NormalizedConfig.vpn_configs`. Fail if using DES, 3DES, or MD5.
-* **Coverage:** Cisco, FortiGate
-
-### SEC-013: Missing BGP Authentication
+### BOUNDARY-003: Discovery Protocol (CDP/LLDP) Enabled on External Interface
 * **Severity:** Medium
-* **Why it's dangerous:** Route hijacking.
-* **Detection Logic:** Check `NormalizedConfig.routing.bgp_peers`. Fail if `auth_type == null`.
+* **Why it's dangerous:** Leaks internal network topology information to external networks.
 * **Coverage:** Cisco, FortiGate
 
-### SEC-014: SNMP Public Community
+### LOG-001: No Remote Syslog Server Configured
 * **Severity:** High
-* **Why it's dangerous:** 'public' and 'private' are universally known default SNMP strings.
-* **Detection Logic:** Check SNMP config for community strings matching 'public' or 'private'.
+* **Why it's dangerous:** Makes incident response and forensics impossible if the device is compromised or wiped.
 * **Coverage:** Cisco, FortiGate
 
-### SEC-015: NTP Unauthenticated
-* **Severity:** Low
-* **Why it's dangerous:** Time manipulation can break logging and certificate validation.
-* **Detection Logic:** Check `NormalizedConfig.ntp`. Fail if configured but authentication is disabled.
+### LOG-002: NTP Not Configured or Unauthenticated
+* **Severity:** Medium
+* **Why it's dangerous:** Time manipulation can break logging correlation and certificate validation.
+* **Coverage:** Cisco, FortiGate
+
+### CRYPTO-001: Weak VPN/IPsec Cryptographic Algorithms
+* **Severity:** High
+* **Why it's dangerous:** Allows decryption of VPN traffic (e.g., using DES, 3DES, or MD5).
 * **Coverage:** Cisco, FortiGate

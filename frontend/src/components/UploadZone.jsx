@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { UploadCloud, FileText, Play } from 'lucide-react';
 
 export default function UploadZone({ onUpload }) {
   const [dragActive, setDragActive] = useState(false);
@@ -57,16 +58,17 @@ export default function UploadZone({ onUpload }) {
           onChange={handleChange} 
           style={{ display: 'none' }} 
         />
-        <div className="upload-icon">📁</div>
+        <UploadCloud className="upload-icon" size={48} />
         <h2 className="upload-title">Upload Network Configurations</h2>
         <p className="upload-subtitle">Drag & drop .cfg, .conf, or .txt files here, or click to browse</p>
         
         {files.length > 0 && (
-          <div className="file-list">
-            <h3 style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Selected Files ({files.length})</h3>
+          <div className="file-list" onClick={(e) => e.stopPropagation()}>
+            <div className="section-title">Selected Files ({files.length})</div>
             {files.map((file, i) => (
-              <div key={i} className="file-item">
-                📄 <span>{file.name}</span>
+              <div key={i} className="file-item-upload">
+                <FileText size={14} color="var(--text-tertiary)" />
+                {file.name}
               </div>
             ))}
           </div>
@@ -76,9 +78,10 @@ export default function UploadZone({ onUpload }) {
       {files.length > 0 && (
         <button 
           className="btn-primary" 
-          style={{ marginTop: '2rem', padding: '0.75rem 2rem', fontSize: '1.125rem' }}
+          style={{ marginTop: '2rem', padding: '0.75rem 2rem', fontSize: '1rem' }}
           onClick={handleScanClick}
         >
+          <Play size={16} />
           Run Security Scan
         </button>
       )}

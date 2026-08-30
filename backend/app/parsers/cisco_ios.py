@@ -14,7 +14,7 @@ class CiscoIOSParser(BaseParser):
         config.raw_lines = lines
         
         config.device.vendor = Vendor.CISCO_IOS
-        
+
         # State tracking for block parsing
         current_interface: Optional[Interface] = None
         current_vty: Optional[VtyLine] = None
@@ -260,7 +260,10 @@ class CiscoIOSParser(BaseParser):
                 if acl.acl_type == "standard":
                     entry.source = rest
                 else:
-                    entry.protocol = rest.split()[0] if rest.split() else "ip" # basic fallback
+                    protocol, source, destination = self._parse_extended_acl_rest(rest)
+                    entry.protocol = protocol
+                    entry.source = source
+                    entry.destination = destination
                 acl.entries.append(entry)
                 continue
 
@@ -439,9 +442,10 @@ class CiscoIOSParser(BaseParser):
                     if current_acl.acl_type == "standard":
                         entry.source = rest.replace(" log", "").strip()
                     else:
-                        parts = rest.split()
-                        if parts:
-                            entry.protocol = parts[0]
+                        protocol, source, destination = self._parse_extended_acl_rest(rest)
+                        entry.protocol = protocol
+                        entry.source = source
+                        entry.destination = destination
                     current_acl.entries.append(entry)
                 continue
 
@@ -482,3 +486,37 @@ class CiscoIOSParser(BaseParser):
                 intf.is_wan = True
 
         return config
+
+    def _parse_extended_acl_rest(self, rest: str) -> tuple[str, str, str]:
+        """
+        Naive parser for Cisco extended ACL remainder.
+        Format: protocol source destination [options]
+        """
+        parts = rest.split()
+        if not parts:
+            return "ip", "any", "any"
+        
+        protocol = parts[0]
+        idx = 1
+        
+        def parse_ip_spec():
+            nonlocal idx
+            if idx >= len(parts):
+                return ""
+            if parts[idx] == "any":
+                idx += 1
+                return "any"
+            elif parts[idx] == "host":
+                val = f"host {parts[idx+1]}" if idx + 1 < len(parts) else "host"
+                idx += 2
+                return val
+            else:
+                # Assuming IP and wildcard
+                val = f"{parts[idx]} {parts[idx+1]}" if idx + 1 < len(parts) else parts[idx]
+                idx += 2
+                return val
+
+        source = parse_ip_spec()
+        destination = parse_ip_spec()
+        
+        return protocol, source, destination

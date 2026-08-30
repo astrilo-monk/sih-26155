@@ -14,15 +14,13 @@ Detection is done by our deterministic python rules engine. We only use AI to *e
 Once our rules engine generates a list of `Finding` objects, we pass that context to Gemini to accomplish three things:
 
 1. **Plain-English Explanations:** The rules engine outputs technical jargon (e.g., "SNMPv2c active on GigabitEthernet0/1"). Gemini translates this to: "You are using an old version of SNMP which sends data in plain text, making it easy for hackers to sniff your network traffic."
-2. **Remediation Generation:** Gemini generates the *exact* CLI commands needed to fix the issue based on the specific vendor and version. 
-3. **Chat Assistant (Planned):** An interactive chatbot where the user can ask questions like "Why is rule SEC-003 failing?" or "Is there a workaround for this?"
+2. **Scan Summaries:** Gemini summarizes the entire scan result for executives, highlighting the most critical issues.
+3. **Chat Assistant:** An interactive chatbot where the user can ask questions like "Why is rule MGMT-001 failing?" or "Is there a workaround for this?"
 
-## Hallucination Mitigation
+## Remediation Generation: Deterministic Templates
 
-Since LLMs can hallucinate commands (which is disastrous on network gear), we implement these safeguards:
-* We provide strict system prompts dictating the expected output format.
-* We pass the *exact* vendor and OS version detected in the config to ground the context.
-* We include a UI disclaimer that all AI-generated CLI commands must be reviewed before execution.
+To ensure the highest accuracy and safety for network gear, **we do not use AI to generate remediation commands.** 
+Instead, we use deterministic, vendor-specific templates (e.g., in `remediation/engine.py`). While templates do not eliminate all security risks, they significantly reduce the risk of AI-hallucinated or malformed remediation commands on critical infrastructure, ensuring the fixes are much more reliable.
 
 ## Fallback Behavior
 
