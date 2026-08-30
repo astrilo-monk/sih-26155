@@ -1,4 +1,4 @@
-export default function Header({ onNewScan, showNewScan, timestamp }) {
+export default function Header({ onNewScan, showNewScan, onExport, timestamp }) {
   const formatTime = (ts) => {
     if (!ts) return '';
     return new Date(ts).toLocaleString();
@@ -17,9 +17,14 @@ export default function Header({ onNewScan, showNewScan, timestamp }) {
           </span>
         )}
         {showNewScan && (
-          <button className="btn-secondary" onClick={onNewScan}>
-            + New Scan
-          </button>
+          <>
+            <button className="btn-secondary" onClick={onExport} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span>📥</span> Export (.txt)
+            </button>
+            <button className="btn-secondary" onClick={onNewScan}>
+              + New Scan
+            </button>
+          </>
         )}
       </div>
     </header>
