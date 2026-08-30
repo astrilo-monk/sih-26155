@@ -41,9 +41,9 @@ export default function UploadZone({ onUpload }) {
   };
 
   return (
-    <div className="upload-container">
+    <div className="upload-wrapper" style={{ flexDirection: 'column' }}>
       <div 
-        className={`upload-card ${dragActive ? 'drag-active' : ''}`}
+        className={`upload-box ${dragActive ? 'active' : ''}`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
@@ -58,9 +58,11 @@ export default function UploadZone({ onUpload }) {
           onChange={handleChange} 
           style={{ display: 'none' }} 
         />
-        <UploadCloud className="upload-icon" size={48} />
-        <h2 className="upload-title">Upload Network Configurations</h2>
-        <p className="upload-subtitle">Drag & drop .cfg, .conf, or .txt files here, or click to browse</p>
+        <div className="upload-icon-container">
+          <UploadCloud size={48} />
+        </div>
+        <h3>Upload Network Configurations</h3>
+        <p>Drag & drop .cfg, .conf, or .txt files here, or click to browse</p>
         
         {files.length > 0 && (
           <div className="file-list" onClick={(e) => e.stopPropagation()}>
