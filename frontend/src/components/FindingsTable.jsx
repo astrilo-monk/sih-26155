@@ -4,15 +4,23 @@ const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
 
 export default function FindingsTable({ findings, onSelectFinding }) {
   const [filterSev, setFilterSev] = useState('all');
+  const [filterDevice, setFilterDevice] = useState('all');
+  const [filterRule, setFilterRule] = useState('all');
   const [search, setSearch] = useState('');
+
+  // Extract unique options for dropdowns
+  const uniqueDevices = [...new Set(findings.map(f => f.device_hostname).filter(Boolean))].sort();
+  const uniqueRules = [...new Set(findings.map(f => f.rule_id).filter(Boolean))].sort();
 
   const filtered = findings.filter(f => {
     const matchesSev = filterSev === 'all' || f.severity === filterSev;
+    const matchesDevice = filterDevice === 'all' || f.device_hostname === filterDevice;
+    const matchesRule = filterRule === 'all' || f.rule_id === filterRule;
     const matchesSearch = search === '' || 
       f.title.toLowerCase().includes(search.toLowerCase()) || 
       f.rule_id.toLowerCase().includes(search.toLowerCase()) ||
       (f.device_hostname && f.device_hostname.toLowerCase().includes(search.toLowerCase()));
-    return matchesSev && matchesSearch;
+    return matchesSev && matchesDevice && matchesRule && matchesSearch;
   });
 
   const sorted = [...filtered].sort((a, b) => {
@@ -58,6 +66,28 @@ export default function FindingsTable({ findings, onSelectFinding }) {
           <option value="high">High</option>
           <option value="medium">Medium</option>
           <option value="low">Low</option>
+        </select>
+        <select
+          value={filterDevice}
+          onChange={e => setFilterDevice(e.target.value)}
+          className="filter-input"
+          style={{ maxWidth: '200px' }}
+        >
+          <option value="all">Device: All</option>
+          {uniqueDevices.map(d => (
+            <option key={d} value={d}>{d}</option>
+          ))}
+        </select>
+        <select
+          value={filterRule}
+          onChange={e => setFilterRule(e.target.value)}
+          className="filter-input"
+          style={{ maxWidth: '200px' }}
+        >
+          <option value="all">Rule: All</option>
+          {uniqueRules.map(r => (
+            <option key={r} value={r}>{r}</option>
+          ))}
         </select>
       </div>
 
