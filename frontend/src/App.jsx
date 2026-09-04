@@ -11,6 +11,8 @@ import FindingsTable from './components/FindingsTable';
 import FindingDetail from './components/FindingDetail';
 import RemediationView from './components/RemediationView';
 import BeforeAfter from './components/BeforeAfter';
+import HistoryView from './components/HistoryView';
+import { saveScanToHistory } from './utils/history';
 
 function LoadingState() {
   const [step, setStep] = useState(0);
@@ -57,7 +59,7 @@ function LoadingState() {
 }
 
 export default function App() {
-  const [view, setView] = useState('upload'); // upload | loading | dashboard | devices | findings
+  const [view, setView] = useState('upload'); // upload | loading | dashboard | devices | findings | history
   const [error, setError] = useState(null);
   const [scanResult, setScanResult] = useState(null);
 
@@ -77,6 +79,7 @@ export default function App() {
     try {
       const result = await apiClient.scanConfigs(files);
       setScanResult(result);
+      saveScanToHistory(result);
       setView('dashboard');
       showNotification('Scan completed successfully');
     } catch (err) {
@@ -114,6 +117,11 @@ export default function App() {
     setSelectedFinding(null);
     setRemediation(null);
     setComparison(null);
+  };
+
+  const handleSelectHistoryEntry = (fullResult) => {
+    setScanResult(fullResult);
+    setView('dashboard');
   };
 
   return (
@@ -165,6 +173,10 @@ export default function App() {
                 findings={scanResult.findings}
                 onSelectFinding={handleSelectFinding}
               />
+            )}
+
+            {view === 'history' && (
+              <HistoryView onSelectHistoryEntry={handleSelectHistoryEntry} />
             )}
           </div>
         </main>

@@ -1,4 +1,4 @@
-import { Shield, LayoutDashboard, Search, Server, AlertCircle, Wrench, Settings, Activity } from 'lucide-react';
+import { Shield, LayoutDashboard, Search, Server, AlertCircle, History, Wrench } from 'lucide-react';
 
 export default function Sidebar({ view, setView, devices }) {
   const navItems = [
@@ -7,7 +7,7 @@ export default function Sidebar({ view, setView, devices }) {
     { id: 'devices', label: 'Devices', icon: Server },
     { id: 'findings', label: 'Findings', icon: AlertCircle },
     { id: 'remediation', label: 'Remediation', icon: Wrench },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'history', label: 'History', icon: History },
   ];
 
   return (
@@ -21,7 +21,7 @@ export default function Sidebar({ view, setView, devices }) {
           <div key={item.id}>
             <button
               className={`nav-item ${view === item.id || (view === 'loading' && item.id === 'upload') ? 'active' : ''}`}
-              onClick={() => setView(item.id === 'upload' ? 'upload' : (item.id === 'dashboard' || item.id === 'devices' || item.id === 'findings' || item.id === 'remediation' || item.id === 'settings' ? item.id : 'dashboard'))}
+              onClick={() => setView(item.id === 'upload' ? 'upload' : (item.id === 'dashboard' || item.id === 'devices' || item.id === 'findings' || item.id === 'history' || item.id === 'remediation' ? item.id : 'dashboard'))}
               style={{ width: '100%', justifyContent: 'flex-start' }}
             >
               <item.icon size={16} />
@@ -31,10 +31,6 @@ export default function Sidebar({ view, setView, devices }) {
         ))}
       </div>
       <div className="sidebar-footer">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-          <Activity size={12} color="var(--success)" />
-          Engine Online
-        </div>
         v2.4.1-stable
       </div>
     </aside>
