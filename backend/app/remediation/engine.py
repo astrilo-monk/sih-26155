@@ -255,7 +255,7 @@ def _remove_config_line(config_text: str, target: str) -> str:
 
 def _replace_fortinet_set(config_text: str, key: str, new_line: str) -> str:
     """Replace a FortiGate 'set' line with a new value."""
-    pattern = re.compile(rf"(\s*set {re.escape(key)}\s+).*", re.IGNORECASE)
+    pattern = re.compile(rf"^([ \t]*set {re.escape(key)}\s+).*$", re.IGNORECASE | re.MULTILINE)
     return pattern.sub(f"    {new_line}", config_text, count=1)
 
 

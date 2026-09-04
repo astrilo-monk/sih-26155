@@ -94,3 +94,7 @@ class AssistantRequest(BaseModel):
 class AssistantResponse(BaseModel):
     response: str
     scan_id: str
+
+
+class DownloadFixedRequest(BaseModel):
+    scan_id: str

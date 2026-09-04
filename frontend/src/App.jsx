@@ -10,6 +10,7 @@ import DeviceInfo from './components/DeviceInfo';
 import FindingsTable from './components/FindingsTable';
 import FindingDetail from './components/FindingDetail';
 import RemediationView from './components/RemediationView';
+import RemediationQueue from './components/RemediationQueue';
 import BeforeAfter from './components/BeforeAfter';
 import HistoryView from './components/HistoryView';
 import { saveScanToHistory } from './utils/history';
@@ -173,6 +174,10 @@ export default function App() {
                 findings={scanResult.findings}
                 onSelectFinding={handleSelectFinding}
               />
+            )}
+
+            {view === 'remediation' && scanResult && (
+              <RemediationQueue scanResult={scanResult} />
             )}
 
             {view === 'history' && (

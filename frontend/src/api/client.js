@@ -75,4 +75,32 @@ export const apiClient = {
     });
     return handleResponse(response);
   },
+
+  async downloadFixedConfigs(scanId) {
+    const response = await fetch(`${API_BASE_URL}/download-fixed`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scan_id: scanId }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || `API error: ${response.status}`);
+    }
+
+    // Trigger browser download from the response blob
+    const blob = await response.blob();
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const filename = match ? match[1] : 'fixed_config.txt';
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
 };
