@@ -666,6 +666,11 @@ button {
   to { transform: translateX(0); }
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* Empty State */
 .empty-state {
   text-align: center;
