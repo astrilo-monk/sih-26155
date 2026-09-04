@@ -76,14 +76,11 @@ export const apiClient = {
     return handleResponse(response);
   },
 
-  async downloadFixedConfigs(scanId, fixes) {
+  async downloadFixedConfigs(scanId) {
     const response = await fetch(`${API_BASE_URL}/download-fixed`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        scan_id: scanId,
-        fixes,
-      }),
+      body: JSON.stringify({ scan_id: scanId }),
     });
 
     if (!response.ok) {

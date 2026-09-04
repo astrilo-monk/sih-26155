@@ -127,8 +127,8 @@ async def verify_remediation(req: VerifyRequest):
 @router.post("/download-fixed")
 async def download_fixed_configs(req: DownloadFixedRequest):
     """
-    Apply all provided remediation fixes to the stored configs and
-    return the fixed config text(s) as a download.
+    Auto-generate and apply ALL critical + high remediation fixes to
+    the stored configs and return the fully remediated config text(s).
 
     Single config  -> plain .txt response
     Multiple configs -> .zip containing one .txt per device
@@ -138,21 +138,39 @@ async def download_fixed_configs(req: DownloadFixedRequest):
     if not stored:
         raise HTTPException(404, "Scan not found")
 
+    result = stored["result"]
     configs = stored["configs"]
     if not configs:
         raise HTTPException(400, "No configs available")
 
-    if not req.fixes:
-        raise HTTPException(400, "No fixes provided")
+    # Find all critical + high findings
+    from app.models.findings import Severity
+    actionable = [
+        f for f in result.findings
+        if f.severity in (Severity.CRITICAL, Severity.HIGH)
+    ]
 
-    # Build a lookup: combine all remediation commands per fix
-    fix_commands = [fix.remediation_commands for fix in req.fixes]
+    if not actionable:
+        raise HTTPException(400, "No critical or high findings to fix")
+
+    # Generate remediation commands for each actionable finding
+    all_commands = []
+    for finding in actionable:
+        try:
+            remediation = generate_remediation(finding, configs)
+            all_commands.append(remediation["commands"])
+        except Exception:
+            # Skip findings that don't have a remediation template
+            continue
+
+    if not all_commands:
+        raise HTTPException(400, "No remediation templates available for the findings")
 
     # Apply every fix sequentially to each config copy
     fixed_configs = []
     for cfg in configs:
         modified = copy.deepcopy(cfg)
-        for commands in fix_commands:
+        for commands in all_commands:
             modified = apply_remediation(modified, commands)
         hostname = modified.device.hostname or "device"
         fixed_configs.append((hostname, modified.raw_config))
