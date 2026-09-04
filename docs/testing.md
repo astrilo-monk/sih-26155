@@ -1,18 +1,26 @@
 # Testing Strategy
 
-*(Status: Testing framework planned, not yet implemented)*
+The backend has a working pytest suite. The frontend does not have automated tests yet.
 
-Since we are dealing with regex and security rules, we absolutely need automated tests so we don't break things while hacking late at night. We will use `pytest`.
+Since the parsers use regular expressions and the rules make security decisions, fixture-based tests are important. The current tests use `pytest` and sample Cisco and FortiGate configurations.
 
 ## 1. Parser Testing (Fixture-based)
-We will have a `tests/fixtures/configs/` directory containing raw `.txt` config snippets (e.g., `cisco_acls.txt`, `fortigate_interfaces.txt`). 
-The tests will run the parsers against these snippets and assert that the resulting `NormalizedConfig` fields exactly match our expectations.
+The current fixtures are in `backend/tests/fixtures/`. Tests run both parsers and assert important fields such as vendor, hostname, and raw lines.
 
 ## 2. Rule Testing
-We will test the rules engine independently of the parsers. We will construct mock `NormalizedConfig` objects (e.g., one with Telnet enabled, one with SSH only) and pass them to the rules engine to assert that the correct `Finding` objects are generated.
+The pipeline tests analyze vulnerable and secure fixtures and check that the expected findings and scores are produced. Cisco ACL tests also check extended ACL parsing and `BOUNDARY-001`.
 
 ## 3. Scoring Testing
-Simple unit tests to ensure that the 100-point penalty algorithm calculates correctly and floors at 0.
+The scoring test checks the 100-point penalty calculation. The score starts at 100 and is bounded at zero.
 
 ## 4. AI Mocking
-We will use the `unittest.mock` library to mock the Gemini API calls during testing, so our CI/CD (if we set one up) doesn't use up our API quota or fail due to network issues.
+Gemini mocking and frontend tests are still future work. The current backend tests do not require a Gemini API key.
+
+## Run the Tests
+
+```powershell
+cd backend
+pytest tests/ -v
+```
+
+The current suite contains 12 passing tests.

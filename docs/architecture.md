@@ -1,6 +1,6 @@
 # System Architecture
 
-Hey guys, here is a quick overview of how our project works. The core idea is to decouple vendor-specific config parsing from the actual security analysis. 
+The main idea of NetAuditAI is to keep vendor-specific parsing separate from security analysis. This lets us support different configuration formats while reusing the same security rules.
 
 ## The Pipeline
 
@@ -10,7 +10,8 @@ Hey guys, here is a quick overview of how our project works. The core idea is to
 4. **Normalize**: **(The most important step)** We map vendor-specific concepts into a generic `NormalizedConfig` model.
 5. **Analyze**: Our deterministic rules engine runs against the *normalized* model, not the raw configs.
 6. **Score**: We calculate a security score based on the findings.
-7. **AI Layer (Planned)**: Pass the findings to Gemini to generate remediation steps and explanations.
+7. **Remediation**: Select a deterministic vendor-specific command template for a finding.
+8. **Optional AI layer**: Pass finding context to Gemini for explanations, summaries, and chat.
 
 ## Why this approach?
 
@@ -31,11 +32,11 @@ flowchart TD
     Normalizer --> |NormalizedConfig| RulesEngine[Security Rules Engine]
     RulesEngine --> |Raw Findings| Scorer[Scoring Module]
     
-    Scorer --> |Findings & Score| AILayer[Gemini AI Integration]
-    AILayer --> |Remediations| DB[(SQLite)]
-    
-    DB --> Frontend[React Dashboard]
+    Scorer --> |Findings & Score| Frontend[React Dashboard]
+    Findings --> Templates[Remediation Templates]
+    Templates --> Verify[Patch Copy and Re-analyze]
+    Findings --> AILayer[Optional Gemini Integration]
     Frontend --> User
 ```
 
-*(Status: Pipeline exists conceptually. Data models and detector are implemented. Parsers are WIP. Rules engine and AI are planned.)*
+*(Status: The main pipeline, parsers, rules, scoring, remediation templates, verification flow, frontend, and optional AI integration are implemented. Persistence and broader vendor support are still planned.)*

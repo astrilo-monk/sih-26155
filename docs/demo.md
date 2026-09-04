@@ -5,14 +5,14 @@ This is the 10-step script we will use when presenting to the SIH judges. We nee
 ## The Script
 
 1. **Introduction:** Briefly explain the problem (multi-vendor networks are a nightmare to audit manually).
-2. **The Dashboard:** Show the clean React dashboard (currently empty).
+2. **The Dashboard:** Show the React dashboard and the upload screen.
 3. **Upload Cisco:** Upload a purposely vulnerable Cisco IOS config (e.g., Telnet enabled, weak passwords).
-4. **Auto-Detection:** Show the UI correctly identifying it as Cisco IOS without user input.
+4. **Auto-Detection:** Explain that the backend detects Cisco IOS from configuration patterns and selects the parser automatically.
 5. **The Results (Cisco):** Reveal the generated report. Show the low score (e.g., 45/100) and the list of findings.
-6. **AI Explanation:** Click on a critical finding (like MGMT-001 Telnet). Show Gemini explaining *why* it's bad in plain English.
+6. **Finding Explanation:** Open a critical finding such as MGMT-001 Telnet and show its description, security impact, evidence, recommendation, and compliance mappings. If a Gemini key is configured, the assistant API can provide an AI explanation.
 7. **Reliable Remediation:** Click "Fix this". Emphasize that while we use AI for explanations, we deliberately use **deterministic templates** for remediation. Explain that while this doesn't eliminate all security risks, it significantly reduces the risk of generating hallucinated or malformed commands on critical infrastructure. Show the generated Cisco CLI commands to disable Telnet and enable SSH.
 8. **Upload FortiGate:** Upload a FortiGate config with different vulnerabilities (e.g., any-any firewall rule).
 9. **The Results (FortiGate):** Show the UI parsing the FortiGate config flawlessly and applying the *exact same* rules engine to generate a score.
-10. **Conclusion:** Explain our architecture (the Normalized Model) and why it makes our tool infinitely scalable to new vendors.
+10. **Conclusion:** Explain our architecture (the Normalized Model) and why it gives us a practical path to add new vendors. Do not claim that every vendor or syntax variation is already supported.
 
-*(Note: We need to build specific text fixtures for Step 3 and Step 8 to ensure the demo is predictable.)*
+*(Note: Use `backend/tests/fixtures/cisco_vulnerable.cfg` and `backend/tests/fixtures/fortinet_vulnerable.cfg` for a predictable demo.)*

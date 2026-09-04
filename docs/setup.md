@@ -4,8 +4,8 @@ How to get the project running on your local machine.
 
 ## Prerequisites
 * Python 3.11+
-* Node.js v18+ (Planned for frontend)
-* A Google Gemini API Key
+* Node.js v18+
+* A Google Gemini API key only if AI features are needed
 
 ## Backend Setup (Available Now)
 
@@ -31,6 +31,16 @@ How to get the project running on your local machine.
    uvicorn app.main:app --reload
    ```
 
-## Frontend Setup (Not Yet Available)
+## Frontend Setup
 
-The React/Vite frontend has not been scaffolded yet. Check back later in the hackathon!
+Open a second terminal:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend normally opens at `http://localhost:5173` and connects to `http://localhost:8000/api`.
+
+To use another backend URL, set `VITE_API_BASE_URL` before starting Vite.

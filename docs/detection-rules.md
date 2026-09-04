@@ -27,7 +27,7 @@ This document details the exact logic for our 15 core security rules, which are 
 ### MGMT-005: Plaintext or Weakly Encrypted Passwords
 * **Severity:** Critical
 * **Why it's dangerous:** Weak hashes (like Cisco Type 7) can be cracked in seconds using rainbow tables.
-* **Coverage:** Cisco, FortiGate
+* **Coverage:** Cisco only
 
 ### MGMT-006: Missing or Disabled Session Timeout
 * **Severity:** Medium

@@ -1,28 +1,28 @@
 # Data Models
 
-This document outlines the core Pydantic data models that currently exist in our backend. These are the lifeblood of the application.
+This document describes the Python dataclasses used by the backend. These objects carry parsed configuration data into the rules engine and carry findings back to the API.
 
 ## `NormalizedConfig` (backend/app/models/normalized.py)
 
-This is the generic model that all vendor configs get mapped into. 
-*(Status: Implemented, though we may add fields as we build parsers.)*
+This is the generic model that all supported vendor configs are mapped into. It is implemented in `backend/app/models/normalized.py`.
 
 ```python
-class NormalizedConfig(BaseModel):
-    vendor: str # "cisco_ios", "fortigate", etc.
-    hostname: Optional[str]
-    os_version: Optional[str]
-    
-    # Generic security settings
-    users: List[UserAccount] = []
-    management_protocols: List[str] = [] # e.g. ["ssh", "https"]
-    snmp_version: Optional[str]
-    
-    # Interfaces
-    interfaces: List[Interface] = []
-    
-    # Firewall / ACL rules
-    acls: List[AccessControlList] = []
+@dataclass
+class NormalizedConfig:
+    device: DeviceInfo
+    interfaces: list[Interface]
+    management: ManagementAccess
+    authentication: Authentication
+    snmp: SnmpConfig
+    logging: LoggingConfig
+    ntp: NtpConfig
+    access_lists: list[AccessList]
+    firewall_policies: list[FirewallPolicy]
+    vpn: VpnConfig
+    banners: BannerConfig
+    services: ServiceConfig
+    raw_config: str
+    raw_lines: list[str]
 ```
 
 ## `Finding` (backend/app/models/findings.py)
@@ -30,12 +30,19 @@ class NormalizedConfig(BaseModel):
 When a rule fails, it generates a Finding.
 
 ```python
-class Finding(BaseModel):
-    rule_id: str         # e.g., "SEC-003"
-    title: str           # e.g., "Telnet Enabled"
-    severity: str        # "Critical", "High", "Medium", "Low"
-    description: str     # Technical explanation of what triggered it
-    raw_config_lines: List[str] # The exact lines from the uploaded file
+@dataclass
+class Finding:
+    rule_id: str
+    title: str
+    severity: Severity
+    description: str
+    evidence_lines: list[str]
+    line_numbers: list[int]
+    security_impact: str
+    recommendation: str
+    compliance: list[ComplianceMapping]
+    ai_explanation: Optional[str]
+    category: str
 ```
 
 ## `ScanResult` (backend/app/models/findings.py)
@@ -43,10 +50,11 @@ class Finding(BaseModel):
 The final payload sent to the frontend.
 
 ```python
-class ScanResult(BaseModel):
+@dataclass
+class ScanResult:
     scan_id: str
-    timestamp: datetime
-    vendor: str
-    overall_score: int    # 0-100
-    findings: List[Finding]
+    timestamp: str
+    score: int
+    findings: list[Finding]
+    devices: list[dict]
 ```

@@ -21,26 +21,26 @@ Configs start with a score of 100. Points are deducted based on findings:
 
 Score is floored at 0.
 
-## Planned Rules (The "SIH 15")
+## Implemented Rules
 
-We plan to implement these 15 core rules in our engine:
+The engine currently runs 15 deterministic rules. The rule IDs below are the IDs returned by the API:
 
 | Rule ID | Name | Severity | What it checks |
 |---|---|---|---|
-| SEC-001 | Default Credentials Enabled | Critical | Checks for default admin accounts/passwords. |
-| SEC-002 | Weak Password Encryption | High | Checks if Type 7 (Cisco) or weak hashing is used instead of strong hashing. |
-| SEC-003 | Telnet Enabled | Critical | Checks if Telnet (port 23) is active instead of SSH. |
-| SEC-004 | Insecure SNMP Version | High | Checks for SNMPv1/v2c instead of SNMPv3. |
-| SEC-005 | Missing ACL on VTY Lines | High | Checks if remote access lines lack IP restrictions. |
-| SEC-006 | Open DNS Resolver | Medium | Checks if the device acts as a public DNS resolver. |
-| SEC-007 | Missing Password Prefix | Low | Checks if passwords lack minimum complexity settings. |
-| SEC-008 | Unencrypted Traffic on HTTP | Medium | Checks if web admin is enabled on HTTP instead of HTTPS. |
-| SEC-009 | Permissive Any-Any Rule | Critical | Checks firewall policies for `permit any any` or equivalent. |
-| SEC-010 | Missing Logging | Medium | Checks if syslog/logging to a central server is disabled. |
-| SEC-011 | Unused Interfaces UP | Low | Checks if interfaces without IPs/configs are administratively UP. |
-| SEC-012 | Weak IKE/IPSec Policies | High | Checks for DES/3DES or MD5 in VPN configs. |
-| SEC-013 | Missing BGP Authentication | Medium | Checks if BGP peers lack MD5/SHA authentication. |
-| SEC-014 | SNMP Public Community | High | Checks if the default `public` or `private` community strings are used. |
-| SEC-015 | NTP Unauthenticated | Low | Checks if NTP is running without authentication keys. |
+| MGMT-001 | Telnet enabled | Critical | Checks Cisco VTY transport and FortiGate interface services. |
+| MGMT-002 | Insecure HTTP management | High | Checks Cisco HTTP and FortiGate WAN HTTP access. |
+| MGMT-003 | Unrestricted management access | Critical | Checks missing Cisco VTY access classes and FortiGate WAN management services. |
+| MGMT-004 | Weak or default SNMP communities | High/Critical | Checks default strings and unrestricted read-write communities. |
+| MGMT-005 | Plaintext or weak passwords | Critical | Cisco-only check for plaintext, Type 7, and missing password encryption service. |
+| MGMT-006 | Missing or disabled timeout | Medium | Checks Cisco VTY/console and long FortiGate admin timeouts. |
+| MGMT-007 | Weak SSH configuration | High | Checks SSH version 1. |
+| MGMT-008 | AAA not configured | High | Cisco-only check for missing `aaa new-model`. |
+| MGMT-009 | Missing login banner | Low | Checks Cisco login/MOTD and FortiGate pre-login banners. |
+| BOUNDARY-001 | Overly permissive ACL/firewall rule | Critical | Checks Cisco IP any-any permits and FortiGate all-service permits. |
+| BOUNDARY-002 | IP source routing enabled | Medium | Checks the global source-routing setting. |
+| BOUNDARY-003 | CDP/LLDP on an external interface | Medium | Checks discovery protocols on WAN interfaces. |
+| LOG-001 | No remote syslog | High | Checks whether a remote logging host exists. |
+| LOG-002 | Missing or unauthenticated NTP | Medium | Checks NTP servers and authentication. |
+| CRYPTO-001 | Weak VPN/IPsec cryptography | High | Checks DES, 3DES, MD5, and weak DH groups. |
 
-*(Note: Currently in the planning phase. The rules engine logic hasn't been coded yet.)*
+The rules are implemented in `backend/app/analysis/rules/` and are assembled by `backend/app/analysis/engine.py`.

@@ -17,21 +17,23 @@ Upload network device configuration files (Cisco IOS, Fortinet FortiGate), and t
 
 ## Current Status
 
-**In development.** See [docs/roadmap.md](docs/roadmap.md) for current progress.
+**Working hackathon prototype.** See [docs/project-overview.md](docs/project-overview.md) for the current implementation and [docs/roadmap.md](docs/roadmap.md) for next steps.
 
 ### What works
-- Project structure and data model defined
-- Documentation framework in place
+- Cisco IOS and FortiGate parsers
+- Shared normalized configuration model
+- 15 deterministic security rules
+- Security scoring, evidence, and compliance mappings
+- Remediation templates and before/after verification
+- React/Vite dashboard
 
 ### What's in progress
-- Configuration parsers
-- Security detection engine
+- Wider parser coverage and stronger automated tests
+- Persistent scan storage
 
 ### What's planned
-- Dashboard UI
-- AI explanations
-- Remediation engine
-- Before/after verification
+- Palo Alto support
+- PDF reports and historical scan comparisons
 
 ## Architecture
 
@@ -51,7 +53,7 @@ See [docs/architecture.md](docs/architecture.md) for the full architecture.
 
 - **Backend**: Python 3.11+ / FastAPI
 - **Frontend**: React (Vite)
-- **Database**: SQLite
+- **Storage**: In-memory scan store for the prototype
 - **AI**: Google Gemini API
 - **Testing**: pytest
 
@@ -96,16 +98,17 @@ pytest tests/ -v
 
 | Vendor | Format | Status |
 |--------|--------|--------|
-| Cisco IOS/IOS-XE | CLI text (`show running-config`) | In progress |
-| Fortinet FortiGate | Block CLI (`config/edit/set/end`) | In progress |
+| Cisco IOS/IOS-XE | CLI text (`show running-config`) | Implemented for common patterns |
+| Fortinet FortiGate | Block CLI (`config/edit/set/end`) | Implemented for common patterns |
 | Palo Alto PAN-OS | XML | Planned (stretch goal) |
 
 ## Known Limitations
 
 - This is a hackathon prototype, not a production security tool
 - Parsers handle common config patterns but won't cover every edge case
-- AI explanations are generated — they should be reviewed, not blindly trusted
+- AI explanations are optional and should be reviewed, not blindly trusted
 - Remediation operates on copies — it never modifies real configs
+- Scan results are stored only in memory and disappear when the backend restarts
 - Scanned PDF/image configs are not supported (text configs only)
 - No live device connections — upload-only
 

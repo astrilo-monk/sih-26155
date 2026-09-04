@@ -65,4 +65,7 @@ The following table maps the currently implemented rules to their old documented
 ## 6. Recommended Next Steps
 - Implement unit tests for the Fortinet Parser (`fortinet.py`) to ensure feature parity with Cisco.
 - Add additional regression tests for `CRYPTO-001` and `MGMT-004`.
-- Proceed with frontend dashboard implementation now that the backend models are stabilized.
+- Add API, remediation, Gemini, and frontend tests.
+- Connect the existing assistant endpoints to a frontend chat and summary view.
+- Replace the in-memory scan store with persistent storage.
+- Fix multi-file verification so it targets the selected device instead of always using the first config.
