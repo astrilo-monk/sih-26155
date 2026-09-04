@@ -1,0 +1,1 @@
+1. pitch better authentication and switching from local storage to db storage

@@ -29,6 +29,7 @@ Thumbs.db
 # Environment
 .env
 .env.local
+frontend/.env
 
 # Database
 *.db
@@ -49,5 +50,5 @@ htmlcov/
 .coverage
 .pytest_cache/
 
-.claude
+.claude/
 
