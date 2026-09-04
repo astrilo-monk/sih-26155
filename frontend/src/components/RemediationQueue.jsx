@@ -124,103 +124,106 @@ export default function RemediationQueue({ scanResult }) {
     setCollapsed(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
   };
 
-  // --- Render a single finding row ---
+  // --- Render a single finding row (returns an array of <tr> elements) ---
   const renderRow = (f, i) => {
     const key = makeKey(f, i);
     const state = expanded[key];
     // Enhancement 3: check if fix is ready (generated successfully)
     const fixReady = state?.data && !state?.loading && !state?.error;
+    const rows = [];
 
-    return (
+    // Main data row — proper <td> cells so columns align with <th>
+    rows.push(
       <tr key={key}>
-        <td colSpan="5" style={{ padding: 0 }}>
-          {/* Main row */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', borderBottom: state?.data ? '1px solid var(--border)' : 'none' }}>
-            <div style={{ padding: '0.75rem 1rem', width: '100px', flexShrink: 0 }}>
-              <span className={`badge ${f.severity}`}>{f.severity}</span>
-            </div>
-            <div className="mono" style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', width: '120px', flexShrink: 0, fontSize: '0.875rem' }}>
-              {f.rule_id}
-            </div>
-            <div style={{ padding: '0.75rem 1rem', flex: 1, fontSize: '0.875rem' }}>
-              <div className="finding-title-cell">
-                <span className="strong">{f.title}</span>
-                <span className="finding-desc-preview">{f.description}</span>
-              </div>
-            </div>
-            <div className="mono" style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', width: '140px', flexShrink: 0, fontSize: '0.875rem' }}>
-              {f.device_hostname}
-            </div>
-            <div style={{ padding: '0.75rem 1rem', width: '160px', flexShrink: 0, textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              {/* Enhancement 3: "Fix ready" indicator */}
-              {fixReady && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.6875rem', color: 'var(--success)', fontWeight: 600, letterSpacing: '0.03em' }}>
-                  <CheckCircle2 size={12} />
-                  Ready
-                </span>
-              )}
-              {!state ? (
-                <button className="btn-primary" onClick={() => handleGenerateFix(f, key)}>
-                  <Wrench size={13} />
-                  Generate Fix
-                </button>
-              ) : state.loading ? (
-                <button className="btn-primary" disabled>
-                  <Loader size={13} style={{ animation: 'spin 1s linear infinite' }} />
-                  Loading...
-                </button>
-              ) : (
-                <button className="btn-secondary" onClick={() => setExpanded(prev => { const next = { ...prev }; delete next[key]; return next; })}>
-                  Collapse
-                </button>
-              )}
-            </div>
+        <td><span className={`badge ${f.severity}`}>{f.severity}</span></td>
+        <td className="mono" style={{ color: 'var(--text-secondary)' }}>{f.rule_id}</td>
+        <td>
+          <div className="finding-title-cell">
+            <span className="strong">{f.title}</span>
+            <span className="finding-desc-preview">{f.description}</span>
           </div>
-
-          {/* Expanded remediation details */}
-          {state?.error && (
-            <div style={{ padding: '0.75rem 1rem', color: 'var(--critical)', fontSize: '0.8125rem' }}>
-              Error: {state.error}
-            </div>
-          )}
-
-          {state?.data && (
-            <div style={{ padding: '1rem 1rem 1.25rem 1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
-                <span className="drawer-section-title" style={{ margin: 0 }}>Remediation Commands</span>
-                <button
-                  className="btn-ghost"
-                  style={{ padding: 0, fontSize: '0.6875rem' }}
-                  onClick={() => handleCopy(state.data.remediation_commands, key)}
-                >
-                  {copiedKey === key ? <CheckCircle2 size={12} style={{ marginRight: 4 }} /> : <Copy size={12} style={{ marginRight: 4 }} />}
-                  {copiedKey === key ? 'COPIED' : 'COPY'}
-                </button>
-              </div>
-              <div className="config-block">
-                <div className="config-header">
-                  <span style={{ color: 'var(--success)' }}>remediation commands</span>
-                </div>
-                <div className="config-body">
-                  {state.data.remediation_commands.split('\n').map((line, li) => (
-                    <div key={li} className="config-line fix-highlight">
-                      <span className="line-num">{li + 1}</span>
-                      <span>{line}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {state.data.explanation && (
-                <div style={{ marginTop: '0.75rem' }}>
-                  <div className="drawer-section-title">Why This Fix</div>
-                  <div className="drawer-text">{state.data.explanation}</div>
-                </div>
-              )}
-            </div>
-          )}
+        </td>
+        <td className="mono" style={{ color: 'var(--text-secondary)' }}>{f.device_hostname}</td>
+        <td style={{ textAlign: 'right' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem' }}>
+            {/* Enhancement 3: "Fix ready" indicator */}
+            {fixReady && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.6875rem', color: 'var(--success)', fontWeight: 600, letterSpacing: '0.03em' }}>
+                <CheckCircle2 size={12} />
+                Ready
+              </span>
+            )}
+            {!state ? (
+              <button className="btn-primary" onClick={() => handleGenerateFix(f, key)}>
+                <Wrench size={13} />
+                Generate Fix
+              </button>
+            ) : state.loading ? (
+              <button className="btn-primary" disabled>
+                <Loader size={13} style={{ animation: 'spin 1s linear infinite' }} />
+                Loading...
+              </button>
+            ) : (
+              <button className="btn-secondary" onClick={() => setExpanded(prev => { const next = { ...prev }; delete next[key]; return next; })}>
+                Collapse
+              </button>
+            )}
+          </div>
         </td>
       </tr>
     );
+
+    // Expanded detail row — spans all columns
+    if (state?.error) {
+      rows.push(
+        <tr key={`${key}-error`}>
+          <td colSpan="5" style={{ padding: '0.75rem 1rem', color: 'var(--critical)', fontSize: '0.8125rem', borderBottom: '1px solid var(--border)' }}>
+            Error: {state.error}
+          </td>
+        </tr>
+      );
+    }
+
+    if (state?.data) {
+      rows.push(
+        <tr key={`${key}-detail`}>
+          <td colSpan="5" style={{ padding: '1rem 1rem 1.25rem 1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
+              <span className="drawer-section-title" style={{ margin: 0 }}>Remediation Commands</span>
+              <button
+                className="btn-ghost"
+                style={{ padding: 0, fontSize: '0.6875rem' }}
+                onClick={() => handleCopy(state.data.remediation_commands, key)}
+              >
+                {copiedKey === key ? <CheckCircle2 size={12} style={{ marginRight: 4 }} /> : <Copy size={12} style={{ marginRight: 4 }} />}
+                {copiedKey === key ? 'COPIED' : 'COPY'}
+              </button>
+            </div>
+            <div className="config-block">
+              <div className="config-header">
+                <span style={{ color: 'var(--success)' }}>remediation commands</span>
+              </div>
+              <div className="config-body">
+                {state.data.remediation_commands.split('\n').map((line, li) => (
+                  <div key={li} className="config-line fix-highlight">
+                    <span className="line-num">{li + 1}</span>
+                    <span>{line}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {state.data.explanation && (
+              <div style={{ marginTop: '0.75rem' }}>
+                <div className="drawer-section-title">Why This Fix</div>
+                <div className="drawer-text">{state.data.explanation}</div>
+              </div>
+            )}
+          </td>
+        </tr>
+      );
+    }
+
+    return rows;
   };
 
   return (
