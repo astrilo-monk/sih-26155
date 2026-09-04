@@ -1,6 +1,6 @@
 // Verify intentionally omitted here until all remediation templates are confirmed safe — see remediation-fix branch.
 import { useState } from 'react';
-import { Copy, CheckCircle2, Wrench, Loader, ChevronDown, ChevronRight } from 'lucide-react';
+import { Copy, CheckCircle2, Wrench, Loader, ChevronDown, ChevronRight, Download } from 'lucide-react';
 import { apiClient } from '../api/client';
 
 // --- Enhancement 1: Severity group definitions ---
@@ -15,6 +15,10 @@ export default function RemediationQueue({ scanResult }) {
 
   // --- Enhancement 1: Collapsible section state ---
   const [collapsed, setCollapsed] = useState({}); // { [groupKey]: true }
+
+  // --- Download fixed config state ---
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState(null);
 
   if (!scanResult) return null;
 
@@ -122,6 +126,37 @@ export default function RemediationQueue({ scanResult }) {
   // --- Enhancement 1: Toggle section collapse ---
   const toggleSection = (groupKey) => {
     setCollapsed(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
+  };
+
+  // --- Download fixed config handler ---
+  // Collects all generated fixes from expanded state and sends to backend
+  const allGeneratedFixes = Object.entries(expanded)
+    .filter(([, state]) => state?.data?.remediation_commands)
+    .map(([key, state]) => {
+      // Find the finding that matches this key to get rule_id
+      for (let i = 0; i < actionable.length; i++) {
+        if (makeKey(actionable[i], i) === key) {
+          return {
+            rule_id: actionable[i].rule_id,
+            remediation_commands: state.data.remediation_commands,
+          };
+        }
+      }
+      return null;
+    })
+    .filter(Boolean);
+
+  const handleDownloadFixed = async () => {
+    if (allGeneratedFixes.length === 0) return;
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      await apiClient.downloadFixedConfigs(scanResult.scan_id, allGeneratedFixes);
+    } catch (err) {
+      setDownloadError(err.message);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   // --- Render a single finding row (returns an array of <tr> elements) ---
@@ -251,6 +286,43 @@ export default function RemediationQueue({ scanResult }) {
               </span>
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Download Fixed Config button — appears once at least one fix is generated */}
+      {allGeneratedFixes.length > 0 && (
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              className="btn-primary"
+              onClick={handleDownloadFixed}
+              disabled={downloading}
+              style={{ justifyContent: 'center' }}
+            >
+              {downloading ? (
+                <>
+                  <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                  Preparing download...
+                </>
+              ) : (
+                <>
+                  <Download size={14} />
+                  Download Fixed Config
+                </>
+              )}
+            </button>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+              {allGeneratedFixes.length} {allGeneratedFixes.length === 1 ? 'fix' : 'fixes'} will be applied
+            </span>
+          </div>
+          {downloadError && (
+            <div style={{ marginTop: '0.5rem', fontSize: '0.8125rem', color: 'var(--critical)' }}>
+              Download failed: {downloadError}
+            </div>
+          )}
+          <div style={{ marginTop: '0.375rem', fontSize: '0.6875rem', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+            Review the downloaded config before deploying to production.
+          </div>
         </div>
       )}
 

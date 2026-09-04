@@ -94,3 +94,13 @@ class AssistantRequest(BaseModel):
 class AssistantResponse(BaseModel):
     response: str
     scan_id: str
+
+
+class FixEntry(BaseModel):
+    rule_id: str
+    remediation_commands: str
+
+
+class DownloadFixedRequest(BaseModel):
+    scan_id: str
+    fixes: list[FixEntry]

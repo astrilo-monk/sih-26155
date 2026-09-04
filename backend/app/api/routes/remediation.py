@@ -7,8 +7,17 @@ patched config copy.
 """
 
 from __future__ import annotations
+import copy
+import io
+import zipfile
 from fastapi import APIRouter, HTTPException
-from app.api.schemas import RemediationRequest, RemediationResponse, VerifyRequest, VerifyResponse, FindingSchema, ComplianceMappingSchema
+from fastapi.responses import Response
+from app.api.schemas import (
+    RemediationRequest, RemediationResponse,
+    VerifyRequest, VerifyResponse,
+    FindingSchema, ComplianceMappingSchema,
+    DownloadFixedRequest,
+)
 from app.api.routes.scan import get_scan_store
 from app.parsers.detector import detect_vendor
 from app.parsers.cisco_ios import CiscoIOSParser
@@ -112,4 +121,71 @@ async def verify_remediation(req: VerifyRequest):
                 category=f.category,
             ) for f in new_result.findings
         ],
+    )
+
+
+@router.post("/download-fixed")
+async def download_fixed_configs(req: DownloadFixedRequest):
+    """
+    Apply all provided remediation fixes to the stored configs and
+    return the fixed config text(s) as a download.
+
+    Single config  -> plain .txt response
+    Multiple configs -> .zip containing one .txt per device
+    """
+    store = get_scan_store()
+    stored = store.get(req.scan_id)
+    if not stored:
+        raise HTTPException(404, "Scan not found")
+
+    configs = stored["configs"]
+    if not configs:
+        raise HTTPException(400, "No configs available")
+
+    if not req.fixes:
+        raise HTTPException(400, "No fixes provided")
+
+    # Build a lookup: combine all remediation commands per fix
+    fix_commands = [fix.remediation_commands for fix in req.fixes]
+
+    # Apply every fix sequentially to each config copy
+    fixed_configs = []
+    for cfg in configs:
+        modified = copy.deepcopy(cfg)
+        for commands in fix_commands:
+            modified = apply_remediation(modified, commands)
+        hostname = modified.device.hostname or "device"
+        fixed_configs.append((hostname, modified.raw_config))
+
+    # Single config -> return as plain text .txt
+    if len(fixed_configs) == 1:
+        hostname, text = fixed_configs[0]
+        filename = f"{hostname}_fixed.txt"
+        return Response(
+            content=text,
+            media_type="text/plain",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+            },
+        )
+
+    # Multiple configs -> return as .zip
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        seen = {}
+        for hostname, text in fixed_configs:
+            # Avoid duplicate filenames
+            count = seen.get(hostname, 0)
+            seen[hostname] = count + 1
+            suffix = f"_{count + 1}" if count > 0 else ""
+            fname = f"{hostname}{suffix}_fixed.txt"
+            zf.writestr(fname, text)
+    buf.seek(0)
+
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": 'attachment; filename="fixed_configs.zip"',
+        },
     )
