@@ -77,36 +77,20 @@ export default function RemediationQueue({ scanResult }) {
     grouped[g.key] = actionable.filter(f => f.severity === g.severity);
   }
 
-  // --- Enhancement 2: Collect unique devices that have at least one generated fix ---
+  // --- Enhancement 2: Collect devices with generated fixes ---
+  // Read rule_id / device_hostname / title directly from the API response
+  // stored in expanded state — avoids key-index mismatch with grouped rendering.
   const devicesWithFixes = () => {
-    const deviceMap = {};
-    for (const f of actionable) {
-      const device = f.device_hostname || 'unknown';
-      if (!deviceMap[device]) deviceMap[device] = [];
-      // Walk all expanded entries to find generated fixes for this device
-      for (const [rk, state] of Object.entries(expanded)) {
-        if (state?.data && rk.endsWith(`-${f.device_hostname}-${actionable.indexOf(f)}`)) {
-          // Match by checking the key starts with the rule_id and device
-        }
-      }
-    }
-    // Simpler approach: iterate expanded entries directly
     const result = {};
-    for (const [key, state] of Object.entries(expanded)) {
+    for (const [, state] of Object.entries(expanded)) {
       if (!state?.data?.remediation_commands) continue;
-      // Find the finding that produced this key
-      for (let i = 0; i < actionable.length; i++) {
-        if (makeKey(actionable[i], i) === key) {
-          const device = actionable[i].device_hostname || 'unknown';
-          if (!result[device]) result[device] = [];
-          result[device].push({
-            rule_id: actionable[i].rule_id,
-            title: actionable[i].title,
-            commands: state.data.remediation_commands,
-          });
-          break;
-        }
-      }
+      const device = state.data.device_hostname || 'unknown';
+      if (!result[device]) result[device] = [];
+      result[device].push({
+        rule_id: state.data.rule_id,
+        title: state.data.title,
+        commands: state.data.remediation_commands,
+      });
     }
     return result;
   };
@@ -129,22 +113,13 @@ export default function RemediationQueue({ scanResult }) {
   };
 
   // --- Download fixed config handler ---
-  // Collects all generated fixes from expanded state and sends to backend
+  // Read directly from expanded state's API response data
   const allGeneratedFixes = Object.entries(expanded)
     .filter(([, state]) => state?.data?.remediation_commands)
-    .map(([key, state]) => {
-      // Find the finding that matches this key to get rule_id
-      for (let i = 0; i < actionable.length; i++) {
-        if (makeKey(actionable[i], i) === key) {
-          return {
-            rule_id: actionable[i].rule_id,
-            remediation_commands: state.data.remediation_commands,
-          };
-        }
-      }
-      return null;
-    })
-    .filter(Boolean);
+    .map(([, state]) => ({
+      rule_id: state.data.rule_id,
+      remediation_commands: state.data.remediation_commands,
+    }));
 
   const handleDownloadFixed = async () => {
     if (allGeneratedFixes.length === 0) return;
