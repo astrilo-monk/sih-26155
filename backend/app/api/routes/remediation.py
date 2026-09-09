@@ -130,8 +130,8 @@ async def download_fixed_configs(req: DownloadFixedRequest):
     Auto-generate and apply ALL critical + high remediation fixes to
     the stored configs and return the fully remediated config text(s).
 
-    Single config  -> plain .txt response
-    Multiple configs -> .zip containing one .txt per device
+    Single config  -> plain .cfg response
+    Multiple configs -> .zip containing one .cfg per device
     """
     store = get_scan_store()
     stored = store.get(req.scan_id)
@@ -175,10 +175,10 @@ async def download_fixed_configs(req: DownloadFixedRequest):
         hostname = modified.device.hostname or "device"
         fixed_configs.append((hostname, modified.raw_config))
 
-    # Single config -> return as plain text .txt
+    # Single config -> return the readable configuration as plain text.
     if len(fixed_configs) == 1:
         hostname, text = fixed_configs[0]
-        filename = f"{hostname}_fixed.txt"
+        filename = f"{hostname}_fixed.cfg"
         return Response(
             content=text,
             media_type="text/plain",
@@ -196,7 +196,7 @@ async def download_fixed_configs(req: DownloadFixedRequest):
             count = seen.get(hostname, 0)
             seen[hostname] = count + 1
             suffix = f"_{count + 1}" if count > 0 else ""
-            fname = f"{hostname}{suffix}_fixed.txt"
+            fname = f"{hostname}{suffix}_fixed.cfg"
             zf.writestr(fname, text)
     buf.seek(0)
 
@@ -204,6 +204,6 @@ async def download_fixed_configs(req: DownloadFixedRequest):
         content=buf.getvalue(),
         media_type="application/zip",
         headers={
-            "Content-Disposition": 'attachment; filename="fixed_configs.zip"',
+            "Content-Disposition": 'attachment; filename="NetAuditAI_Fixed_Configs.zip"',
         },
     )
