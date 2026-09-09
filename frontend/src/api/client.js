@@ -88,12 +88,17 @@ export const apiClient = {
       throw new Error(error.detail || `API error: ${response.status}`);
     }
 
-    // Trigger browser download from the response blob
+    const contentType = response.headers.get('Content-Type') || '';
     const blob = await response.blob();
     const disposition = response.headers.get('Content-Disposition') || '';
-    const match = disposition.match(/filename="?([^"]+)"?/);
-    const filename = match ? match[1] : 'fixed_config.txt';
+    const filenameMatch = disposition.match(/filename\*?=(?:UTF-8''|"?)([^";\r\n]+)/i);
+    const filename = filenameMatch
+      ? decodeURIComponent(filenameMatch[1].replace(/^"|"$/g, ''))
+      : contentType.toLowerCase().includes('application/zip')
+        ? 'NetAuditAI_Fixed_Configs.zip'
+        : 'fixed_config.cfg';
 
+    // Keep the response bytes intact so ZIP downloads are never decoded as text.
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
