@@ -41,6 +41,7 @@ temp/
 
 # Build output
 frontend/dist/
+frontend/src/api/client.js
 
 # Logs
 *.log
@@ -51,4 +52,5 @@ htmlcov/
 .pytest_cache/
 
 .claude/
+.codex/
 

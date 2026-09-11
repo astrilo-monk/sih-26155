@@ -268,18 +268,31 @@ class CiscoIOSParser(BaseParser):
                 continue
 
             # --- Block Entrances ---
-            # Banner
-            m = re.match(r'^banner (login|motd)\s+(.)$', line)
+            # Banner: handles both formats:
+            #   Multi-line:  banner login ^   (content on next line, ends with ^)
+            #   Single-line: banner login ^CUnauthorized access prohibited.^C
+            m = re.match(r'^banner (login|motd)\s+(.)(.*)$', line)
             if m:
                 current_interface = current_vty = current_console = current_acl = current_isakmp = None
-                if m.group(1) == "login":
-                    in_banner_login = True
-                    banner_login_char = m.group(2)
-                    config.banners.source_lines.append(line_num)
+                btype = m.group(1)
+                bchar = m.group(2)
+                rest = m.group(3)
+                config.banners.source_lines.append(line_num)
+                if bchar in rest:
+                    # Single-line format: content is between delimiters
+                    content = rest.split(bchar)[0]
+                    if btype == "login":
+                        config.banners.login_banner = content
+                    else:
+                        config.banners.motd_banner = content
                 else:
-                    in_banner_motd = True
-                    banner_motd_char = m.group(2)
-                    config.banners.source_lines.append(line_num)
+                    # Multi-line format: delimiter on its own, content follows
+                    if btype == "login":
+                        in_banner_login = True
+                        banner_login_char = bchar
+                    else:
+                        in_banner_motd = True
+                        banner_motd_char = bchar
                 continue
 
             # Interfaces

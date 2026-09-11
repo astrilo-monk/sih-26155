@@ -127,7 +127,7 @@ async def verify_remediation(req: VerifyRequest):
 @router.post("/download-fixed")
 async def download_fixed_configs(req: DownloadFixedRequest):
     """
-    Auto-generate and apply ALL critical + high remediation fixes to
+    Auto-generate and apply ALL remediation fixes to
     the stored configs and return the fully remediated config text(s).
 
     Single config  -> plain .cfg response
@@ -143,15 +143,11 @@ async def download_fixed_configs(req: DownloadFixedRequest):
     if not configs:
         raise HTTPException(400, "No configs available")
 
-    # Find all critical + high findings
-    from app.models.findings import Severity
-    actionable = [
-        f for f in result.findings
-        if f.severity in (Severity.CRITICAL, Severity.HIGH)
-    ]
+    # Fix ALL findings (all severities) to achieve 100/100 score
+    actionable = result.findings
 
     if not actionable:
-        raise HTTPException(400, "No critical or high findings to fix")
+        raise HTTPException(400, "No findings to fix")
 
     # Generate remediation commands for each actionable finding
     all_commands = []

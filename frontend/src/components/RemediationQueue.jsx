@@ -7,6 +7,8 @@ import { apiClient } from '../api/client';
 const SEVERITY_GROUPS = [
   { key: 'critical', label: 'Fix Now', severity: 'critical' },
   { key: 'high',     label: 'Fix Soon', severity: 'high' },
+  { key: 'medium',   label: 'Address', severity: 'medium' },
+  { key: 'low',      label: 'Review', severity: 'low' },
 ];
 
 export default function RemediationQueue({ scanResult }) {
@@ -22,9 +24,7 @@ export default function RemediationQueue({ scanResult }) {
 
   if (!scanResult) return null;
 
-  // Filter to Critical and High only
-  const actionable = (scanResult.findings || [])
-    .filter(f => f.severity === 'critical' || f.severity === 'high');
+  const actionable = scanResult.findings || [];
 
   if (actionable.length === 0) {
     return (
@@ -33,7 +33,7 @@ export default function RemediationQueue({ scanResult }) {
           <span>Remediation Queue</span>
         </div>
         <div className="empty-state">
-          No high-priority findings to remediate.
+          No findings to remediate.
         </div>
       </div>
     );
@@ -113,7 +113,7 @@ export default function RemediationQueue({ scanResult }) {
   };
 
   // --- Download fixed config handler ---
-  // Backend auto-generates and applies ALL critical+high fixes
+  // Backend auto-generates and applies ALL fixes
   const handleDownloadFixed = async () => {
     setDownloading(true);
     setDownloadError(null);
@@ -256,7 +256,7 @@ export default function RemediationQueue({ scanResult }) {
         </div>
       )}
 
-      {/* Download Fixed Config — fixes ALL critical+high findings server-side */}
+      {/* Download Fixed Config — fixes ALL findings server-side */}
       <div style={{ marginBottom: '1rem' }}>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <button
@@ -297,9 +297,9 @@ export default function RemediationQueue({ scanResult }) {
         if (!items || items.length === 0) return null;
         const isCollapsed = collapsed[group.key];
         // Compute the global index offset so makeKey stays stable
-        const globalOffset = group.severity === 'high'
-          ? (grouped['critical']?.length || 0)
-          : 0;
+        const globalOffset = SEVERITY_GROUPS
+          .slice(0, SEVERITY_GROUPS.findIndex(g => g.key === group.key))
+          .reduce((sum, g) => sum + (grouped[g.key]?.length || 0), 0);
 
         return (
           <div key={group.key} style={{ marginBottom: '1.5rem' }}>
