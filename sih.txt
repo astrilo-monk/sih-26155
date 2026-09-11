@@ -1,0 +1,21 @@
+
+ML MODEL PIPELINE THE BEST: 
+
+        Config
+        ↓
+        Vendor detection
+        ↓
+        Known parser?
+        ├─ YES → NormalizedConfig
+        └─ NO
+            ↓
+        AI + keyword/pattern engine
+            ↓
+        Confidence score
+        ├─ High → AUTO ACCEPT
+        ├─ Medium → AI cross-check
+        └─ Low → Admin training
+                    ↓
+                Save mapping
+                    ↓
+                Future = automatic
