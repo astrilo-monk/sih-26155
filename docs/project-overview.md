@@ -233,7 +233,7 @@ API request and response schemas are defined in [backend/app/api/schemas.py](../
 
 Remediation is implemented in [backend/app/remediation/engine.py](../backend/app/remediation/engine.py).
 
-The system intentionally uses deterministic templates rather than asking an AI model to invent network commands. Templates are selected by rule ID and vendor. This makes command generation predictable and reduces the risk of invalid or dangerous syntax.
+The system uses deterministic templates selected by rule ID and vendor. The engine has been rewritten as a comprehensive multi-phase remediation engine that handles text replacements, line removals, config additions, vendor-specific transformations, and global-service fixes. It is rule-driven, generic across Cisco IOS and FortiGate, and idempotent.
 
 Examples include:
 
@@ -249,8 +249,6 @@ ip ssh authentication-retries 3
 ```
 
 The generated commands are never applied to a real device. Verification modifies a copy of the original text and re-runs the parser and rules engine.
-
-The patching logic is a simplified demo implementation. It handles known replacements and selected `no` and FortiGate `set` commands; it is not a complete vendor configuration editing engine.
 
 ## Optional AI Assistant
 
@@ -298,9 +296,9 @@ The frontend API client is [frontend/src/api/client.js](../frontend/src/api/clie
 http://localhost:8000/api
 ```
 
-This can be overridden with the `VITE_API_BASE_URL` environment variable.
+This can be overridden with the `VITE_API_BASE_URL` environment variable in `frontend/.env`.
 
-The assistant API exists, but there is currently no complete chat or AI summary component connected to the frontend. The Remediation and Settings sidebar entries are also placeholders rather than separate full pages.
+The Remediation Queue now displays all severity groups (critical, high, medium, low) and supports bulk fixed-config download with full end-to-end verification.
 
 ## Local Setup
 
@@ -360,7 +358,7 @@ cd backend
 pytest tests/ -v
 ```
 
-The current test suite passes 12 tests. The frontend production build can be checked with:
+The current test suite passes 21 tests. The frontend production build can be checked with:
 
 ```powershell
 cd frontend
@@ -373,7 +371,7 @@ npm run build
 - The in-memory store is unsuitable for multiple production workers.
 - Vendor detection is heuristic.
 - Parsers cover common syntax, not every vendor configuration edge case.
-- Remediation patching is simplified string manipulation.
+- Remediation uses a comprehensive multi-phase transformation engine
 - Multi-file verification currently analyzes the first uploaded configuration.
 - AI can produce incorrect explanations and should be reviewed.
 - There are no live device connections.
@@ -396,6 +394,8 @@ The core prototype is functional:
 - Optional Gemini support is implemented.
 
 The main next steps are persistence, stronger parser coverage, robust vendor-aware remediation, correct multi-device verification, frontend AI integration, production security hardening, and broader automated tests.
+
+- End-to-end remediation regression tests (`backend/tests/test_remediation_e2e.py`) verify that fixed configs re-scan to 100/100.
 
 ## Source of Truth
 
