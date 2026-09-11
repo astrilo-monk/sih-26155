@@ -25,6 +25,21 @@ class Vendor(str, Enum):
 
 
 @dataclass
+class UnrecognizedLine:
+    """
+    Represents a configuration line that was not recognized by the vendor parser.
+    
+    These lines are candidates for adaptive parsing (AI interpretation, learned mappings).
+    Only security-relevant lines pass through the relevance filter.
+    """
+    raw_line: str
+    line_number: int
+    vendor: str
+    context_before: list[str] = field(default_factory=list)
+    context_after: list[str] = field(default_factory=list)
+
+
+@dataclass
 class Interface:
     name: str
     ip_address: Optional[str] = None
@@ -257,6 +272,9 @@ class NormalizedConfig:
     # Keep the original config for evidence references
     raw_config: str = ""
     raw_lines: list[str] = field(default_factory=list)
+
+    # Unrecognized lines captured during parsing (security-relevant only)
+    unrecognized_lines: list[UnrecognizedLine] = field(default_factory=list)
 
     def get_evidence_lines(self, line_numbers: list[int]) -> list[str]:
         """Pull the actual config text for a list of line numbers (1-indexed)."""

@@ -14,6 +14,7 @@ from app.analysis.engine import analyze, analyze_multiple
 from app.models.normalized import Vendor, NormalizedConfig
 from app.api.schemas import ScanResultResponse, FindingSchema, ComplianceMappingSchema
 from app.config import settings
+from app.adaptive import capture_unrecognized_lines
 
 router = APIRouter()
 
@@ -89,6 +90,10 @@ async def scan_configs(files: list[UploadFile] = File(...)):
             raise HTTPException(422, f"No parser available for vendor '{vendor.value}'")
 
         normalized = parser.parse(raw_config)
+        
+        # Capture unrecognized lines for adaptive parsing
+        capture_unrecognized_lines(normalized)
+        
         configs.append(normalized)
 
     if len(configs) == 1:
