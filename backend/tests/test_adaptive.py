@@ -1,3 +1,16 @@
+"""Quick test of the scan API endpoint."""
+import httpx
+
+if __name__ == "__main__":
+    with open("tests/fixtures/cisco_vulnerable.cfg", "rb") as f:
+        r = httpx.post(
+            "http://localhost:8000/api/scan",
+            files=[("files", ("cisco_vulnerable.cfg", f, "text/plain"))],
+            timeout=30,
+        )
+    data = r.json()
+
+
 """
 Phase 1 Adaptive Parsing Tests.
 

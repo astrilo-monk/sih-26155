@@ -2,7 +2,7 @@
 AI explanation prompts.
 
 Takes a security finding and generates a human-readable
-explanation using Gemini.
+explanation using Groq.
 """
 
 from __future__ import annotations

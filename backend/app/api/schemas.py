@@ -7,15 +7,44 @@ from pydantic import BaseModel
 from typing import Optional
 
 
+class AdaptiveLineSchema(BaseModel):
+    """A security-relevant unrecognized line captured during parsing."""
+    line_number: int
+    raw_line: str
+    vendor: str
+    context_before: list[str] = []
+    context_after: list[str] = []
+
+
+class AdaptiveInterpretationSchema(BaseModel):
+    """AI interpretation result for a single configuration line (display-only)."""
+    line_number: int
+    raw_line: str
+    likely_vendor: str
+    security_concept: str
+    normalized_field: str
+    extracted_value: Optional[str] = None
+    confidence: str
+    reasoning: str
+    status: str
+
+
+class AdaptiveScanInfoSchema(BaseModel):
+    """Adaptive interpretation summary for an unknown-vendor scan."""
+    ai_available: bool
+    unrecognized_lines: list[AdaptiveLineSchema]
+    interpretations: list[AdaptiveInterpretationSchema]
+
+
 class ScanSummaryResponse(BaseModel):
     scan_id: str
     timestamp: str
-    score: int
-    total_findings: int
-    critical: int
-    high: int
-    medium: int
-    low: int
+    score: Optional[int] = None
+    total_findings: Optional[int] = None
+    critical: Optional[int] = None
+    high: Optional[int] = None
+    medium: Optional[int] = None
+    low: Optional[int] = None
     devices: list[dict]
 
 
@@ -44,14 +73,17 @@ class FindingSchema(BaseModel):
 class ScanResultResponse(BaseModel):
     scan_id: str
     timestamp: str
-    score: int
-    total_findings: int
-    critical: int
-    high: int
-    medium: int
-    low: int
+    score: Optional[int] = None
+    total_findings: Optional[int] = None
+    critical: Optional[int] = None
+    high: Optional[int] = None
+    medium: Optional[int] = None
+    low: Optional[int] = None
     devices: list[dict]
-    findings: list[FindingSchema]
+    findings: list[FindingSchema] = []
+    # Adaptive interpretation results (populated for unknown-vendor configs;
+    # display-only — NOT consumed by the deterministic compliance engine)
+    adaptive: Optional[AdaptiveScanInfoSchema] = None
 
 
 class RemediationRequest(BaseModel):

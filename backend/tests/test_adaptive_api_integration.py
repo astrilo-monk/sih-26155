@@ -1,0 +1,547 @@
+"""
+Integration tests for unknown-vendor adaptive pipeline.
+
+Tests the full flow: unknown vendor -> Phase 1 capture -> Phase 2 Groq
+interpretation -> display-only API response.
+
+ALL Groq requests are mocked. No real Groq API calls are made.
+
+Tests:
+A - Unknown vendor reaches adaptive pipeline (no 422 rejection)
+B - Unknown vendor invokes Phase 2 with interpretation results
+C - One Groq request per config (batching)
+D - Groq unavailable (graceful degradation)
+E - AI-derived values NOT written into analyze() fields
+F - Existing Cisco/Fortinet behavior unchanged
+G - Existing remediation/scoring unchanged
+H - Multiple unknown configs each get their own Groq request
+"""
+
+import sys
+from pathlib import Path
+from unittest.mock import patch, MagicMock
+
+import pytest
+from fastapi.testclient import TestClient
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from app.main import app
+from app.parsers.detector import detect_vendor
+from app.models.normalized import Vendor
+from app.adaptive.capture import capture_unrecognized_lines
+from app.adaptive.interpreter import interpret_lines
+from app.ai.interpretation_schemas import (
+    InterpretationResult,
+    ConfidenceLevel,
+    InterpretationStatus,
+)
+from app.models.normalized import NormalizedConfig, DeviceInfo
+
+
+FIXTURES = Path(__file__).parent / "fixtures"
+
+# Sample unknown-vendor config (familiar security syntax, not Cisco/Fortinet)
+UNKNOWN_CONFIG = """\
+system-name CORE-GATE-07
+
+interface uplink0
+ description "Internet transit"
+ address 198.51.100.10/30
+
+secure-shell protocol-version 2
+secure-shell cipher-suite modern
+secure-shell hostkey-size minimum 3072
+
+operator failed-auth threshold 5
+operator failed-auth quarantine 180
+
+remote-console protocol telnet
+
+credential-policy minimum-size 15
+credential-policy complexity enforced
+
+control-plane defense enabled
+control-plane rate-guard 1200
+"""
+
+
+def _mock_valid_interpretations(lines):
+    """Build valid InterpretationResult list for testing."""
+    results = []
+    for ln in lines:
+        results.append(InterpretationResult(
+            line_number=ln.line_number,
+            raw_line=ln.raw_line,
+            likely_vendor="generic",
+            security_concept="ssh_host_key_minimum",
+            normalized_field="management.ssh_version",
+            extracted_value="3072",
+            confidence=ConfidenceLevel.HIGH,
+            reasoning="SSH host key minimum bit length",
+            status=InterpretationStatus.INTERPRETED,
+        ))
+    return results
+
+
+def _get_unrecognized_lines(config_text):
+    """Helper: run Phase 1 capture on raw config and return UnrecognizedLines."""
+    raw_lines = config_text.splitlines()
+    normalized = NormalizedConfig(
+        device=DeviceInfo(vendor=Vendor.UNKNOWN, hostname="unknown"),
+        raw_config=config_text,
+        raw_lines=raw_lines,
+    )
+    capture_unrecognized_lines(normalized)
+    return normalized.unrecognized_lines
+
+
+# ===========================================================================
+# Test A - Unknown vendor reaches adaptive pipeline
+# ===========================================================================
+
+def test_a_unknown_vendor_reaches_adaptive_pipeline():
+    """Unknown vendor config does NOT get 422; it reaches the adaptive pipeline."""
+
+    vendor = detect_vendor(UNKNOWN_CONFIG)
+    assert vendor == Vendor.UNKNOWN
+
+    client = TestClient(app)
+
+    with patch("app.api.routes.scan.is_available", return_value=False):
+        response = client.post(
+            "/api/scan",
+            files=[("files", ("unknown.cfg", UNKNOWN_CONFIG.encode("utf-8"), "text/plain"))],
+        )
+
+    # Must NOT be 422 vendor-rejection
+    assert response.status_code == 200, (
+        f"Expected 200 for unknown vendor, got {response.status_code}: {response.text}"
+    )
+
+    data = response.json()
+    # Vendor should be UNKNOWN
+    device = data["devices"][0]
+    assert device["vendor"] == "unknown"
+
+    # Should have adaptive info
+    assert data["adaptive"] is not None
+    assert len(data["adaptive"]["unrecognized_lines"]) > 0
+    assert "interpretations" in data["adaptive"]
+
+    print("\nPASS [A]: Unknown vendor reaches adaptive pipeline")
+
+
+# ===========================================================================
+# Test B - Unknown vendor invokes Phase 2
+# ===========================================================================
+
+def test_b_unknown_vendor_invokes_phase2():
+    """Phase 2 Groq interpretation is invoked and results returned."""
+
+    client = TestClient(app)
+
+    unrecognized = _get_unrecognized_lines(UNKNOWN_CONFIG)
+    mock_interpretations = _mock_valid_interpretations(unrecognized)
+
+    mock_interpret = MagicMock(return_value=mock_interpretations)
+
+    with patch("app.api.routes.scan.interpret_lines", mock_interpret):
+        with patch("app.api.routes.scan.is_available", return_value=True):
+            response = client.post(
+                "/api/scan",
+                files=[("files", ("unknown.cfg", UNKNOWN_CONFIG.encode("utf-8"), "text/plain"))],
+            )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Phase 2 was invoked
+    assert mock_interpret.call_count == 1
+
+    # Interpretation results returned
+    assert data["adaptive"] is not None
+    assert len(data["adaptive"]["interpretations"]) > 0
+
+    # AI availability reflected
+    assert data["adaptive"]["ai_available"] is True
+
+    # Original unrecognized lines preserved
+    assert len(data["adaptive"]["unrecognized_lines"]) > 0
+
+    print("\nPASS [B]: Phase 2 interpretation invoked and results returned")
+
+
+# ===========================================================================
+# Test C - One Groq request per config (batching)
+# ===========================================================================
+
+def test_c_one_groq_request_per_config():
+    """One unknown config produces exactly one Groq API call."""
+
+    client = TestClient(app)
+
+    unrecognized = _get_unrecognized_lines(UNKNOWN_CONFIG)
+    mock_interpretations = _mock_valid_interpretations(unrecognized)
+    mock_interpret = MagicMock(return_value=mock_interpretations)
+
+    with patch("app.api.routes.scan.interpret_lines", mock_interpret):
+        with patch("app.api.routes.scan.is_available", return_value=True):
+            response = client.post(
+                "/api/scan",
+                files=[("files", ("unknown.cfg", UNKNOWN_CONFIG.encode("utf-8"), "text/plain"))],
+            )
+
+    assert response.status_code == 200
+    assert mock_interpret.call_count == 1
+
+    print("\nPASS [C]: One Groq request per config guaranteed")
+
+
+# ===========================================================================
+# Test D - Groq unavailable (graceful degradation)
+# ===========================================================================
+
+def test_d_groq_unavailable_graceful():
+    """When Groq is unavailable, scan degrades gracefully without crashing."""
+
+    client = TestClient(app)
+
+    with patch("app.api.routes.scan.is_available", return_value=False):
+        with patch("app.adaptive.interpreter.is_available", return_value=False):
+            response = client.post(
+                "/api/scan",
+                files=[("files", ("unknown.cfg", UNKNOWN_CONFIG.encode("utf-8"), "text/plain"))],
+            )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # AI marked unavailable
+    assert data["adaptive"] is not None
+    assert data["adaptive"]["ai_available"] is False
+
+    # Lines still preserved
+    assert len(data["adaptive"]["unrecognized_lines"]) > 0
+
+    # No misleading score
+    assert data.get("score") is None
+    assert len(data["findings"]) == 0
+
+    print("\nPASS [D]: Groq unavailable handled gracefully")
+
+
+def test_d2_groq_exception_graceful():
+    """When Groq raises an exception, scan degrades gracefully.
+
+    The scan route calls interpret_lines which has internal exception handling.
+    We verify the scan still succeeds even if interpret_lines fails.
+    """
+
+    client = TestClient(app)
+
+    # Mock interpret_lines to simulate the behavior when Groq fails internally
+    # (interpret_lines catches exceptions and returns ai_unavailable results)
+    unrecognized = _get_unrecognized_lines(UNKNOWN_CONFIG)
+
+    def mock_failing_interpret(lines):
+        """Simulate interpret_lines behavior when Groq fails."""
+        from app.adaptive.interpreter import _make_unavailable_result
+        return [_make_unavailable_result(ln) for ln in lines]
+
+    with patch("app.api.routes.scan.interpret_lines", side_effect=mock_failing_interpret):
+        with patch("app.api.routes.scan.is_available", return_value=True):
+            with patch("app.adaptive.interpreter.is_available", return_value=True):
+                response = client.post(
+                    "/api/scan",
+                    files=[("files", ("unknown.cfg", UNKNOWN_CONFIG.encode("utf-8"), "text/plain"))],
+                )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["adaptive"] is not None
+
+    print("\nPASS [D2]: Groq exception handled gracefully")
+
+
+# ===========================================================================
+# Test E - AI results are display-only; not in analyze() fields
+# ===========================================================================
+
+def test_e_ai_results_not_in_analyze():
+    """AI-derived interpretations must NOT be written into NormalizedConfig fields
+    consumed by analyze(). Unknown-vendor configs must not enter analyze()."""
+
+    # Create the same config the scan route creates for unknown vendor
+    raw_lines = UNKNOWN_CONFIG.splitlines()
+    normalized = NormalizedConfig(
+        device=DeviceInfo(vendor=Vendor.UNKNOWN, hostname="unknown"),
+        raw_config=UNKNOWN_CONFIG,
+        raw_lines=raw_lines,
+    )
+    capture_unrecognized_lines(normalized)
+
+    # Run interpretation
+    mock_interpretations = _mock_valid_interpretations(normalized.unrecognized_lines)
+
+    # Verify the interpretations exist but are NOT part of NormalizedConfig fields
+    assert len(normalized.unrecognized_lines) > 0
+    assert len(mock_interpretations) > 0
+
+    # The normalized config should NOT have AI-derived values in core fields
+    # like management.ssh_version (which was in the interpretation)
+    assert normalized.management.ssh_version is None
+
+    # Verify analyze() is NOT called for unknown vendors
+    client = TestClient(app)
+
+    with patch("app.api.routes.scan.interpret_lines", return_value=mock_interpretations):
+        with patch("app.api.routes.scan.is_available", return_value=True):
+            with patch("app.api.routes.scan.analyze") as mock_analyze:
+                response = client.post(
+                    "/api/scan",
+                    files=[("files", ("unknown.cfg", UNKNOWN_CONFIG.encode("utf-8"), "text/plain"))],
+                )
+
+    assert response.status_code == 200
+    # analyze() must NOT be called for unknown-vendor configs
+    assert mock_analyze.call_count == 0
+
+    print("\nPASS [E]: AI results not written into analyze() fields")
+
+
+# ===========================================================================
+# Test F - Existing Cisco/Fortinet behavior unchanged
+# ===========================================================================
+
+def test_f_cisco_behavior_unchanged():
+    """Cisco config still produces deterministic findings and score."""
+
+    cisco_config = (FIXTURES / "cisco_vulnerable.cfg").read_text()
+    assert detect_vendor(cisco_config) == Vendor.CISCO_IOS
+
+    client = TestClient(app)
+    response = client.post(
+        "/api/scan",
+        files=[("files", ("cisco_vulnerable.cfg", cisco_config.encode("utf-8"), "text/plain"))],
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Cisco should produce a score (not None)
+    assert data["score"] is not None
+    assert data["score"] < 80  # Vulnerable config should have low score
+    assert len(data["findings"]) >= 5
+    assert data["adaptive"] is None  # No adaptive info for known vendors
+
+    print(f"\nPASS [F]: Cisco pipeline unchanged (score={data['score']})")
+
+
+def test_f2_fortinet_behavior_unchanged():
+    """FortiGate config still produces deterministic findings and score."""
+
+    fortigate_config = (FIXTURES / "fortinet_vulnerable.cfg").read_text()
+    assert detect_vendor(fortigate_config) == Vendor.FORTINET
+
+    client = TestClient(app)
+    response = client.post(
+        "/api/scan",
+        files=[("files", ("fortigate_vulnerable.cfg", fortigate_config.encode("utf-8"), "text/plain"))],
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["score"] is not None
+    assert data["score"] < 80
+    assert len(data["findings"]) >= 3
+    assert data["adaptive"] is None
+
+    print(f"\nPASS [F2]: FortiGate pipeline unchanged (score={data['score']})")
+
+
+# ===========================================================================
+# Test G - Existing remediation/scoring unchanged
+# ===========================================================================
+
+def test_g_scoring_unchanged():
+    """Scoring math is unchanged."""
+
+    from app.models.findings import Finding, Severity
+    from app.analysis.scoring import calculate_score
+
+    findings = [
+        Finding(rule_id="TEST", title="test", severity=Severity.CRITICAL, description="test"),
+        Finding(rule_id="TEST", title="test", severity=Severity.HIGH, description="test"),
+        Finding(rule_id="TEST", title="test", severity=Severity.MEDIUM, description="test"),
+        Finding(rule_id="TEST", title="test", severity=Severity.LOW, description="test"),
+    ]
+    # 12 + 6 + 3 + 1 = 22, so score = 78
+    assert calculate_score(findings) == 78
+
+    print("\nPASS [G1]: Scoring math unchanged")
+
+
+def test_g2_remediation_unchanged():
+    """Remediation pipeline produces expected fixed config."""
+
+    from app.remediation.engine import generate_remediation, apply_remediation
+    from app.parsers.cisco_ios import CiscoIOSParser
+    from app.analysis.engine import analyze
+
+    cisco_config = (FIXTURES / "cisco_vulnerable.cfg").read_text()
+
+    parser = CiscoIOSParser()
+    config = parser.parse(cisco_config)
+    original = analyze(config)
+
+    # Generate and apply remediation for each finding
+    all_commands = []
+    for finding in original.findings:
+        remediation = generate_remediation(finding, [config])
+        all_commands.append(remediation["commands"])
+
+    modified = config
+    import copy
+    modified = copy.deepcopy(config)
+    for commands in all_commands:
+        modified = apply_remediation(modified, commands)
+
+    fixed_config = parser.parse(modified.raw_config)
+    fixed_result = analyze(fixed_config)
+
+    # After remediation, score should be 100 and 0 findings
+    assert fixed_result.score == 100
+    assert fixed_result.total_findings == 0
+
+    print(f"\nPASS [G2]: Remediation pipeline unchanged (original={original.score}, fixed={fixed_result.score})")
+
+
+# ===========================================================================
+# Test H - Multiple unknown configs each get own Groq request
+# ===========================================================================
+
+def test_h_multiple_unknown_configs_one_request_each():
+    """Each unknown config must get its own Groq request (not combined)."""
+
+    client = TestClient(app)
+
+    config1 = """\
+secure-shell host-key minimum 3072
+operator failed-login lockout 120
+remote-console protocol telnet
+"""
+
+    config2 = """\
+credential-policy minimum-length 14
+control-plane defense enabled
+audit-stream transport tls
+"""
+
+    # Mock to count calls per config
+    call_count = [0]
+
+    def mock_interpret(lines):
+        call_count[0] += 1
+        return [_mock_valid_interpretations([ln])[0] for ln in lines]
+
+    with patch("app.api.routes.scan.interpret_lines", side_effect=mock_interpret):
+        with patch("app.api.routes.scan.is_available", return_value=True):
+            response = client.post(
+                "/api/scan",
+                files=[
+                    ("files", ("config1.cfg", config1.encode("utf-8"), "text/plain")),
+                    ("files", ("config2.cfg", config2.encode("utf-8"), "text/plain")),
+                ],
+            )
+
+    assert response.status_code == 200
+    # Each config gets its own request
+    assert call_count[0] == 2, f"Expected 2 Groq requests, got {call_count[0]}"
+
+    print("\nPASS [H]: Multiple configs each get own Groq request")
+
+
+# ===========================================================================
+# Test H2 - One known + one unknown vendor (mixed upload)
+# ===========================================================================
+
+def test_h2_mixed_known_and_unknown_vendors():
+    """Mixing known and unknown vendors: known gets deterministic scan,
+    unknown gets adaptive-only response."""
+
+    cisco_config = (FIXTURES / "cisco_vulnerable.cfg").read_text()
+
+    client = TestClient(app)
+
+    with patch("app.api.routes.scan.interpret_lines", return_value=[]) as mock_interpret:
+        with patch("app.api.routes.scan.is_available", return_value=True):
+            response = client.post(
+                "/api/scan",
+                files=[
+                    ("files", ("cisco.cfg", cisco_config.encode("utf-8"), "text/plain")),
+                    ("files", ("unknown.cfg", UNKNOWN_CONFIG.encode("utf-8"), "text/plain")),
+                ],
+            )
+
+    # Since one file is unknown, the entire scan goes adaptive-only
+    assert response.status_code == 200
+    data = response.json()
+
+    # Unknown vendor present
+    vendors = [d["vendor"] for d in data["devices"]]
+    assert "unknown" in vendors
+
+    print("\nPASS [H2]: Mixed vendors handled correctly")
+
+
+# ===========================================================================
+# Test - unknown config preserves raw lines and line numbers
+# ===========================================================================
+
+def test_unknown_config_preserves_raw_lines():
+    """Raw configuration and exact line numbers are preserved for unknown vendors."""
+
+    raw_lines = UNKNOWN_CONFIG.splitlines()
+
+    normalized = NormalizedConfig(
+        device=DeviceInfo(vendor=Vendor.UNKNOWN, hostname="unknown"),
+        raw_config=UNKNOWN_CONFIG,
+        raw_lines=raw_lines,
+    )
+    capture_unrecognized_lines(normalized)
+
+    assert len(normalized.raw_lines) == len(raw_lines)
+
+    # Each unrecognized line should have correct line number
+    for ul in normalized.unrecognized_lines:
+        assert ul.line_number >= 1
+        assert normalized.raw_lines[ul.line_number - 1].strip() == ul.raw_line.strip()
+
+    print("\nPASS: Unknown config preserves raw lines and line numbers")
+
+
+# ---------------------------------------------------------------------------
+# Run directly
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    test_a_unknown_vendor_reaches_adaptive_pipeline()
+    test_b_unknown_vendor_invokes_phase2()
+    test_c_one_groq_request_per_config()
+    test_d_groq_unavailable_graceful()
+    test_d2_groq_exception_graceful()
+    test_e_ai_results_not_in_analyze()
+    test_f_cisco_behavior_unchanged()
+    test_f2_fortinet_behavior_unchanged()
+    test_g_scoring_unchanged()
+    test_g2_remediation_unchanged()
+    test_h_multiple_unknown_configs_one_request_each()
+    test_h2_mixed_known_and_unknown_vendors()
+    test_unknown_config_preserves_raw_lines()
+
+    print("\n")
+    print("============================================")
+    print("ALL UNKNOWN-VENDOR INTEGRATION TESTS PASSED")
+    print("============================================")

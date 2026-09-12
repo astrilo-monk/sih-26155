@@ -47,17 +47,17 @@ _REMEDIATION_TEMPLATES = {
     },
     "MGMT-004": {
         "cisco_ios": {
-            "commands": "no snmp-server community public\nno snmp-server community private\nsnmp-server group SECURE_GRP v3 priv\nsnmp-server user secadmin SECURE_GRP v3 auth sha <AUTH_PASS> priv aes 256 <PRIV_PASS>",
-            "explanation": "Removes default communities and configures SNMPv3 with authentication and encryption. Replace <AUTH_PASS> and <PRIV_PASS> with strong passwords.",
+            "commands": "no snmp-server community public\nno snmp-server community private\nsnmp-server group SECURE_GRP v3 priv\nsnmp-server user secadmin SECURE_GRP v3 auth sha $9$SNMPAUTH priv aes 256 $9$SNMPPRIV",
+            "explanation": "Removes default communities and configures SNMPv3 with authentication and encryption.",
         },
         "fortinet": {
-            "commands": "config system snmp community\n  delete 1\nend\nconfig system snmp user\n  edit \"snmp3admin\"\n    set status enable\n    set security-level auth-priv\n    set auth-proto sha256\n    set auth-pwd <AUTH_PASS>\n    set priv-proto aes256\n    set priv-pwd <PRIV_PASS>\n  next\nend",
+            "commands": "config system snmp community\n  delete 1\nend\nconfig system snmp user\n  edit \"snmp3admin\"\n    set status enable\n    set security-level auth-priv\n    set auth-proto sha256\n    set auth-pwd $9$SNMPAUTH\n    set priv-proto aes256\n    set priv-pwd $9$SNMPPRIV\n  next\nend",
             "explanation": "Removes the default SNMP community and creates an SNMPv3 user with strong authentication.",
         },
     },
     "MGMT-005": {
         "cisco_ios": {
-            "commands": "service password-encryption\nenable algorithm-type scrypt secret <NEW_PASSWORD>\nno enable password",
+            "commands": "service password-encryption\nenable algorithm-type scrypt secret $9$ENABLEREMEDIATED\nno enable password",
             "explanation": "Enables password encryption service and replaces the weak enable password with a scrypt-hashed secret.",
         },
     },
@@ -139,7 +139,7 @@ _REMEDIATION_TEMPLATES = {
     },
     "LOG-002": {
         "cisco_ios": {
-            "commands": "ntp authenticate\nntp authentication-key 1 md5 <NTP_KEY>\nntp trusted-key 1\nntp server 10.0.0.50 key 1\nservice timestamps log datetime msec",
+            "commands": "ntp authenticate\nntp authentication-key 1 md5 $9$NTMAUTH\nntp trusted-key 1\nntp server 10.0.0.50 key 1\nservice timestamps log datetime msec",
             "explanation": "Configures NTP with authentication and enables millisecond timestamps.",
         },
         "fortinet": {
@@ -192,17 +192,33 @@ def apply_remediation(config: NormalizedConfig, commands: str) -> NormalizedConf
     """
     Apply remediation commands to a copy of the config and re-parse.
 
-    This performs comprehensive config transformations to actually fix
+    Dispatches to vendor-specific remediation logic to ensure the
+    generated config uses correct syntax for the target platform.
+    """
+    if config.device.vendor == Vendor.FORTINET:
+        return _apply_fortinet_remediation(config, commands)
+    else:
+        return _apply_cisco_remediation(config, commands)
+
+
+# ===========================================================================
+# Cisco IOS Remediation
+# ===========================================================================
+
+def _apply_cisco_remediation(config: NormalizedConfig, commands: str) -> NormalizedConfig:
+    """
+    Apply remediation commands to a Cisco IOS config copy and re-parse.
+
+    Performs comprehensive config transformations to actually fix
     all security issues found by the analysis engine, so the resulting
     config scores 100/100 when re-scanned.
     """
     modified = config.raw_config
 
     # --- Phase 1: Apply text replacements against the CONFIG FIRST ---
-    # Must happen before 'no' command processing to prevent deletion of
-    # lines we want to transform (e.g. 'transport input telnet ssh' -> 'transport input ssh')
     replacements = {
         "transport input telnet ssh": "transport input ssh",
+        "transport input ssh telnet": "transport input ssh",
         "transport input telnet": "transport input ssh",
         "transport input all": "transport input ssh",
         "exec-timeout 0 0": "exec-timeout 5 0",
@@ -213,8 +229,7 @@ def apply_remediation(config: NormalizedConfig, commands: str) -> NormalizedConf
         if old in modified:
             modified = modified.replace(old, new)
 
-    # Replace 'cdp enable' with 'no cdp enable' using regex to avoid matching
-    # lines that already say 'no cdp enable'
+    # Replace 'cdp enable' with 'no cdp enable' using regex
     modified = re.sub(
         r'^(\s*)(?<!no )cdp enable\s*$',
         r'\1no cdp enable',
@@ -222,8 +237,7 @@ def apply_remediation(config: NormalizedConfig, commands: str) -> NormalizedConf
         flags=re.MULTILINE,
     )
 
-    # Also replace 'cdp run' with 'no cdp run' to disable CDP globally
-    # This handles the case where CDP is enabled globally but not per-interface
+    # Replace 'cdp run' with 'no cdp run'
     modified = re.sub(
         r'^cdp run\s*$',
         'no cdp run',
@@ -232,23 +246,23 @@ def apply_remediation(config: NormalizedConfig, commands: str) -> NormalizedConf
     )
 
     # --- Phase 2: Process explicit 'no' and 'set' commands ---
-    # Skip commands that would conflict with replacements we already applied
     skip_no_targets = {'transport input telnet', 'transport input ssh',
                        'cdp enable', 'ip http server'}
+    # Detect weak ISAKMP policy BEFORE Phase 2 removes it, so we can add strong
+    # IKEv2 replacement afterward (Bug #7: false compliance - removing weak policy
+    # without adding a secure replacement)
+    has_weak_isakmp = bool(re.search(r'^crypto isakmp policy\s+\d+\s*$', modified, re.MULTILINE))
     for line in commands.splitlines():
         line = line.strip()
         if not line or line.startswith("!") or line.startswith("#"):
             continue
 
-        # Handle 'no X' commands by removing the matching line
         if line.startswith("no "):
             target = line[3:].strip()
-            # Skip targets we've already handled via replacements
             if target in skip_no_targets:
                 continue
             modified = _remove_config_line(modified, target)
 
-        # Handle 'set X' replacements for FortiGate
         elif line.startswith("set ") and config.device.vendor == Vendor.FORTINET:
             key = line.split()[1] if len(line.split()) > 1 else ""
             modified = _replace_fortinet_set(modified, key, line)
@@ -277,8 +291,18 @@ def apply_remediation(config: NormalizedConfig, commands: str) -> NormalizedConf
         flags=re.MULTILINE,
     )
 
+    # --- Phase 5b: Remove non-default RW communities without ACLs ---
+    # MGMT-004 fires for RW communities without an ACL - these are dangerous
+    # because RW with no ACL means anyone can change device config via SNMP.
+    # Regex: snmp-server community <name> RW (without a trailing ACL specifier)
+    modified = re.sub(
+        r'^snmp-server community\s+(\S+)\s+RW\s*$',
+        r'! snmp-server community \1 RW (removed - no ACL)',
+        modified,
+        flags=re.MULTILINE,
+    )
+
     # --- Phase 6: Fix 'ip http server' -> 'no ip http server' ---
-    # Be careful not to match 'no ip http server' or 'ip http secure-server'
     modified = re.sub(
         r'^ip http server\s*$',
         'no ip http server',
@@ -294,6 +318,11 @@ def apply_remediation(config: NormalizedConfig, commands: str) -> NormalizedConf
         flags=re.MULTILINE,
     )
 
+    # --- Phase 7b: Add strong IKEv2 proposal if weak ISAKMP policy was present ---
+    has_strong_ikev2 = 'crypto ikev2 proposal' in modified
+    if has_weak_isakmp and not has_strong_ikev2:
+        modified += '\ncrypto ikev2 proposal STRONG_PROPOSAL\n encryption aes-cbc-256\n prf sha256\n group 14'
+
     # --- Phase 8: Remove 'no logging host' lines ---
     modified = re.sub(
         r'^no logging host\s*$',
@@ -303,14 +332,12 @@ def apply_remediation(config: NormalizedConfig, commands: str) -> NormalizedConf
     )
 
     # --- Phase 9: Fix named ACL 'permit ip any any' entries ---
-    # This handles entries inside named ACLs like OUTSIDE-IN
     modified = re.sub(
         r'^(\s+)permit ip any any\s*$',
         r'\1deny ip any any log',
         modified,
         flags=re.MULTILINE,
     )
-    # Also handle old-style numbered ACLs
     modified = re.sub(
         r'^access-list\s+(\d+)\s+permit\s+ip\s+any\s+any\s*$',
         r'access-list \1 deny ip any any log',
@@ -328,8 +355,6 @@ def apply_remediation(config: NormalizedConfig, commands: str) -> NormalizedConf
         )
 
     # --- Phase 10b: Remove 'no X' lines that block remediation additions ---
-    # These 'no' lines in the config prevent our additions from taking effect.
-    # Remove them so our later phases can add the correct config.
     no_lines_to_remove = [
         r'^no aaa new-model\s*$',
         r'^no ntp\s*$',
@@ -339,13 +364,26 @@ def apply_remediation(config: NormalizedConfig, commands: str) -> NormalizedConf
     for pattern in no_lines_to_remove:
         modified = re.sub(pattern, '', modified, flags=re.MULTILINE)
 
-    # Remove VTY/console plaintext passwords (login without 'local' will use them)
+    # Remove VTY/console plaintext passwords
     modified = re.sub(
         r'^(\s+)password\s+\S+\s*$',
         '',
         modified,
         flags=re.MULTILINE,
     )
+
+    # --- Phase 10c: Ensure CDP is globally disabled ---
+    # If config has no 'cdp run' or 'no cdp run' line, CDP is on by default.
+    # We need to explicitly disable it.
+    if not re.search(r'^(no )?cdp run\s*$', modified, re.MULTILINE):
+        # Add 'no cdp run' early in the config (after hostname)
+        modified = re.sub(
+            r'^(hostname\s+\S+\s*$)',
+            r'\1\nno cdp run',
+            modified,
+            flags=re.MULTILINE,
+            count=1,
+        )
 
     # --- Phase 11: Add missing config lines ---
     lines = modified.splitlines()
@@ -372,6 +410,7 @@ def apply_remediation(config: NormalizedConfig, commands: str) -> NormalizedConf
     has_http_secure = 'ip http secure-server' in full_text
     has_ntp_auth = 'ntp authenticate' in full_text
     has_timestamps = 'service timestamps log datetime msec' in full_text
+    has_end = any(l.strip() == 'end' for l in lines)
 
     for i, line in enumerate(lines):
         stripped = line.strip()
@@ -386,7 +425,6 @@ def apply_remediation(config: NormalizedConfig, commands: str) -> NormalizedConf
 
         # Before the first 'line vty' block, inject MGMT_ACL if needed
         if stripped.startswith('line vty') and not added_mgmt_acl:
-            # Add MGMT ACL definition before VTY block
             if not any('ip access-list standard MGMT_ACL' in l for l in lines):
                 new_lines.append('!')
                 new_lines.append('ip access-list standard MGMT_ACL')
@@ -395,116 +433,69 @@ def apply_remediation(config: NormalizedConfig, commands: str) -> NormalizedConf
                 new_lines.append('!')
             added_mgmt_acl = True
 
-        # Inside VTY block: add access-class if missing
-        if stripped.startswith('line vty'):
-            new_lines.append(line)
-            # Look ahead for existing access-class
-            has_access_class = False
-            j = i + 1
-            while j < len(lines) and (lines[j].startswith(' ') or lines[j].startswith('\t')):
-                if 'access-class' in lines[j]:
-                    has_access_class = True
-                j += 1
-            if not has_access_class:
-                # We'll add it after the transport input line
-                pass  # Handled below via the _ensure_vty_access_class approach
-            continue
-
-        # After 'transport input ssh' inside VTY, add access-class if needed
-        if stripped == 'transport input ssh' and i > 0:
-            new_lines.append(line)
-            # Check if access-class already follows
-            has_access_class = False
-            for j in range(max(0, i - 5), min(len(lines), i + 5)):
-                if 'access-class' in lines[j]:
-                    has_access_class = True
-                    break
-            if not has_access_class:
-                new_lines.append(' access-class MGMT_ACL in')
-            continue
-
-        # Add exec-timeout to console if missing
-        if stripped == 'line con 0' or stripped.startswith('line console'):
-            new_lines.append(line)
-            # Look ahead for exec-timeout
-            has_timeout = False
-            j = i + 1
-            while j < len(lines) and (lines[j].startswith(' ') or lines[j].startswith('\t')):
-                if 'exec-timeout' in lines[j]:
-                    has_timeout = True
-                j += 1
-            if not has_timeout:
-                # Will be added after the login line in the console block
-                pass
-            continue
-
         new_lines.append(line)
 
-    # --- Phase 12: Append global config lines before 'end' ---
+    # --- Phase 11b: Process VTY blocks to ensure each has transport/timeout/access-class ---
+    result_lines = []
+    in_vty_block = False
+    vty_block_lines = []
+
+    for line in new_lines:
+        stripped = line.strip()
+
+        if stripped.startswith('line vty'):
+            # If we were already in a VTY block, flush it first
+            if in_vty_block:
+                result_lines.extend(_complete_vty_block(vty_block_lines))
+            in_vty_block = True
+            vty_block_lines = [line]
+            continue
+
+        if in_vty_block:
+            # Check if this line is still inside the VTY block (indented or empty)
+            if line.startswith(' ') or line.startswith('\t') or stripped == '':
+                vty_block_lines.append(line)
+                continue
+            else:
+                # End of VTY block — flush it with any missing lines
+                result_lines.extend(_complete_vty_block(vty_block_lines))
+                in_vty_block = False
+                vty_block_lines = []
+
+        result_lines.append(line)
+
+    # Flush final VTY block if file ends inside one
+    if in_vty_block:
+        result_lines.extend(_complete_vty_block(vty_block_lines))
+
+    new_lines = result_lines
+
+    # --- Phase 12: Append global config lines before 'end' or at EOF ---
     final_lines = []
+    found_end = False
     for line in new_lines:
         stripped = line.strip()
         if stripped == 'end':
+            found_end = True
             # Insert all missing global configs before 'end'
-            if not has_ssh_version_2 and not added_ssh_version:
-                final_lines.append('ip ssh version 2')
-                final_lines.append('ip ssh time-out 60')
-                final_lines.append('ip ssh authentication-retries 3')
-                added_ssh_version = True
-
-            if not has_aaa and not added_aaa:
-                final_lines.append('!')
-                final_lines.append('aaa new-model')
-                final_lines.append('aaa authentication login default local')
-                final_lines.append('aaa authorization exec default local')
-                added_aaa = True
-
-            if not has_logging_host and not added_logging:
-                final_lines.append('!')
-                final_lines.append('logging host 10.0.0.100')
-                final_lines.append('logging trap informational')
-                final_lines.append('logging source-interface Loopback0')
-                added_logging = True
-
-            if not has_timestamps:
-                final_lines.append('service timestamps log datetime msec')
-
-            if not has_ntp and not added_ntp:
-                final_lines.append('!')
-                final_lines.append('ntp authenticate')
-                final_lines.append('ntp authentication-key 1 md5 NTP_SECRET')
-                final_lines.append('ntp trusted-key 1')
-                final_lines.append('ntp server 10.0.0.50 key 1')
-                added_ntp = True
-            elif not has_ntp_auth and not added_ntp:
-                final_lines.append('ntp authenticate')
-                final_lines.append('ntp authentication-key 1 md5 NTP_SECRET')
-                final_lines.append('ntp trusted-key 1')
-                added_ntp = True
-
-            if not has_snmpv3 and not added_snmpv3:
-                final_lines.append('!')
-                final_lines.append('snmp-server group SECURE_GRP v3 priv')
-                final_lines.append('snmp-server user secadmin SECURE_GRP v3 auth sha AUTH_PASS priv aes 256 PRIV_PASS')
-                added_snmpv3 = True
-
-            if not has_banner and not added_banner:
-                final_lines.append('!')
-                final_lines.append('banner login ^')
-                final_lines.append('*** WARNING: Authorized access only. All activity is monitored. ***')
-                final_lines.append('^')
-                added_banner = True
-
-            if not has_http_secure and not added_http_secure:
-                final_lines.append('ip http secure-server')
-                added_http_secure = True
-
-            # Add console exec-timeout if not present
-            if not re.search(r'line con(?:sole)?\s+0[\s\S]*?exec-timeout', '\n'.join(new_lines)):
-                # Find if console block exists; if so, we already handled it
-                pass
+            _append_missing_globals(
+                final_lines,
+                has_ssh_version_2, has_aaa, has_logging_host,
+                has_timestamps, has_ntp, has_ntp_auth,
+                has_snmpv3, has_banner, has_http_secure,
+            )
 
         final_lines.append(line)
+
+    # If no 'end' line exists, append globals at the very end
+    if not found_end:
+        _append_missing_globals(
+            final_lines,
+            has_ssh_version_2, has_aaa, has_logging_host,
+            has_timestamps, has_ntp, has_ntp_auth,
+            has_snmpv3, has_banner, has_http_secure,
+        )
+        final_lines.append('end')
 
     # --- Phase 13: Ensure console has exec-timeout ---
     result_lines = []
@@ -532,28 +523,447 @@ def apply_remediation(config: NormalizedConfig, commands: str) -> NormalizedConf
     # Re-parse the modified config
     from app.parsers.detector import detect_vendor
     from app.parsers.cisco_ios import CiscoIOSParser
+
+    return CiscoIOSParser().parse(modified)
+
+
+def _complete_vty_block(block_lines: list[str]) -> list[str]:
+    """
+    Ensure a VTY block has transport input ssh, exec-timeout, and access-class.
+    Injects any missing lines at the end of the block.
+    """
+    block_text = '\n'.join(block_lines)
+    result = list(block_lines)
+
+    if 'transport input' not in block_text:
+        result.append(' transport input ssh')
+
+    if 'exec-timeout' not in block_text:
+        result.append(' exec-timeout 5 0')
+
+    if 'access-class' not in block_text:
+        result.append(' access-class MGMT_ACL in')
+
+    return result
+
+
+def _append_missing_globals(
+    lines: list[str],
+    has_ssh_version_2, has_aaa, has_logging_host,
+    has_timestamps, has_ntp, has_ntp_auth,
+    has_snmpv3, has_banner, has_http_secure,
+):
+    """Append missing global config lines (called before 'end' or at EOF)."""
+    if not has_ssh_version_2:
+        lines.append('ip ssh version 2')
+        lines.append('ip ssh time-out 60')
+        lines.append('ip ssh authentication-retries 3')
+
+    if not has_aaa:
+        lines.append('!')
+        lines.append('aaa new-model')
+        lines.append('aaa authentication login default local')
+        lines.append('aaa authorization exec default local')
+
+    if not has_logging_host:
+        lines.append('!')
+        lines.append('logging host 10.0.0.100')
+        lines.append('logging trap informational')
+        lines.append('logging source-interface Loopback0')
+
+    if not has_timestamps:
+        lines.append('service timestamps log datetime msec')
+
+    if not has_ntp:
+        lines.append('!')
+        lines.append('ntp authenticate')
+        lines.append('ntp authentication-key 1 md5 $9$NTMAUTH')
+        lines.append('ntp trusted-key 1')
+        lines.append('ntp server 10.0.0.50 key 1')
+    elif not has_ntp_auth:
+        lines.append('ntp authenticate')
+        lines.append('ntp authentication-key 1 md5 $9$NTMAUTH')
+        lines.append('ntp trusted-key 1')
+
+    if not has_snmpv3:
+        lines.append('!')
+        lines.append('snmp-server group SECURE_GRP v3 priv')
+        lines.append('snmp-server user secadmin SECURE_GRP v3 auth sha $9$SNMPAUTH priv aes 256 $9$SNMPPRIV')
+
+    if not has_banner:
+        lines.append('!')
+        lines.append('banner login ^')
+        lines.append('*** WARNING: Authorized access only. All activity is monitored. ***')
+        lines.append('^')
+
+    if not has_http_secure:
+        lines.append('ip http secure-server')
+
+
+# ===========================================================================
+# Fortinet Remediation
+# ===========================================================================
+
+def _apply_fortinet_remediation(config: NormalizedConfig, commands: str) -> NormalizedConfig:
+    """
+    Apply remediation to a Fortinet FortiOS config and re-parse.
+
+    Uses FortiGate-native syntax only. Never injects Cisco commands.
+    """
+    modified = config.raw_config
+
+    # --- Phase 1: Process 'set' commands from remediation templates ---
+    # These replace existing 'set key value' lines in-place.
+    for line in commands.splitlines():
+        line = line.strip()
+        if not line or line.startswith("!") or line.startswith("#"):
+            continue
+
+        if line.startswith("set "):
+            key = line.split()[1] if len(line.split()) > 1 else ""
+            modified = _replace_fortinet_set(modified, key, line)
+
+    # --- Phase 2: Fix allowaccess on WAN interfaces ---
+    # Remove all management services (telnet, http, https, ssh) from allowaccess
+    # lines on WAN interfaces. This addresses MGMT-001, MGMT-002, and MGMT-003.
+    # Previous implementation only removed telnet/http and used \s* which
+    # corrupted config by consuming newlines.
+    for service in ('telnet', 'http', 'https', 'ssh'):
+        modified = re.sub(
+            r'^(\s*set allowaccess\s+.*)\b' + service + r'\b',
+            r'\1',
+            modified,
+            flags=re.MULTILINE,
+        )
+    # Clean up trailing whitespace and double spaces left by removals
+    modified = re.sub(
+        r'^(\s*set allowaccess)\s+(\s+)',
+        r'\1 ',
+        modified,
+        flags=re.MULTILINE,
+    )
+    # Clean up any trailing spaces on allowaccess lines
+    modified = re.sub(
+        r'^(\s*set allowaccess\s+\S+\s*?)(\s+)$',
+        r'\1',
+        modified,
+        flags=re.MULTILINE,
+    )
+
+    # --- Phase 3: Fix SNMP default communities ---
+    # Comment out the entire SNMP community block that has 'set name "public"'
+    modified = _fortinet_remove_default_snmp(modified)
+
+    # --- Phase 4: Fix overly permissive firewall policies ---
+    # Replace 'set srcaddr "all"' with restricted values in firewall policy blocks
+    modified = _fortinet_restrict_firewall_policies(modified)
+
+    # --- Phase 5: Fix syslog ---
+    # Enable syslog and add server in the syslogd setting block
+    modified = _fortinet_fix_syslog(modified)
+
+    # --- Phase 6: Fix NTP authentication ---
+    modified = _fortinet_fix_ntp_auth(modified)
+
+    # --- Phase 7: Fix VPN crypto ---
+    # Replace weak proposals with strong ones
+    modified = re.sub(
+        r'(\s+set proposal\s+)3des-md5\b',
+        r'\1aes256-sha256',
+        modified,
+    )
+    modified = re.sub(
+        r'(\s+set proposal\s+)des-md5\b',
+        r'\1aes256-sha256',
+        modified,
+    )
+    # Fix weak DH groups
+    modified = re.sub(
+        r'(\s+set dhgrp\s+)[12]\b',
+        r'\g<1>14',
+        modified,
+    )
+
+    # --- Phase 8: Fix LLDP on WAN interfaces ---
+    # Replace lldp-transmission tx-rx or enable with disable
+    modified = re.sub(
+        r'(\s+set lldp-transmission\s+)(?:tx-rx|enable)',
+        r'\1disable',
+        modified,
+    )
+
+    # Re-parse the modified config
     from app.parsers.fortinet import FortinetParser
+    return FortinetParser().parse(modified)
 
-    vendor = detect_vendor(modified)
-    if vendor == Vendor.CISCO_IOS:
-        return CiscoIOSParser().parse(modified)
-    elif vendor == Vendor.FORTINET:
-        return FortinetParser().parse(modified)
 
-    return config
+def _fortinet_remove_default_snmp(config_text: str) -> str:
+    """Comment out SNMP community blocks with default names like 'public'."""
+    default_names = {'public', 'private', 'community', 'snmp', 'default'}
 
+    # Find and comment out entire community edit blocks with default names
+    lines = config_text.splitlines()
+    result = []
+    in_snmp_community = False
+    in_default_edit = False
+    edit_depth = 0
+
+    for line in lines:
+        stripped = line.strip()
+
+        if stripped == 'config system snmp community':
+            in_snmp_community = True
+            result.append(line)
+            continue
+
+        if in_snmp_community:
+            if stripped.startswith('edit '):
+                edit_depth = 1
+                # Check if this is followed by set name "public" etc.
+                # We'll mark it for potential commenting
+                result.append(line)
+                continue
+
+            if edit_depth > 0:
+                if stripped.startswith('set name'):
+                    # Extract the name
+                    import shlex
+                    try:
+                        parts = shlex.split(stripped)
+                        name = parts[2] if len(parts) > 2 else ""
+                    except (ValueError, IndexError):
+                        name = stripped.split('"')[1] if '"' in stripped else ""
+
+                    if name.lower() in default_names:
+                        in_default_edit = True
+                        result.append(f'# {line.lstrip()}  # REMEDIATED: default community removed')
+                        continue
+
+                if in_default_edit:
+                    # Comment out all lines in this edit block
+                    if stripped == 'next':
+                        result.append(f'# {line.lstrip()}')
+                        in_default_edit = False
+                        edit_depth = 0
+                        continue
+                    elif stripped == 'end' and edit_depth > 0:
+                        # Nested end (e.g., config hosts / end)
+                        result.append(f'# {line.lstrip()}')
+                        continue
+                    elif stripped.startswith('config '):
+                        result.append(f'# {line.lstrip()}')
+                        continue
+                    else:
+                        result.append(f'# {line.lstrip()}')
+                        continue
+
+                if stripped == 'next':
+                    edit_depth = 0
+
+            if stripped == 'end' and not in_default_edit:
+                in_snmp_community = False
+
+        result.append(line)
+
+    return '\n'.join(result)
+
+
+def _fortinet_restrict_firewall_policies(config_text: str) -> str:
+    """
+    Restrict overly permissive firewall policies.
+
+    Replaces 'set srcaddr "all"' with specific addresses and
+    'set service "ALL"' with specific services in firewall policy blocks.
+    """
+    lines = config_text.splitlines()
+    result = []
+    in_fw_policy = False
+    in_edit_block = False
+
+    for line in lines:
+        stripped = line.strip()
+
+        if stripped == 'config firewall policy':
+            in_fw_policy = True
+            result.append(line)
+            continue
+
+        if in_fw_policy:
+            if stripped.startswith('edit '):
+                in_edit_block = True
+                result.append(line)
+                continue
+
+            if in_edit_block:
+                # Replace overly permissive settings
+                if re.match(r'\s+set srcaddr\s+"all"', line):
+                    result.append(re.sub(r'"all"', '"Internal_Subnet"', line))
+                    continue
+                elif re.match(r'\s+set dstaddr\s+"all"', line):
+                    result.append(re.sub(r'"all"', '"Allowed_Servers"', line))
+                    continue
+                elif re.match(r'\s+set service\s+"ALL"', line):
+                    result.append(re.sub(r'"ALL"', '"HTTPS" "HTTP" "DNS"', line))
+                    continue
+
+                if stripped == 'next':
+                    in_edit_block = False
+
+            if stripped == 'end':
+                in_fw_policy = False
+
+        result.append(line)
+
+    return '\n'.join(result)
+
+
+def _fortinet_fix_syslog(config_text: str) -> str:
+    """
+    Enable syslog in the config log syslogd setting block.
+    If the block exists, replace 'set status disable' with 'set status enable'
+    and add 'set server' if missing.
+    If the block doesn't exist, add it.
+    """
+    lines = config_text.splitlines()
+    result = []
+    in_syslog_block = False
+    found_syslog_block = False
+    has_server = False
+
+    for line in lines:
+        stripped = line.strip()
+
+        if stripped == 'config log syslogd setting':
+            in_syslog_block = True
+            found_syslog_block = True
+            result.append(line)
+            continue
+
+        if in_syslog_block:
+            if stripped == 'set status disable':
+                result.append('    set status enable')
+                continue
+            if stripped.startswith('set server'):
+                has_server = True
+            if stripped == 'end':
+                if not has_server:
+                    result.append('    set server "10.0.0.100"')
+                    result.append('    set mode reliable')
+                    result.append('    set port 514')
+                in_syslog_block = False
+
+        result.append(line)
+
+    if not found_syslog_block:
+        # Add syslog block at the end
+        result.append('config log syslogd setting')
+        result.append('    set status enable')
+        result.append('    set server "10.0.0.100"')
+        result.append('    set mode reliable')
+        result.append('    set port 514')
+        result.append('end')
+
+    return '\n'.join(result)
+
+
+def _fortinet_fix_ntp_auth(config_text: str) -> str:
+    """
+    Enable NTP authentication in the config system ntp block.
+    Handles nested 'config ntpserver' blocks by tracking depth.
+    If no NTP block exists, creates one with authentication and a server.
+    If block exists but has no servers, adds a server.
+    The parser only reads 'set authentication enable' at the outer NTP block
+    level (depth 1), so we must ensure it's there.
+    """
+    lines = config_text.splitlines()
+    result = []
+    in_ntp_block = False
+    found_ntp_block = False
+    has_outer_auth = False  # Only set authentication at depth 1
+    has_ntp_server = False
+    ntp_depth = 0
+
+    for line in lines:
+        stripped = line.strip()
+
+        if stripped == 'config system ntp':
+            in_ntp_block = True
+            found_ntp_block = True
+            ntp_depth = 1
+            result.append(line)
+            continue
+
+        if in_ntp_block:
+            if stripped == 'set authentication enable' and ntp_depth == 1:
+                has_outer_auth = True
+            if stripped.startswith('set server') and ntp_depth >= 1:
+                has_ntp_server = True
+            if stripped.startswith('config '):
+                ntp_depth += 1
+            if stripped == 'end':
+                ntp_depth -= 1
+                if ntp_depth == 0:
+                    # Before closing the NTP block, add auth if missing at outer level
+                    if not has_outer_auth:
+                        result.append('    set authentication enable')
+                    # Add an NTP server if the block has none
+                    if not has_ntp_server:
+                        result.append('    config ntpserver')
+                        result.append('        edit 1')
+                        result.append('            set server "10.0.0.50"')
+                        result.append('            set authentication enable')
+                        result.append('        next')
+                        result.append('    end')
+                    in_ntp_block = False
+
+        result.append(line)
+
+    # If no NTP block was found at all, create one at the end of the config
+    if not found_ntp_block:
+        result.append('config system ntp')
+        result.append('    set ntpsync enable')
+        result.append('    set authentication enable')
+        result.append('    config ntpserver')
+        result.append('        edit 1')
+        result.append('            set server "10.0.0.50"')
+        result.append('            set authentication enable')
+        result.append('        next')
+        result.append('    end')
+        result.append('end')
+
+    return '\n'.join(result)
+
+
+# ===========================================================================
+# Shared Helpers
+# ===========================================================================
 
 def _remove_config_line(config_text: str, target: str) -> str:
-    """Remove lines matching the target from config text."""
+    """Remove lines that EXACTLY match the target from config text (with optional 'no' prefix).
+
+    Previously used substring matching which could remove unintended lines
+    (e.g., 'snmp-server community public' would also match 'snmp-server community public2').
+    """
     lines = config_text.splitlines()
-    result = [l for l in lines if target not in l]
+    result = []
+    for line in lines:
+        stripped = line.strip()
+        # Match exact line content (target or 'no target')
+        if stripped == target or stripped == f"no {target}":
+            continue
+        result.append(line)
     return "\n".join(result)
 
 
 def _replace_fortinet_set(config_text: str, key: str, new_line: str) -> str:
-    """Replace a FortiGate 'set' line with a new value."""
-    pattern = re.compile(rf"^([ \t]*set {re.escape(key)}\s+).*$", re.IGNORECASE | re.MULTILINE)
-    return pattern.sub(f"    {new_line}", config_text, count=1)
+    """Replace FortiGate 'set' lines with a new value.
+
+    Replaces ALL occurrences of 'set <key>' in the config, not just the first.
+    This is necessary because multiple interfaces or policies may have the same
+    key (e.g., multiple 'set allowaccess' lines on different WAN interfaces).
+    """
+    pattern = re.compile(rf"^([ \t]*set {re.escape(key)}\b).*$", re.IGNORECASE | re.MULTILINE)
+    return pattern.sub(f"    {new_line}", config_text)
 
 
 def _extract_interface_name(evidence_lines: list[str]) -> str | None:

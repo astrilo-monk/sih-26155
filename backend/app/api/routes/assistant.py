@@ -28,7 +28,7 @@ async def chat(req: AssistantRequest):
     """Chat with the AI assistant about scan results."""
     if not is_available():
         return AssistantResponse(
-            response="AI features are not configured. Set GEMINI_API_KEY in your .env file.",
+            response="AI features are not configured. Set GROQ_API_KEY in your .env file.",
             scan_id=req.scan_id,
         )
 
