@@ -2,250 +2,522 @@
 Adaptive Interpretation Service.
 
 Receives unrecognized security-relevant lines from a single
-NormalizedConfig and produces AI semantic interpretations via
-a single batched Groq request.
+NormalizedConfig and produces AI semantic interpretations.
 
-The AI is an interpreter ONLY. It determines semantic meaning
-(vendor, security concept, normalized field, value, confidence,
-reasoning). It NEVER determines compliance, generates findings,
-calculates scores, or produces remediation.
+The AI is an interpreter ONLY. It maps a line onto the controlled
+vocabulary of settable NormalizedConfig fields (``app.models.field_catalog``)
+and cites the evidence for the value. It NEVER determines compliance,
+generates findings, calculates scores, or produces remediation.
 
-All Groq calls go through app.ai.client and are fully mocked
-in tests. The service is designed to fail safely: if Groq is
-unavailable, timeout, or returns malformed output, affected
-lines are marked ai_unavailable and the deterministic scan
-continues unchanged.
+Contract and safety properties:
+
+* the response schema restricts ``normalized_field`` to the field catalog
+  (plus ``"unknown"``); the prompt carries each field's type and value rules
+* each target line is sent with its structural block path and a few
+  surrounding lines, while every result stays keyed to the target line number
+* every returned item is validated on its own — one malformed or invented
+  item never discards the rest of the batch
+* results are matched by line number (whitespace differences in the echoed
+  line are tolerated); missing lines get one follow-up request
+* transient failures are retried once, then the chunk is split; an exhausted
+  usage quota stops further calls immediately
+* anything that still fails is marked ``ai_unavailable`` — never guessed —
+  and the deterministic scan continues unchanged
+
+All Groq calls go through app.ai.client and are fully mocked in tests.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from dataclasses import dataclass
+from typing import Any, Optional
 
-from app.ai.client import generate_structured, is_available
+from pydantic import ValidationError
+
+from app.ai.client import (
+    ERROR_INVALID_OUTPUT,
+    ERROR_QUOTA_EXHAUSTED,
+    ERROR_RATE_LIMITED,
+    ERROR_REQUEST_FAILED,
+    StructuredResponse,
+    is_available,
+    request_structured,
+)
 from app.ai.interpretation_schemas import (
-    BatchedInterpretationResponse,
     ConfidenceLevel,
     InterpretationResult,
     InterpretationStatus,
     NORMALIZED_FIELD_ALLOWLIST,
 )
+from app.models.field_catalog import FIELD_REGISTRY, SETTABLE_FIELDS
 from app.models.normalized import NormalizedConfig, UnrecognizedLine
 
 logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Groq model + structured output configuration
+# Groq model + generation settings
 # ---------------------------------------------------------------------------
 
 GROQ_MODEL = "openai/gpt-oss-120b"
 
-# JSON Schema for structured output. Enforces:
-# - required fields
-# - enums for confidence/status
-# - normalized_field restricted to allowlist + "unknown"
-# - additionalProperties: false
-INTERPRETATION_RESPONSE_FORMAT = {
-    "type": "json_schema",
-    "json_schema": {
-        "name": "interpretation_response",
-        "description": (
-            "Semantic interpretation of unrecognized security-relevant "
-            "configuration lines. One result per input line."
-        ),
-        "strict": True,
-        "schema": {
-            "type": "object",
-            "properties": {
-                "interpretations": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "line_number": {
-                                "type": "integer",
-                                "description": "1-indexed line number in the original config",
-                            },
-                            "raw_line": {
-                                "type": "string",
-                                "description": "The original configuration line text",
-                            },
-                            "likely_vendor": {
-                                "type": "string",
-                                "description": "Vendor or vendor family the line likely belongs to",
-                            },
-                            "security_concept": {
-                                "type": "string",
-                                "description": "Vendor-independent security concept",
-                            },
-                            "normalized_field": {
-                                "type": "string",
-                                "description": (
-                                    "Existing normalized field path, or 'unknown' "
-                                    "if it cannot safely map to an existing field"
-                                ),
-                            },
-                            "extracted_value": {
-                                "type": ["string", "null"],
-                                "description": "Value extracted from the line, if any",
-                            },
-                            "confidence": {
-                                "type": "string",
-                                "enum": ["high", "medium", "low"],
-                                "description": "How confident the AI is",
-                            },
-                            "reasoning": {
-                                "type": "string",
-                                "description": "Concise explanation",
-                            },
-                            "status": {
-                                "type": "string",
-                                "enum": ["interpreted", "unknown", "ai_unavailable"],
-                                "description": "Interpretation status",
-                            },
+# Extraction task: conservative, repeatable sampling. This improves
+# consistency but is not relied on for correctness — every result is
+# validated downstream.
+TEMPERATURE = 0.0
+TOP_P = 1.0
+SEED = 42
+# gpt-oss is a reasoning model; short reasoning keeps latency (and the
+# chance of hitting the timeout) stable between identical scans.
+REASONING_EFFORT = "low"
+
+# Lines per request. Smaller batches keep one bad response from affecting
+# many lines and keep each request well inside the output token budget.
+MAX_LINES_PER_BATCH = 10
+MAX_TOKENS_PER_CHUNK = 8192
+
+# Context sent with each target line
+CONTEXT_LINE_CHARS = 160
+
+# One level of halving when a whole chunk keeps failing
+MAX_SPLIT_DEPTH = 1
+
+_CONFIDENCE_RANK = {ConfidenceLevel.LOW: 0, ConfidenceLevel.MEDIUM: 1, ConfidenceLevel.HIGH: 2}
+_MEDIUM_CEILING = 0.84
+
+
+def _reasoning_effort_for(model: str) -> Optional[str]:
+    return REASONING_EFFORT if "gpt-oss" in model else None
+
+
+# ---------------------------------------------------------------------------
+# Structured output schema (derived from the field catalog)
+# ---------------------------------------------------------------------------
+
+def _build_response_format() -> dict:
+    item_properties = {
+        "line_number": {
+            "type": "integer",
+            "description": "Line number of the TARGET line",
+        },
+        "raw_line": {
+            "type": "string",
+            "description": "The TARGET line text",
+        },
+        "likely_vendor": {
+            "type": "string",
+            "description": "Vendor/OS whose syntax this is, lowercase, or 'unknown'",
+        },
+        "security_concept": {
+            "type": "string",
+            "description": "Vendor-independent snake_case security concept",
+        },
+        "normalized_field": {
+            "type": "string",
+            "enum": [*SETTABLE_FIELDS, "unknown"],
+            "description": "Target field from the catalog, or 'unknown'",
+        },
+        "extracted_value": {
+            "type": ["string", "null"],
+            "description": "Value in the target field's format, or null",
+        },
+        "value_evidence": {
+            "type": ["string", "null"],
+            "description": "Exact substring of the TARGET line that proves the value",
+        },
+        "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "description": "Confidence that field and value are correct",
+        },
+        "numeric_confidence": {
+            "type": ["number", "null"],
+            "description": "Numeric confidence in [0, 1], inside the chosen band",
+        },
+        "reasoning": {
+            "type": "string",
+            "description": "One-sentence explanation",
+        },
+        "status": {
+            "type": "string",
+            "enum": ["interpreted", "unknown"],
+            "description": "'interpreted' when mapped to a field, else 'unknown'",
+        },
+    }
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "interpretation_response",
+            "description": (
+                "Mapping of unrecognized configuration lines onto the "
+                "vendor-neutral field catalog. One result per TARGET line."
+            ),
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "interpretations": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": item_properties,
+                            "required": list(item_properties),
+                            "additionalProperties": False,
                         },
-                        "required": [
-                            "line_number",
-                            "raw_line",
-                            "likely_vendor",
-                            "security_concept",
-                            "normalized_field",
-                            "extracted_value",
-                            "confidence",
-                            "reasoning",
-                            "status",
-                        ],
-                        "additionalProperties": False,
                     },
                 },
+                "required": ["interpretations"],
+                "additionalProperties": False,
             },
-            "required": ["interpretations"],
-            "additionalProperties": False,
         },
-    },
-}
+    }
+
+
+INTERPRETATION_RESPONSE_FORMAT = _build_response_format()
 
 
 # ---------------------------------------------------------------------------
-# System prompt
+# Prompts
 # ---------------------------------------------------------------------------
 
-INTERPRETATION_SYSTEM_PROMPT = """You are a network security configuration interpreter.
+_SYSTEM_PROMPT_TEMPLATE = """You are the extraction component of a vendor-agnostic network security auditor.
+You map configuration lines from ANY vendor or operating system onto a fixed,
+vendor-neutral model. You do not judge compliance, create findings, score, or
+suggest fixes.
 
-Your task is to analyze unrecognized configuration lines from a network device
-and describe their SEMANTIC MEANING. You are NOT a compliance engine. You do NOT
-determine PASS/FAIL, create findings, calculate scores, or generate remediation.
+TARGET FIELDS - normalized_field must be exactly one of these names, or "unknown":
+{field_catalog}
 
-For each line, provide:
-- likely_vendor: The vendor or vendor family this line likely belongs to
-  (e.g. cisco_ios, fortinet, palo_alto, edge_os, unknown, generic)
-- security_concept: A vendor-independent, snake_case security concept name
-  (e.g. ssh_host_key_minimum, failed_login_lockout, telnet_console_exposure)
-- normalized_field: The EXISTING normalized field path this maps to from the
-  allowlist below. If you cannot safely map it to an existing field, use "unknown".
-  DO NOT invent new field names.
-- extracted_value: Any concrete value extracted from the line (e.g. "3072",
-  "120", "telnet", "enabled"). Use null if no clear value.
-- confidence: Your confidence in this interpretation (high, medium, low)
-- reasoning: A concise 1-sentence explanation
-- status: "interpreted" if you produced a meaningful interpretation,
-  "unknown" if you cannot interpret the line safely
+MAPPING RULES
+1. Work out which setting the TARGET line configures. The block path and the
+   context lines only help you read the syntax; interpret the target line.
+2. If the line sets exactly one target field, return that field and the value
+   in the field's value format:
+   - true/false fields: the resulting state, not the literal keyword. Resolve
+     negations: "disable-X no" means X is enabled ("true"); "no X", "X disable"
+     and "X off" mean "false".
+   - number fields: digits only.
+   - list fields: the single item (host, address, method) this line adds.
+   - text fields: the value as written, without surrounding quotes.
+3. value_evidence: copy, character for character, the part of the target line
+   that proves the value (for example the address, or the keyword and its
+   argument). It must be a substring of the target line.
+4. Use normalized_field "unknown", extracted_value null, value_evidence null and
+   status "unknown" when the line configures something not in the list, needs
+   several fields at once, or only makes sense as part of a larger object such
+   as an interface, access rule, firewall policy, user account or VPN proposal.
+5. Never invent field names and never return a value the target line does not
+   support.
 
-Normalized field allowlist (use EXACTLY these strings, or "unknown"):
-{field_allowlist}
+CONFIDENCE - how sure you are that the field and the value are right
+- high (numeric 0.85-1.0): a keyword in the line clearly names the concept and
+  the value is explicit or follows directly from an explicit keyword.
+- medium (0.50-0.84): plausible, but depends on an abbreviation, an implied
+  default or a keyword with more than one common meaning.
+- low (below 0.50): mostly a guess.
+An unfamiliar or unidentified vendor is NOT by itself a reason to lower
+confidence: judge the wording of the line. numeric_confidence must lie inside
+the band of the chosen confidence.
 
-Rules:
-- NEVER invent normalized field names. If uncertain, use "unknown".
-- NEVER determine compliance or scoring.
-- Be conservative. If a line is ambiguous, lower confidence or mark unknown.
-- Match the line_number exactly as provided.
-- Return exactly one interpretation object per input line, in the same order.
+VENDOR
+likely_vendor: the vendor or operating system whose syntax this is, lowercase
+(for example "juniper_junos", "palo_alto", "mikrotik_routeros", "arista_eos"),
+only when the syntax is distinctive to it; otherwise "unknown". The vendor
+never changes the field mapping.
+
+OUTPUT
+Exactly one object per TARGET line, in the given order, with its line_number,
+raw_line copied from the target line, a short snake_case security_concept and
+a one-sentence reasoning.
 """
 
 
-def _build_prompt(lines: list[UnrecognizedLine]) -> str:
-    """Build the user prompt containing all unrecognized lines for batched interpretation."""
-    field_allowlist = sorted(NORMALIZED_FIELD_ALLOWLIST)
-    field_list = "\n".join(f"  - {f}" for f in field_allowlist)
+def _field_catalog_text() -> str:
+    lines = []
+    for name in SETTABLE_FIELDS:
+        info = FIELD_REGISTRY[name]
+        lines.append(f"- {name} [{info.type_category}]: {info.description}. Value: {info.value_rule}.")
+    return "\n".join(lines)
 
-    lines_text = "\n".join(
-        f"  Line {ln.line_number}: {ln.raw_line.strip()}"
-        for ln in lines
+
+INTERPRETATION_SYSTEM_PROMPT = _SYSTEM_PROMPT_TEMPLATE.format(field_catalog=_field_catalog_text())
+
+
+def _clip(text: str) -> str:
+    text = " ".join((text or "").split())
+    return text if len(text) <= CONTEXT_LINE_CHARS else text[: CONTEXT_LINE_CHARS - 1] + "…"
+
+
+def _build_prompt(lines: list[UnrecognizedLine]) -> str:
+    """User prompt: each TARGET line with its block path and nearby lines."""
+    blocks = []
+    for ln in lines:
+        parts = [f"[TARGET line {ln.line_number}]", ln.raw_line.strip()]
+        if ln.structural_path:
+            parts.append("  block: " + " > ".join(_clip(h) for h in ln.structural_path))
+        before = [c for c in (_clip(x) for x in ln.context_before) if c]
+        after = [c for c in (_clip(x) for x in ln.context_after) if c]
+        if before:
+            parts.append("  context before: " + " | ".join(before))
+        if after:
+            parts.append("  context after: " + " | ".join(after))
+        blocks.append("\n".join(parts))
+
+    return (
+        "Map each TARGET line below. Block paths and context lines are read-only "
+        "reading aids; do not return objects for them.\n\n"
+        + "\n\n".join(blocks)
+        + f"\n\nReturn exactly {len(lines)} object(s), one per TARGET line, in this order."
     )
 
-    return f"""Interpret the following unrecognized security-relevant configuration lines.
 
-Normalized field allowlist:
-{field_list}
+# ---------------------------------------------------------------------------
+# Result construction
+# ---------------------------------------------------------------------------
 
-Lines to interpret:
-{lines_text}
+_DEFAULT_UNAVAILABLE_REASON = (
+    "AI interpretation unavailable — Groq call failed or returned invalid output"
+)
+_QUOTA_REASON = (
+    "AI interpretation unavailable — the AI provider's usage quota is exhausted; "
+    "nothing was inferred for this line"
+)
+_FAILURE_REASONS = {
+    ERROR_RATE_LIMITED: "AI interpretation unavailable — the AI provider is rate-limiting requests",
+    ERROR_INVALID_OUTPUT: "AI interpretation unavailable — the AI returned unusable output",
+    ERROR_REQUEST_FAILED: "AI interpretation unavailable — the AI request failed or timed out",
+    ERROR_QUOTA_EXHAUSTED: _QUOTA_REASON,
+}
 
-Return exactly one interpretation per input line, in the same order."""
+
+def _make_unavailable_result(line: UnrecognizedLine, reason: Optional[str] = None) -> InterpretationResult:
+    """An ai_unavailable result: no field, no value, zero confidence — not a judgement."""
+    return InterpretationResult(
+        line_number=line.line_number,
+        raw_line=line.raw_line,
+        likely_vendor="unknown",
+        security_concept="unknown",
+        normalized_field="unknown",
+        extracted_value=None,
+        confidence=ConfidenceLevel.LOW,
+        numeric_confidence=0.0,
+        reasoning=reason or _DEFAULT_UNAVAILABLE_REASON,
+        status=InterpretationStatus.AI_UNAVAILABLE,
+    )
 
 
+def _review_result(line: UnrecognizedLine, vendor: str, value: Optional[str], reasoning: str) -> InterpretationResult:
+    """The AI answered, but not in a usable form — keep what it said, send to review."""
+    return InterpretationResult(
+        line_number=line.line_number,
+        raw_line=line.raw_line,
+        likely_vendor=vendor,
+        security_concept="unknown",
+        normalized_field="unknown",
+        extracted_value=value,
+        confidence=ConfidenceLevel.MEDIUM,
+        numeric_confidence=0.5,
+        reasoning=reasoning,
+        status=InterpretationStatus.UNKNOWN,
+    )
 
-# Maximum lines per Groq request. The structured JSON response for each line
-# is ~400-500 chars. At 15 lines the response stays well under 8192 output
-# tokens even with verbose reasoning. Diagnostics confirmed:
-#   10 lines → 4,192 chars (fits in 4096 tokens)
-#   20 lines → 8,368 chars (fits in 8192 tokens)
-#   52 lines → TRUNCATED at 4096 tokens (root cause of ai_unavailable)
-MAX_LINES_PER_BATCH = 15
 
-# Output token budget per chunk — 8192 comfortably fits 15 lines of
-# structured interpretation output.
-MAX_TOKENS_PER_CHUNK = 8192
+def _text(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _normalize_ws(text: Any) -> str:
+    return " ".join(str(text or "").split())
+
+
+def _parse_item(item: dict, line: UnrecognizedLine) -> InterpretationResult:
+    """Validate one AI item against its target line; never raises."""
+    vendor = _text(item.get("likely_vendor")) or "unknown"
+    concept = _text(item.get("security_concept")) or "unknown"
+    field = item.get("normalized_field")
+    value = _text(item.get("extracted_value"))
+    evidence = _text(item.get("value_evidence"))
+    reasoning = _text(item.get("reasoning")) or ""
+
+    if not isinstance(field, str) or (field != "unknown" and field not in NORMALIZED_FIELD_ALLOWLIST):
+        return _review_result(
+            line, vendor, value,
+            f"AI proposed an unsupported field {field!r} — needs review. {reasoning}".strip(),
+        )
+
+    try:
+        confidence = ConfidenceLevel(str(item.get("confidence", "")).lower())
+    except ValueError:
+        confidence = ConfidenceLevel.LOW
+    try:
+        numeric = item.get("numeric_confidence")
+        numeric = None if numeric is None else min(1.0, max(0.0, float(numeric)))
+    except (TypeError, ValueError):
+        numeric = None
+
+    status = (
+        InterpretationStatus.INTERPRETED
+        if item.get("status") == InterpretationStatus.INTERPRETED.value
+        else InterpretationStatus.UNKNOWN
+    )
+
+    # Contract: a mapped value must cite its evidence to be eligible for HIGH
+    if (
+        status == InterpretationStatus.INTERPRETED
+        and field != "unknown"
+        and value is not None
+        and evidence is None
+        and _CONFIDENCE_RANK[confidence] > _CONFIDENCE_RANK[ConfidenceLevel.MEDIUM]
+    ):
+        confidence = ConfidenceLevel.MEDIUM
+        numeric = min(numeric if numeric is not None else 0.7, _MEDIUM_CEILING)
+        reasoning = f"{reasoning} (no value evidence cited — capped at medium)".strip()
+
+    if _normalize_ws(item.get("raw_line")).lower() != _normalize_ws(line.raw_line).lower():
+        logger.info("AI echoed a different raw_line for line %d — using the original line", line.line_number)
+
+    try:
+        return InterpretationResult(
+            line_number=line.line_number,
+            raw_line=line.raw_line,
+            likely_vendor=vendor,
+            security_concept=concept,
+            normalized_field=field,
+            extracted_value=value,
+            value_evidence=evidence,
+            confidence=confidence,
+            numeric_confidence=numeric,
+            reasoning=reasoning,
+            status=status,
+        )
+    except ValidationError as e:
+        return _review_result(
+            line, vendor, value, f"AI output for this line failed validation: {e.errors()[0].get('msg')}",
+        )
+
+
+def _match_items(items: list, chunk: list[UnrecognizedLine]) -> tuple[dict[int, InterpretationResult], list[UnrecognizedLine]]:
+    """Key AI items to target lines by line number (text match as fallback)."""
+    by_number = {ln.line_number: ln for ln in chunk}
+    results: dict[int, InterpretationResult] = {}
+    unmatched: list[dict] = []
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        try:
+            number = int(item.get("line_number"))
+        except (TypeError, ValueError):
+            number = None
+        line = by_number.get(number)
+        if line is None:
+            unmatched.append(item)
+            continue
+        if number not in results:  # first answer for a line wins
+            results[number] = _parse_item(item, line)
+
+    for item in unmatched:
+        text = _normalize_ws(item.get("raw_line")).lower()
+        candidates = [
+            ln for ln in chunk
+            if ln.line_number not in results and _normalize_ws(ln.raw_line).lower() == text
+        ]
+        if len(candidates) == 1:
+            results[candidates[0].line_number] = _parse_item(item, candidates[0])
+        else:
+            logger.warning("AI returned a result for an unknown line (%r) — ignoring", item.get("line_number"))
+
+    missing = [ln for ln in chunk if ln.line_number not in results]
+    return results, missing
+
+
+# ---------------------------------------------------------------------------
+# Requests
+# ---------------------------------------------------------------------------
+
+@dataclass
+class _RunState:
+    quota_exhausted: bool = False
+    requests: int = 0
+
+
+def _request(chunk: list[UnrecognizedLine], model: str, timeout: float, state: _RunState) -> StructuredResponse:
+    state.requests += 1
+    try:
+        return request_structured(
+            prompt=_build_prompt(chunk),
+            response_format=INTERPRETATION_RESPONSE_FORMAT,
+            system_instruction=INTERPRETATION_SYSTEM_PROMPT,
+            model=model,
+            temperature=TEMPERATURE,
+            top_p=TOP_P,
+            max_tokens=MAX_TOKENS_PER_CHUNK,
+            timeout=timeout,
+            seed=SEED,
+            reasoning_effort=_reasoning_effort_for(model),
+        )
+    except Exception as e:  # the client should not raise, but never let it break a scan
+        logger.warning("Structured request raised for %d line(s): %s", len(chunk), e)
+        return StructuredResponse(error=ERROR_REQUEST_FAILED, detail=str(e)[:300])
 
 
 def _interpret_chunk(
     chunk: list[UnrecognizedLine],
     model: str,
     timeout: float,
+    state: Optional[_RunState] = None,
+    depth: int = 0,
 ) -> list[InterpretationResult]:
-    """
-    Interpret a single chunk of unrecognized lines via one Groq request.
+    """Interpret one chunk. Returns exactly one result per input line, in order."""
+    state = state or _RunState()
+    if state.quota_exhausted:
+        return [_make_unavailable_result(ln, _QUOTA_REASON) for ln in chunk]
 
-    Returns exactly one InterpretationResult per input line.
-    On any failure, affected lines are marked ai_unavailable.
-    """
-    prompt = _build_prompt(chunk)
+    response: Optional[StructuredResponse] = None
+    items: Optional[list] = None
+    for _ in range(1 if depth else 2):
+        response = _request(chunk, model, timeout, state)
+        if response.quota_exhausted:
+            state.quota_exhausted = True
+            break
+        if response.ok:
+            items = response.data.get("interpretations")
+            if isinstance(items, list):
+                break
+            items = None
+            response = StructuredResponse(error=ERROR_INVALID_OUTPUT, detail="No interpretations array")
+        if not response.retryable:
+            break
 
-    try:
-        raw_response = generate_structured(
-            prompt=prompt,
-            response_format=INTERPRETATION_RESPONSE_FORMAT,
-            system_instruction=INTERPRETATION_SYSTEM_PROMPT,
-            model=model,
-            temperature=0.1,
-            max_tokens=MAX_TOKENS_PER_CHUNK,
-            timeout=timeout,
-        )
-    except Exception as e:
-        logger.warning(
-            "Groq structured call raised exception for chunk of %d lines: %s",
-            len(chunk), e,
-        )
-        return [_make_unavailable_result(line) for line in chunk]
+    if items is None:
+        if state.quota_exhausted:
+            return [_make_unavailable_result(ln, _QUOTA_REASON) for ln in chunk]
+        if depth < MAX_SPLIT_DEPTH and len(chunk) > 1:
+            mid = len(chunk) // 2
+            logger.info("Chunk of %d lines failed — retrying as two halves", len(chunk))
+            return (
+                _interpret_chunk(chunk[:mid], model, timeout, state, depth + 1)
+                + _interpret_chunk(chunk[mid:], model, timeout, state, depth + 1)
+            )
+        reason = _FAILURE_REASONS.get(response.error if response else None, _DEFAULT_UNAVAILABLE_REASON)
+        logger.warning("AI interpretation failed for %d line(s): %s", len(chunk), response.detail if response else "")
+        return [_make_unavailable_result(ln, reason) for ln in chunk]
 
-    if raw_response is None:
-        logger.info(
-            "Groq returned no response for chunk of %d lines — marking ai_unavailable",
-            len(chunk),
-        )
-        return [_make_unavailable_result(line) for line in chunk]
+    results, missing = _match_items(items, chunk)
+    if missing and depth < MAX_SPLIT_DEPTH:
+        logger.info("AI omitted %d of %d line(s) — requesting them again", len(missing), len(chunk))
+        for result in _interpret_chunk(missing, model, timeout, state, depth + 1):
+            results[result.line_number] = result
 
-    try:
-        batched = BatchedInterpretationResponse(**raw_response)
-    except Exception as e:
-        logger.warning(
-            "Pydantic validation failed for chunk of %d lines: %s",
-            len(chunk), e,
-        )
-        return [_make_unavailable_result(line) for line in chunk]
-
-    return _align_results(batched.interpretations, chunk)
+    return [
+        results.get(ln.line_number)
+        or _make_unavailable_result(ln, "AI interpretation unavailable — the AI returned no result for this line")
+        for ln in chunk
+    ]
 
 
 def interpret_lines(
@@ -254,124 +526,37 @@ def interpret_lines(
     timeout: float = 30.0,
 ) -> list[InterpretationResult]:
     """
-    Interpret a batch of unrecognized lines using Groq.
+    Interpret unrecognized lines using Groq.
 
-    Splits the input into chunks of MAX_LINES_PER_BATCH and sends one
-    Groq request per chunk. Results are merged in original input order.
-
-    On any per-chunk failure (exception, timeout, malformed output),
-    only that chunk's lines are marked ai_unavailable — other chunks
-    are unaffected. The deterministic scan is never broken by AI failures.
-
-    Args:
-        unrecognized_lines: Security-relevant unrecognized lines from one config.
-        model: Groq model name.
-        timeout: Request timeout in seconds.
-
-    Returns:
-        List of InterpretationResult, one per input line, in input order.
+    Splits the input into deterministic chunks of ``MAX_LINES_PER_BATCH``
+    (input order) and returns one result per input line, in input order.
+    Failures only affect the lines they concern; they never raise.
     """
     if not unrecognized_lines:
         return []
 
-    # If Groq is unavailable at all, mark every line ai_unavailable
     if not is_available():
         logger.info("Groq unavailable — marking %d lines ai_unavailable", len(unrecognized_lines))
-        return [
-            _make_unavailable_result(line)
-            for line in unrecognized_lines
-        ]
+        return [_make_unavailable_result(line) for line in unrecognized_lines]
 
-    # Split into chunks
-    chunks: list[list[UnrecognizedLine]] = []
-    for i in range(0, len(unrecognized_lines), MAX_LINES_PER_BATCH):
-        chunks.append(unrecognized_lines[i : i + MAX_LINES_PER_BATCH])
-
+    chunks = [
+        unrecognized_lines[i : i + MAX_LINES_PER_BATCH]
+        for i in range(0, len(unrecognized_lines), MAX_LINES_PER_BATCH)
+    ]
     logger.info(
         "Interpreting %d lines in %d chunk(s) of up to %d lines each",
         len(unrecognized_lines), len(chunks), MAX_LINES_PER_BATCH,
     )
 
-    # Interpret each chunk and merge results
-    all_results: list[InterpretationResult] = []
-    for chunk_idx, chunk in enumerate(chunks):
-        logger.info(
-            "Interpreting chunk %d/%d (%d lines)",
-            chunk_idx + 1, len(chunks), len(chunk),
-        )
-        chunk_results = _interpret_chunk(chunk, model, timeout)
-        all_results.extend(chunk_results)
+    state = _RunState()
+    results: list[InterpretationResult] = []
+    for chunk in chunks:
+        results.extend(_interpret_chunk(chunk, model, timeout, state))
 
-    return all_results
-
-
-def _align_results(
-    results: list[InterpretationResult],
-    input_lines: list[UnrecognizedLine],
-) -> list[InterpretationResult]:
-    """
-    Ensure exactly one valid result per input line.
-
-    If the AI returned results that don't match the input lines
-    (missing, duplicate, or mismatched line numbers), those lines
-    are marked as ai_unavailable rather than fabricating data.
-    """
-    input_by_line = {ln.line_number: ln for ln in input_lines}
-    result_by_line: dict[int, InterpretationResult] = {}
-
-    for r in results:
-        # Skip results with no matching input line
-        if r.line_number not in input_by_line:
-            logger.warning(
-                "AI returned result for nonexistent line %s — ignoring", r.line_number
-            )
-            continue
-
-        # Skip results whose raw_line doesn't match the input
-        input_line = input_by_line[r.line_number]
-        if r.raw_line != input_line.raw_line:
-            logger.warning(
-                "AI returned mismatched raw_line for line %s — marking ai_unavailable",
-                r.line_number,
-            )
-            result_by_line[r.line_number] = _make_unavailable_result(input_line)
-            continue
-
-        result_by_line[r.line_number] = r
-
-    # Build final list in input order, filling gaps with ai_unavailable
-    final: list[InterpretationResult] = []
-    for ln in input_lines:
-        if ln.line_number in result_by_line:
-            final.append(result_by_line[ln.line_number])
-        else:
-            final.append(_make_unavailable_result(ln))
-
-    return final
-
-
-def _make_unavailable_result(line: UnrecognizedLine) -> InterpretationResult:
-    """Create an ai_unavailable result for a line when interpretation fails."""
-    return InterpretationResult(
-        line_number=line.line_number,
-        raw_line=line.raw_line,
-        likely_vendor=line.vendor,
-        security_concept="unknown",
-        normalized_field="unknown",
-        extracted_value=None,
-        confidence=ConfidenceLevel.LOW,
-        reasoning="AI interpretation unavailable — Groq call failed or returned invalid output",
-        status=InterpretationStatus.AI_UNAVAILABLE,
-    )
+    logger.info("AI interpretation finished with %d request(s)", state.requests)
+    return results
 
 
 def interpret_config(config: NormalizedConfig) -> list[InterpretationResult]:
-    """
-    Interpret all unrecognized lines in a NormalizedConfig.
-
-    Convenience wrapper that calls interpret_lines() with the
-    config's unrecognized_lines.
-
-    Returns an empty list if there are no unrecognized lines.
-    """
+    """Interpret all unrecognized lines in a NormalizedConfig."""
     return interpret_lines(config.unrecognized_lines)

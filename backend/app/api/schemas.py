@@ -3,7 +3,7 @@ Pydantic schemas for API request/response validation.
 """
 
 from __future__ import annotations
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 
@@ -14,6 +14,7 @@ class AdaptiveLineSchema(BaseModel):
     vendor: str
     context_before: list[str] = []
     context_after: list[str] = []
+    structural_path: list[str] = []
 
 
 class AdaptiveInterpretationSchema(BaseModel):
@@ -24,16 +25,71 @@ class AdaptiveInterpretationSchema(BaseModel):
     security_concept: str
     normalized_field: str
     extracted_value: Optional[str] = None
+    value_evidence: Optional[str] = None
     confidence: str
+    numeric_confidence: Optional[float] = None
+    confidence_tier: Optional[str] = None
     reasoning: str
     status: str
+    # Phase 3 disposition: ai_auto_mapped, needs_review, needs_training
+    source: Optional[str] = None
+
+
+class AIFieldMappingSchema(BaseModel):
+    """Audit record for one adaptive line's effect on NormalizedConfig."""
+    line_number: int
+    raw_line: str
+    normalized_field: str
+    extracted_value: Optional[str] = None
+    confidence: float
+    confidence_tier: str
+    reasoning: str
+    # ai_auto_mapped, learned_mapping, admin_confirmed, needs_review,
+    # needs_training, rejected
+    source: str
+    status: str
+    likely_vendor: str = ""
+    security_concept: str = ""
+    final_value: Optional[str] = None
+    mapping_id: Optional[int] = None
+    reason: str = ""
+
+
+class VendorEvidenceSchema(BaseModel):
+    """What adaptive interpretations suggest about the vendor — reporting only.
+
+    Never used to select vendor-specific rules; ``devices[].vendor`` comes
+    from the deterministic detector alone.
+    """
+    likely_vendor: str = "unknown"
+    # identified | conflicting | unknown
+    status: str = "unknown"
+    supporting_lines: list[int] = []
+    votes: dict[str, int] = {}
 
 
 class AdaptiveScanInfoSchema(BaseModel):
-    """Adaptive interpretation summary for an unknown-vendor scan."""
+    """Adaptive enrichment summary for one scanned config."""
     ai_available: bool
     unrecognized_lines: list[AdaptiveLineSchema]
     interpretations: list[AdaptiveInterpretationSchema]
+    ai_mappings: list[AIFieldMappingSchema] = []
+    config_index: int = 0
+    hostname: str = "unknown"
+    vendor: str = "unknown"
+    # Whether the AI interpreter was actually called for this config
+    ai_called: bool = False
+    # Lines resolved by confirmed learned mappings (no AI involved)
+    learned_matches: int = 0
+    # Lines awaiting administrator review / training
+    pending_review: int = 0
+    # True when the score cannot be read as a full compliance verdict
+    score_provisional: bool = False
+    provisional_reasons: list[str] = []
+    # Vendor evidence from adaptive interpretations (reporting only)
+    vendor_evidence: Optional[VendorEvidenceSchema] = None
+    # Lines the AI could not assess (outage / quota) — distinct from low confidence
+    ai_unavailable_lines: int = 0
 
 
 class ScanSummaryResponse(BaseModel):
@@ -81,9 +137,10 @@ class ScanResultResponse(BaseModel):
     low: Optional[int] = None
     devices: list[dict]
     findings: list[FindingSchema] = []
-    # Adaptive interpretation results (populated for unknown-vendor configs;
-    # display-only — NOT consumed by the deterministic compliance engine)
+    # Adaptive enrichment for the first config that went through the adaptive
+    # layer (kept for backwards compatibility) and for every such config.
     adaptive: Optional[AdaptiveScanInfoSchema] = None
+    adaptive_configs: list[AdaptiveScanInfoSchema] = []
 
 
 class RemediationRequest(BaseModel):
@@ -130,3 +187,103 @@ class AssistantResponse(BaseModel):
 
 class DownloadFixedRequest(BaseModel):
     scan_id: str
+
+
+# ── Adaptive training (Phase 4/5) ─────────────────────────────────────────────
+
+class NormalizedFieldSchema(BaseModel):
+    field: str
+    value_type: str
+    label: str = ""
+    description: str = ""
+    value_rule: str = ""
+
+
+class LearnedMappingSchema(BaseModel):
+    id: int
+    concept: str
+    normalized_field: str
+    vendor: Optional[str] = None
+    command_pattern: str
+    extraction_method: str
+    expected_value_type: str
+    constant_value: Optional[str] = None
+    confidence: float
+    confirmed: bool
+    active: bool
+    example_line: Optional[str] = None
+    created_at: str
+    updated_at: str
+
+
+class CandidateMappingSchema(BaseModel):
+    """A learned mapping that resembles a line (possibly from another vendor)."""
+    mapping: LearnedMappingSchema
+    score: float
+
+
+class ReviewItemSchema(BaseModel):
+    item_id: str
+    config_index: int
+    hostname: str
+    vendor: str
+    line_number: int
+    raw_line: str
+    context_before: list[str] = []
+    context_after: list[str] = []
+    structural_path: list[str] = []
+    # AI suggestion
+    likely_vendor: str = ""
+    security_concept: str = ""
+    normalized_field: str
+    extracted_value: Optional[str] = None
+    confidence: float
+    confidence_tier: str
+    reasoning: str
+    interpretation_status: str
+    # Disposition
+    source: str
+    reason: str = ""
+    review_status: str  # pending, accepted, edited, rejected, learned
+    mapping_id: Optional[int] = None
+    candidates: list[CandidateMappingSchema] = []
+
+
+class ReviewQueueResponse(BaseModel):
+    scan_id: str
+    pending_count: int
+    items: list[ReviewItemSchema]
+
+
+class AcceptInterpretationRequest(BaseModel):
+    concept: Optional[str] = None
+    command_pattern: Optional[str] = None
+
+
+class EditInterpretationRequest(BaseModel):
+    normalized_field: str = Field(..., min_length=1)
+    extracted_value: str = Field(..., min_length=1)
+    concept: Optional[str] = None
+    command_pattern: Optional[str] = None
+
+
+class RejectInterpretationRequest(BaseModel):
+    reason: Optional[str] = None
+
+
+class ReviewActionResponse(BaseModel):
+    item: ReviewItemSchema
+    mapping: Optional[LearnedMappingSchema] = None
+    # Other pending lines in the same scan resolved by the new mapping
+    auto_resolved: list[str] = []
+    scan: ScanResultResponse
+
+
+class MappingUpdateRequest(BaseModel):
+    concept: Optional[str] = None
+    normalized_field: Optional[str] = None
+    vendor: Optional[str] = None
+    command_pattern: Optional[str] = None
+    extraction_method: Optional[str] = None
+    constant_value: Optional[str] = None
+    active: Optional[bool] = None

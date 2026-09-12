@@ -20,12 +20,24 @@ class Settings(BaseSettings):
     debug: bool = True
 
     groq_api_key: str = ""
+    groq_api_key_1: str = ""
+    groq_api_key_2: str = ""
+    groq_api_key_3: str = ""
+    groq_api_key_4: str = ""
 
     # Where uploaded configs are temporarily stored
     upload_dir: Path = _BACKEND_DIR / "uploads"
 
     # Max config file size (2MB should be more than enough)
     max_file_size: int = 2 * 1024 * 1024
+
+    # SQLite database holding administrator-confirmed adaptive mappings
+    adaptive_db_path: Path = _BACKEND_DIR / "data" / "adaptive.db"
+
+    # Send unresolved lines from Cisco/FortiGate configs to the AI as well.
+    # Off by default: known-vendor scans stay deterministic and offline;
+    # confirmed learned mappings are still applied to them.
+    adaptive_ai_for_known_vendors: bool = False
 
 
 settings = Settings()

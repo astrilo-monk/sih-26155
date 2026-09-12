@@ -37,6 +37,8 @@ class UnrecognizedLine:
     vendor: str
     context_before: list[str] = field(default_factory=list)
     context_after: list[str] = field(default_factory=list)
+    # Ancestor block headers (braces / config-edit blocks / indentation)
+    structural_path: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -248,6 +250,48 @@ class DeviceInfo:
 
 
 @dataclass
+class AIFieldMapping:
+    """
+    Audit record for a single AI-interpreted configuration line.
+
+    Captures the full provenance of an AI interpretation and its disposition
+    within the NormalizedConfig.  Every AI-touched line — whether it was
+    auto-mapped, sent for review, or routed to training — produces exactly
+    one entry here so that compliance decisions remain fully auditable.
+    """
+    line_number: int
+    raw_line: str
+    normalized_field: str
+    extracted_value: Optional[str]
+    confidence: float  # numeric 0.0 – 1.0
+    confidence_tier: str  # "high", "medium", "low"
+    reasoning: str
+    # Disposition — how this line was handled:
+    #   "ai_auto_mapped"  – value written into NormalizedConfig (HIGH + valid)
+    #   "learned_mapping" – value written from a confirmed learned mapping
+    #   "admin_confirmed" – value written after an administrator accepted/edited it
+    #   "needs_review"    – value retained for human review (HIGH+invalid / MEDIUM /
+    #                       ambiguous learned match / conflicting value)
+    #   "needs_training"  – value not applied; candidate for training (LOW)
+    #   "rejected"        – previously reviewed and rejected; not re-sent to AI
+    source: str
+    # Interpretation status (interpreted, unknown, ai_unavailable, learned, rejected)
+    status: str = ""
+    likely_vendor: str = ""
+    security_concept: str = ""
+    # Normalized value actually written to the config (None when not applied)
+    final_value: Optional[str] = None
+    # Learned mapping that produced or was created from this line
+    mapping_id: Optional[int] = None
+    # Why the line ended up with this disposition
+    reason: str = ""
+
+    @property
+    def applied(self) -> bool:
+        return self.source in ("ai_auto_mapped", "learned_mapping", "admin_confirmed")
+
+
+@dataclass
 class NormalizedConfig:
     """
     The common representation of a network device configuration.
@@ -275,6 +319,12 @@ class NormalizedConfig:
 
     # Unrecognized lines captured during parsing (security-relevant only)
     unrecognized_lines: list[UnrecognizedLine] = field(default_factory=list)
+
+    # Audit trail for every AI-touched line.  Populated by AdaptiveMapper
+    # (Phase 3).  Each entry records the raw line, interpretation, confidence
+    # tier, disposition (source), and the reasoning — ensuring every AI decision
+    # is traceable.  Empty when no AI interpretation has been applied.
+    ai_mappings: list[AIFieldMapping] = field(default_factory=list)
 
     def get_evidence_lines(self, line_numbers: list[int]) -> list[str]:
         """Pull the actual config text for a list of line numbers (1-indexed)."""

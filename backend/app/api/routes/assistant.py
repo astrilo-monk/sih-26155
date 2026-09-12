@@ -9,7 +9,7 @@ for individual findings.
 from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from app.api.schemas import AssistantRequest, AssistantResponse
-from app.api.routes.scan import get_scan_store
+from app.api.routes.scan import get_scan_store, get_scan_result_or_409
 from app.ai.client import generate, is_available
 from app.ai.prompts import explain_finding, generate_summary
 
@@ -36,7 +36,7 @@ async def chat(req: AssistantRequest):
     stored = store.get(req.scan_id)
 
     context = ""
-    if stored:
+    if stored and stored.get("result") is not None:
         result = stored["result"]
         findings_summary = "\n".join(
             f"- [{f.severity.value.upper()}] {f.rule_id}: {f.title} (on {f.device_hostname})"
@@ -70,7 +70,7 @@ async def explain(scan_id: str, rule_id: str, hostname: str):
     if not stored:
         raise HTTPException(404, "Scan not found")
 
-    result = stored["result"]
+    result = get_scan_result_or_409(stored)
     finding = None
     for f in result.findings:
         if f.rule_id == rule_id and f.device_hostname == hostname:
@@ -103,7 +103,7 @@ async def summary(scan_id: str):
     if not stored:
         raise HTTPException(404, "Scan not found")
 
-    result = stored["result"]
+    result = get_scan_result_or_409(stored)
 
     if not is_available():
         return {

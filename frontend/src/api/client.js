@@ -18,13 +18,16 @@ export const apiClient = {
     const response = await fetch(`${API_BASE_URL}/scan`, {
       method: 'POST',
       body: formData,
+      cache: 'no-cache',
     });
 
     return handleResponse(response);
   },
 
   async getScan(scanId) {
-    const response = await fetch(`${API_BASE_URL}/scan/${scanId}`);
+    const response = await fetch(`${API_BASE_URL}/scan/${scanId}`, {
+      cache: 'no-cache',
+    });
     return handleResponse(response);
   },
 
@@ -37,6 +40,7 @@ export const apiClient = {
         rule_id: ruleId,
         device_hostname: deviceHostname,
       }),
+      cache: 'no-cache',
     });
 
     return handleResponse(response);
@@ -50,6 +54,7 @@ export const apiClient = {
         scan_id: scanId,
         remediation_commands: remediationCommands,
       }),
+      cache: 'no-cache',
     });
 
     return handleResponse(response);
@@ -57,13 +62,16 @@ export const apiClient = {
 
   async getExplanation(scanId, ruleId, hostname) {
     const response = await fetch(
-      `${API_BASE_URL}/assistant/explain/${scanId}/${ruleId}/${hostname}`
+      `${API_BASE_URL}/assistant/explain/${scanId}/${ruleId}/${hostname}`,
+      { cache: 'no-cache' }
     );
     return handleResponse(response);
   },
 
   async getSummary(scanId) {
-    const response = await fetch(`${API_BASE_URL}/assistant/summary/${scanId}`);
+    const response = await fetch(`${API_BASE_URL}/assistant/summary/${scanId}`, {
+      cache: 'no-cache',
+    });
     return handleResponse(response);
   },
 
@@ -72,6 +80,68 @@ export const apiClient = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ scan_id: scanId, message }),
+      cache: 'no-cache',
+    });
+    return handleResponse(response);
+  },
+
+  // --- Adaptive training ---
+
+  async getNormalizedFields() {
+    const response = await fetch(`${API_BASE_URL}/adaptive/fields`, { cache: 'no-cache' });
+    return handleResponse(response);
+  },
+
+  async getReviewQueue(scanId, includeResolved = false) {
+    const response = await fetch(
+      `${API_BASE_URL}/adaptive/scans/${scanId}/review?include_resolved=${includeResolved}`,
+      { cache: 'no-cache' }
+    );
+    return handleResponse(response);
+  },
+
+  async acceptInterpretation(scanId, itemId, body = {}) {
+    const response = await fetch(`${API_BASE_URL}/adaptive/scans/${scanId}/review/${itemId}/accept`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      cache: 'no-cache',
+    });
+    return handleResponse(response);
+  },
+
+  async editInterpretation(scanId, itemId, body) {
+    const response = await fetch(`${API_BASE_URL}/adaptive/scans/${scanId}/review/${itemId}/edit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      cache: 'no-cache',
+    });
+    return handleResponse(response);
+  },
+
+  async rejectInterpretation(scanId, itemId, reason = null) {
+    const response = await fetch(`${API_BASE_URL}/adaptive/scans/${scanId}/review/${itemId}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason }),
+      cache: 'no-cache',
+    });
+    return handleResponse(response);
+  },
+
+  async listLearnedMappings(includeInactive = false) {
+    const response = await fetch(
+      `${API_BASE_URL}/adaptive/mappings?include_inactive=${includeInactive}`,
+      { cache: 'no-cache' }
+    );
+    return handleResponse(response);
+  },
+
+  async disableLearnedMapping(mappingId) {
+    const response = await fetch(`${API_BASE_URL}/adaptive/mappings/${mappingId}`, {
+      method: 'DELETE',
+      cache: 'no-cache',
     });
     return handleResponse(response);
   },
@@ -81,6 +151,7 @@ export const apiClient = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ scan_id: scanId }),
+      cache: 'no-cache',
     });
 
     if (!response.ok) {

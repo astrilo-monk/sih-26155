@@ -1,26 +1,38 @@
 # Testing Strategy
 
-The backend has a working pytest suite. The frontend does not have automated tests yet.
+The backend uses `pytest`; the frontend uses Vitest with Testing Library. No test needs network access or an API key: every AI call is mocked, and each backend test gets its own temporary SQLite database (`backend/tests/conftest.py`).
 
-Since the parsers use regular expressions and the rules make security decisions, fixture-based tests are important. The current tests use `pytest` and sample Cisco and FortiGate configurations.
+## Backend
 
-## 1. Parser Testing (Fixture-based)
-The current fixtures are in `backend/tests/fixtures/`. Tests run both parsers and assert important fields such as vendor, hostname, and raw lines.
+| Area | Tests |
+|------|-------|
+| Parsers, rules, scoring | `test_pipeline.py`, `test_cisco_acl.py`. Fixture configs in `backend/tests/fixtures/` |
+| Remediation | `test_remediation_e2e.py`, `test_download_fixed.py`. Fixed configs re-scan to 100/100 |
+| Settings | `test_config_loading.py` |
+| Adaptive capture and relevance filter | `test_adaptive.py`, `test_adaptive_api_integration.py` |
+| Confidence tiers and evidence validation | `test_phase3_adaptive_mapper.py`, `test_phase3_e2e.py` |
+| Training review API | `test_phase4_review_api.py` |
+| Learned mappings (SQLite) | `test_phase5_learned_mappings.py` |
+| Scan → confirm → rescan with no AI call | `test_phase6_adaptive_e2e.py` |
+| Vendor-agnostic pipeline over four unrelated syntaxes | `test_adaptive_generic.py` |
+| Groq API-key rotation | `test_ai_client_key_rotation.py` |
 
-## 2. Rule Testing
-The pipeline tests analyze vulnerable and secure fixtures and check that the expected findings and scores are produced. Cisco ACL tests also check extended ACL parsing and `BOUNDARY-001`.
+`test_adaptive_generic.py` also contains live Groq tests. They are skipped unless `NETAUDIT_LIVE_AI=1` is set and a key is configured.
 
-## 3. Scoring Testing
-The scoring test checks the 100-point penalty calculation. The score starts at 100 and is bounded at zero.
+## Frontend
 
-## 4. AI Mocking
-Gemini mocking and frontend tests are still future work. The current backend tests do not require a Gemini API key.
+| Area | Tests |
+|------|-------|
+| Training tab (review queue, AI-unavailable state, vendor evidence) | `src/components/AdaptiveTraining.test.jsx` |
+| Client-side mapping validation | `src/utils/adaptiveValidation.test.js` |
 
 ## Run the Tests
 
 ```powershell
 cd backend
-pytest tests/ -v
-```
+pytest tests/ -q
 
-The current suite contains 12 passing tests.
+cd ../frontend
+npm test
+npm run build
+```

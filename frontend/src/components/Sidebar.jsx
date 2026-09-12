@@ -1,12 +1,13 @@
-import { Shield, LayoutDashboard, Search, Server, AlertCircle, History, Wrench } from 'lucide-react';
+import { Shield, LayoutDashboard, Search, Server, AlertCircle, History, Wrench, GraduationCap } from 'lucide-react';
 
-export default function Sidebar({ view, setView, devices }) {
+export default function Sidebar({ view, setView, devices, pendingReview = 0 }) {
   const navItems = [
     { id: 'upload', label: 'New Scan', icon: Search },
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
     { id: 'devices', label: 'Devices', icon: Server },
     { id: 'findings', label: 'Findings', icon: AlertCircle },
     { id: 'remediation', label: 'Remediation', icon: Wrench },
+    { id: 'training', label: 'Training', icon: GraduationCap, count: pendingReview },
     { id: 'history', label: 'History', icon: History },
   ];
 
@@ -21,11 +22,14 @@ export default function Sidebar({ view, setView, devices }) {
           <div key={item.id}>
             <button
               className={`nav-item ${view === item.id || (view === 'loading' && item.id === 'upload') ? 'active' : ''}`}
-              onClick={() => setView(item.id === 'upload' ? 'upload' : (item.id === 'dashboard' || item.id === 'devices' || item.id === 'findings' || item.id === 'history' || item.id === 'remediation' ? item.id : 'dashboard'))}
+              onClick={() => setView(item.id)}
               style={{ width: '100%', justifyContent: 'flex-start' }}
             >
               <item.icon size={16} />
               {item.label}
+              {item.count > 0 && (
+                <span className="badge medium" style={{ marginLeft: 'auto' }}>{item.count}</span>
+              )}
             </button>
           </div>
         ))}

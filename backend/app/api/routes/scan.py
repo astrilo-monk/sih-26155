@@ -1,18 +1,25 @@
 """
 Scan API routes.
 
-Handles file upload, vendor detection, parsing, and analysis.
-This is the main entry point for the security audit workflow.
+Handles file upload, vendor detection, parsing, adaptive enrichment and
+analysis. This is the main entry point for the security audit workflow.
+
+    Config → Vendor Detector → Known parser OR adaptive path
+           → NormalizedConfig → AdaptiveService (learned mappings → AI fallback
+             → confidence/validation → safe normalization)
+           → existing deterministic compliance engine → findings / score
 """
 
 from __future__ import annotations
 import uuid
+from datetime import datetime
+from typing import Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from app.parsers.detector import detect_vendor
 from app.parsers.cisco_ios import CiscoIOSParser
 from app.parsers.fortinet import FortinetParser
 from app.analysis.engine import analyze, analyze_multiple
-from app.models.normalized import Vendor, NormalizedConfig, DeviceInfo
+from app.models.normalized import Vendor, NormalizedConfig, DeviceInfo, AIFieldMapping
 from app.api.schemas import (
     ScanResultResponse,
     FindingSchema,
@@ -20,12 +27,17 @@ from app.api.schemas import (
     AdaptiveLineSchema,
     AdaptiveInterpretationSchema,
     AdaptiveScanInfoSchema,
+    AIFieldMappingSchema,
+    VendorEvidenceSchema,
 )
 from app.config import settings
 from app.adaptive import capture_unrecognized_lines
 from app.adaptive.interpreter import interpret_lines
-from app.ai.interpretation_schemas import InterpretationStatus
+from app.adaptive.mapper import REVIEWABLE_SOURCES, determine_tier
+from app.adaptive.vendor import EVIDENCE_CONFLICTING, EVIDENCE_IDENTIFIED, assess_vendor_evidence
+from app.adaptive.service import AdaptiveService
 from app.ai.client import is_available
+
 
 router = APIRouter()
 
@@ -37,7 +49,6 @@ PARSERS = {
     Vendor.CISCO_IOS: CiscoIOSParser(),
     Vendor.FORTINET: FortinetParser(),
 }
-
 
 def _finding_to_schema(f) -> FindingSchema:
     return FindingSchema(
@@ -63,8 +74,34 @@ def _finding_to_schema(f) -> FindingSchema:
     )
 
 
-def _build_adaptive_info(config: NormalizedConfig, interpretations) -> AdaptiveScanInfoSchema:
-    """Build the adaptive response info for an unknown-vendor config."""
+def mapping_record_to_schema(m: AIFieldMapping) -> AIFieldMappingSchema:
+    return AIFieldMappingSchema(
+        line_number=m.line_number,
+        raw_line=m.raw_line,
+        normalized_field=m.normalized_field,
+        extracted_value=m.extracted_value,
+        confidence=m.confidence,
+        confidence_tier=m.confidence_tier,
+        reasoning=m.reasoning,
+        source=m.source,
+        status=m.status,
+        likely_vendor=m.likely_vendor,
+        security_concept=m.security_concept,
+        final_value=m.final_value,
+        mapping_id=m.mapping_id,
+        reason=m.reason,
+    )
+
+
+def _vendor_str(config: NormalizedConfig) -> str:
+    vendor = config.device.vendor
+    return vendor.value if hasattr(vendor, "value") else str(vendor)
+
+
+def _build_adaptive_info(config: NormalizedConfig, run: dict, config_index: int) -> AdaptiveScanInfoSchema:
+    """Build the adaptive response info for one config."""
+    records_by_line = {m.line_number: m for m in config.ai_mappings}
+
     lines_schema = [
         AdaptiveLineSchema(
             line_number=ln.line_number,
@@ -72,6 +109,7 @@ def _build_adaptive_info(config: NormalizedConfig, interpretations) -> AdaptiveS
             vendor=ln.vendor,
             context_before=list(ln.context_before),
             context_after=list(ln.context_after),
+            structural_path=list(ln.structural_path),
         )
         for ln in config.unrecognized_lines
     ]
@@ -84,27 +122,78 @@ def _build_adaptive_info(config: NormalizedConfig, interpretations) -> AdaptiveS
             security_concept=r.security_concept,
             normalized_field=r.normalized_field,
             extracted_value=r.extracted_value,
+            value_evidence=r.value_evidence,
             confidence=r.confidence.value,
+            numeric_confidence=r.numeric_confidence,
+            confidence_tier=(
+                records_by_line[r.line_number].confidence_tier
+                if r.line_number in records_by_line
+                else determine_tier(r.effective_confidence).value
+            ),
             reasoning=r.reasoning,
             status=r.status.value,
+            source=records_by_line[r.line_number].source if r.line_number in records_by_line else None,
         )
-        for r in interpretations
+        for r in run.get("interpretations", [])
     ]
 
+    pending = sum(1 for m in config.ai_mappings if m.source in REVIEWABLE_SOURCES)
+    ai_unavailable = sum(
+        1 for m in config.ai_mappings
+        if m.source in REVIEWABLE_SOURCES and m.status == "ai_unavailable"
+    )
+    evidence = assess_vendor_evidence(config.ai_mappings)
+
+    reasons = []
+    if config.device.vendor == Vendor.UNKNOWN:
+        reason = "Vendor could not be identified — vendor-specific rules were not evaluated"
+        if evidence.status == EVIDENCE_IDENTIFIED:
+            reason += (
+                f" (configuration syntax suggests '{evidence.likely_vendor}'; "
+                "reported as evidence only)"
+            )
+        elif evidence.status == EVIDENCE_CONFLICTING:
+            reason += " (adaptive vendor evidence is conflicting)"
+        reasons.append(reason)
+    if ai_unavailable:
+        reasons.append(
+            f"AI interpretation was unavailable for {ai_unavailable} line(s) — "
+            "they were not assessed; map them manually or rescan later"
+        )
+    if pending:
+        reasons.append(
+            f"{pending} security-relevant line(s) are awaiting review and were not applied"
+        )
+
     return AdaptiveScanInfoSchema(
-        ai_available=is_available(),
+        ai_available=run.get("ai_available", False),
         unrecognized_lines=lines_schema,
         interpretations=interp_schema,
+        ai_mappings=[mapping_record_to_schema(m) for m in config.ai_mappings],
+        config_index=config_index,
+        hostname=config.device.hostname,
+        vendor=_vendor_str(config),
+        ai_called=run.get("ai_called", False),
+        learned_matches=sum(1 for m in config.ai_mappings if m.source == "learned_mapping"),
+        pending_review=pending,
+        score_provisional=bool(reasons),
+        provisional_reasons=reasons,
+        vendor_evidence=VendorEvidenceSchema(
+            likely_vendor=evidence.likely_vendor,
+            status=evidence.status,
+            supporting_lines=evidence.supporting_lines,
+            votes=evidence.votes,
+        ),
+        ai_unavailable_lines=ai_unavailable,
     )
 
 
 def _process_unknown_vendor(raw_config: str, filename: str) -> NormalizedConfig:
     """
-    Process an unknown-vendor configuration through the adaptive pipeline.
+    Prepare an unknown-vendor configuration for the adaptive pipeline.
 
-    Creates a minimal NormalizedConfig preserving the raw config, runs
-    Phase 1 candidate capture, then Phase 2 Groq interpretation.
-    Does NOT call analyze() — AI results are display-only.
+    Creates a minimal NormalizedConfig preserving the raw config and runs
+    Phase 1 candidate capture. Enrichment happens in ``AdaptiveService``.
     """
     raw_lines = raw_config.splitlines()
 
@@ -132,23 +221,84 @@ def _process_known_vendor(raw_config: str, vendor: Vendor) -> NormalizedConfig:
     return normalized
 
 
+def _new_adaptive_service() -> AdaptiveService:
+    # Resolve interpret_lines / is_available at call time so they can be patched.
+    return AdaptiveService(interpreter=interpret_lines, ai_available=is_available)
+
+
+def reanalyze_scan(scan_id: str) -> None:
+    """Re-run the deterministic engine on a stored scan's (enriched) configs."""
+    entry = _scan_store[scan_id]
+    configs = entry["configs"]
+    result = analyze(configs[0]) if len(configs) == 1 else analyze_multiple(configs)
+    result.scan_id = scan_id
+    entry["result"] = result
+    entry["is_adaptive_only"] = False
+    entry["timestamp"] = result.timestamp
+
+
+def build_scan_response(scan_id: str) -> ScanResultResponse:
+    entry = _scan_store[scan_id]
+    configs = entry["configs"]
+    infos = [
+        _build_adaptive_info(cfg, run, idx)
+        for idx, (cfg, run) in enumerate(zip(configs, entry["adaptive_runs"]))
+        if run is not None
+    ]
+    adaptive = infos[0] if infos else None
+    result = entry.get("result")
+
+    if result is None:
+        # AI unavailable and nothing could be normalized — display-only
+        return ScanResultResponse(
+            scan_id=scan_id,
+            timestamp=entry.get("timestamp", datetime.now().isoformat()),
+            devices=[{"hostname": cfg.device.hostname, "vendor": _vendor_str(cfg)} for cfg in configs],
+            findings=[],
+            adaptive=adaptive,
+            adaptive_configs=infos,
+        )
+
+    return ScanResultResponse(
+        scan_id=scan_id,
+        timestamp=result.timestamp,
+        score=result.score,
+        total_findings=result.total_findings,
+        critical=result.critical_count,
+        high=result.high_count,
+        medium=result.medium_count,
+        low=result.low_count,
+        devices=result.devices,
+        findings=[_finding_to_schema(f) for f in result.findings],
+        adaptive=adaptive,
+        adaptive_configs=infos,
+    )
+
+
 @router.post("/scan", response_model=ScanResultResponse)
 async def scan_configs(files: list[UploadFile] = File(...)):
     """
     Upload one or more config files for security analysis.
     Returns findings, score, and device info.
 
-    Unknown-vendor configs enter the adaptive pipeline: Phase 1 captures
-    security-relevant unrecognized lines, Phase 2 runs AI interpretation.
-    For unknown vendors, results are display-only — the deterministic
-    compliance engine is not invoked.
+    Unknown-vendor configs enter the adaptive pipeline: confirmed learned
+    mappings are applied first, then ONE batched AI request interprets the
+    remaining security-relevant lines, and the AdaptiveMapper applies only
+    validated HIGH-confidence values. The deterministic compliance engine then
+    evaluates the enriched config. If AI is unavailable and nothing could be
+    normalized, the scan degrades gracefully to display-only results.
+
+    Known-vendor configs use their parsers; confirmed learned mappings are
+    applied to lines those parsers do not understand.
     """
     if not files:
         raise HTTPException(400, "No files uploaded")
 
+    service = _new_adaptive_service()
     configs: list[NormalizedConfig] = []
-    adaptive_infos: list[AdaptiveScanInfoSchema] = []
+    adaptive_runs: list[Optional[dict]] = []
     had_unknown_vendor = False
+    had_ai_available = False
 
     for file in files:
         content = await file.read()
@@ -167,125 +317,68 @@ async def scan_configs(files: list[UploadFile] = File(...)):
         vendor = detect_vendor(raw_config)
 
         if vendor == Vendor.UNKNOWN:
-            # Unknown vendor → adaptive pipeline
-            normalized = _process_unknown_vendor(raw_config, file.filename)
             had_unknown_vendor = True
-
-            # Phase 2: ONE batched Groq interpretation for this config
-            interpretations = interpret_lines(normalized.unrecognized_lines)
-
-            adaptive_infos.append(_build_adaptive_info(normalized, interpretations))
-            configs.append(normalized)
+            normalized = _process_unknown_vendor(raw_config, file.filename)
+            outcome = service.process(normalized, use_ai=True)
+            had_ai_available = had_ai_available or outcome.ai_available
+            # device.vendor stays UNKNOWN: only a deterministic detector/parser
+            # may select vendor-specific rules. AI vendor opinions are reported
+            # as evidence in the adaptive info instead.
         else:
             normalized = _process_known_vendor(raw_config, vendor)
-            configs.append(normalized)
+            use_ai = settings.adaptive_ai_for_known_vendors
+            outcome = service.process(normalized, use_ai=use_ai, report_unresolved=use_ai)
 
-    # If ANY config is unknown-vendor, we cannot run the deterministic
-    # compliance engine (it would produce misleading empty/incomplete scores).
-    # Return adaptive interpretation results as display-only.
-    if had_unknown_vendor:
-        scan_id = str(uuid.uuid4())
-        from datetime import datetime
-        timestamp = datetime.now().isoformat()
+        run = None
+        if vendor == Vendor.UNKNOWN or outcome.records:
+            run = {
+                "interpretations": outcome.interpretations,
+                "ai_called": outcome.ai_called,
+                "ai_available": outcome.ai_available,
+                "candidates": outcome.candidates,
+            }
+        configs.append(normalized)
+        adaptive_runs.append(run)
 
-        _scan_store[scan_id] = {
-            "result": None,
-            "configs": configs,
-            "adaptive_infos": adaptive_infos,
-            "is_adaptive_only": True,
-        }
+    scan_id = str(uuid.uuid4())
+    anything_applied = any(m.applied for cfg in configs for m in cfg.ai_mappings)
 
-        devices = []
-        for cfg in configs:
-            devices.append({
-                "hostname": cfg.device.hostname,
-                "vendor": cfg.device.vendor.value if hasattr(cfg.device.vendor, "value") else str(cfg.device.vendor),
-            })
-
-        # Build response for the first config (or merge adaptive infos)
-        first_config = configs[0]
-        first_adaptive = adaptive_infos[0] if adaptive_infos else None
-
-        response_kwargs = dict(
-            scan_id=scan_id,
-            timestamp=timestamp,
-            devices=devices,
-            findings=[],
-            adaptive=first_adaptive,
-        )
-
-        return ScanResultResponse(**response_kwargs)
-
-    # Known vendors — existing deterministic pipeline
-    if len(configs) == 1:
-        result = analyze(configs[0])
-    else:
-        result = analyze_multiple(configs)
-
-    # Store for later retrieval (remediation, assistant, etc.)
-    _scan_store[result.scan_id] = {
-        "result": result,
+    _scan_store[scan_id] = {
+        "result": None,
         "configs": configs,
+        "adaptive_runs": adaptive_runs,
+        "is_adaptive_only": True,
+        "timestamp": datetime.now().isoformat(),
+        # item_id -> {"status": accepted|edited|rejected|learned, "mapping_id": int|None}
+        "review_state": {},
     }
 
-    return ScanResultResponse(
-        scan_id=result.scan_id,
-        timestamp=result.timestamp,
-        score=result.score,
-        total_findings=result.total_findings,
-        critical=result.critical_count,
-        high=result.high_count,
-        medium=result.medium_count,
-        low=result.low_count,
-        devices=result.devices,
-        findings=[_finding_to_schema(f) for f in result.findings],
-    )
+    if not (had_unknown_vendor and not had_ai_available and not anything_applied):
+        reanalyze_scan(scan_id)
+
+    return build_scan_response(scan_id)
 
 
 @router.get("/scan/{scan_id}", response_model=ScanResultResponse)
 async def get_scan(scan_id: str):
     """Retrieve a previous scan result."""
-    stored = _scan_store.get(scan_id)
-    if not stored:
+    if scan_id not in _scan_store:
         raise HTTPException(404, "Scan not found")
-
-    result = stored.get("result")
-
-    if result is None and stored.get("is_adaptive_only"):
-        # Unknown-vendor adaptive-only scan
-        configs = stored.get("configs", [])
-        adaptive_infos = stored.get("adaptive_infos", [])
-        from datetime import datetime
-        # Re-construct using stored data; timestamp was set at scan time
-        # We store the timestamp alongside for retrieval
-        return ScanResultResponse(
-            scan_id=scan_id,
-            timestamp=stored.get("timestamp", datetime.now().isoformat()),
-            devices=[
-                {
-                    "hostname": cfg.device.hostname,
-                    "vendor": cfg.device.vendor.value if hasattr(cfg.device.vendor, "value") else str(cfg.device.vendor),
-                }
-                for cfg in configs
-            ],
-            findings=[],
-            adaptive=adaptive_infos[0] if adaptive_infos else None,
-        )
-
-    return ScanResultResponse(
-        scan_id=result.scan_id,
-        timestamp=result.timestamp,
-        score=result.score,
-        total_findings=result.total_findings,
-        critical=result.critical_count,
-        high=result.high_count,
-        medium=result.medium_count,
-        low=result.low_count,
-        devices=result.devices,
-        findings=[_finding_to_schema(f) for f in result.findings],
-    )
+    return build_scan_response(scan_id)
 
 
 def get_scan_store() -> dict:
     """Expose store for other routes that need scan data."""
     return _scan_store
+
+
+def get_scan_result_or_409(stored: dict):
+    """Return the compliance result of a stored scan, or explain why there is none."""
+    result = stored.get("result")
+    if result is None:
+        raise HTTPException(
+            409,
+            "This scan has no compliance result yet — AI interpretation was unavailable. "
+            "Review the adaptive lines in the Training tab first.",
+        )
+    return result

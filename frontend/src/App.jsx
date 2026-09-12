@@ -13,6 +13,7 @@ import RemediationView from './components/RemediationView';
 import RemediationQueue from './components/RemediationQueue';
 import BeforeAfter from './components/BeforeAfter';
 import HistoryView from './components/HistoryView';
+import AdaptiveTraining from './components/AdaptiveTraining';
 import { saveScanToHistory } from './utils/history';
 
 function LoadingState() {
@@ -125,9 +126,13 @@ export default function App() {
     setView('dashboard');
   };
 
+  const adaptiveConfigs = scanResult?.adaptive_configs || [];
+  const pendingReview = adaptiveConfigs.reduce((sum, c) => sum + (c.pending_review || 0), 0);
+  const scoreProvisional = adaptiveConfigs.some((c) => c.score_provisional);
+
   return (
     <div className="app-layout">
-      <Sidebar view={view} setView={setView} devices={scanResult?.devices} />
+      <Sidebar view={view} setView={setView} devices={scanResult?.devices} pendingReview={pendingReview} />
       
       <div className="main-wrapper">
         <Header 
@@ -144,13 +149,25 @@ export default function App() {
               </div>
             )}
 
-            {view === 'upload' && <UploadZone onUpload={handleUpload} />}
+            {view === 'upload' && <UploadZone key="upload" onUpload={handleUpload} />}
 
             {view === 'loading' && <LoadingState />}
 
             {view === 'dashboard' && scanResult && (
               <>
-                <ScoreOverview 
+                {(scoreProvisional || scanResult.score == null) && adaptiveConfigs.length > 0 && (
+                  <div style={{ backgroundColor: 'var(--medium-bg)', border: '1px solid var(--medium-border)', padding: '0.75rem 1rem', borderRadius: 'var(--radius)', color: 'var(--medium)', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.8125rem' }}>
+                    <AlertCircle size={16} />
+                    <span style={{ flex: 1 }}>
+                      {scanResult.score == null
+                        ? 'AI interpretation was unavailable, so no compliance score was calculated.'
+                        : 'This score is provisional: some configuration lines could not be normalized automatically.'}
+                      {pendingReview > 0 && ` ${pendingReview} line(s) await review.`}
+                    </span>
+                    <button className="btn-secondary" onClick={() => setView('training')}>Review</button>
+                  </div>
+                )}
+                <ScoreOverview
                   score={scanResult.score} 
                   critical={scanResult.critical}
                   high={scanResult.high}
@@ -178,6 +195,10 @@ export default function App() {
 
             {view === 'remediation' && scanResult && (
               <RemediationQueue scanResult={scanResult} />
+            )}
+
+            {view === 'training' && (
+              <AdaptiveTraining scanResult={scanResult} onScanUpdated={setScanResult} />
             )}
 
             {view === 'history' && (

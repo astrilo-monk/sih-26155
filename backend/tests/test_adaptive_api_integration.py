@@ -11,7 +11,8 @@ A - Unknown vendor reaches adaptive pipeline (no 422 rejection)
 B - Unknown vendor invokes Phase 2 with interpretation results
 C - One Groq request per config (batching)
 D - Groq unavailable (graceful degradation)
-E - AI-derived values NOT written into analyze() fields
+E - Phase 3 AdaptiveMapper safely mediates AI → config (HIGH auto-mapped)
+E2 - MEDIUM confidence NOT written to config
 F - Existing Cisco/Fortinet behavior unchanged
 G - Existing remediation/scoring unchanged
 H - Multiple unknown configs each get their own Groq request
@@ -109,10 +110,11 @@ def test_a_unknown_vendor_reaches_adaptive_pipeline():
     client = TestClient(app)
 
     with patch("app.api.routes.scan.is_available", return_value=False):
-        response = client.post(
-            "/api/scan",
-            files=[("files", ("unknown.cfg", UNKNOWN_CONFIG.encode("utf-8"), "text/plain"))],
-        )
+        with patch("app.adaptive.interpreter.is_available", return_value=False):
+            response = client.post(
+                "/api/scan",
+                files=[("files", ("unknown.cfg", UNKNOWN_CONFIG.encode("utf-8"), "text/plain"))],
+            )
 
     # Must NOT be 422 vendor-rejection
     assert response.status_code == 200, (
@@ -265,14 +267,14 @@ def test_d2_groq_exception_graceful():
 
 
 # ===========================================================================
-# Test E - AI results are display-only; not in analyze() fields
+# Test E - AI interpretations go through safe Phase 3 mediation
 # ===========================================================================
 
-def test_e_ai_results_not_in_analyze():
-    """AI-derived interpretations must NOT be written into NormalizedConfig fields
-    consumed by analyze(). Unknown-vendor configs must not enter analyze()."""
+def test_e_ai_interpretations_through_adaptive_mapper():
+    """Phase 3 AdaptiveMapper is the sole intermediary between AI output and
+    NormalizedConfig.  High-valid interpretations enrich config; MEDIUM/LOW
+    do NOT.  The AI client never mutates NormalizedConfig directly."""
 
-    # Create the same config the scan route creates for unknown vendor
     raw_lines = UNKNOWN_CONFIG.splitlines()
     normalized = NormalizedConfig(
         device=DeviceInfo(vendor=Vendor.UNKNOWN, hostname="unknown"),
@@ -281,33 +283,73 @@ def test_e_ai_results_not_in_analyze():
     )
     capture_unrecognized_lines(normalized)
 
-    # Run interpretation
+    # Phase 2 — AI produces interpretations (HIGH confidence)
     mock_interpretations = _mock_valid_interpretations(normalized.unrecognized_lines)
 
-    # Verify the interpretations exist but are NOT part of NormalizedConfig fields
+    # Verify the interpretations exist but Phase 2 did NOT write them
     assert len(normalized.unrecognized_lines) > 0
     assert len(mock_interpretations) > 0
+    assert normalized.management.ssh_version is None  # not written yet
 
-    # The normalized config should NOT have AI-derived values in core fields
-    # like management.ssh_version (which was in the interpretation)
+    # Phase 3 — AdaptiveMapper safely applies HIGH-valid interpretations
+    from app.adaptive.mapper import map_interpretations
+    ai_mappings = map_interpretations(normalized, mock_interpretations)
+
+    # High-confidence mapping wrote to config via the mapper, NOT via AI
+    assert normalized.management.ssh_version == 3072
+    # Auto-mapped line numbers should be tracked in source_lines
+    auto_mapped = [m for m in ai_mappings if m.source == "ai_auto_mapped"]
+    assert len(auto_mapped) > 0
+    for m in auto_mapped:
+        assert m.line_number in normalized.management.source_lines
+
+    # The compliance engine can evaluate the auto-mapped value
+    # (vendor is UNKNOWN, so rules check vendor-specific conditions)
+    from app.analysis.engine import analyze
+    result = analyze(normalized)
+    # No crash — deterministic rules evaluated on enriched config
+    assert result.score >= 0
+
+    print("\nPASS [E]: Phase 3 AdaptiveMapper mediates AI → config safely")
+
+
+def test_e2_medium_confidence_not_written_to_config():
+    """MEDIUM confidence interpretations must NOT modify NormalizedConfig."""
+
+    raw_lines = UNKNOWN_CONFIG.splitlines()
+    normalized = NormalizedConfig(
+        device=DeviceInfo(vendor=Vendor.UNKNOWN, hostname="unknown"),
+        raw_config=UNKNOWN_CONFIG,
+        raw_lines=raw_lines,
+    )
+    capture_unrecognized_lines(normalized)
+
+    # Create MEDIUM-confidence interpretations
+    lines = []
+    for ln in normalized.unrecognized_lines:
+        lines.append(InterpretationResult(
+            line_number=ln.line_number,
+            raw_line=ln.raw_line,
+            likely_vendor="generic",
+            security_concept="ssh_host_key_minimum",
+            normalized_field="management.ssh_version",
+            extracted_value="2",
+            confidence=ConfidenceLevel.MEDIUM,
+            numeric_confidence=0.60,
+            reasoning="Ambiguous context",
+            status=InterpretationStatus.INTERPRETED,
+        ))
+
+    from app.adaptive.mapper import map_interpretations
+    ai_mappings = map_interpretations(normalized, lines)
+
+    # Config NOT modified — safety rule
     assert normalized.management.ssh_version is None
+    # Routed to needs_review
+    review = [m for m in ai_mappings if m.source == "needs_review"]
+    assert len(review) > 0
 
-    # Verify analyze() is NOT called for unknown vendors
-    client = TestClient(app)
-
-    with patch("app.api.routes.scan.interpret_lines", return_value=mock_interpretations):
-        with patch("app.api.routes.scan.is_available", return_value=True):
-            with patch("app.api.routes.scan.analyze") as mock_analyze:
-                response = client.post(
-                    "/api/scan",
-                    files=[("files", ("unknown.cfg", UNKNOWN_CONFIG.encode("utf-8"), "text/plain"))],
-                )
-
-    assert response.status_code == 200
-    # analyze() must NOT be called for unknown-vendor configs
-    assert mock_analyze.call_count == 0
-
-    print("\nPASS [E]: AI results not written into analyze() fields")
+    print("\nPASS [E2]: MEDIUM confidence does NOT mutate config")
 
 
 # ===========================================================================
@@ -532,7 +574,8 @@ if __name__ == "__main__":
     test_c_one_groq_request_per_config()
     test_d_groq_unavailable_graceful()
     test_d2_groq_exception_graceful()
-    test_e_ai_results_not_in_analyze()
+    test_e_ai_interpretations_through_adaptive_mapper()
+    test_e2_medium_confidence_not_written_to_config()
     test_f_cisco_behavior_unchanged()
     test_f2_fortinet_behavior_unchanged()
     test_g_scoring_unchanged()

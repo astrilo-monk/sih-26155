@@ -8,6 +8,7 @@ to the NormalizedConfig as UnrecognizedLine objects.
 
 from app.models.normalized import NormalizedConfig, UnrecognizedLine, Vendor
 from app.adaptive.relevance import is_security_relevant, get_context_lines
+from app.adaptive.context import structural_paths
 
 
 def _collect_recognized_line_numbers(config: NormalizedConfig) -> set[int]:
@@ -99,6 +100,7 @@ def capture_unrecognized_lines(config: NormalizedConfig) -> None:
     
     # Find unrecognized lines
     unrecognized = []
+    paths = None
     for i, raw_line in enumerate(config.raw_lines):
         line_num = i + 1  # 1-indexed
         
@@ -122,13 +124,17 @@ def capture_unrecognized_lines(config: NormalizedConfig) -> None:
             config.raw_lines, line_num, context_size=2
         )
         
+        if paths is None:
+            paths = structural_paths(config.raw_lines)
+
         # Create UnrecognizedLine
         unrecognized.append(UnrecognizedLine(
             raw_line=raw_line,
             line_number=line_num,
             vendor=vendor_str,
             context_before=context_before,
-            context_after=context_after
+            context_after=context_after,
+            structural_path=list(paths[i]),
         ))
     
     config.unrecognized_lines = unrecognized

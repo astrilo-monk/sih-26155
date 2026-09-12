@@ -74,22 +74,18 @@ def test_settings_model_config_has_explicit_env_file():
 # ===========================================================================
 
 def test_groq_api_key_is_loaded():
-    """The GROQ_API_KEY must be loaded from .env (non-empty)."""
+    """At least one GROQ_API_KEY_* must be loaded from .env (non-empty)."""
 
-    key = settings.groq_api_key
+    keys = [settings.groq_api_key, settings.groq_api_key_1, settings.groq_api_key_2,
+            settings.groq_api_key_3, settings.groq_api_key_4]
+    non_empty = [k for k in keys if k]
 
-    # Must not be empty
-    assert key != "", "GROQ_API_KEY should be loaded from .env"
-    assert key is not None, "GROQ_API_KEY should not be None"
+    assert len(non_empty) > 0, "At least one GROQ_API_KEY_* should be loaded from .env"
 
-    # Must start with the expected Groq prefix (not the full key)
-    assert key.startswith("gsk_"), (
-        f"API key should start with 'gsk_'"
-    )
-
-    # Do NOT expose the full key in pytest output
+    key = non_empty[0]
+    assert key.startswith("gsk_"), "API key should start with 'gsk_'"
     masked = key[:8] + "...(redacted)"
-    print(f"\nPASS: GROQ_API_KEY loaded (redacted: {masked})")
+    print(f"\nPASS: GROQ_API_KEY loaded from key #{keys.index(key)+1} (redacted: {masked})")
 
 
 # ===========================================================================
@@ -105,23 +101,23 @@ def test_config_works_from_repo_root():
     original_cwd = os.getcwd()
 
     try:
-        # Simulate running from the repository root
         repo_root = _BACKEND_DIR.parent
         os.chdir(repo_root)
 
-        # Re-import settings module and reload to simulate fresh import
         import importlib
         import app.config as config_module
         importlib.reload(config_module)
 
-        # The reloaded settings should still have the key
-        reloaded_settings = config_module.settings
+        reloaded = config_module.settings
+        keys = [reloaded.groq_api_key, reloaded.groq_api_key_1, reloaded.groq_api_key_2,
+                reloaded.groq_api_key_3, reloaded.groq_api_key_4]
+        non_empty = [k for k in keys if k]
 
-        key = reloaded_settings.groq_api_key
-        assert key != "", (
-            "GROQ_API_KEY must be loaded even when CWD is the repository root, "
-            "not just when CWD is backend/"
+        assert len(non_empty) > 0, (
+            "At least one GROQ_API_KEY_* must be loaded even when CWD is "
+            "the repository root, not just when CWD is backend/"
         )
+        key = non_empty[0]
         assert key.startswith("gsk_"), "API key should start with 'gsk_'"
 
         masked = key[:8] + "...(redacted)"
@@ -129,7 +125,6 @@ def test_config_works_from_repo_root():
 
     finally:
         os.chdir(original_cwd)
-        # Restore original settings module state
         import importlib
         import app.config as config_module
         importlib.reload(config_module)

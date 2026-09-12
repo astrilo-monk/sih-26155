@@ -1,29 +1,68 @@
 # AI Layer Design
 
-This document details how we integrate Google Gemini into our security auditor.
+This document describes how AI (Groq, model `openai/gpt-oss-120b`) is used in NetAuditAI. All calls go through `backend/app/ai/client.py`.
 
 ## AI vs. Deterministic Logic
 
-To ensure the highest accuracy for the hackathon, we draw a hard line:
-**AI is NOT used to detect vulnerabilities.** 
+**AI is NOT used to decide whether a configuration is compliant.** Findings come only from the deterministic Python rules engine, which runs on the `NormalizedConfig` model.
 
-Detection is done by our deterministic python rules engine. We only use AI to *enrich* the results.
+AI is used in two places:
 
-## How Gemini is Used
+1. **Assistant:** explanations, summaries and chat about findings that already exist.
+2. **Adaptive interpretation:** translating configuration lines that no parser understood into normalized fields. The deterministic rules then evaluate those fields.
 
-Once our rules engine generates a list of `Finding` objects, the API can pass selected finding or scan context to Gemini for three purposes:
+## 1. Assistant
 
-1. **Plain-English Explanations:** The rules engine outputs technical jargon (e.g., "SNMPv2c active on GigabitEthernet0/1"). Gemini translates this to: "You are using an old version of SNMP which sends data in plain text, making it easy for hackers to sniff your network traffic."
-2. **Scan Summaries:** Gemini summarizes the entire scan result for executives, highlighting the most critical issues.
-3. **Chat Assistant:** The backend provides a chat endpoint where the user can ask questions like "Why is rule MGMT-001 failing?" or "Is there a workaround for this?"
+Once the rules engine has produced findings, the assistant endpoints (`/api/assistant/*`) can send finding or scan context to the AI for:
+
+* **Plain-English explanations** of a finding
+* **Scan summaries** of the overall result
+* **Chat** about a scan ("Why is MGMT-001 failing?")
+
+## 2. Adaptive Interpretation (unknown vendors and unfamiliar syntax)
+
+Lines that no parser recognized, and every line of an unknown-vendor config, go through `backend/app/adaptive/`:
+
+1. **Capture** (`capture.py`, `context.py`): the unrecognized line is recorded with its block path (e.g. `config system > edit admin`). The path is worked out from braces, `config`/`edit`/`end` blocks and indentation, with no vendor-specific parser.
+2. **Relevance filter** (`relevance.py`): lines that are not security-relevant are dropped.
+3. **Learned mappings** (`matcher.py`): lines matching an administrator-confirmed mapping are normalized without an AI call. Previously rejected lines are never re-sent.
+4. **AI interpretation** (`interpreter.py`): the remaining lines are sent 10 at a time using strict JSON-schema output (temperature 0, fixed seed). The AI may only pick a field from the controlled vocabulary in `backend/app/models/field_catalog.py`, or answer `unknown`. It must cite the evidence text. Failed batches are retried once and then split in half; a daily-quota error stops further calls for that scan.
+5. **Validation and confidence** (`mapper.py`):
+   * the cited evidence must appear in the line
+   * string and list values must be present
+   * on/off answers must match the line's polarity (negations such as `no`, `disable` flip it)
+   * HIGH (≥ 0.85) with valid evidence is applied automatically
+   * MEDIUM, LOW, contradicted, or conflicting-with-a-learned-mapping results go to the Training queue
+6. **Training** (frontend Training tab, `/api/adaptive/*`): an administrator accepts, edits or rejects each item. Accepted mappings are stored in SQLite and reused on later scans.
+
+### Vendor handling
+
+`device.vendor` is set only by the deterministic detector. For unknown configs it stays `unknown`. The AI's vendor guesses from validated lines are summarized as **vendor evidence** (`identified`, `conflicting` or `unknown`). This is reported in the scan result but **never** used to enable vendor-specific rules.
+
+### AI unavailable
+
+If there is no API key, or every key is rate-limited or out of quota, the affected lines are marked **AI unavailable**. This is a separate status from LOW confidence. The scan still completes, the score is flagged provisional, and the lines can be mapped manually in the Training tab.
+
+## Key rotation
+
+Keys are tried in order: `GROQ_API_KEY`, then `GROQ_API_KEY_1` .. `_4`.
+
+| Error | Behaviour |
+|-------|-----------|
+| 429 rate limit | try next key |
+| 401 / 403 / 404 (key rejected, no model access) | try next key |
+| 429 daily quota on every key | report `quota_exhausted`, stop calling for this scan |
+| 400, timeout, network error | fail this request (interpreter retries / splits) without trying other keys |
+
+Keys that belong to the same Groq organization share one daily quota, so adding keys from the same account does not increase capacity. Key material is never logged.
 
 ## Remediation Generation: Deterministic Templates
 
-To ensure the highest accuracy and safety for network gear, **we do not use AI to generate remediation commands.** 
-Instead, we use deterministic, vendor-specific templates (e.g., in `remediation/engine.py`). While templates do not eliminate all security risks, they significantly reduce the risk of AI-hallucinated or malformed remediation commands on critical infrastructure, ensuring the fixes are much more reliable.
+**AI does not generate remediation commands.** Fixes come from deterministic, vendor-specific templates in `remediation/engine.py`, because an invented command could disrupt real network equipment.
 
 ## Fallback Behavior
 
-If the Gemini API is down, rate-limited, or unavailable, the application falls back to pre-written recommendations and static summaries. Detection, scoring, and deterministic remediation continue to work without an API key.
-
-The current React frontend has not yet connected a chat or summary screen to these assistant endpoints. The API is ready for that future UI work.
+Without an API key, or when Groq is unavailable:
+* Detection, scoring and deterministic remediation still work.
+* Finding explanations and summaries fall back to static text.
+* Adaptive lines are marked AI unavailable, and confirmed learned mappings still apply.

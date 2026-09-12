@@ -18,7 +18,7 @@ A user uploads one or more network configuration files. NetAuditAI then:
 8. Applies the commands to a copy of the configuration.
 9. Re-runs the analysis to show before-and-after results.
 
-The system currently supports Cisco IOS and FortiGate configurations.
+The system has parsers for Cisco IOS and FortiGate. Configurations from other vendors, and lines the parsers do not recognize, go through an adaptive layer: learned mappings plus AI interpretation, with administrator review in the Training tab. See [ai-design.md](ai-design.md).
 
 ## Architecture
 
@@ -29,15 +29,19 @@ flowchart TD
     API --> Detector[Vendor Detector]
     Detector --> Cisco[Cisco IOS Parser]
     Detector --> Fortinet[FortiGate Parser]
+    Detector --> Adaptive[Adaptive Layer: learned mappings + AI]
     Cisco --> Normalized[NormalizedConfig]
     Fortinet --> Normalized
+    Cisco --> |Unrecognized lines| Adaptive
+    Adaptive --> Normalized
+    Adaptive --> Training[Training Tab + SQLite]
     Normalized --> Rules[Security Rules Engine]
     Rules --> Findings[Findings]
     Findings --> Score[Score Calculator]
     Score --> Dashboard[Dashboard Results]
     Findings --> Templates[Remediation Templates]
     Templates --> Verify[Copy, Patch, Re-analyze]
-    Findings --> AI[Optional Gemini Assistant]
+    Findings --> AI[Optional Groq Assistant]
 ```
 
 The central design decision is the normalized model. Vendor-specific parsers translate different configuration syntaxes into the same `NormalizedConfig` structure. The security rules operate on that common structure, so most rules do not need separate Cisco and FortiGate implementations.
@@ -51,16 +55,28 @@ backend/
     config.py               Environment settings and upload limits
     api/
       schemas.py            Request and response models
-      routes/               Scan, remediation, and assistant endpoints
+      routes/               Scan, remediation, assistant, and adaptive training endpoints
     ai/
-      client.py             Gemini API wrapper
+      client.py             Groq API wrapper (key rotation, structured output)
       prompts.py            Explanation and summary prompts
+      interpretation_schemas.py  Schemas for adaptive AI interpretation
+    adaptive/
+      capture.py, context.py     Capture unrecognized lines with their block path
+      relevance.py               Security-relevance filter
+      matcher.py                 Apply confirmed learned mappings
+      interpreter.py             Batched AI interpretation
+      mapper.py                  Evidence validation and confidence tiers
+      vendor.py                  Vendor-name normalization and vendor evidence
+      service.py                 Orchestrates the adaptive pipeline
+    db/
+      database.py, mappings.py   SQLite store for learned mappings
     analysis/
       engine.py             Runs all security rules
       scoring.py            Calculates the security score
       rules/                Management, boundary, logging, and crypto rules
     models/
       normalized.py         Shared vendor-neutral configuration dataclasses
+      field_catalog.py      Fields the adaptive layer may set (single source of truth)
       findings.py           Finding and scan result dataclasses
     parsers/
       detector.py           Cisco/FortiGate vendor detection
@@ -68,12 +84,14 @@ backend/
       fortinet.py           FortiGate parser
     remediation/
       engine.py             Deterministic fix templates and verification patching
-  tests/                    Backend pipeline and parser tests
+  tests/                    Backend pipeline, parser, remediation, and adaptive tests
+  .env.example              Example backend settings
 frontend/
   src/
     App.jsx                 Main UI state and workflow
     api/client.js           HTTP client for backend endpoints
-    components/             Dashboard, findings, remediation, and comparison UI
+    components/             Dashboard, findings, remediation, comparison, and Training UI
+  .env.example              Example frontend settings (VITE_API_BASE_URL)
   index.css                 Application styling
   package.json              Frontend dependencies and scripts
 docs/                       Architecture, API, rules, setup, and project documentation
@@ -81,11 +99,12 @@ docs/                       Architecture, API, rules, setup, and project documen
 
 ## Backend
 
-The FastAPI application is defined in [backend/app/main.py](../backend/app/main.py). It registers three route groups under `/api`:
+The FastAPI application is defined in [backend/app/main.py](../backend/app/main.py). It registers four route groups under `/api`:
 
 - Scan routes
 - Remediation routes
 - Assistant routes
+- Adaptive training routes
 
 CORS is currently open to all origins to simplify local development. This should be restricted before production deployment.
 
@@ -105,7 +124,9 @@ For each uploaded file, the API:
 
 One file is analyzed with `analyze()`. Multiple files are analyzed individually and merged with `analyze_multiple()`.
 
-Scan results are stored in a process-local dictionary. They are not persisted to SQLite or another database.
+Unknown-vendor configs, and lines a parser did not recognize, are then passed through the adaptive layer before analysis (see [ai-design.md](ai-design.md)).
+
+Scan results are stored in a process-local dictionary and are not persisted. Only administrator-confirmed adaptive mappings are stored in SQLite.
 
 ### Normalized Configuration
 
@@ -224,10 +245,17 @@ API request and response schemas are defined in [backend/app/api/schemas.py](../
 | GET | `/api/scan/{scan_id}` | Retrieve an in-memory scan result |
 | POST | `/api/remediate` | Generate remediation commands for a finding |
 | POST | `/api/verify` | Apply commands to a copy and re-analyze it |
-| POST | `/api/assistant/chat` | Ask Gemini about a scan |
+| POST | `/api/download-fixed` | Download fully remediated configs |
+| POST | `/api/assistant/chat` | Ask the AI about a scan |
 | GET | `/api/assistant/explain/{scan_id}/{rule_id}/{hostname}` | Generate a finding explanation |
 | GET | `/api/assistant/summary/{scan_id}` | Generate a scan summary |
-| GET | `/api/assistant/status` | Check Gemini availability |
+| GET | `/api/assistant/status` | Check whether AI is configured |
+| GET | `/api/adaptive/fields` | Normalized fields available for mapping |
+| GET | `/api/adaptive/scans/{scan_id}/review` | Training review queue |
+| POST | `/api/adaptive/scans/{scan_id}/review/{item_id}/accept` \| `edit` \| `reject` | Review an interpretation |
+| GET / PATCH / DELETE | `/api/adaptive/mappings[/{mapping_id}]` | Manage learned mappings |
+
+Full request and response details are in [api.md](api.md).
 
 ## Remediation
 
@@ -252,7 +280,7 @@ The generated commands are never applied to a real device. Verification modifies
 
 ## Optional AI Assistant
 
-Gemini integration is implemented in [backend/app/ai/client.py](../backend/app/ai/client.py). It is enabled by setting `GEMINI_API_KEY` in `backend/.env`.
+Groq integration is implemented in [backend/app/ai/client.py](../backend/app/ai/client.py). It is enabled by setting `GROQ_API_KEY` (and optionally `GROQ_API_KEY_1` .. `_4`) in `backend/.env`.
 
 Without an API key:
 
@@ -260,14 +288,16 @@ Without an API key:
 - Finding explanations fall back to static recommendations.
 - Scan summaries use static text.
 - Chat reports that AI is not configured.
+- Adaptive lines are marked "AI unavailable". Confirmed learned mappings still apply.
 
-With an API key, Gemini can provide:
+With an API key, the AI can provide:
 
 - Plain-language explanations of findings
 - Executive scan summaries
 - Chat answers using scan context
+- Interpretation of unfamiliar configuration lines into normalized fields, validated before use
 
-The AI does not generate remediation commands.
+The AI does not generate remediation commands, decide findings, or set the device vendor.
 
 ## Frontend
 
@@ -289,6 +319,7 @@ The interface provides:
 - Remediation command drawer
 - Copy-to-clipboard actions
 - Before-and-after verification results
+- Training tab for reviewing adaptive interpretations, including AI-unavailable lines, block paths and vendor evidence
 
 The frontend API client is [frontend/src/api/client.js](../frontend/src/api/client.js). Its default backend URL is:
 
@@ -296,7 +327,7 @@ The frontend API client is [frontend/src/api/client.js](../frontend/src/api/clie
 http://localhost:8000/api
 ```
 
-This can be overridden with the `VITE_API_BASE_URL` environment variable in `frontend/.env`.
+This can be overridden with the `VITE_API_BASE_URL` environment variable in `frontend/.env` (see `frontend/.env.example`).
 
 The Remediation Queue now displays all severity groups (critical, high, medium, low) and supports bulk fixed-config download with full end-to-end verification.
 
@@ -306,7 +337,7 @@ The Remediation Queue now displays all severity groups (critical, high, medium, 
 
 - Python 3.11 or newer
 - Node.js 18 or newer
-- Gemini API key only if AI features are required
+- Groq API key only if AI features are required
 
 ### Backend
 
@@ -330,40 +361,38 @@ The Vite frontend normally runs at `http://localhost:5173`.
 
 ### Environment
 
-Create `backend/.env` if Gemini is needed:
+Copy the example files and fill in what you need:
 
-```text
-GEMINI_API_KEY=your_key_here
+```powershell
+copy backend\.env.example backend\.env
+copy frontend\.env.example frontend\.env
 ```
+
+See [setup.md](setup.md) for what each setting does.
 
 ## Testing
 
-Backend tests are in [backend/tests/test_pipeline.py](../backend/tests/test_pipeline.py) and [backend/tests/test_cisco_acl.py](../backend/tests/test_cisco_acl.py).
+Backend tests live in [backend/tests/](../backend/tests/) and frontend tests next to their components. They cover:
 
-They cover:
-
-- Cisco and FortiGate vendor detection
-- Basic parser behavior
-- Vulnerable configuration detection
-- Secure configuration behavior
-- Score calculation
-- Empty and unknown configurations
-- Cisco extended ACL parsing
-- Any-any ACL detection
+- Cisco and FortiGate vendor detection and parsing
+- Vulnerable and secure configuration detection, scoring, Cisco ACLs
+- Remediation end-to-end (fixed configs re-scan to 100/100) and fixed-config download
+- The adaptive pipeline: capture, relevance, evidence validation, confidence tiers, Training API, learned mappings, and four unrelated config syntaxes
+- Groq key rotation
+- The Training tab UI
 
 Run them with:
 
 ```powershell
 cd backend
-pytest tests/ -v
-```
+pytest tests/ -q
 
-The current test suite passes 21 tests. The frontend production build can be checked with:
-
-```powershell
-cd frontend
+cd ..\frontend
+npm test
 npm run build
 ```
+
+All AI calls are mocked, so no key is needed. See [testing.md](testing.md).
 
 ## Current Limitations
 
@@ -376,9 +405,13 @@ npm run build
 - AI can produce incorrect explanations and should be reviewed.
 - There are no live device connections.
 - PDF and image configurations are unsupported.
-- Palo Alto support is planned but not implemented.
-- There are no frontend automated tests.
-- Gemini, remediation, and extensive FortiGate behavior have limited automated coverage.
+- There is no dedicated Palo Alto parser. Such configs are scanned through the adaptive layer.
+- Unknown-vendor configs are evaluated mainly by vendor-neutral rules, and their scores are flagged provisional.
+- Adaptive AI interpretation depends on Groq quota. Keys in one organization share a daily limit.
+- `/api/assistant/status` does not detect an exhausted quota.
+- For Cisco configs, the `/api/verify` preview does not yet reflect only the supplied commands.
+- Training endpoints have no authentication.
+- Extensive FortiGate behavior has limited automated coverage.
 - CORS is permissive for development.
 
 ## Current Status
@@ -391,7 +424,8 @@ The core prototype is functional:
 - Scoring and compliance mappings are implemented.
 - Remediation templates and before/after verification are implemented.
 - The React dashboard is implemented.
-- Optional Gemini support is implemented.
+- Optional Groq AI support is implemented.
+- The adaptive layer (learned mappings, AI interpretation, evidence validation, Training tab, SQLite persistence) is implemented.
 
 The main next steps are persistence, stronger parser coverage, robust vendor-aware remediation, correct multi-device verification, frontend AI integration, production security hardening, and broader automated tests.
 

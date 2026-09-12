@@ -18,7 +18,7 @@ from app.api.schemas import (
     FindingSchema, ComplianceMappingSchema,
     DownloadFixedRequest,
 )
-from app.api.routes.scan import get_scan_store
+from app.api.routes.scan import get_scan_store, get_scan_result_or_409
 from app.parsers.detector import detect_vendor
 from app.parsers.cisco_ios import CiscoIOSParser
 from app.parsers.fortinet import FortinetParser
@@ -37,7 +37,7 @@ async def remediate_finding(req: RemediationRequest):
     if not stored:
         raise HTTPException(404, "Scan not found")
 
-    result = stored["result"]
+    result = get_scan_result_or_409(stored)
 
     # Find the specific finding
     finding = None
@@ -73,7 +73,7 @@ async def verify_remediation(req: VerifyRequest):
     if not stored:
         raise HTTPException(404, "Scan not found")
 
-    original_result = stored["result"]
+    original_result = get_scan_result_or_409(stored)
     configs = stored["configs"]
 
     if not configs:
@@ -138,7 +138,7 @@ async def download_fixed_configs(req: DownloadFixedRequest):
     if not stored:
         raise HTTPException(404, "Scan not found")
 
-    result = stored["result"]
+    result = get_scan_result_or_409(stored)
     configs = stored["configs"]
     if not configs:
         raise HTTPException(400, "No configs available")

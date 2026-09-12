@@ -53,5 +53,27 @@ end
 }
 ```
 
+## Unknown Vendors and Unrecognized Lines
+
+We do not write a parser per vendor beyond Cisco IOS and FortiGate. Two kinds of line go to the adaptive layer (`backend/app/adaptive/`) instead:
+* lines a parser does not recognize
+* every line of a config the detector cannot identify
+
+`context.py` gives each captured line a generic **block path** in a single pass, with no vendor knowledge:
+* **Braces:** `system {` … `}`
+* **Keyword blocks:** `config` / `edit` opened, and `end` / `next` / `exit` closed
+* **Indentation**
+
+For example, `set admin-ssh enable` inside `config system global` gets the path `config system global`. The AI sees this path as context, so the same leaf command can be read correctly in different blocks.
+
+The rest of the adaptive pipeline is described in [ai-design.md](ai-design.md). An AI result only reaches the normalized model after it passes these checks:
+* the field is in the catalog
+* the cited evidence appears in the line
+* the value matches the line's on/off polarity
+
+A HIGH-confidence result that passes is applied automatically. Anything less certain goes to the Training queue for an administrator.
+
 ## Known Limitations
-The parsers are intentionally limited to common configuration patterns. They may miss unusual syntax, vendor version differences, or complex ACL options. This is acceptable for the current hackathon scope, but production use would need a more complete parser and larger fixture set.
+The parsers are intentionally limited to common configuration patterns. They may miss unusual syntax, vendor version differences, or complex ACL options.
+
+The adaptive layer only fills the fields in `field_catalog.py`, and most management rules are still vendor-specific. As a result, unknown-vendor configs are currently evaluated mainly by the vendor-neutral rules, and their scores are flagged provisional.
