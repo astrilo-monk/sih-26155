@@ -18,6 +18,7 @@ from typing import Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from app.parsers.detector import STATUS_UNVERIFIED, VendorIdentification, identify_vendor
 from app.analysis.engine import analyze, analyze_multiple, evaluate_controls
+from app.analysis.scoring import calculate_posture
 from app.controls.catalog import CONTROLS
 from app.models.results import ControlResult, Status
 from app.models.normalized import Vendor, NormalizedConfig, DeviceInfo, AIFieldMapping
@@ -324,6 +325,14 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
         _identification_schema(ident, idx) for idx, ident in enumerate(identifications) if ident is not None
     ]
 
+    posture = calculate_posture(device_results)
+    posture_fields = dict(
+        posture=posture.posture,
+        coverage=posture.coverage,
+        posture_bounds=list(posture.bounds) if posture.bounds else None,
+        critical_unassessed=posture.critical_unassessed,
+    )
+
     if result is None:
         # AI unavailable and nothing could be normalized — display-only
         return ScanResultResponse(
@@ -335,6 +344,7 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
             adaptive_configs=infos,
             vendor_identification=identification_schemas,
             results=results_schema,
+            **posture_fields,
         )
 
     return ScanResultResponse(
@@ -352,6 +362,7 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
         adaptive_configs=infos,
         vendor_identification=identification_schemas,
         results=results_schema,
+        **posture_fields,
     )
 
 

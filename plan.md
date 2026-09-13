@@ -479,6 +479,35 @@ Known limits:
 
 - An unknown config with nothing decided can never show 100.
 
+## Status: done
+
+Suite after Phase 3: **597 passed, 2 skipped, 1 xfailed** (frontend 13 passed, build OK).
+
+- `analysis/scoring.py`: `calculate_posture(device_results)` → `Posture`
+  (`posture`, `coverage`, `bounds`, `critical_unassessed`), weights
+  critical 10 / high 6 / medium 3 / low 1.
+  - Results are collapsed per (device, control): per-scope FAILs count once at
+    the worst failure severity, so one question never outweighs the others.
+  - Only PARSER / CONFIRMED / DEFAULT verdicts are decided; HEURISTIC and
+    AI_VERIFIED PASS/FAIL count as undecided (in coverage and bounds).
+  - NOT_CONFIGURED and UNKNOWN are undecided; N/A leaves the denominator.
+  - `critical_unassessed` lists catalog-critical controls left undecided.
+- API: `posture`, `coverage`, `posture_bounds`, `critical_unassessed` on every
+  scan response (display-only scans too). Legacy `score` / `calculate_score`
+  kept, marked DEPRECATED; remediation before/after still uses it (Phase 8).
+- Frontend: `ScoreOverview` shows posture ("—" when nothing decided), coverage,
+  the fail/pass range and the critical-unassessed warning; the dashboard banner
+  keys off `posture`. `ScoreGauge` is unused and was left alone.
+- Tests `tests/test_scoring_v2.py`: all PASS, all UNKNOWN / NOT_CONFIGURED,
+  provisional assurance, critical flag, N/A exclusion, weights + bounds,
+  per-scope collapse, multi-device, API on `sample/unknown.cfg` (posture "—",
+  coverage 0) and a Cisco fixture. Existing tests unchanged (legacy score kept).
+
+Known limits:
+
+- An AI-mapped value on an unknown vendor now yields posture "—" even when the
+  legacy score is set — deliberate until recognizers (Phase 6) confirm it.
+
 ---
 
 # Phase 4 — Security Facts + Remove Vendor Gates

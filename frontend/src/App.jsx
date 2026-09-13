@@ -157,12 +157,12 @@ export default function App() {
 
             {view === 'dashboard' && scanResult && (
               <>
-                {(scoreProvisional || scanResult.score == null) && adaptiveConfigs.length > 0 && (
+                {(scoreProvisional || scanResult.posture == null) && adaptiveConfigs.length > 0 && (
                   <div style={{ backgroundColor: 'var(--medium-bg)', border: '1px solid var(--medium-border)', padding: '0.75rem 1rem', borderRadius: 'var(--radius)', color: 'var(--medium)', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.8125rem' }}>
                     <AlertCircle size={16} />
                     <span style={{ flex: 1 }}>
-                      {scanResult.score == null
-                        ? 'Not assessed: no check could evaluate evidence from this configuration, so no score was calculated.'
+                      {scanResult.posture == null
+                        ? 'Not assessed: no control could be decided from confirmed evidence, so no posture was calculated.'
                         : 'This score is provisional: some configuration lines could not be normalized automatically.'}
                       {vendorUnverified && ' The configuration resembles a supported vendor, but its syntax could not be verified.'}
                       {aiUnavailable && ' AI interpretation was unavailable for some lines.'}
@@ -172,7 +172,10 @@ export default function App() {
                   </div>
                 )}
                 <ScoreOverview
-                  score={scanResult.score} 
+                  score={scanResult.posture}
+                  coverage={scanResult.coverage}
+                  bounds={scanResult.posture_bounds}
+                  criticalUnassessed={scanResult.critical_unassessed}
                   critical={scanResult.critical}
                   high={scanResult.high}
                   medium={scanResult.medium}

@@ -173,7 +173,16 @@ class FindingSchema(BaseModel):
 class ScanResultResponse(BaseModel):
     scan_id: str
     timestamp: str
+    # DEPRECATED (Phase 3): legacy 100 - penalties score; use posture + coverage
     score: Optional[int] = None
+    # Weighted PASS / (PASS + FAIL) over decisive results; None when nothing was decided
+    posture: Optional[int] = None
+    # Weighted share (0-100) of applicable controls that were decisively decided
+    coverage: int = 0
+    # [posture if all undecided controls fail, posture if they all pass]
+    posture_bounds: Optional[list[int]] = None
+    # Critical controls that could not be decisively assessed
+    critical_unassessed: list[str] = []
     total_findings: Optional[int] = None
     critical: Optional[int] = None
     high: Optional[int] = None

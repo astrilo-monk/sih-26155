@@ -1,6 +1,6 @@
-export default function ScoreOverview({ score, critical, high, medium, low }) {
+export default function ScoreOverview({ score, coverage = 0, bounds, criticalUnassessed = [], critical, high, medium, low }) {
   const getStatus = (s) => {
-    if (s == null) return { label: 'NOT ASSESSED', desc: 'No check could evaluate evidence from this configuration.', color: 'var(--text-tertiary)' };
+    if (s == null) return { label: 'NOT ASSESSED', desc: 'No control could be decided from confirmed evidence.', color: 'var(--text-tertiary)' };
     if (s < 40) return { label: 'CRITICAL RISK', desc: 'Immediate remediation required.', color: 'var(--critical)' };
     if (s < 70) return { label: 'NEEDS ATTENTION', desc: 'Multiple security vulnerabilities detected.', color: 'var(--high)' };
     if (s < 90) return { label: 'FAIR', desc: 'Minor configuration issues present.', color: 'var(--medium)' };
@@ -31,6 +31,15 @@ export default function ScoreOverview({ score, critical, high, medium, low }) {
           <div className="score-info">
             <div className="score-status" style={{ color: status.color }}>{status.label}</div>
             <div className="score-desc">{status.desc}</div>
+            <div className="score-desc">
+              Coverage {coverage}% of applicable controls
+              {bounds && coverage < 100 && ` · range ${bounds[0]}–${bounds[1]} if undecided controls fail / pass`}
+            </div>
+            {criticalUnassessed.length > 0 && (
+              <div className="score-desc" style={{ color: 'var(--critical)' }}>
+                Critical control(s) not assessed: {criticalUnassessed.join(', ')}
+              </div>
+            )}
           </div>
         </div>
 
