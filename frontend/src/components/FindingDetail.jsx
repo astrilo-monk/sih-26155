@@ -91,7 +91,11 @@ export default function FindingDetail({ finding, scanId, onClose, onRemediation 
               <div className="drawer-section-title">Compliance</div>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 {finding.compliance.map((c, i) => (
-                  <span key={i} className="badge neutral">
+                  <span
+                    key={i}
+                    className="badge neutral"
+                    title={[c.description, c.version].filter(Boolean).join(' · ')}
+                  >
                     {c.framework} {c.control_id}
                   </span>
                 ))}

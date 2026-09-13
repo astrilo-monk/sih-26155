@@ -322,6 +322,8 @@ Decisions and deviations:
   `engine.ABSENCE_BASED_RULE_IDS` / `has_assessable_evidence`, the absence reason
   in `routes/scan.py`. API fields `devices[].assessed` / `adaptive.assessed` are
   superseded by Phase 3 posture/coverage.
+  *(Removed in Phase 2 — replaced by ControlResult statuses. `_absence_is_evidence`
+  and `_applied_value` remain as rule logic, retagged `INTERIM(phase4)`.)*
 - Existing tests that asserted the old defect (LOG-001 FAIL / numeric score on
   unknown vendors) were updated deliberately, with explicit expectations (no
   assertion derived from implementation constants): `test_adaptive_generic`,
@@ -382,6 +384,71 @@ PASS / FAIL / NOT_CONFIGURED / UNKNOWN / N/A with evidence.
 ## Done when
 
 - API returns `results[]` with statuses; frontend still renders findings.
+
+## Status: done
+
+Suite after Phase 2: **587 passed, 2 skipped, 1 xfailed** (frontend 13 passed, build OK).
+Phase 0 snapshots unchanged: all 30 Cisco/FortiGate FAIL sets identical.
+
+- **Catalog** `app/controls/catalog.py`: 15 controls (ids kept) with title,
+  question, kind (prohibition / requirement / threshold / relational), highest
+  FAIL severity, category, remediation keys (the existing template ids), and
+  `normalized_fields` (`INTERIM(phase4)`, replaced by predicates).
+- **Mappings** carry framework + exact version; CIS items carry their vendor and
+  are attached only to that vendor's findings.
+  - NIST SP 800-53 Rev. 5 checked against the official OSCAL catalog, release
+    5.2.0: every id exists with its official title, none withdrawn.
+    **AU-8(1) is withdrawn (moved to SC-45(1))** — LOG-002 now cites AU-8,
+    SC-45, SC-45(1). LOG-001 now cites AU-4(1) / AU-9(2) (off-box storage)
+    instead of the generic AU-2 / AU-4.
+  - CIS: the old CIS numbers did not match any benchmark (e.g. "1.4.1
+    Configure remote syslog" is a password item). Replaced only with item ids
+    confirmed for the exact benchmark version and level (Tenable audit files):
+    Cisco IOS XE 17.x v2.2.1 L1/L2, v2.1.0 L1 (3.1.1); FortiGate 7.4.x v1.0.1
+    L1/L2. Controls without a verified item have no CIS mapping — not a guess:
+    Cisco MGMT-002, BOUNDARY-001, LOG-001, CRYPTO-001; FortiGate MGMT-005,
+    MGMT-007, MGMT-008, BOUNDARY-002, BOUNDARY-003, CRYPTO-001. (IOS XE
+    `logging host` / `ntp authenticate` ids were only found for 16.x.)
+- **Results** `app/models/results.py`: `Status`, `Assurance`, `Evidence`,
+  `FailureDetail`, `ControlResult`.
+- **Rules** return ControlResults. `check()` keeps the original detection logic
+  and returns FAILs (one per failing scope). `non_failure()` decides the rest:
+  - PASS only with cited configuration lines; otherwise it degrades to UNKNOWN.
+  - NOT_CONFIGURED when nothing relevant exists; UNKNOWN when something exists
+    but cannot be decided (e.g. VTY without `transport input`, proposal without
+    encryption, NTP server with unknown authentication, no WAN-role interface).
+  - Platform defaults are not assumed: they yield NOT_CONFIGURED / UNKNOWN with
+    a reason until the Phase 4 defaults table.
+  - Vendor-gated rules: unknown vendor → UNKNOWN if an applied mapping touched
+    the control's fields, else NOT_CONFIGURED (relational: UNKNOWN); FortiGate
+    for Cisco-only MGMT-005 / MGMT-008 → UNKNOWN.
+  - N/A is never emitted yet (nothing is *proven* not applicable).
+  - A rule that raises yields UNKNOWN; the scan continues.
+- **Assurance**: PARSER for confirmed vendors; for adaptive values the weakest
+  cited mapping (learned / admin → CONFIRMED, AI auto-mapped → AI_VERIFIED).
+- **Findings** = `controls/views.finding_from_result` over FAIL results;
+  compliance from the catalog; `ComplianceMappingSchema.version` added
+  (shown as a tooltip in `FindingDetail`).
+- **API**: `results[]` on every scan response (display-only scans too —
+  controls are deterministic), with control question, kind, status, assurance,
+  scope, reason and evidence.
+- **Interim layer removed**: `absence_based`, `evaluated_fields`,
+  `has_assessable_evidence`, `ABSENCE_BASED_RULE_IDS`. The unknown-vendor score
+  gate is now "any decided result"; the adaptive reason lists NOT_CONFIGURED /
+  UNKNOWN controls. Legacy `score` unchanged otherwise (Phase 3).
+- **Tests** `tests/test_phase2_controls.py`: catalog completeness, NIST ids and
+  titles vs OSCAL 5.2.0, CIS vendor scoping, one result per control (or
+  per-scope FAILs) on 30 snapshot files + 9 look-alikes + 2 unknown configs,
+  no PASS without evidence, assurance, FAIL set = snapshot, unknown-vendor
+  statuses, broken-rule containment, API `results[]`, catalog compliance on
+  findings.
+
+Known limits:
+
+- An unknown-vendor NTP server with undetermined authentication is now UNKNOWN
+  (not a scored pass), so such configs are "not assessed" unless another control
+  decides — deliberate, stricter than Phase 1.
+- CIS coverage is partial by design (verified items only).
 
 ---
 

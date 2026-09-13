@@ -128,6 +128,7 @@ async def verify_remediation(req: VerifyRequest):
                         framework=c.framework,
                         control_id=c.control_id,
                         description=c.description,
+                        version=c.version,
                     ) for c in f.compliance
                 ],
                 ai_explanation=f.ai_explanation,

@@ -25,6 +25,8 @@ class ComplianceMapping:
     framework: str  # "CIS", "NIST_800_53", "PCI_DSS"
     control_id: str  # e.g., "AC-17", "2.1.1", "1.3.1"
     description: str = ""
+    # Framework / benchmark version the requirement id belongs to
+    version: str = ""
 
 
 @dataclass
@@ -80,6 +82,14 @@ class ScanResult:
 
     # Devices that were scanned
     devices: list[dict] = field(default_factory=list)
+
+    # Control results per device, aligned with ``devices``
+    # (list[list[app.models.results.ControlResult]])
+    device_results: list[list] = field(default_factory=list)
+
+    @property
+    def results(self) -> list:
+        return [r for device in self.device_results for r in device]
 
     # Counts by severity
     @property

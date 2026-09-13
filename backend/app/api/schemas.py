@@ -124,6 +124,34 @@ class ComplianceMappingSchema(BaseModel):
     framework: str
     control_id: str
     description: str = ""
+    version: str = ""
+
+
+class EvidenceSchema(BaseModel):
+    line_numbers: list[int] = []
+    lines: list[str] = []
+    scope_path: list[str] = []
+
+
+class ControlResultSchema(BaseModel):
+    """The answer to one control for one uploaded config."""
+    config_index: int
+    control_id: str
+    title: str
+    question: str
+    kind: str
+    category: str
+    severity: str
+    # pass | fail | not_configured | unknown | n_a
+    status: str
+    # parser | confirmed | default | heuristic | ai_verified (decided results only)
+    assurance: Optional[str] = None
+    proposed_status: Optional[str] = None
+    device_hostname: str
+    vendor: str
+    scope: Optional[str] = None
+    reason: str
+    evidence: EvidenceSchema
 
 
 class FindingSchema(BaseModel):
@@ -159,6 +187,8 @@ class ScanResultResponse(BaseModel):
     adaptive_configs: list[AdaptiveScanInfoSchema] = []
     # One entry per uploaded config, in upload order
     vendor_identification: list[VendorIdentificationSchema] = []
+    # Every control's result for every config (findings are the FAIL results)
+    results: list[ControlResultSchema] = []
 
 
 class RemediationRequest(BaseModel):

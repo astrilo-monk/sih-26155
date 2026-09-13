@@ -1,14 +1,16 @@
 """
-Cryptography security rules.
+Cryptography controls.
 
-Checks VPN/IPsec configurations for weak or deprecated
-encryption algorithms and key exchange parameters.
+Checks VPN/IPsec configurations for weak or deprecated encryption algorithms
+and key exchange parameters.
 """
 
 from __future__ import annotations
-from app.models.normalized import NormalizedConfig
-from app.models.findings import Finding, Severity, ComplianceMapping
+
 from app.analysis.rules.base import BaseRule
+from app.models.findings import Severity
+from app.models.normalized import NormalizedConfig
+from app.models.results import ControlResult
 
 
 # Algorithms considered weak or broken
@@ -19,11 +21,9 @@ WEAK_DH_GROUPS = {1, 2, 5}  # 768-bit, 1024-bit, 1536-bit
 
 class WeakVpnCryptoRule(BaseRule):
     rule_id = "CRYPTO-001"
-    title = "Weak VPN/IPsec Cryptographic Algorithms"
-    category = "cryptography"
 
-    def evaluate(self, config: NormalizedConfig) -> list[Finding]:
-        findings = []
+    def check(self, config: NormalizedConfig) -> list[ControlResult]:
+        results = []
 
         for proposal in config.vpn.ipsec_proposals:
             problems = []
@@ -42,26 +42,35 @@ class WeakVpnCryptoRule(BaseRule):
                                 f"({self._dh_group_bits(proposal.dh_group)}-bit)")
 
             if problems:
-                findings.append(self._make_finding(
+                results.append(self._fail(
                     config,
                     Severity.HIGH,
                     f"VPN proposal '{proposal.name}' uses {', '.join(problems)}. "
                     "These algorithms have known weaknesses and can potentially be "
                     "broken by well-resourced attackers.",
-                    self._get_evidence(config, proposal.source_lines),
                     proposal.source_lines,
                     "VPN traffic encrypted with weak algorithms may be decryptable, "
                     "exposing all data flowing through the tunnel.",
                     "Use AES-256 or AES-128 for encryption, SHA-256 or SHA-384 for "
                     "hashing, and DH group 14 (2048-bit) or higher.",
-                    [
-                        ComplianceMapping("CIS", "2.3.1", "Use strong VPN cryptography"),
-                        ComplianceMapping("NIST_800_53", "SC-13", "Cryptographic Protection"),
-                        ComplianceMapping("NIST_800_53", "SC-8", "Transmission Confidentiality"),
-                    ],
+                    scope=f"proposal {proposal.name}",
                 ))
 
-        return findings
+        return results
+
+    def non_failure(self, config: NormalizedConfig) -> ControlResult:
+        proposals = config.vpn.ipsec_proposals
+        if not proposals:
+            return self._not_configured(config, "No IPsec / IKE proposal is configured")
+        unstated = [p for p in proposals if not p.encryption]
+        if unstated:
+            return self._unknown(
+                config,
+                f"Proposal '{unstated[0].name}' does not state its encryption; the platform default "
+                "applies (vendor defaults are evaluated in Phase 4)",
+                self._lines(*unstated),
+            )
+        return self._pass(config, "No proposal uses weak encryption, hashing or DH groups", self._lines(*proposals))
 
     @staticmethod
     def _dh_group_bits(group: int) -> int:

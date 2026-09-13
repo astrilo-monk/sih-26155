@@ -17,7 +17,9 @@ from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from app.parsers.detector import STATUS_UNVERIFIED, VendorIdentification, identify_vendor
-from app.analysis.engine import ABSENCE_BASED_RULE_IDS, analyze, analyze_multiple
+from app.analysis.engine import analyze, analyze_multiple, evaluate_controls
+from app.controls.catalog import CONTROLS
+from app.models.results import ControlResult, Status
 from app.models.normalized import Vendor, NormalizedConfig, DeviceInfo, AIFieldMapping
 from app.api.schemas import (
     ScanResultResponse,
@@ -29,6 +31,8 @@ from app.api.schemas import (
     AIFieldMappingSchema,
     VendorEvidenceSchema,
     VendorIdentificationSchema,
+    ControlResultSchema,
+    EvidenceSchema,
 )
 from app.config import settings
 from app.adaptive import capture_unrecognized_lines
@@ -62,11 +66,47 @@ def _finding_to_schema(f) -> FindingSchema:
                 framework=c.framework,
                 control_id=c.control_id,
                 description=c.description,
+                version=c.version,
             ) for c in f.compliance
         ],
         ai_explanation=f.ai_explanation,
         category=f.category,
     )
+
+
+def _result_to_schema(result: ControlResult, config_index: int) -> ControlResultSchema:
+    control = CONTROLS[result.control_id]
+    return ControlResultSchema(
+        config_index=config_index,
+        control_id=result.control_id,
+        title=control.title,
+        question=control.question,
+        kind=control.kind.value,
+        category=control.category,
+        severity=(result.failure.severity if result.failure else control.severity).value,
+        status=result.status.value,
+        assurance=result.assurance.value if result.assurance else None,
+        proposed_status=result.proposed_status.value if result.proposed_status else None,
+        device_hostname=result.device_hostname,
+        vendor=result.vendor,
+        scope=result.scope,
+        reason=result.reason,
+        evidence=EvidenceSchema(
+            line_numbers=list(result.evidence.line_numbers),
+            lines=list(result.evidence.text),
+            scope_path=list(result.evidence.scope_path),
+        ),
+    )
+
+
+def _device_results(result, configs: list[NormalizedConfig], config_index: int) -> list[ControlResult]:
+    """Control results for one config. Controls are deterministic, so a scan
+    without a stored compliance result (display-only) is still evaluated."""
+    if result is None:
+        return evaluate_controls(configs[config_index])
+    if config_index >= len(result.device_results):
+        return []
+    return result.device_results[config_index]
 
 
 def mapping_record_to_schema(m: AIFieldMapping) -> AIFieldMappingSchema:
@@ -111,8 +151,10 @@ def _build_adaptive_info(
     config_index: int,
     identification: Optional[VendorIdentification] = None,
     assessed: bool = False,
+    results: Optional[list[ControlResult]] = None,
 ) -> AdaptiveScanInfoSchema:
     """Build the adaptive response info for one config."""
+    results = results or []
     records_by_line = {m.line_number: m for m in config.ai_mappings}
 
     lines_schema = [
@@ -174,11 +216,15 @@ def _build_adaptive_info(
         elif evidence.status == EVIDENCE_CONFLICTING:
             reason += " (adaptive vendor evidence is conflicting)"
         reasons.append(reason)
-        # INTERIM(phase1): replaced by per-control statuses in Phase 2
-        reasons.append(
-            f"Absence-based checks ({', '.join(ABSENCE_BASED_RULE_IDS)}) cannot fail on an "
-            "unidentified vendor: a missing value means 'not found', not 'not configured'"
-        )
+        undecided = sorted({
+            r.control_id for r in results if r.status in (Status.NOT_CONFIGURED, Status.UNKNOWN)
+        })
+        if undecided:
+            reasons.append(
+                f"Evidence was not found or not decidable for {len(undecided)} control(s) "
+                f"({', '.join(undecided)}) — reported as not configured / unknown, "
+                "never failed from missing data"
+            )
         if not assessed:
             reasons.append(
                 "No check could evaluate evidence from this configuration — "
@@ -260,13 +306,18 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
     configs = entry["configs"]
     result = entry.get("result")
     identifications = entry.get("identifications") or [None] * len(configs)
+    device_results = [_device_results(result, configs, idx) for idx in range(len(configs))]
     infos = [
         _build_adaptive_info(
             cfg, run, idx, identifications[idx],
             assessed=bool(result is not None and result.devices[idx].get("assessed", True)),
+            results=device_results[idx],
         )
         for idx, (cfg, run) in enumerate(zip(configs, entry["adaptive_runs"]))
         if run is not None
+    ]
+    results_schema = [
+        _result_to_schema(r, idx) for idx, results in enumerate(device_results) for r in results
     ]
     adaptive = infos[0] if infos else None
     identification_schemas = [
@@ -283,6 +334,7 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
             adaptive=adaptive,
             adaptive_configs=infos,
             vendor_identification=identification_schemas,
+            results=results_schema,
         )
 
     return ScanResultResponse(
@@ -299,6 +351,7 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
         adaptive=adaptive,
         adaptive_configs=infos,
         vendor_identification=identification_schemas,
+        results=results_schema,
     )
 
 

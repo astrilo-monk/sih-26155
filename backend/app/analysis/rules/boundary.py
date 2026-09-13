@@ -1,23 +1,24 @@
 """
-Boundary / data plane security rules.
+Boundary / data plane controls.
 
-These check firewall policies, ACLs, and network-level settings
-that control what traffic flows through the device.
+Firewall policies, ACLs and network-level settings that control what traffic
+flows through the device.
 """
 
 from __future__ import annotations
-from app.models.normalized import NormalizedConfig, Vendor
-from app.models.findings import Finding, Severity, ComplianceMapping
+
 from app.analysis.rules.base import BaseRule
+from app.models.findings import Severity
+from app.models.normalized import NormalizedConfig, Vendor
+from app.models.results import ControlResult
 
 
 class OverlyPermissiveRulesRule(BaseRule):
     rule_id = "BOUNDARY-001"
-    title = "Overly Permissive Firewall/ACL Rules"
-    category = "boundary"
+    vendor_gated = True
 
-    def evaluate(self, config: NormalizedConfig) -> list[Finding]:
-        findings = []
+    def check(self, config: NormalizedConfig) -> list[ControlResult]:
+        results = []
 
         if config.device.vendor == Vendor.CISCO_IOS:
             for acl in config.access_lists:
@@ -26,23 +27,18 @@ class OverlyPermissiveRulesRule(BaseRule):
                             self._is_any(entry.source) and
                             self._is_any(entry.destination) and
                             (entry.protocol is None or entry.protocol == "ip")):
-                        findings.append(self._make_finding(
+                        results.append(self._fail(
                             config,
                             Severity.CRITICAL,
                             f"ACL '{acl.name}' contains a rule that permits all IP traffic "
                             "from any source to any destination. This effectively disables "
                             "the access control.",
-                            self._get_evidence(config, entry.source_lines),
                             entry.source_lines,
                             "An any-any permit rule defeats the purpose of having an ACL. "
                             "All traffic passes without restriction.",
                             f"Replace the any-any permit in '{acl.name}' with specific "
                             "source/destination/protocol rules.",
-                            [
-                                ComplianceMapping("CIS", "2.3.1", "Restrict ACL rules"),
-                                ComplianceMapping("NIST_800_53", "AC-4", "Information Flow Enforcement"),
-                                ComplianceMapping("NIST_800_53", "SC-7", "Boundary Protection"),
-                            ],
+                            scope=f"acl {acl.name}",
                         ))
 
         elif config.device.vendor == Vendor.FORTINET:
@@ -51,26 +47,33 @@ class OverlyPermissiveRulesRule(BaseRule):
                         self._is_any(policy.src_address) and
                         self._is_any(policy.dst_address) and
                         self._has_all_services(policy.service)):
-                    findings.append(self._make_finding(
+                    results.append(self._fail(
                         config,
                         Severity.CRITICAL,
                         f"Firewall policy '{policy.name or policy.policy_id}' allows all "
                         f"traffic from '{policy.src_interface}' to '{policy.dst_interface}' "
                         "with any source, any destination, and all services. This is an "
                         "open firewall policy.",
-                        self._get_evidence(config, policy.source_lines),
                         policy.source_lines,
                         "An any-any-all permit policy bypasses all firewall protection.",
                         "Create specific policies for needed traffic flows instead of "
                         "allowing everything.",
-                        [
-                            ComplianceMapping("CIS", "2.2.1", "Restrict firewall policies"),
-                            ComplianceMapping("NIST_800_53", "AC-4", "Information Flow Enforcement"),
-                            ComplianceMapping("NIST_800_53", "SC-7", "Boundary Protection"),
-                        ],
+                        scope=f"firewall policy {policy.policy_id}",
                     ))
 
-        return findings
+        return results
+
+    def non_failure(self, config: NormalizedConfig) -> ControlResult:
+        if config.device.vendor == Vendor.CISCO_IOS:
+            entries = [entry for acl in config.access_lists for entry in acl.entries]
+            if not entries:
+                return self._missing(config, "No ACL entry is configured")
+            return self._pass(config, "No ACL entry permits all IP traffic from any source to any destination", self._lines(*entries))
+
+        policies = config.firewall_policies
+        if not policies:
+            return self._missing(config, "No firewall policy is configured")
+        return self._pass(config, "No firewall policy accepts any source to any destination for all services", self._lines(*policies))
 
     @staticmethod
     def _is_any(addr: str | None) -> bool:
@@ -84,87 +87,105 @@ class OverlyPermissiveRulesRule(BaseRule):
 
 
 class IpSourceRoutingRule(BaseRule):
+    """Presence-based: only an explicit "enabled" value fails, for every vendor."""
     rule_id = "BOUNDARY-002"
-    title = "IP Source Routing Enabled"
-    category = "boundary"
 
-    # Presence-based: only an explicit "enabled" value fails, so it is safe
-    # for unidentified vendors without an absence gate
-    def evaluated_fields(self, config: NormalizedConfig) -> set[str]:  # INTERIM(phase1)
-        return {"services.ip_source_route"} if config.services.ip_source_route is not None else set()
-
-    def evaluate(self, config: NormalizedConfig) -> list[Finding]:
+    def check(self, config: NormalizedConfig) -> list[ControlResult]:
         if config.services.ip_source_route is True:
-            return [self._make_finding(
+            return [self._fail(
                 config,
                 Severity.MEDIUM,
                 "IP source routing is enabled. This allows the sender of a packet "
                 "to specify the route it takes through the network, potentially "
                 "bypassing firewall rules and security controls.",
-                self._get_evidence(config, config.services.source_lines),
                 config.services.source_lines,
                 "Attackers can use source routing to bypass security devices "
                 "and reach internal networks through unintended paths.",
                 "Disable IP source routing: 'no ip source-route' (Cisco) or "
                 "'set ip-src-routing disable' (FortiGate).",
-                [
-                    ComplianceMapping("CIS", "2.2.1", "Disable IP source routing"),
-                    ComplianceMapping("NIST_800_53", "SC-7", "Boundary Protection"),
-                ],
             )]
         return []
+
+    def non_failure(self, config: NormalizedConfig) -> ControlResult:
+        if config.services.ip_source_route is False:
+            lines = self._field_lines(config, "services.ip_source_route") or self._lines_matching(
+                config, config.services.source_lines, r"source-route|src-routing",
+            )
+            return self._pass(config, "IP source routing is disabled", lines)
+        if config.device.vendor == Vendor.UNKNOWN:
+            return self._not_configured(config, "No IP source routing setting was found")
+        return self._not_configured(
+            config,
+            "IP source routing is not stated; the platform default applies (vendor defaults are evaluated in Phase 4)",
+        )
 
 
 class DiscoveryProtocolExposureRule(BaseRule):
     rule_id = "BOUNDARY-003"
-    title = "Discovery Protocol (CDP/LLDP) Enabled on External Interface"
-    category = "boundary"
+    vendor_gated = True
 
-    def evaluate(self, config: NormalizedConfig) -> list[Finding]:
-        findings = []
+    def check(self, config: NormalizedConfig) -> list[ControlResult]:
+        results = []
 
         if config.device.vendor == Vendor.CISCO_IOS:
             # CDP is enabled globally by default on Cisco
             if config.services.cdp_globally_enabled is not False:
                 for iface in config.interfaces:
                     if iface.is_wan and iface.cdp_enabled is not False:
-                        findings.append(self._make_finding(
+                        results.append(self._fail(
                             config,
                             Severity.MEDIUM,
                             f"CDP is active on external interface '{iface.name}'. "
                             "CDP broadcasts device hostname, software version, IP addresses, "
                             "and hardware model to adjacent devices in cleartext.",
-                            self._get_evidence(config, iface.source_lines),
                             iface.source_lines,
                             "Device information leaked via CDP helps attackers fingerprint "
                             "the network and find version-specific vulnerabilities.",
                             f"Disable CDP on external interfaces: 'no cdp enable' on '{iface.name}'.",
-                            [
-                                ComplianceMapping("CIS", "2.1.1", "Disable CDP on external interfaces"),
-                                ComplianceMapping("NIST_800_53", "CM-7", "Least Functionality"),
-                            ],
+                            scope=f"interface {iface.name}",
                         ))
                         break
 
         elif config.device.vendor == Vendor.FORTINET:
             for iface in config.interfaces:
                 if iface.is_wan and iface.lldp_enabled is True:
-                    findings.append(self._make_finding(
+                    results.append(self._fail(
                         config,
                         Severity.MEDIUM,
                         f"LLDP is enabled on WAN interface '{iface.name}'. "
                         "LLDP broadcasts device information to adjacent devices.",
-                        self._get_evidence(config, iface.source_lines),
                         iface.source_lines,
                         "Device information leakage on external interfaces.",
                         f"Disable LLDP on '{iface.name}': 'set lldp-transmission disable'.",
-                        [
-                            ComplianceMapping("CIS", "2.1.1", "Disable LLDP on external interfaces"),
-                            ComplianceMapping("NIST_800_53", "CM-7", "Least Functionality"),
-                        ],
+                        scope=f"interface {iface.name}",
                     ))
 
-        return findings
+        return results
+
+    def non_failure(self, config: NormalizedConfig) -> ControlResult:
+        wan = [iface for iface in config.interfaces if iface.is_wan]
+
+        if config.device.vendor == Vendor.CISCO_IOS:
+            if config.services.cdp_globally_enabled is False:
+                return self._pass(
+                    config, "CDP is disabled globally",
+                    self._lines_matching(config, config.services.source_lines, r"^\s*no cdp run"),
+                )
+            if not wan:
+                return self._unknown(config, "No interface is identified as external")
+            return self._pass(config, "CDP is disabled on every external interface", self._lines(*wan))
+
+        if not wan:
+            return self._unknown(config, "No interface is identified as WAN")
+        unset = [iface for iface in wan if iface.lldp_enabled is None]
+        if unset:
+            return self._unknown(
+                config,
+                f"LLDP transmission is not set on WAN interface '{unset[0].name}'; the FortiOS default "
+                "applies (vendor defaults are evaluated in Phase 4)",
+                self._lines(*unset),
+            )
+        return self._pass(config, "LLDP transmission is disabled on every WAN interface", self._lines(*wan))
 
 
 BOUNDARY_RULES: list[BaseRule] = [
