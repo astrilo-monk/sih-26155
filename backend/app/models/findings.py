@@ -57,6 +57,9 @@ class Finding:
     # Category for grouping in the dashboard
     category: str = "general"
 
+    # Assurance of the FAIL result (heuristic / ai_verified = suspected, not scored)
+    assurance: Optional[str] = None
+
     @property
     def severity_score(self) -> int:
         """Penalty points for the security score calculation."""

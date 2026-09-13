@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { X, Copy, CheckCircle2 } from 'lucide-react';
 import { apiClient } from '../api/client';
+import { PROVISIONAL_ASSURANCE } from './ProvisionalResults';
 
 export default function FindingDetail({ finding, scanId, onClose, onRemediation }) {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Vendor commands exist only for a confirmed vendor profile (the API refuses the rest)
+  const canRemediate = finding.vendor !== 'unknown';
 
   const handleGenerateFix = async () => {
     setLoading(true);
@@ -32,7 +35,12 @@ export default function FindingDetail({ finding, scanId, onClose, onRemediation 
       <div className="drawer" onClick={e => e.stopPropagation()}>
         <div className="drawer-header">
           <div className="drawer-title-group">
-            <span className={`badge ${finding.severity}`}>{finding.severity}</span>
+            <div style={{ display: 'flex', gap: '0.25rem' }}>
+              <span className={`badge ${finding.severity}`}>{finding.severity}</span>
+              {PROVISIONAL_ASSURANCE.has(finding.assurance) && (
+                <span className="badge neutral" title="Provisional: not scored until confirmed">Suspected</span>
+              )}
+            </div>
             <div className="drawer-title">{finding.title}</div>
             <div className="drawer-meta">
               <span>{finding.rule_id}</span>
@@ -77,7 +85,8 @@ export default function FindingDetail({ finding, scanId, onClose, onRemediation 
                     return (
                       <div key={i} className="config-line highlight">
                         <span className="line-num">{lineNum}</span>
-                        <span>{line}</span>
+                        {/* evidence lines arrive as "  70: text"; the number is already in the gutter */}
+                        <span>{line.replace(/^\s*\d+:\s?/, '')}</span>
                       </div>
                     );
                   })}
@@ -110,14 +119,20 @@ export default function FindingDetail({ finding, scanId, onClose, onRemediation 
         </div>
 
         <div className="drawer-footer">
-          <button
-            className="btn-primary"
-            onClick={handleGenerateFix}
-            disabled={loading}
-            style={{ width: '100%', justifyContent: 'center' }}
-          >
-            {loading ? 'Generating Fix...' : 'Generate Remediation'}
-          </button>
+          {canRemediate ? (
+            <button
+              className="btn-primary"
+              onClick={handleGenerateFix}
+              disabled={loading}
+              style={{ width: '100%', justifyContent: 'center' }}
+            >
+              {loading ? 'Generating Fix...' : 'Generate Remediation'}
+            </button>
+          ) : (
+            <div className="drawer-text" style={{ color: 'var(--text-secondary)' }}>
+              No vendor commands: the vendor is unknown or unverified. Follow the recommendation above.
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -154,9 +154,12 @@ def test_unknown_cfg_without_usable_interpretations_is_not_assessed(ai_available
     data = resp.json()
 
     assert data["score"] is None
-    assert data["findings"] == []
+    # only suspected lexicon-heuristic findings (Phase 5), never scored
+    assert data["posture"] is None
+    assert data["findings"] and all(f["assurance"] == "heuristic" for f in data["findings"])
     adaptive = data["adaptive"]
     assert adaptive["assessed"] is False
     assert adaptive["score_provisional"] is True
     assert any("not assessed" in r for r in adaptive["provisional_reasons"])
-    assert any("LOG-001" in r and "not found" in r for r in adaptive["provisional_reasons"])
+    # LOG-001 is now a probable PASS from lexicon heuristics (Phase 5); SNMP stays not configured
+    assert any("MGMT-004" in r and "not found" in r for r in adaptive["provisional_reasons"])

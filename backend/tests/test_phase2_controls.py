@@ -155,8 +155,9 @@ def test_no_decision_without_evidence_or_assurance(path):
             assert result.assurance is not None and (result.evidence or result.assurance == Assurance.DEFAULT), result
         if result.decided and config.device.vendor != Vendor.UNKNOWN:
             assert result.assurance in (Assurance.PARSER, Assurance.DEFAULT), result
-        if config.device.vendor == Vendor.UNKNOWN:
-            assert not result.decided, result  # no adaptive values applied here
+        if config.device.vendor == Vendor.UNKNOWN and result.decided:
+            # no adaptive values applied here: only provisional lexicon heuristics decide (Phase 5)
+            assert result.assurance == Assurance.HEURISTIC and result.evidence, result
 
 
 @pytest.mark.parametrize("entry", SNAPSHOT["entries"], ids=lambda e: e["file"])

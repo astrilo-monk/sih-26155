@@ -168,6 +168,8 @@ class FindingSchema(BaseModel):
     compliance: list[ComplianceMappingSchema]
     ai_explanation: Optional[str] = None
     category: str
+    # heuristic / ai_verified: a suspected FAIL, not scored until confirmed
+    assurance: Optional[str] = None
 
 
 class ScanResultResponse(BaseModel):

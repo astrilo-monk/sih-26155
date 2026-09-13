@@ -47,12 +47,9 @@ def test_snapshot_covers_both_known_vendors():
     assert vendors == {"cisco_ios", "fortinet"}
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Known defect (plan.md Phase 0): unknown-vendor Telnet at sample/unknown.cfg "
-           "lines 70-71 is never evaluated. Fixed by Phase 5 lexicon heuristics.",
-)
 def test_unknown_cfg_reports_telnet_on_lines_70_71():
+    """Phase 0 known defect, fixed by Phase 5 lexicon heuristics (suspected, not scored)."""
     data = _scan_offline(TestClient(app), REPO / "sample" / "unknown.cfg")
     telnet = [f for f in data["findings"] if f["rule_id"] == "MGMT-001"]
     assert telnet and {70, 71} <= set(telnet[0]["line_numbers"])
+    assert telnet[0]["assurance"] == "heuristic"

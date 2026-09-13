@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PROVISIONAL_ASSURANCE } from './ProvisionalResults';
 
 const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
 
@@ -105,7 +106,14 @@ export default function FindingsTable({ findings, onSelectFinding }) {
           <tbody>
             {sorted.map((f, i) => (
               <tr key={`${f.rule_id}-${f.device_hostname}-${i}`} className="clickable" onClick={() => onSelectFinding(f)}>
-                <td><span className={`badge ${f.severity}`}>{f.severity}</span></td>
+                <td>
+                  <span className={`badge ${f.severity}`}>{f.severity}</span>
+                  {PROVISIONAL_ASSURANCE.has(f.assurance) && (
+                    <span className="badge neutral" style={{ marginLeft: '0.25rem' }} title="Provisional: not scored until confirmed">
+                      Suspected
+                    </span>
+                  )}
+                </td>
                 <td className="mono" style={{ color: 'var(--text-secondary)' }}>{f.rule_id}</td>
                 <td>
                   <div className="finding-title-cell">

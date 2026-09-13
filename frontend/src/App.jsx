@@ -8,6 +8,7 @@ import UploadZone from './components/UploadZone';
 import ScoreOverview from './components/ScoreOverview';
 import DeviceInfo from './components/DeviceInfo';
 import FindingsTable from './components/FindingsTable';
+import ProvisionalResults, { PROVISIONAL_ASSURANCE } from './components/ProvisionalResults';
 import FindingDetail from './components/FindingDetail';
 import RemediationView from './components/RemediationView';
 import RemediationQueue from './components/RemediationQueue';
@@ -131,6 +132,9 @@ export default function App() {
   const scoreProvisional = adaptiveConfigs.some((c) => c.score_provisional);
   const aiUnavailable = adaptiveConfigs.some((c) => (c.ai_unavailable_lines || 0) > 0);
   const vendorUnverified = (scanResult?.vendor_identification || []).some((v) => v.status === 'unverified');
+  // Suspected (heuristic / AI) findings are listed but never counted as decided severities
+  const decisiveCount = (severity) => (scanResult?.findings || [])
+    .filter((f) => f.severity === severity && !PROVISIONAL_ASSURANCE.has(f.assurance)).length;
 
   return (
     <div className="app-layout">
@@ -176,12 +180,14 @@ export default function App() {
                   coverage={scanResult.coverage}
                   bounds={scanResult.posture_bounds}
                   criticalUnassessed={scanResult.critical_unassessed}
-                  critical={scanResult.critical}
-                  high={scanResult.high}
-                  medium={scanResult.medium}
-                  low={scanResult.low}
+                  critical={decisiveCount('critical')}
+                  high={decisiveCount('high')}
+                  medium={decisiveCount('medium')}
+                  low={decisiveCount('low')}
                 />
-                
+
+                <ProvisionalResults results={scanResult.results} />
+
                 <FindingsTable
                   findings={scanResult.findings}
                   onSelectFinding={handleSelectFinding}

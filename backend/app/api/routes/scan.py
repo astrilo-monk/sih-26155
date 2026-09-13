@@ -19,6 +19,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from app.parsers.detector import STATUS_UNVERIFIED, VendorIdentification, identify_vendor
 from app.analysis.engine import analyze, analyze_multiple, evaluate_controls
 from app.analysis.scoring import calculate_posture
+from app.facts.heuristics import heuristic_facts
 from app.controls.catalog import CONTROLS
 from app.models.results import ControlResult, Status
 from app.models.normalized import Vendor, NormalizedConfig, DeviceInfo, AIFieldMapping
@@ -72,6 +73,7 @@ def _finding_to_schema(f) -> FindingSchema:
         ],
         ai_explanation=f.ai_explanation,
         category=f.category,
+        assurance=f.assurance,
     )
 
 
@@ -205,10 +207,12 @@ def _build_adaptive_info(
         if identification is not None and identification.status == STATUS_UNVERIFIED:
             reason = (
                 f"Configuration resembles '{identification.detected_vendor.value}', but "
-                f"{identification.reason} — vendor unverified, vendor-specific rules were not evaluated"
+                f"{identification.reason} — vendor unverified, so no vendor parser or defaults were used; "
+                "controls rely on mappings and provisional heuristics"
             )
         else:
-            reason = "Vendor could not be identified — vendor-specific rules were not evaluated"
+            reason = ("Vendor could not be identified — no vendor parser or defaults were used; "
+                      "controls rely on mappings and provisional heuristics")
         if evidence.status == EVIDENCE_IDENTIFIED:
             reason += (
                 f" (configuration syntax suggests '{evidence.likely_vendor}'; "
@@ -228,7 +232,7 @@ def _build_adaptive_info(
             )
         if not assessed:
             reasons.append(
-                "No check could evaluate evidence from this configuration — "
+                "No control could be decided from confirmed evidence (provisional verdicts are not scored) — "
                 "it is reported as not assessed rather than scored"
             )
     if ai_unavailable:
@@ -436,7 +440,9 @@ async def scan_configs(files: list[UploadFile] = File(...)):
         adaptive_runs.append(run)
 
     scan_id = str(uuid.uuid4())
-    anything_applied = any(m.applied for cfg in configs for m in cfg.ai_mappings)
+    anything_applied = any(m.applied for cfg in configs for m in cfg.ai_mappings) or any(
+        heuristic_facts(cfg.raw_lines) for cfg in configs if cfg.device.vendor == Vendor.UNKNOWN
+    )
 
     _scan_store[scan_id] = {
         "result": None,

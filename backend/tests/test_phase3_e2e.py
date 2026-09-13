@@ -251,9 +251,9 @@ def test_e2e_medium_confidence_not_written_to_config():
     # Vendor is still UNKNOWN — no unanimous HIGH auto-mapped entries
     assert data["devices"][0]["vendor"] == "unknown"
 
-    # No vendor-specific (MGMT-*) findings — MEDIUM didn't enrich config
-    # so ssh_version, aaa_enabled, etc. remain at defaults
-    rule_ids = [f["rule_id"] for f in data["findings"]]
+    # No MGMT-* findings from the MEDIUM interpretations — they didn't enrich config.
+    # Lexicon heuristics may still suspect SSHv1 on the raw line (Phase 5, provisional).
+    rule_ids = [f["rule_id"] for f in data["findings"] if f["assurance"] != "heuristic"]
     mgmt_rules = [r for r in rule_ids if r.startswith("MGMT-")]
     assert len(mgmt_rules) == 0
 
@@ -476,10 +476,9 @@ def test_e2e_ai_unavailable_graceful():
     # AI marked unavailable
     assert data["adaptive"]["ai_available"] is False
 
-    # No compliance analysis — no score, no findings
-    assert data.get("score") is None
-    assert data.get("total_findings") is None
-    assert len(data["findings"]) == 0
+    # No decisive analysis: no score; lexicon heuristics still suspect SSHv1 offline (Phase 5)
+    assert data.get("score") is None and data["posture"] is None
+    assert [(f["rule_id"], f["assurance"]) for f in data["findings"]] == [("MGMT-007", "heuristic")]
 
     # Adaptive info still returned (display-only)
     assert len(data["adaptive"]["unrecognized_lines"]) > 0

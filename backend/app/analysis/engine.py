@@ -16,7 +16,7 @@ from app.controls.evaluate import evaluate_controls
 from app.controls.views import finding_from_result
 from app.models.findings import ScanResult
 from app.models.normalized import NormalizedConfig, Vendor
-from app.models.results import ControlResult, Status
+from app.models.results import Assurance, ControlResult, Status
 
 __all__ = ["analyze", "analyze_multiple", "evaluate_controls"]
 
@@ -25,9 +25,12 @@ def _is_assessed(config: NormalizedConfig, results: list[ControlResult]) -> bool
     """Legacy-score gate (replaced by posture + coverage in Phase 3).
 
     A confirmed vendor is always scored; an unidentified vendor only when some
-    control decided PASS or FAIL from cited evidence.
+    control decided PASS or FAIL from cited, non-heuristic evidence (a heuristic
+    PASS never counts).
     """
-    return config.device.vendor != Vendor.UNKNOWN or any(r.decided for r in results)
+    return config.device.vendor != Vendor.UNKNOWN or any(
+        r.decided and r.assurance != Assurance.HEURISTIC for r in results
+    )
 
 
 def analyze(config: NormalizedConfig) -> ScanResult:

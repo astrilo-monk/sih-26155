@@ -40,4 +40,5 @@ def finding_from_result(result: ControlResult) -> Finding:
         recommendation=failure.recommendation,
         compliance=compliance_for(control, result.vendor),
         category=control.category,
+        assurance=result.assurance.value if result.assurance else None,
     )

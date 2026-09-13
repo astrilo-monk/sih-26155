@@ -699,6 +699,85 @@ The Phase 0 xfail test now passes.
 
 - `sample/unknown.cfg` gives the table above with zero AI calls.
 
+## Status: done
+
+Suite after Phase 5: **674 passed, 2 skipped, 0 xfailed** (frontend 13 passed, build OK).
+The Phase 0 xfail is now a normal passing test. Phase 0 snapshots unchanged
+(heuristics never run for confirmed vendors).
+
+- **Tokenizer** `app/structure/tokenizer.py`: `Statement(line, text, scope_path,
+  key_tokens, values, polarity)`. Scope reuses `adaptive/context.structural_paths`
+  (indentation, braces, `config`/`edit`/`next`/`end`), plus `/section` headers and
+  flat prefix blocks (consecutive lines, no blank line between, same leading keyword).
+  Tokens: `set` dropped, `key=value` split, IPs / numbers (with attached unit) /
+  quoted strings are values. Polarity: `no`/`unset`/`delete`/`undo`,
+  `enable(d)`/`disable(d)`/`on`/`off`/`true`/`false`/`yes`/`no`, switches
+  (`disabled=yes`, `enabled=no`), self-negating keywords (`disable-telnet no`).
+  Descriptions, remarks, comments and banner bodies never yield keywords.
+- **Lexicon** `app/facts/lexicon.py`: synonym sets per predicate, matched on whole
+  tokens or hyphen parts, never substrings.
+- **Heuristics** `app/facts/heuristics.py`: one extractor per predicate (all except
+  password storage); HEURISTIC facts citing their lines. Polarity from the line, else
+  the block's state line (`remote-console state enabled`). Protocols need a
+  management context before them (or a server form) and are ignored inside traffic
+  rules. Candidates for the same (predicate, subject, scope) that disagree → one
+  undetermined fact citing all → UNKNOWN "Conflicting statements on lines …".
+- **Integration** (`facts_from_config`, unknown / unverified vendors only):
+  admin-confirmed mappings answer their (predicate, subject); heuristics fill the rest.
+  An AI mapping and a heuristic are both provisional: when they disagree the fact is
+  undetermined (UNKNOWN citing both). Found in a live run: a partially rate-limited AI
+  read `legacy-access disabled` as Telnet off and hid the suspected Telnet FAIL. The adaptive
+  AI path still writes `NormalizedConfig` (retired in Phase 7) — task 5 is satisfied
+  for the offline path, which produces facts only.
+- **Scan route**: display-only now only when AI is unavailable, nothing is applied
+  **and** heuristics find nothing.
+- **Scoring**: heuristic verdicts stay undecided in posture / coverage; the deprecated
+  legacy `score` ignores them too (a heuristic PASS never counts). AI verdicts keep
+  counting in the legacy score, as in Phase 4.
+- **API / frontend**: `findings[].assurance`; `ProvisionalResults` panel lists
+  "Suspected FAIL / Probable PASS" with evidence lines; findings table marks
+  heuristic / AI findings "Suspected".
+- **Acceptance** (`tests/test_phase5_heuristics.py`, AI mocked unavailable, zero calls):
+  table above exact — MGMT-001 FAIL [70, 71], MGMT-003 UNKNOWN [67, 68, 72], MGMT-007
+  PASS [32], LOG-001 PASS [55], MGMT-006 UNKNOWN [38], LOG-002 PASS [59, 60],
+  MGMT-008 PASS [48–50], CRYPTO-001 PASS [76–78], MGMT-004 / MGMT-009 NOT_CONFIGURED;
+  posture "—", coverage 0. Plus tokenizer shape, negation, free-text, traffic-rule,
+  mapping-precedence and never-scored tests.
+- **Deliberate test updates** (unknown vendors with AI off are no longer empty):
+  `test_phase0_snapshots` (xfail removed), `test_phase1_honest_unknowns`,
+  `test_phase2_controls`, `test_phase3_e2e`, `test_phase4_review_api` (display-only
+  case stubs heuristics to nothing), `test_adaptive_generic`.
+
+Verification pass (offline scan of unknown.cfg + every fixture / sample, zero AI calls)
+found three false-PASS paths, fixed; suite now **677 passed, 2 skipped**:
+
+- A block's state line leaked into a *different* blank-separated block with the same
+  prefix (`remote-console state disabled` … blank … `remote-console protocol telnet`
+  → probable Telnet PASS). `Statement.block` (first line of the flat block) now
+  separates them.
+- Separate IPsec blocks with the same prefix merged into one proposal, hiding a
+  DES / MD5 block behind the first block's values. Proposals now group per block
+  (scope `secure-channel at line 75`); `dhgrp` added to the DH lexicon.
+- Log / NTP / AAA server lines inside a disabled block (`syslog state disabled`)
+  yielded destinations. Server candidates now respect the block state.
+
+Skipped:
+
+- `structure/symbols.py` (named objects and references): no control or heuristic
+  consumes it yet. Add it with Phase 8 parameter binding or a relational heuristic
+  that needs ACL-name resolution.
+
+Known limits:
+
+- Lexicon words can mislead on real vendors: Cisco ASA `http server enable` (ASDM
+  over HTTPS) is a suspected MGMT-002 FAIL. Provisional by design; Phase 6
+  confirm / reject fixes it per dialect.
+- Source-restriction conflicts are config-wide, not per scope (`management-plane`
+  vs `remote-console` conflict in `unknown.cfg`, as the table requires).
+- A bare statement without polarity (`ntp authenticate`, `aaa new-model`,
+  `transport input telnet` with no block state) yields no fact.
+- NTP servers and log hosts must be IP addresses (hostnames are not typed values).
+
 ---
 
 # Phase 6 — Recognizers (Human-in-the-Loop Learning)

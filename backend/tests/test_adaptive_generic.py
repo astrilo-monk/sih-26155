@@ -376,10 +376,10 @@ def test_dialect_high_confidence_populates_normalized_config(client, dialect):
     assert scan["devices"][0]["vendor"] == "unknown"
     # Absence never fails on an unidentified vendor (Phase 1c). Every control reads
     # the applied values (Phase 4), so every dialect is assessed, and AI-mapped
-    # verdicts stay provisional
+    # verdicts stay provisional (lexicon heuristics may answer controls the AI did not, Phase 5)
     assert "LOG-001" not in _rule_ids(scan)
     assert scan["score"] is not None
-    assert all(r["assurance"] == "ai_verified" for r in scan["results"] if r["status"] in ("pass", "fail"))
+    assert all(r["assurance"] in ("ai_verified", "heuristic") for r in scan["results"] if r["status"] in ("pass", "fail"))
 
 
 def test_unsupported_structures_go_to_review_not_to_config(client):

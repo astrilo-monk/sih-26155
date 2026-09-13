@@ -16,6 +16,7 @@ from __future__ import annotations
 import re
 from typing import Iterable, Optional
 
+from app.facts.heuristics import heuristic_facts
 from app.facts.predicates import (
     CENTRAL_AAA, DISCOVERY_PROTOCOL, IDLE_TIMEOUT, IPSEC_PROPOSAL, LOG_REMOTE_DESTINATION, LOGIN_BANNER,
     NOT_SET, NTP_AUTHENTICATED, NTP_SERVER, PASSWORD_ENCRYPTION_SERVICE, PASSWORD_STORAGE, PERMIT_ANY,
@@ -54,7 +55,27 @@ def weakest(levels: Iterable[Optional[Assurance]]) -> Optional[Assurance]:
 def facts_from_config(config: NormalizedConfig) -> list[SecurityFact]:
     if config.device.vendor in PARSER_COVERAGE:
         return _ParserFacts(config).build()
-    return _mapped_facts(config)
+    # An admin-confirmed mapping answers its predicate. AI mappings and lexicon heuristics are both
+    # provisional: when they disagree neither wins, the fact is undetermined and cites both.
+    facts = _mapped_facts(config)
+    by_key = {(f.predicate, f.subject): index for index, f in enumerate(facts)}
+    for heuristic in heuristic_facts(config.raw_lines):
+        index = by_key.get((heuristic.predicate, heuristic.subject))
+        if index is None:
+            facts.append(heuristic)
+            continue
+        mapped = facts[index]
+        if (mapped.assurance == Assurance.CONFIRMED or mapped.value is None or isinstance(mapped.value, list)
+                or repr(mapped.value) == repr(heuristic.value)):
+            continue
+        lines = sorted({*mapped.evidence.line_numbers, *heuristic.evidence.line_numbers})
+        facts[index] = SecurityFact(
+            mapped.predicate, None, Assurance.AI_VERIFIED,
+            Evidence(line_numbers=lines, text=[config.raw_lines[n - 1] for n in lines]),
+            subject=mapped.subject, scope=mapped.scope, unit=mapped.unit,
+            provenance=f"The AI mapping and the lexicon heuristic disagree (lines {', '.join(map(str, lines))})",
+        )
+    return facts
 
 
 # ── confirmed vendors ───────────────────────────────────────────────────────
