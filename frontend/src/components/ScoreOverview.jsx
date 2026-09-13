@@ -1,5 +1,6 @@
 export default function ScoreOverview({ score, critical, high, medium, low }) {
   const getStatus = (s) => {
+    if (s == null) return { label: 'NOT ASSESSED', desc: 'No check could evaluate evidence from this configuration.', color: 'var(--text-tertiary)' };
     if (s < 40) return { label: 'CRITICAL RISK', desc: 'Immediate remediation required.', color: 'var(--critical)' };
     if (s < 70) return { label: 'NEEDS ATTENTION', desc: 'Multiple security vulnerabilities detected.', color: 'var(--high)' };
     if (s < 90) return { label: 'FAIR', desc: 'Minor configuration issues present.', color: 'var(--medium)' };
@@ -25,7 +26,7 @@ export default function ScoreOverview({ score, critical, high, medium, low }) {
       <div className="posture-grid">
         <div className="score-display">
           <div className="score-value" style={{ color: status.color }}>
-            {score}<span className="max">/100</span>
+            {score ?? '—'}{score != null && <span className="max">/100</span>}
           </div>
           <div className="score-info">
             <div className="score-status" style={{ color: status.color }}>{status.label}</div>
@@ -84,7 +85,7 @@ export default function ScoreOverview({ score, critical, high, medium, low }) {
 
           <div className="severity-bar-container" style={{ marginTop: total === 0 ? '1.5rem' : '0' }}>
             {total === 0 ? (
-              <div className="severity-segment" style={{ width: '100%', backgroundColor: 'var(--success)' }} />
+              <div className="severity-segment" style={{ width: '100%', backgroundColor: score == null ? 'var(--text-tertiary)' : 'var(--success)' }} />
             ) : (
               <>
                 {cWidth > 0 && <div className="severity-segment" style={{ width: `${cWidth}%`, backgroundColor: 'var(--critical)' }} />}

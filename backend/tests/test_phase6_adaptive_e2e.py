@@ -116,8 +116,9 @@ def test_adaptive_learning_first_scan_then_second_scan_without_ai():
     }
     print(f"[scan 1] AI interpreted {len(adaptive['interpretations'])} lines in 1 request")
 
-    # MEDIUM confidence: nothing applied yet, rule still fails, score provisional
-    assert "LOG-001" in _rule_ids(first)
+    # MEDIUM confidence: nothing applied yet — not a FAIL, and not a score
+    assert "LOG-001" not in _rule_ids(first)
+    assert first["score"] is None and adaptive["assessed"] is False
     assert adaptive["score_provisional"] is True
     assert adaptive["pending_review"] == 4
 
@@ -147,7 +148,8 @@ def test_adaptive_learning_first_scan_then_second_scan_without_ai():
     assert cfg1.logging.remote_hosts == ["10.44.60.20"]
 
     assert "LOG-001" not in _rule_ids(final_first)                           # 10. rule evaluates value
-    assert "LOG-002" in _rule_ids(final_first)
+    assert final_first["score"] is not None and final_first["adaptive"]["assessed"] is True
+    assert "LOG-002" not in _rule_ids(final_first)                           #     absent NTP is not a FAIL here
     assert final_first["devices"][0]["hostname"] == "EDGE-GW-01"
     assert final_first["adaptive"]["pending_review"] == 0
 
@@ -179,9 +181,10 @@ def test_adaptive_learning_first_scan_then_second_scan_without_ai():
     print(f"[scan 2] {adaptive2['learned_matches']} lines recognized from learned mappings — "
           f"AI calls: {ai_second.call_count}; score={second['score']}")
 
-    # The deterministic rule stays the authority: without the syslog line it fails again
+    # Without the syslog line nothing is evaluated: not assessed, never a silent PASS or a FAIL
     third = _scan(client, "secure-shell protocol-version 2\n", MagicMock(side_effect=_mock_ai))
-    assert "LOG-001" in _rule_ids(third)
+    assert "LOG-001" not in _rule_ids(third)
+    assert third["score"] is None and third["adaptive"]["assessed"] is False
     assert third["adaptive"]["ai_called"] is False
     print("=== Unknown syntax → AI interpretation → admin confirmation → "
           "mapping persisted → same syntax recognized automatically later ===")

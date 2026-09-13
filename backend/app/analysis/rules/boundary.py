@@ -88,6 +88,11 @@ class IpSourceRoutingRule(BaseRule):
     title = "IP Source Routing Enabled"
     category = "boundary"
 
+    # Presence-based: only an explicit "enabled" value fails, so it is safe
+    # for unidentified vendors without an absence gate
+    def evaluated_fields(self, config: NormalizedConfig) -> set[str]:  # INTERIM(phase1)
+        return {"services.ip_source_route"} if config.services.ip_source_route is not None else set()
+
     def evaluate(self, config: NormalizedConfig) -> list[Finding]:
         if config.services.ip_source_route is True:
             return [self._make_finding(

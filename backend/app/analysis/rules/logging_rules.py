@@ -15,9 +15,13 @@ class NoRemoteSyslogRule(BaseRule):
     rule_id = "LOG-001"
     title = "No Remote Syslog Server Configured"
     category = "logging"
+    absence_based = True  # INTERIM(phase1)
+
+    def evaluated_fields(self, config: NormalizedConfig) -> set[str]:  # INTERIM(phase1)
+        return {"logging.remote_hosts"} if config.logging.remote_hosts else set()
 
     def evaluate(self, config: NormalizedConfig) -> list[Finding]:
-        if not config.logging.remote_hosts:
+        if not config.logging.remote_hosts and self._absence_is_evidence(config):
             return [self._make_finding(
                 config,
                 Severity.HIGH,
@@ -43,11 +47,26 @@ class NtpNotConfiguredRule(BaseRule):
     rule_id = "LOG-002"
     title = "NTP Not Configured or Unauthenticated"
     category = "logging"
+    absence_based = True  # INTERIM(phase1)
+
+    def evaluated_fields(self, config: NormalizedConfig) -> set[str]:  # INTERIM(phase1)
+        # Authentication is only judged once an NTP server is known
+        if not config.ntp.servers:
+            return set()
+        return {"ntp.servers", "ntp.authentication_enabled"}
 
     def evaluate(self, config: NormalizedConfig) -> list[Finding]:
         findings = []
+        absence_is_evidence = self._absence_is_evidence(config)
+        # For an unidentified vendor, "not authenticated" needs an explicit value
+        auth_explicitly_off = (
+            absence_is_evidence
+            or "false" in self._applied_value(config, "ntp.authentication_enabled")
+        )
 
         if not config.ntp.servers:
+            if not absence_is_evidence:
+                return findings
             findings.append(self._make_finding(
                 config,
                 Severity.MEDIUM,
@@ -64,7 +83,7 @@ class NtpNotConfiguredRule(BaseRule):
                     ComplianceMapping("NIST_800_53", "AU-8", "Time Stamps"),
                 ],
             ))
-        elif not config.ntp.authentication_enabled:
+        elif not config.ntp.authentication_enabled and auth_explicitly_off:
             findings.append(self._make_finding(
                 config,
                 Severity.MEDIUM,

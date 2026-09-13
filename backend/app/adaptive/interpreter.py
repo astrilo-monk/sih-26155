@@ -44,6 +44,7 @@ from app.ai.client import (
     is_available,
     request_structured,
 )
+from app.ai.redaction import UNKNOWN_SCOPE, Redactor
 from app.ai.interpretation_schemas import (
     ConfidenceLevel,
     InterpretationResult,
@@ -249,15 +250,37 @@ def _clip(text: str) -> str:
     return text if len(text) <= CONTEXT_LINE_CHARS else text[: CONTEXT_LINE_CHARS - 1] + "…"
 
 
+def _context_scopes(context: list[str], paths: list[list[str]]) -> list[tuple[str, ...]]:
+    if len(paths) == len(context):
+        return [tuple(p) for p in paths]
+    return [UNKNOWN_SCOPE] * len(context)
+
+
 def _build_prompt(lines: list[UnrecognizedLine]) -> str:
-    """User prompt: each TARGET line with its block path and nearby lines."""
+    """User prompt: each TARGET line with its block path and nearby lines.
+
+    Every configuration fragment is redacted before clipping, so no secret
+    value (or a clipped piece of one) reaches the AI provider. Each context
+    line is redacted with its own block path; without one, conservatively.
+    """
+    redactor = Redactor()
     blocks = []
     for ln in lines:
-        parts = [f"[TARGET line {ln.line_number}]", ln.raw_line.strip()]
+        parts = [f"[TARGET line {ln.line_number}]", redactor.line(ln.raw_line.strip(), ln.structural_path)]
         if ln.structural_path:
-            parts.append("  block: " + " > ".join(_clip(h) for h in ln.structural_path))
-        before = [c for c in (_clip(x) for x in ln.context_before) if c]
-        after = [c for c in (_clip(x) for x in ln.context_after) if c]
+            parts.append("  block: " + " > ".join(_clip(redactor.line(h)) for h in ln.structural_path))
+        before = [
+            c for c in (
+                _clip(redactor.line(x, scope))
+                for x, scope in zip(ln.context_before, _context_scopes(ln.context_before, ln.context_before_paths))
+            ) if c
+        ]
+        after = [
+            c for c in (
+                _clip(redactor.line(x, scope))
+                for x, scope in zip(ln.context_after, _context_scopes(ln.context_after, ln.context_after_paths))
+            ) if c
+        ]
         if before:
             parts.append("  context before: " + " | ".join(before))
         if after:

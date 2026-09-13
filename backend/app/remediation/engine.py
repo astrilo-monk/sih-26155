@@ -197,8 +197,12 @@ def apply_remediation(config: NormalizedConfig, commands: str) -> NormalizedConf
     """
     if config.device.vendor == Vendor.FORTINET:
         return _apply_fortinet_remediation(config, commands)
-    else:
+    if config.device.vendor == Vendor.CISCO_IOS:
         return _apply_cisco_remediation(config, commands)
+    # Re-parsing an unidentified config as Cisco would invent a vendor profile
+    raise ValueError(
+        f"Remediation requires a confirmed vendor profile (got '{config.device.vendor.value}')"
+    )
 
 
 # ===========================================================================

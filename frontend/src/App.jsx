@@ -129,6 +129,8 @@ export default function App() {
   const adaptiveConfigs = scanResult?.adaptive_configs || [];
   const pendingReview = adaptiveConfigs.reduce((sum, c) => sum + (c.pending_review || 0), 0);
   const scoreProvisional = adaptiveConfigs.some((c) => c.score_provisional);
+  const aiUnavailable = adaptiveConfigs.some((c) => (c.ai_unavailable_lines || 0) > 0);
+  const vendorUnverified = (scanResult?.vendor_identification || []).some((v) => v.status === 'unverified');
 
   return (
     <div className="app-layout">
@@ -160,8 +162,10 @@ export default function App() {
                     <AlertCircle size={16} />
                     <span style={{ flex: 1 }}>
                       {scanResult.score == null
-                        ? 'AI interpretation was unavailable, so no compliance score was calculated.'
+                        ? 'Not assessed: no check could evaluate evidence from this configuration, so no score was calculated.'
                         : 'This score is provisional: some configuration lines could not be normalized automatically.'}
+                      {vendorUnverified && ' The configuration resembles a supported vendor, but its syntax could not be verified.'}
+                      {aiUnavailable && ' AI interpretation was unavailable for some lines.'}
                       {pendingReview > 0 && ` ${pendingReview} line(s) await review.`}
                     </span>
                     <button className="btn-secondary" onClick={() => setView('training')}>Review</button>

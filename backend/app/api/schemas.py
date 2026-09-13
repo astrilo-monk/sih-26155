@@ -90,6 +90,22 @@ class AdaptiveScanInfoSchema(BaseModel):
     vendor_evidence: Optional[VendorEvidenceSchema] = None
     # Lines the AI could not assess (outage / quota) — distinct from low confidence
     ai_unavailable_lines: int = 0
+    # False when no rule could evaluate real evidence from this config
+    assessed: bool = True
+
+
+class VendorIdentificationSchema(BaseModel):
+    """Deterministic vendor identification for one config — never from AI output."""
+    config_index: int
+    # What the fingerprint detector matched
+    detected_vendor: str
+    # confirmed | unverified (resembles the vendor, grammar coverage too low) | unknown
+    status: str
+    # Share of meaningful lines that follow the detected vendor's grammar
+    parse_coverage: Optional[float] = None
+    uncovered_lines: int = 0
+    # Why an unverified profile was rejected
+    reason: Optional[str] = None
 
 
 class ScanSummaryResponse(BaseModel):
@@ -141,6 +157,8 @@ class ScanResultResponse(BaseModel):
     # layer (kept for backwards compatibility) and for every such config.
     adaptive: Optional[AdaptiveScanInfoSchema] = None
     adaptive_configs: list[AdaptiveScanInfoSchema] = []
+    # One entry per uploaded config, in upload order
+    vendor_identification: list[VendorIdentificationSchema] = []
 
 
 class RemediationRequest(BaseModel):
@@ -165,8 +183,8 @@ class VerifyRequest(BaseModel):
 
 
 class VerifyResponse(BaseModel):
-    original_score: int
-    new_score: int
+    original_score: Optional[int] = None
+    new_score: Optional[int] = None
     original_findings: int
     new_findings: int
     original_critical: int

@@ -10,6 +10,8 @@ from app.models.normalized import NormalizedConfig, UnrecognizedLine, Vendor
 from app.adaptive.relevance import is_security_relevant, get_context_lines
 from app.adaptive.context import structural_paths
 
+CONTEXT_SIZE = 2
+
 
 def _collect_recognized_line_numbers(config: NormalizedConfig) -> set[int]:
     """
@@ -121,9 +123,9 @@ def capture_unrecognized_lines(config: NormalizedConfig) -> None:
         
         # Get surrounding context
         context_before, context_after = get_context_lines(
-            config.raw_lines, line_num, context_size=2
+            config.raw_lines, line_num, context_size=CONTEXT_SIZE
         )
-        
+
         if paths is None:
             paths = structural_paths(config.raw_lines)
 
@@ -135,6 +137,8 @@ def capture_unrecognized_lines(config: NormalizedConfig) -> None:
             context_before=context_before,
             context_after=context_after,
             structural_path=list(paths[i]),
+            context_before_paths=[list(p) for p in paths[i - len(context_before):i]],
+            context_after_paths=[list(p) for p in paths[i + 1:i + 1 + len(context_after)]],
         ))
     
     config.unrecognized_lines = unrecognized

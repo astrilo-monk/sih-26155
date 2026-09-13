@@ -39,6 +39,10 @@ class UnrecognizedLine:
     context_after: list[str] = field(default_factory=list)
     # Ancestor block headers (braces / config-edit blocks / indentation)
     structural_path: list[str] = field(default_factory=list)
+    # Ancestor block headers of each context line, in the same order as the
+    # context lists (used to redact scope-dependent secrets before AI calls)
+    context_before_paths: list[list[str]] = field(default_factory=list)
+    context_after_paths: list[list[str]] = field(default_factory=list)
 
 
 @dataclass

@@ -155,10 +155,11 @@ def test_e2e_full_pipeline_high_confidence_vendor_identified():
     assert evidence["status"] == "identified"
     assert evidence["likely_vendor"] == "cisco_ios"
 
-    # Compliance analysis ran (AI was available)
-    assert data["score"] is not None
-    assert data["score"] < 100
-    assert len(data["findings"]) > 0
+    # The applied values (SSH version, AAA) feed only vendor-specific rules, so
+    # nothing was evaluated: not assessed, and no FAIL from missing data
+    assert data["score"] is None
+    assert data["findings"] == []
+    assert data["adaptive"]["assessed"] is False
 
     # ssh_version was auto-mapped to 1, but the Cisco-specific MGMT-007 rule
     # is not activated by an AI vendor guess
@@ -340,8 +341,9 @@ def test_e2e_container_field_rejected():
 # ===========================================================================
 
 def test_e2e_vendor_identified_from_unanimous_mappings():
-    """When all HIGH auto-mapped entries agree on likely_vendor, the
-    vendor is set on NormalizedConfig and compliance rules fire."""
+    """When all HIGH auto-mapped entries agree on likely_vendor, the vendor is
+    reported as evidence only: device.vendor stays UNKNOWN, no vendor-specific
+    rule fires and nothing is scored from values those rules would read."""
 
     client = TestClient(app)
 
@@ -366,9 +368,8 @@ def test_e2e_vendor_identified_from_unanimous_mappings():
     assert data["adaptive"]["vendor_evidence"]["status"] == "identified"
     assert data["adaptive"]["vendor_evidence"]["likely_vendor"] == "cisco_ios"
     assert data["devices"][0]["vendor"] == "unknown"
-    assert data["score"] is not None
-    assert data["score"] < 100
-    assert len(data["findings"]) > 0
+    assert data["score"] is None
+    assert data["findings"] == []
 
     print("\nPASS [6]: Vendor identified from unanimous HIGH mappings")
 
@@ -409,7 +410,7 @@ def test_e2e_vendor_not_identified_when_conflicting():
     assert len(auto_mapped) > 0
 
     # UNKNOWN vendor → no vendor-specific (MGMT-*) findings fire
-    # (LOG-001/LOG-002 fire regardless of vendor, but not MGMT rules)
+    # (absence-based LOG-001/LOG-002 do not fail on an unknown vendor either — Phase 1c)
     rule_ids = [f["rule_id"] for f in data["findings"]]
     mgmt_rules = [r for r in rule_ids if r.startswith("MGMT-")]
     assert len(mgmt_rules) == 0

@@ -12,8 +12,30 @@ from app.api.schemas import AssistantRequest, AssistantResponse
 from app.api.routes.scan import get_scan_store, get_scan_result_or_409
 from app.ai.client import generate, is_available
 from app.ai.prompts import explain_finding, generate_summary
+from app.adaptive.context import structural_paths
+from app.ai.redaction import Redactor
 
 router = APIRouter()
+
+
+def _score_text(score) -> str:
+    return f"{score}/100" if score is not None else "not assessed"
+
+
+def _config_redactor(configs) -> Redactor:
+    """A redactor that knows every secret value in the scanned configs.
+
+    Each config line is redacted with its block path (to collect values) and
+    parsed SNMP community names are added, so any of them can be scrubbed from
+    text sent to the AI — evidence, finding descriptions or chat questions.
+    """
+    redactor = Redactor()
+    for cfg in configs or []:
+        for raw, path in zip(cfg.raw_lines, structural_paths(cfg.raw_lines)):
+            redactor.line(raw, path)
+        for community in cfg.snmp.communities:
+            redactor.add_secret(community.name)
+    return redactor
 
 
 CHAT_SYSTEM_PROMPT = """You are NetAuditAI, a network security compliance assistant.
@@ -44,7 +66,7 @@ async def chat(req: AssistantRequest):
         )
         context = f"""
 Current scan context:
-- Score: {result.score}/100
+- Score: {_score_text(result.score)}
 - Total findings: {result.total_findings}
 - Critical: {result.critical_count}, High: {result.high_count}, Medium: {result.medium_count}, Low: {result.low_count}
 - Devices: {', '.join(d.get('hostname', 'unknown') for d in result.devices)}
@@ -53,7 +75,11 @@ Findings:
 {findings_summary}
 """
 
-    prompt = f"{context}\n\nUser question: {req.message}"
+    # The question may quote secrets: redact keyword forms (as prose) and any
+    # secret value known from the scanned configs
+    redactor = _config_redactor(stored.get("configs") if stored else None)
+    question = redactor.scrub(redactor.text(req.message, prose=True))
+    prompt = f"{context}\n\nUser question: {question}"
     response = generate(prompt, CHAT_SYSTEM_PROMPT)
 
     if response is None:
@@ -87,7 +113,7 @@ async def explain(scan_id: str, rule_id: str, hostname: str):
             "ai_generated": False,
         }
 
-    explanation = explain_finding(finding)
+    explanation = explain_finding(finding, _config_redactor(stored.get("configs")))
     return {
         "rule_id": rule_id,
         "explanation": explanation or finding.recommendation,
@@ -108,7 +134,7 @@ async def summary(scan_id: str):
     if not is_available():
         return {
             "summary": f"Scan found {result.total_findings} security issues "
-                       f"({result.critical_count} critical). Score: {result.score}/100.",
+                       f"({result.critical_count} critical). Score: {_score_text(result.score)}.",
             "ai_generated": False,
         }
 
@@ -124,7 +150,7 @@ async def summary(scan_id: str):
     )
 
     return {
-        "summary": text or f"Scan found {result.total_findings} issues. Score: {result.score}/100.",
+        "summary": text or f"Scan found {result.total_findings} issues. Score: {_score_text(result.score)}.",
         "ai_generated": text is not None,
     }
 

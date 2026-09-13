@@ -6,8 +6,10 @@ explanation using Groq.
 """
 
 from __future__ import annotations
+from typing import Optional
 from app.models.findings import Finding
 from app.ai.client import generate
+from app.ai.redaction import Redactor
 
 
 EXPLAIN_SYSTEM_PROMPT = """You are a network security expert explaining a vulnerability 
@@ -22,23 +24,30 @@ Keep your response under 200 words. Be direct and practical, not academic.
 Use bullet points for fix steps. Reference the specific config lines shown."""
 
 
-def explain_finding(finding: Finding) -> str | None:
-    """Generate an AI explanation for a finding. Returns None if AI is unavailable."""
-    evidence = "\n".join(finding.evidence_lines) if finding.evidence_lines else "(no evidence lines)"
+def explain_finding(finding: Finding, redactor: Optional[Redactor] = None) -> str | None:
+    """Generate an AI explanation for a finding. Returns None if AI is unavailable.
+
+    Evidence lines are redacted, and every secret value seen in them (or
+    registered on ``redactor``) is scrubbed from the surrounding text.
+    """
+    redactor = redactor or Redactor()
+    evidence_lines = [redactor.line(line) for line in finding.evidence_lines]
+    scrub = redactor.scrub
+    evidence = "\n".join(scrub(line) for line in evidence_lines) if evidence_lines else "(no evidence lines)"
 
     prompt = f"""Explain this network security finding:
 
-**Rule:** {finding.rule_id} - {finding.title}
+**Rule:** {finding.rule_id} - {scrub(finding.title)}
 **Severity:** {finding.severity.value}
 **Device:** {finding.device_hostname} ({finding.vendor})
-**Description:** {finding.description}
+**Description:** {scrub(finding.description)}
 
 **Config Evidence:**
 ```
 {evidence}
 ```
 
-**Recommendation:** {finding.recommendation}
+**Recommendation:** {scrub(finding.recommendation)}
 
 Explain this in plain terms for a network engineer. What's the risk and how to fix it?"""
 
@@ -53,7 +62,7 @@ Keep it under 150 words. Focus on the most critical issues first."""
 def generate_summary(
     hostname: str,
     vendor: str,
-    score: int,
+    score: Optional[int],
     critical: int,
     high: int,
     medium: int,
@@ -62,11 +71,12 @@ def generate_summary(
 ) -> str | None:
     """Generate an AI summary of scan results."""
     findings_text = "\n".join(f"- {f}" for f in top_findings[:10])
+    score_text = f"{score}/100" if score is not None else "not assessed (no check could evaluate evidence)"
 
     prompt = f"""Write a brief security posture summary for:
 
 **Device:** {hostname} ({vendor})
-**Security Score:** {score}/100
+**Security Score:** {score_text}
 **Findings:** {critical} critical, {high} high, {medium} medium, {low} low
 
 **Top Issues:**

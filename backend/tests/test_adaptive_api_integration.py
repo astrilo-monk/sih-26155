@@ -307,8 +307,10 @@ def test_e_ai_interpretations_through_adaptive_mapper():
     # (vendor is UNKNOWN, so rules check vendor-specific conditions)
     from app.analysis.engine import analyze
     result = analyze(normalized)
-    # No crash — deterministic rules evaluated on enriched config
-    assert result.score >= 0
+    # No crash. The applied SSH value feeds only vendor-specific rules, so on an
+    # unidentified vendor nothing was evaluated: not assessed rather than scored
+    assert result.score is None
+    assert result.devices[0]["assessed"] is False
 
     print("\nPASS [E]: Phase 3 AdaptiveMapper mediates AI → config safely")
 

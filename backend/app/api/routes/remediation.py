@@ -28,6 +28,15 @@ from app.remediation.engine import generate_remediation, apply_remediation
 
 router = APIRouter()
 
+_UNCONFIRMED_VENDOR = (
+    "Remediation needs a confirmed vendor profile. This configuration's vendor is unknown "
+    "or unverified, so vendor commands cannot be generated, applied or verified."
+)
+
+
+def _confirmed_configs(configs):
+    return [cfg for cfg in configs if cfg.device.vendor != Vendor.UNKNOWN]
+
 
 @router.post("/remediate", response_model=RemediationResponse)
 async def remediate_finding(req: RemediationRequest):
@@ -48,6 +57,8 @@ async def remediate_finding(req: RemediationRequest):
 
     if not finding:
         raise HTTPException(404, "Finding not found in scan results")
+    if finding.vendor == Vendor.UNKNOWN.value:
+        raise HTTPException(409, _UNCONFIRMED_VENDOR)
 
     remediation = generate_remediation(finding, stored["configs"])
 
@@ -78,6 +89,8 @@ async def verify_remediation(req: VerifyRequest):
 
     if not configs:
         raise HTTPException(400, "No configs available for verification")
+    if configs[0].device.vendor == Vendor.UNKNOWN:
+        raise HTTPException(409, _UNCONFIRMED_VENDOR)
 
     # Apply remediation to a copy and re-analyze
     modified_config = apply_remediation(configs[0], req.remediation_commands)
@@ -139,12 +152,15 @@ async def download_fixed_configs(req: DownloadFixedRequest):
         raise HTTPException(404, "Scan not found")
 
     result = get_scan_result_or_409(stored)
-    configs = stored["configs"]
-    if not configs:
+    if not stored["configs"]:
         raise HTTPException(400, "No configs available")
+    # Only configs with a confirmed vendor profile can be remediated and re-parsed
+    configs = _confirmed_configs(stored["configs"])
+    if not configs:
+        raise HTTPException(409, _UNCONFIRMED_VENDOR)
 
     # Fix ALL findings (all severities) to achieve 100/100 score
-    actionable = result.findings
+    actionable = [f for f in result.findings if f.vendor != Vendor.UNKNOWN.value]
 
     if not actionable:
         raise HTTPException(400, "No findings to fix")

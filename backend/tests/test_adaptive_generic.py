@@ -374,11 +374,16 @@ def test_dialect_high_confidence_populates_normalized_config(client, dialect):
 
     # The vendor is never set from AI output, whatever the evidence says
     assert scan["devices"][0]["vendor"] == "unknown"
-    assert scan["score"] is not None
-    if "logging.remote_hosts" in expected:
-        assert "LOG-001" not in _rule_ids(scan)
-    else:
-        assert "LOG-001" in _rule_ids(scan)
+    # Absence never fails on an unidentified vendor, and a score needs a value
+    # that some rule actually evaluated (Phase 1c)
+    assert "LOG-001" not in _rule_ids(scan)
+    assert (scan["score"] is not None) is DIALECT_IS_ASSESSED[dialect]
+
+
+# Syslog / NTP server values are evaluated by vendor-neutral rules; the braces
+# dialect only yields SSH, Telnet, AAA and timeout values, which feed
+# vendor-specific rules and therefore leave the config unassessed.
+DIALECT_IS_ASSESSED = {"flat": True, "braces": False, "block": True, "slash": True}
 
 
 def test_unsupported_structures_go_to_review_not_to_config(client):
@@ -628,7 +633,9 @@ def test_medium_confidence_does_not_mutate(client):
     assert not any(m["source"] == "ai_auto_mapped" for m in scan["adaptive"]["ai_mappings"])
     assert cfg.ntp.servers == [] and cfg.logging.remote_hosts == []
     assert cfg.management.ssh_enabled is False
-    assert "LOG-001" in _rule_ids(scan)
+    # Nothing applied: not a FAIL and not a score
+    assert "LOG-001" not in _rule_ids(scan)
+    assert scan["score"] is None and scan["adaptive"]["assessed"] is False
 
 
 def test_high_without_cited_evidence_is_capped_at_medium(client):

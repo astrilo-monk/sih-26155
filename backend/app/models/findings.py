@@ -72,8 +72,8 @@ class ScanResult:
     scan_id: str = ""
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
-    # Overall score out of 100
-    score: int = 100
+    # Overall score out of 100; None when no device could be assessed
+    score: Optional[int] = 100
 
     # All findings
     findings: list[Finding] = field(default_factory=list)

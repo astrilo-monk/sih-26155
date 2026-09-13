@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     # confirmed learned mappings are still applied to them.
     adaptive_ai_for_known_vendors: bool = False
 
+    # Share of meaningful lines that must follow the detected vendor's grammar
+    # before its profile (parser, vendor-specific rules) is trusted. Below it
+    # the config is UNVERIFIED and takes the unknown-vendor path.
+    vendor_parse_coverage_threshold: float = 0.7
+
 
 settings = Settings()
 settings.upload_dir.mkdir(exist_ok=True)

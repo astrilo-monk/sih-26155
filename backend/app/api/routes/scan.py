@@ -4,7 +4,8 @@ Scan API routes.
 Handles file upload, vendor detection, parsing, adaptive enrichment and
 analysis. This is the main entry point for the security audit workflow.
 
-    Config → Vendor Detector → Known parser OR adaptive path
+    Config → Vendor identification (fingerprint → parser → parse coverage)
+           → confirmed vendor: parser output   OR   unknown / unverified: adaptive path
            → NormalizedConfig → AdaptiveService (learned mappings → AI fallback
              → confidence/validation → safe normalization)
            → existing deterministic compliance engine → findings / score
@@ -15,10 +16,8 @@ import uuid
 from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from app.parsers.detector import detect_vendor
-from app.parsers.cisco_ios import CiscoIOSParser
-from app.parsers.fortinet import FortinetParser
-from app.analysis.engine import analyze, analyze_multiple
+from app.parsers.detector import STATUS_UNVERIFIED, VendorIdentification, identify_vendor
+from app.analysis.engine import ABSENCE_BASED_RULE_IDS, analyze, analyze_multiple
 from app.models.normalized import Vendor, NormalizedConfig, DeviceInfo, AIFieldMapping
 from app.api.schemas import (
     ScanResultResponse,
@@ -29,6 +28,7 @@ from app.api.schemas import (
     AdaptiveScanInfoSchema,
     AIFieldMappingSchema,
     VendorEvidenceSchema,
+    VendorIdentificationSchema,
 )
 from app.config import settings
 from app.adaptive import capture_unrecognized_lines
@@ -44,11 +44,6 @@ router = APIRouter()
 # Keep scan results in memory for the demo.
 # A real product would use a database.
 _scan_store: dict[str, dict] = {}
-
-PARSERS = {
-    Vendor.CISCO_IOS: CiscoIOSParser(),
-    Vendor.FORTINET: FortinetParser(),
-}
 
 def _finding_to_schema(f) -> FindingSchema:
     return FindingSchema(
@@ -98,7 +93,25 @@ def _vendor_str(config: NormalizedConfig) -> str:
     return vendor.value if hasattr(vendor, "value") else str(vendor)
 
 
-def _build_adaptive_info(config: NormalizedConfig, run: dict, config_index: int) -> AdaptiveScanInfoSchema:
+def _identification_schema(identification: VendorIdentification, config_index: int) -> VendorIdentificationSchema:
+    coverage = identification.coverage
+    return VendorIdentificationSchema(
+        config_index=config_index,
+        detected_vendor=identification.detected_vendor.value,
+        status=identification.status,
+        parse_coverage=round(coverage.ratio, 3) if coverage else None,
+        uncovered_lines=coverage.uncovered_count if coverage else 0,
+        reason=identification.reason,
+    )
+
+
+def _build_adaptive_info(
+    config: NormalizedConfig,
+    run: dict,
+    config_index: int,
+    identification: Optional[VendorIdentification] = None,
+    assessed: bool = False,
+) -> AdaptiveScanInfoSchema:
     """Build the adaptive response info for one config."""
     records_by_line = {m.line_number: m for m in config.ai_mappings}
 
@@ -146,7 +159,13 @@ def _build_adaptive_info(config: NormalizedConfig, run: dict, config_index: int)
 
     reasons = []
     if config.device.vendor == Vendor.UNKNOWN:
-        reason = "Vendor could not be identified — vendor-specific rules were not evaluated"
+        if identification is not None and identification.status == STATUS_UNVERIFIED:
+            reason = (
+                f"Configuration resembles '{identification.detected_vendor.value}', but "
+                f"{identification.reason} — vendor unverified, vendor-specific rules were not evaluated"
+            )
+        else:
+            reason = "Vendor could not be identified — vendor-specific rules were not evaluated"
         if evidence.status == EVIDENCE_IDENTIFIED:
             reason += (
                 f" (configuration syntax suggests '{evidence.likely_vendor}'; "
@@ -155,6 +174,16 @@ def _build_adaptive_info(config: NormalizedConfig, run: dict, config_index: int)
         elif evidence.status == EVIDENCE_CONFLICTING:
             reason += " (adaptive vendor evidence is conflicting)"
         reasons.append(reason)
+        # INTERIM(phase1): replaced by per-control statuses in Phase 2
+        reasons.append(
+            f"Absence-based checks ({', '.join(ABSENCE_BASED_RULE_IDS)}) cannot fail on an "
+            "unidentified vendor: a missing value means 'not found', not 'not configured'"
+        )
+        if not assessed:
+            reasons.append(
+                "No check could evaluate evidence from this configuration — "
+                "it is reported as not assessed rather than scored"
+            )
     if ai_unavailable:
         reasons.append(
             f"AI interpretation was unavailable for {ai_unavailable} line(s) — "
@@ -185,6 +214,7 @@ def _build_adaptive_info(config: NormalizedConfig, run: dict, config_index: int)
             votes=evidence.votes,
         ),
         ai_unavailable_lines=ai_unavailable,
+        assessed=assessed,
     )
 
 
@@ -209,18 +239,6 @@ def _process_unknown_vendor(raw_config: str, filename: str) -> NormalizedConfig:
     return normalized
 
 
-def _process_known_vendor(raw_config: str, vendor: Vendor) -> NormalizedConfig:
-    """Process a known-vendor configuration through the existing parser pipeline."""
-    parser = PARSERS.get(vendor)
-    if not parser:
-        raise HTTPException(422, f"No parser available for vendor '{vendor.value}'")
-
-    normalized = parser.parse(raw_config)
-    # Capture unrecognized lines for adaptive parsing
-    capture_unrecognized_lines(normalized)
-    return normalized
-
-
 def _new_adaptive_service() -> AdaptiveService:
     # Resolve interpret_lines / is_available at call time so they can be patched.
     return AdaptiveService(interpreter=interpret_lines, ai_available=is_available)
@@ -240,13 +258,20 @@ def reanalyze_scan(scan_id: str) -> None:
 def build_scan_response(scan_id: str) -> ScanResultResponse:
     entry = _scan_store[scan_id]
     configs = entry["configs"]
+    result = entry.get("result")
+    identifications = entry.get("identifications") or [None] * len(configs)
     infos = [
-        _build_adaptive_info(cfg, run, idx)
+        _build_adaptive_info(
+            cfg, run, idx, identifications[idx],
+            assessed=bool(result is not None and result.devices[idx].get("assessed", True)),
+        )
         for idx, (cfg, run) in enumerate(zip(configs, entry["adaptive_runs"]))
         if run is not None
     ]
     adaptive = infos[0] if infos else None
-    result = entry.get("result")
+    identification_schemas = [
+        _identification_schema(ident, idx) for idx, ident in enumerate(identifications) if ident is not None
+    ]
 
     if result is None:
         # AI unavailable and nothing could be normalized — display-only
@@ -257,6 +282,7 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
             findings=[],
             adaptive=adaptive,
             adaptive_configs=infos,
+            vendor_identification=identification_schemas,
         )
 
     return ScanResultResponse(
@@ -272,6 +298,7 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
         findings=[_finding_to_schema(f) for f in result.findings],
         adaptive=adaptive,
         adaptive_configs=infos,
+        vendor_identification=identification_schemas,
     )
 
 
@@ -297,6 +324,7 @@ async def scan_configs(files: list[UploadFile] = File(...)):
     service = _new_adaptive_service()
     configs: list[NormalizedConfig] = []
     adaptive_runs: list[Optional[dict]] = []
+    identifications: list[VendorIdentification] = []
     had_unknown_vendor = False
     had_ai_available = False
 
@@ -314,23 +342,26 @@ async def scan_configs(files: list[UploadFile] = File(...)):
         if not raw_config.strip():
             raise HTTPException(400, f"File '{file.filename}' is empty")
 
-        vendor = detect_vendor(raw_config)
+        identification = identify_vendor(raw_config)
+        identifications.append(identification)
 
-        if vendor == Vendor.UNKNOWN:
+        if not identification.confirmed:
+            # Unknown, or resembling a vendor whose grammar the config does not
+            # follow (UNVERIFIED): device.vendor stays UNKNOWN. Only a confirmed
+            # deterministic profile selects vendor-specific rules; AI vendor
+            # opinions are reported as evidence in the adaptive info instead.
             had_unknown_vendor = True
             normalized = _process_unknown_vendor(raw_config, file.filename)
             outcome = service.process(normalized, use_ai=True)
             had_ai_available = had_ai_available or outcome.ai_available
-            # device.vendor stays UNKNOWN: only a deterministic detector/parser
-            # may select vendor-specific rules. AI vendor opinions are reported
-            # as evidence in the adaptive info instead.
         else:
-            normalized = _process_known_vendor(raw_config, vendor)
+            normalized = identification.config
+            capture_unrecognized_lines(normalized)
             use_ai = settings.adaptive_ai_for_known_vendors
             outcome = service.process(normalized, use_ai=use_ai, report_unresolved=use_ai)
 
         run = None
-        if vendor == Vendor.UNKNOWN or outcome.records:
+        if not identification.confirmed or outcome.records:
             run = {
                 "interpretations": outcome.interpretations,
                 "ai_called": outcome.ai_called,
@@ -347,6 +378,7 @@ async def scan_configs(files: list[UploadFile] = File(...)):
         "result": None,
         "configs": configs,
         "adaptive_runs": adaptive_runs,
+        "identifications": identifications,
         "is_adaptive_only": True,
         "timestamp": datetime.now().isoformat(),
         # item_id -> {"status": accepted|edited|rejected|learned, "mapping_id": int|None}

@@ -98,7 +98,9 @@ def test_review_queue_lists_unresolved_interpretations(client):
 def test_accept_persists_mapping_and_rescans(client):
     scan = _scan(client)
     scan_id = scan["scan_id"]
-    assert "LOG-001" in [f["rule_id"] for f in scan["findings"]]
+    # Nothing applied yet on an unidentified vendor: absence is not a FAIL, nothing is scored
+    assert "LOG-001" not in [f["rule_id"] for f in scan["findings"]]
+    assert scan["score"] is None and scan["adaptive"]["assessed"] is False
 
     item = _item_for(_queue(client, scan_id), "audit-stream")
     resp = client.post(f"/api/adaptive/scans/{scan_id}/review/{item['item_id']}/accept")
@@ -111,6 +113,7 @@ def test_accept_persists_mapping_and_rescans(client):
     assert body["mapping"]["confirmed"] is True
     # Deterministic rule re-evaluated on the confirmed value
     assert "LOG-001" not in [f["rule_id"] for f in body["scan"]["findings"]]
+    assert body["scan"]["score"] is not None and body["scan"]["adaptive"]["assessed"] is True
 
     config = get_scan_store()[scan_id]["configs"][0]
     assert config.logging.remote_hosts == ["10.44.60.20"]
