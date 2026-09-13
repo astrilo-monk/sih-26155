@@ -702,73 +702,64 @@ def _apply_fortinet_remediation(config: NormalizedConfig, commands: str) -> Norm
 
 
 def _fortinet_remove_default_snmp(config_text: str) -> str:
-    """Comment out SNMP community blocks with default names like 'public'."""
+    """Comment out whole SNMP community edit blocks with default names like 'public'.
+
+    The block is buffered from its ``edit`` to the matching ``next`` so nested
+    sections (``config hosts`` / ``edit`` / ``next`` / ``end``) are commented
+    together with it; commenting only some of them unbalances the FortiOS
+    config/edit nesting and the output no longer verifies as FortiOS.
+    """
+    import shlex
+
     default_names = {'public', 'private', 'community', 'snmp', 'default'}
+    result: list[str] = []
+    in_section = False
+    block: list[str] | None = None  # lines of the current community edit block
+    depth = 0                       # nested config/edit levels inside that block
+    is_default = False
 
-    # Find and comment out entire community edit blocks with default names
-    lines = config_text.splitlines()
-    result = []
-    in_snmp_community = False
-    in_default_edit = False
-    edit_depth = 0
-
-    for line in lines:
+    for line in config_text.splitlines():
         stripped = line.strip()
+        verb = stripped.split()[0] if stripped else ''
 
-        if stripped == 'config system snmp community':
-            in_snmp_community = True
+        if not in_section:
             result.append(line)
+            in_section = stripped == 'config system snmp community'
             continue
 
-        if in_snmp_community:
-            if stripped.startswith('edit '):
-                edit_depth = 1
-                # Check if this is followed by set name "public" etc.
-                # We'll mark it for potential commenting
+        if block is None:
+            if verb == 'edit':
+                block, depth, is_default = [line], 0, False
+            else:
                 result.append(line)
-                continue
+                if verb == 'end':
+                    in_section = False
+            continue
 
-            if edit_depth > 0:
-                if stripped.startswith('set name'):
-                    # Extract the name
-                    import shlex
-                    try:
-                        parts = shlex.split(stripped)
-                        name = parts[2] if len(parts) > 2 else ""
-                    except (ValueError, IndexError):
-                        name = stripped.split('"')[1] if '"' in stripped else ""
+        block.append(line)
+        if verb in ('config', 'edit'):
+            depth += 1
+        elif verb in ('next', 'end') and depth > 0:
+            depth -= 1
+        elif verb == 'set' and depth == 0 and stripped.split()[1:2] == ['name']:
+            try:
+                name = shlex.split(stripped)[2]
+            except (ValueError, IndexError):
+                name = stripped.split('"')[1] if '"' in stripped else ''
+            is_default = name.lower() in default_names
+        elif verb == 'next':  # closes the community edit block
+            if is_default:
+                result.extend(
+                    f'# {l.lstrip()}  # REMEDIATED: default community removed'
+                    if l.strip().startswith('set name') else f'# {l.lstrip()}'
+                    for l in block
+                )
+            else:
+                result.extend(block)
+            block = None
 
-                    if name.lower() in default_names:
-                        in_default_edit = True
-                        result.append(f'# {line.lstrip()}  # REMEDIATED: default community removed')
-                        continue
-
-                if in_default_edit:
-                    # Comment out all lines in this edit block
-                    if stripped == 'next':
-                        result.append(f'# {line.lstrip()}')
-                        in_default_edit = False
-                        edit_depth = 0
-                        continue
-                    elif stripped == 'end' and edit_depth > 0:
-                        # Nested end (e.g., config hosts / end)
-                        result.append(f'# {line.lstrip()}')
-                        continue
-                    elif stripped.startswith('config '):
-                        result.append(f'# {line.lstrip()}')
-                        continue
-                    else:
-                        result.append(f'# {line.lstrip()}')
-                        continue
-
-                if stripped == 'next':
-                    edit_depth = 0
-
-            if stripped == 'end' and not in_default_edit:
-                in_snmp_community = False
-
-        result.append(line)
-
+    if block is not None:  # unterminated block: leave it untouched
+        result.extend(block)
     return '\n'.join(result)
 
 

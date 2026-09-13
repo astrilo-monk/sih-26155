@@ -9,11 +9,14 @@ import copy
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.parsers.cisco_ios import CiscoIOSParser
 from app.parsers.fortinet import FortinetParser
 from app.analysis.engine import analyze
+from app.parsers.detector import STATUS_CONFIRMED, STATUS_UNVERIFIED, identify_vendor
 from app.remediation.engine import generate_remediation, apply_remediation
 
 SAMPLES = Path(__file__).parent.parent.parent / "sample"
@@ -829,3 +832,67 @@ end
     assert fixed2.total_findings == 0
     assert fixed_text1 == fixed_text2
 
+
+
+# ── Regression: remediated FortiGate output must verify as FortiOS ─────────
+
+
+FORTINET_VULNERABLE = [
+    Path(__file__).parent / "fixtures" / "fortinet_vulnerable.cfg",
+    SAMPLES / "frontinet" / "04_fortigate_vulnerable.cfg",
+    SAMPLES / "frontinet" / "fortinet_demo_vulnerable.cfg",
+]
+
+
+@pytest.mark.parametrize("path", FORTINET_VULNERABLE, ids=lambda p: p.name)
+def test_fortinet_fixed_config_passes_vendor_verification(path):
+    """The SNMP remover used to comment `config hosts` / `next` but leave the
+    nested `edit 1` / `end` live, closing `config system snmp community` early
+    and leaving 11 foreign statements: the fixed file rescanned as vendor unverified."""
+    _, _, fixed_text = _remediate_and_rescore(FortinetParser, path.read_text())
+
+    ident = identify_vendor(fixed_text)
+    assert ident.status == STATUS_CONFIRMED, ident.reason
+    assert ident.coverage.longest_foreign_run == 0 and ident.coverage.uncovered_count == 0
+    assert analyze(ident.config).total_findings == 0
+
+
+def test_fortinet_snmp_default_community_block_commented_as_a_whole():
+    config_text = (SAMPLES / "frontinet" / "04_fortigate_vulnerable.cfg").read_text()
+    _, _, fixed_text = _remediate_and_rescore(FortinetParser, config_text)
+    lines = fixed_text.splitlines()
+    start = lines.index("config system snmp community")
+    end = lines.index("end", start)
+    body = lines[start + 1:end]
+    assert body and all(line.startswith("#") for line in body), body
+    assert any("set query-v1-status" in line for line in body)
+
+
+def test_broken_snmp_remediation_output_stays_unverified():
+    """The previously downloaded broken output is genuinely malformed FortiOS; verification must keep rejecting it."""
+    text = (Path(__file__).parent / "fixtures" / "fortigate_broken_snmp_remediation.cfg").read_text()
+    ident = identify_vendor(text)
+    assert ident.status == STATUS_UNVERIFIED
+    assert ident.coverage.longest_foreign_run == 11
+
+
+def test_fortinet_download_fixed_rescans_as_confirmed_fortinet():
+    """Full API loop: scan -> download-fixed -> scan the downloaded file."""
+    from unittest.mock import MagicMock, patch
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+    raw = (SAMPLES / "frontinet" / "04_fortigate_vulnerable.cfg").read_bytes()
+    with patch("app.api.routes.scan.interpret_lines", MagicMock(return_value=[])), \
+         patch("app.api.routes.scan.is_available", return_value=False):
+        scan = client.post("/api/scan", files=[("files", ("fgt.cfg", raw, "text/plain"))]).json()
+        fixed = client.post("/api/download-fixed", json={"scan_id": scan["scan_id"]})
+        assert fixed.status_code == 200
+        rescan = client.post("/api/scan", files=[("files", ("fgt_fixed.cfg", fixed.content, "text/plain"))]).json()
+
+    assert rescan["vendor_identification"][0]["status"] == "confirmed"
+    assert rescan["devices"][0]["vendor"] == "fortinet"
+    assert rescan["total_findings"] == 0
+    assert rescan["posture"] == 100
+    assert not rescan["adaptive_configs"]
