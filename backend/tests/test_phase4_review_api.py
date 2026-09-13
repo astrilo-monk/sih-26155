@@ -269,7 +269,7 @@ def test_fields_endpoint_lists_settable_fields(client):
 def test_display_only_scan_returns_409_for_result_routes(client):
     # display-only remains only when lexicon heuristics find nothing either (Phase 5)
     with patch("app.api.routes.scan.is_available", return_value=False), \
-         patch("app.api.routes.scan.heuristic_facts", return_value=[]):
+         patch("app.api.routes.scan.facts_from_config", return_value=[]):
         scan = client.post("/api/scan", files=[("files", ("d.cfg", CONFIG.encode(), "text/plain"))]).json()
     assert scan["score"] is None
 

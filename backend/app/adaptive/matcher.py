@@ -14,6 +14,9 @@ Template grammar (whitespace-separated tokens):
 * ``{value}``     — captures one token; the extracted value
 * ``{any}``       — matches one token that is ignored
 
+Recognizer templates (Phase 6) use typed slots instead of ``{value}``, at most one per template:
+``{int}``, ``{ip}``, ``{duration}`` / ``{duration:<unit>}``, ``{enum:<name>}``, ``{polarity}``.
+
 Templates are compiled by escaping every literal, so the resulting regex is
 linear and cannot be abused (no user- or AI-supplied regex is ever run).
 
@@ -36,7 +39,17 @@ ANY_TOKEN = "{any}"
 
 EXTRACTION_TEMPLATE_CAPTURE = "template_capture"
 EXTRACTION_CONSTANT = "constant"
-EXTRACTION_METHODS = frozenset({EXTRACTION_TEMPLATE_CAPTURE, EXTRACTION_CONSTANT})
+EXTRACTION_RECOGNIZER = "recognizer"
+EXTRACTION_METHODS = frozenset({EXTRACTION_TEMPLATE_CAPTURE, EXTRACTION_CONSTANT, EXTRACTION_RECOGNIZER})
+
+SLOT_PATTERNS = {
+    "int": r"\d+",
+    "ip": r"[0-9A-Fa-f.:]+(?:/\d{1,3})?",
+    "duration": r"\d+(?:\.\d+)?[A-Za-z]*",
+    "enum": r"[A-Za-z][\w.+-]*",
+    "polarity": r"(?:enabled?|disabled?|on|off|true|false|yes|no)",
+}
+_SLOT = re.compile(r"^\{(int|ip|duration|enum|polarity)(?::([A-Za-z][\w-]*))?\}$")
 
 MAX_PATTERN_LENGTH = 256
 MAX_PATTERN_TOKENS = 32
@@ -74,12 +87,15 @@ def validate_pattern(pattern: str, extraction_method: str) -> list[str]:
     if len(tokens) > MAX_PATTERN_TOKENS:
         raise PatternError(f"Command pattern exceeds {MAX_PATTERN_TOKENS} tokens")
 
-    literals = [t for t in tokens if t not in (VALUE_TOKEN, ANY_TOKEN)]
+    recognizer = extraction_method == EXTRACTION_RECOGNIZER
+    slots = [t for t in tokens if recognizer and _SLOT.match(t)]
+    if len(slots) > 1:
+        raise PatternError("A recognizer template may contain at most one typed slot")
+    literals = [t for t in tokens if t not in (VALUE_TOKEN, ANY_TOKEN) and t not in slots]
+    allowed = "typed slots, {any}" if recognizer else f"{VALUE_TOKEN} and {ANY_TOKEN} placeholders"
     for tok in literals:
         if "{" in tok or "}" in tok:
-            raise PatternError(
-                f"Invalid token '{tok}': only {VALUE_TOKEN} and {ANY_TOKEN} placeholders are allowed"
-            )
+            raise PatternError(f"Invalid token '{tok}': only {allowed} are allowed")
     if not literals:
         raise PatternError("Command pattern must contain at least one literal keyword")
 
@@ -98,6 +114,8 @@ def compile_pattern(pattern: str, extraction_method: str) -> re.Pattern[str]:
     for tok in validate_pattern(pattern, extraction_method):
         if tok == VALUE_TOKEN:
             parts.append(r"(?P<value>\S+)")
+        elif slot := _SLOT.match(tok):
+            parts.append(f"(?P<slot>{SLOT_PATTERNS[slot.group(1)]})")
         elif tok == ANY_TOKEN:
             parts.append(r"\S+")
         else:
@@ -113,6 +131,23 @@ def match_pattern(pattern: str, extraction_method: str, raw_line: str) -> tuple[
     if extraction_method == EXTRACTION_TEMPLATE_CAPTURE:
         return True, _strip_quotes(m.group("value"))
     return True, None
+
+
+def recognizer_slot(pattern: str) -> tuple[Optional[str], Optional[str]]:
+    """``(kind, argument)`` of a recognizer template's typed slot, ``(None, None)`` when it has none."""
+    for tok in validate_pattern(pattern, EXTRACTION_RECOGNIZER):
+        if slot := _SLOT.match(tok):
+            return slot.group(1), slot.group(2)
+    return None, None
+
+
+def match_recognizer(pattern: str, raw_line: str) -> Optional[tuple[Optional[str], Optional[str], Optional[str]]]:
+    """``(kind, argument, captured text)`` when the template matches the line, else None."""
+    m = compile_pattern(pattern, EXTRACTION_RECOGNIZER).match(raw_line)
+    if not m:
+        return None
+    kind, argument = recognizer_slot(pattern)
+    return kind, argument, m.group("slot") if kind else None
 
 
 def derive_pattern(raw_line: str, extracted_value: Optional[str]) -> tuple[str, str]:
@@ -200,7 +235,9 @@ class LearnedMappingMatcher:
     """
 
     def __init__(self, source: MappingSource):
-        self._mappings = [m for m in source.list_mappings() if m.confirmed and m.active]
+        # Recognizers produce facts (``facts/recognizers.py``), never NormalizedConfig values
+        self._mappings = [m for m in source.list_mappings()
+                          if m.confirmed and m.active and m.extraction_method != EXTRACTION_RECOGNIZER]
 
     def match_line(self, raw_line: str, max_candidates: int = 3) -> MatchOutcome:
         matches: list[MappingMatch] = []

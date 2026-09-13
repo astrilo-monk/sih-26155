@@ -31,10 +31,10 @@ from app.models.results import Assurance, ControlResult, Evidence, Status
 logger = logging.getLogger(__name__)
 
 
-def evaluate_controls(config: NormalizedConfig) -> list[ControlResult]:
+def evaluate_controls(config: NormalizedConfig, extra_recognizers=()) -> list[ControlResult]:
     """Results of every control for one config (a broken control yields UNKNOWN, never a crash)."""
     try:
-        facts = facts_from_config(config)
+        facts = facts_from_config(config, extra_recognizers)
     except Exception as e:
         logger.warning("Fact extraction failed: %s", e)
         return [_result(config, c, Status.UNKNOWN, f"Facts could not be extracted: {e}") for c in CONTROLS.values()]

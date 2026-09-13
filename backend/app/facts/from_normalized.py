@@ -5,8 +5,8 @@ Facts from a NormalizedConfig.
   assurance PARSER (or the weaker assurance of adaptive mappings the parser
   model absorbed on the cited lines). Vendor knowledge lives here: which block
   answers a question and when absence is meaningful (``NOT_SET``).
-* Any other vendor: facts come only from applied adaptive mappings, with the
-  assurance of their source. Absence is never evidence.
+* Any other vendor: admin-confirmed recognizers (CONFIRMED), applied adaptive mappings
+  (assurance of their source) and lexicon heuristics (HEURISTIC). Absence is never evidence.
 
 Citations reproduce the lines the Phase 0 rules cited, so findings stay identical.
 """
@@ -17,8 +17,9 @@ import re
 from typing import Iterable, Optional
 
 from app.facts.heuristics import heuristic_facts
+from app.facts.recognizers import recognizer_facts
 from app.facts.predicates import (
-    CENTRAL_AAA, DISCOVERY_PROTOCOL, IDLE_TIMEOUT, IPSEC_PROPOSAL, LOG_REMOTE_DESTINATION, LOGIN_BANNER,
+    CENTRAL_AAA, DISCOVERY_PROTOCOL, FIELD_PREDICATES, IDLE_TIMEOUT, IPSEC_PROPOSAL, LOG_REMOTE_DESTINATION, LOGIN_BANNER,
     NOT_SET, NTP_AUTHENTICATED, NTP_SERVER, PASSWORD_ENCRYPTION_SERVICE, PASSWORD_STORAGE, PERMIT_ANY,
     PREDICATES, PROTOCOL_ENABLED, SNMP_COMMUNITY, SOURCE_RESTRICTED, SOURCE_ROUTING, SSH_VERSION, SecurityFact,
 )
@@ -52,14 +53,18 @@ def weakest(levels: Iterable[Optional[Assurance]]) -> Optional[Assurance]:
     return min(present, key=ASSURANCE_STRENGTH.index) if present else None
 
 
-def facts_from_config(config: NormalizedConfig) -> list[SecurityFact]:
+def facts_from_config(config: NormalizedConfig, extra_recognizers: Iterable = ()) -> list[SecurityFact]:
+    """``extra_recognizers``: unsaved recognizers applied as if stored (replay)."""
     if config.device.vendor in PARSER_COVERAGE:
         return _ParserFacts(config).build()
+    # A recognizer answers the lines it matches; mappings and heuristics on those lines step aside.
+    # Other lines still speak, so a recognizer never hides a contradicting statement elsewhere.
+    recognized, skip = recognizer_facts(config.raw_lines, extra_recognizers)
     # An admin-confirmed mapping answers its predicate. AI mappings and lexicon heuristics are both
     # provisional: when they disagree neither wins, the fact is undetermined and cites both.
-    facts = _mapped_facts(config)
+    facts = [m for m in _mapped_facts(config) if not (skip and set(m.evidence.line_numbers) <= skip)]
     by_key = {(f.predicate, f.subject): index for index, f in enumerate(facts)}
-    for heuristic in heuristic_facts(config.raw_lines):
+    for heuristic in heuristic_facts(config.raw_lines, skip):
         index = by_key.get((heuristic.predicate, heuristic.subject))
         if index is None:
             facts.append(heuristic)
@@ -75,7 +80,7 @@ def facts_from_config(config: NormalizedConfig) -> list[SecurityFact]:
             subject=mapped.subject, scope=mapped.scope, unit=mapped.unit,
             provenance=f"The AI mapping and the lexicon heuristic disagree (lines {', '.join(map(str, lines))})",
         )
-    return facts
+    return recognized + facts
 
 
 # ── confirmed vendors ───────────────────────────────────────────────────────
@@ -287,28 +292,6 @@ def _is_any(address: Optional[str]) -> bool:
 
 # ── other vendors: applied adaptive mappings ────────────────────────────────
 
-# normalized field → (predicate, subject, scope, unit)
-_FIELD_PREDICATES = {
-    "management.telnet_enabled": (PROTOCOL_ENABLED, "telnet", None, None),
-    "management.http_enabled": (PROTOCOL_ENABLED, "http", None, None),
-    "management.ssh_version": (SSH_VERSION, None, None, None),
-    "management.admin_timeout": (IDLE_TIMEOUT, None, None, "min"),
-    "management.console.exec_timeout_minutes": (IDLE_TIMEOUT, None, "console", "min"),
-    "management.console.password_type": (PASSWORD_STORAGE, "console", "console", None),
-    "authentication.enable_password_type": (PASSWORD_STORAGE, "enable", "enable password", None),
-    "authentication.aaa_enabled": (CENTRAL_AAA, None, None, None),
-    "authentication.password_encryption_service": (PASSWORD_ENCRYPTION_SERVICE, None, None, None),
-    "services.password_encryption": (PASSWORD_ENCRYPTION_SERVICE, None, None, None),
-    "logging.remote_hosts": (LOG_REMOTE_DESTINATION, None, None, None),
-    "ntp.servers": (NTP_SERVER, None, None, None),
-    "ntp.authentication_enabled": (NTP_AUTHENTICATED, None, None, None),
-    "banners.login_banner": (LOGIN_BANNER, None, None, None),
-    "banners.motd_banner": (LOGIN_BANNER, None, None, None),
-    "banners.pre_login_banner_enabled": (LOGIN_BANNER, None, None, None),
-    "services.ip_source_route": (SOURCE_ROUTING, None, None, None),
-    "services.cdp_globally_enabled": (DISCOVERY_PROTOCOL, "cdp", "global", None),
-    "services.lldp_globally_enabled": (DISCOVERY_PROTOCOL, "lldp", "global", None),
-}
 _TEXT_PRESENT = {"banners.login_banner", "banners.motd_banner"}
 
 
@@ -316,12 +299,12 @@ def _mapped_facts(config: NormalizedConfig) -> list[SecurityFact]:
     """One fact per mapped field; lists collect every item, conflicting scalars become undetermined."""
     by_field: dict[str, list] = {}
     for m in config.ai_mappings:
-        if m.applied and m.normalized_field in _FIELD_PREDICATES and m.final_value is not None:
+        if m.applied and m.normalized_field in FIELD_PREDICATES and m.final_value is not None:
             by_field.setdefault(m.normalized_field, []).append(m)
 
     facts = []
     for field_path, mappings in by_field.items():
-        predicate, subject, scope, unit = _FIELD_PREDICATES[field_path]
+        predicate, subject, scope, unit = FIELD_PREDICATES[field_path]
         info = FIELD_REGISTRY[field_path]
         if info.type_category == TYPE_LIST_STR:
             value = [item for m in mappings for item in info.convert(str(m.final_value))]

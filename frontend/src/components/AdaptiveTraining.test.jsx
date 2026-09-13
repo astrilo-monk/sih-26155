@@ -11,6 +11,7 @@ vi.mock('../api/client', () => ({
     editInterpretation: vi.fn(),
     rejectInterpretation: vi.fn(),
     disableLearnedMapping: vi.fn(),
+    getProvisionalResults: vi.fn(),
   },
 }));
 
@@ -62,6 +63,7 @@ beforeEach(() => {
   apiClient.getReviewQueue.mockResolvedValue({ scan_id: 'scan-1', pending_count: 1, items: [ITEM] });
   apiClient.getNormalizedFields.mockResolvedValue(FIELDS);
   apiClient.listLearnedMappings.mockResolvedValue([]);
+  apiClient.getProvisionalResults.mockResolvedValue({ items: [] });
 });
 
 afterEach(() => {

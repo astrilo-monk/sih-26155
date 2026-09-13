@@ -819,6 +819,56 @@ a decisive one, with no AI call next time.
 
 - Demo loop works offline: scan → suspected → confirm → rescan → decisive, coverage goes up.
 
+## Status: done
+
+Suite after Phase 6: **697 passed, 2 skipped** (frontend 14 passed, build OK).
+
+- **Migration v2** (`db/database.py`): `learned_mappings` gains `predicate`, `subject`,
+  `scope_template`, `dialect_fingerprint`, `negatives` (JSON). Old columns kept. Field
+  mappings get their predicate from `FIELD_PREDICATES` (moved to `facts/predicates.py`,
+  19 of 35 fields; the rest feed no control) when read and when saved.
+- **Typed slots** (`adaptive/matcher.py`, method `recognizer`): `{int}`, `{ip}`,
+  `{duration}` / `{duration:<unit>}`, `{enum:<name>}`, `{polarity}`, plus `{any}`; at most one
+  slot; still compiled from escaped literals, no raw regex. The field-mapping matcher ignores
+  recognizers. A recognizer's `constant_value` is JSON: the value of a slot-less template, or an
+  enum table (`{"telnet": true, "*": false}`).
+- **Gates** (`facts/recognizers.validate_recognizer`, run by `db/mappings.validate_mapping`):
+  ≥ 2 keywords besides stopwords; boolean predicates need a polarity literal (value must agree
+  with it), a `{polarity}` slot or an enum true/false table; `{duration}` needs a unit in the
+  text or the slot; value predicates need their slot type; template must match its example
+  line; identical template + scope conflicts (`MappingConflictError`). Replay runs on draft and
+  save and reports changed results. Dialect overlap (≥ 50 % of the smaller top-level keyword set)
+  is required unless the admin picks "any dialect". SNMP community / IPsec proposal (dict values)
+  are not recognizable yet.
+- **Facts** (`facts_from_config`, unknown vendors): recognizer matches → CONFIRMED facts
+  (conflicting recognizers → UNKNOWN citing both). A disabled block turns a boolean off and
+  drops values. Heuristics and AI mappings skip the lines a recognizer answered or an admin
+  rejected; other lines still speak, so a recognizer never hides a contradicting statement
+  elsewhere. `AdaptiveService` no longer sends recognized lines to the AI.
+- **API** (`routes/adaptive.py`): `GET /adaptive/scans/{id}/provisional` (undecided or
+  provisional results with the heuristic lines behind them), `POST …/recognizers/draft`
+  (drafted template + admin edits → gate errors + replay diff), `POST …/recognizers` (save,
+  re-evaluate), `POST …/provisional/reject` (line recorded as rejected; heuristics and AI
+  ignore it).
+- **Training UI**: `RecognizerQueue` in the Training tab — Confirm drafts a recognizer
+  (template / scope / value JSON editable, Re-check shows gate errors and the replay diff),
+  Save Recognizer, Reject. The mapping table lists recognizers by predicate.
+- **Tests** (`tests/test_phase6_recognizers.py`, AI mocked unavailable): confirm Telnet on
+  `unknown.cfg` → rescan → decisive FAIL [70, 71], coverage 0 → > 0, zero AI calls; same
+  recognizer on `remote-console protocol ssh` → confirmed PASS; admin picks a unit for line 38;
+  reject removes the heuristic; gate cases (stopword-only, one keyword, missing / contradicting
+  polarity, enum without table, wrong slot, no unit, no match); conflicting recognizers →
+  UNKNOWN [30, 70, 71]; fingerprint / any-dialect; negatives; disabled block; recognized lines
+  not sent to AI; v1 database migration. Existing learned-mapping tests pass unchanged;
+  `test_phase4_review_api` patches `facts_from_config` instead of `heuristic_facts`.
+
+Known limits:
+
+- Replay covers the configs of scans held in memory by this process (scans are not persisted).
+- Recognizers apply to unknown / unverified vendors only; confirmed vendors keep parser facts.
+- A drafted template keeps the line's other values literal (`… allowed-source 10.44.100.0/24`
+  with a constant is rejected by the polarity gate); the admin edits it or confirms another line.
+
 ---
 
 # Phase 7 — AI Escalation Rewire

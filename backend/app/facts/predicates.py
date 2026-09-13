@@ -56,6 +56,31 @@ PREDICATES = frozenset({
 })
 
 
+# Mechanical migration of the adaptive NormalizedConfig fields a control consumes:
+# normalized field → (predicate, subject, scope, unit). Other fields have no predicate.
+FIELD_PREDICATES = {
+    "management.telnet_enabled": (PROTOCOL_ENABLED, "telnet", None, None),
+    "management.http_enabled": (PROTOCOL_ENABLED, "http", None, None),
+    "management.ssh_version": (SSH_VERSION, None, None, None),
+    "management.admin_timeout": (IDLE_TIMEOUT, None, None, "min"),
+    "management.console.exec_timeout_minutes": (IDLE_TIMEOUT, None, "console", "min"),
+    "management.console.password_type": (PASSWORD_STORAGE, "console", "console", None),
+    "authentication.enable_password_type": (PASSWORD_STORAGE, "enable", "enable password", None),
+    "authentication.aaa_enabled": (CENTRAL_AAA, None, None, None),
+    "authentication.password_encryption_service": (PASSWORD_ENCRYPTION_SERVICE, None, None, None),
+    "services.password_encryption": (PASSWORD_ENCRYPTION_SERVICE, None, None, None),
+    "logging.remote_hosts": (LOG_REMOTE_DESTINATION, None, None, None),
+    "ntp.servers": (NTP_SERVER, None, None, None),
+    "ntp.authentication_enabled": (NTP_AUTHENTICATED, None, None, None),
+    "banners.login_banner": (LOGIN_BANNER, None, None, None),
+    "banners.motd_banner": (LOGIN_BANNER, None, None, None),
+    "banners.pre_login_banner_enabled": (LOGIN_BANNER, None, None, None),
+    "services.ip_source_route": (SOURCE_ROUTING, None, None, None),
+    "services.cdp_globally_enabled": (DISCOVERY_PROTOCOL, "cdp", "global", None),
+    "services.lldp_globally_enabled": (DISCOVERY_PROTOCOL, "lldp", "global", None),
+}
+
+
 class _NotSet:
     def __repr__(self) -> str:
         return "NOT_SET"

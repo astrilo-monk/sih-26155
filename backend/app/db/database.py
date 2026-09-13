@@ -48,6 +48,15 @@ MIGRATIONS: list[str] = [
         created_at  TEXT NOT NULL
     );
     """,
+    # v2 — recognizers (Phase 6): a mapping answers a security predicate. Field mappings keep their
+    # columns until Phase 7 ends; their predicate is derived from FIELD_PREDICATES when read.
+    """
+    ALTER TABLE learned_mappings ADD COLUMN predicate TEXT;
+    ALTER TABLE learned_mappings ADD COLUMN subject TEXT;
+    ALTER TABLE learned_mappings ADD COLUMN scope_template TEXT;
+    ALTER TABLE learned_mappings ADD COLUMN dialect_fingerprint TEXT;
+    ALTER TABLE learned_mappings ADD COLUMN negatives TEXT NOT NULL DEFAULT '[]';
+    """,
 ]
 
 

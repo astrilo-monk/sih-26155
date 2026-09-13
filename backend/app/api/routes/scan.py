@@ -19,7 +19,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from app.parsers.detector import STATUS_UNVERIFIED, VendorIdentification, identify_vendor
 from app.analysis.engine import analyze, analyze_multiple, evaluate_controls
 from app.analysis.scoring import calculate_posture
-from app.facts.heuristics import heuristic_facts
+from app.facts.from_normalized import facts_from_config
 from app.controls.catalog import CONTROLS
 from app.models.results import ControlResult, Status
 from app.models.normalized import Vendor, NormalizedConfig, DeviceInfo, AIFieldMapping
@@ -441,7 +441,7 @@ async def scan_configs(files: list[UploadFile] = File(...)):
 
     scan_id = str(uuid.uuid4())
     anything_applied = any(m.applied for cfg in configs for m in cfg.ai_mappings) or any(
-        heuristic_facts(cfg.raw_lines) for cfg in configs if cfg.device.vendor == Vendor.UNKNOWN
+        facts_from_config(cfg) for cfg in configs if cfg.device.vendor == Vendor.UNKNOWN
     )
 
     _scan_store[scan_id] = {

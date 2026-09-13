@@ -8,6 +8,16 @@ async function handleResponse(response) {
   return response.json();
 }
 
+async function postJson(path, body) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    cache: 'no-cache',
+  });
+  return handleResponse(response);
+}
+
 export const apiClient = {
   async scanConfigs(files) {
     const formData = new FormData();
@@ -128,6 +138,25 @@ export const apiClient = {
       cache: 'no-cache',
     });
     return handleResponse(response);
+  },
+
+  // --- Provisional results → recognizers ---
+
+  async getProvisionalResults(scanId) {
+    const response = await fetch(`${API_BASE_URL}/adaptive/scans/${scanId}/provisional`, { cache: 'no-cache' });
+    return handleResponse(response);
+  },
+
+  draftRecognizer(scanId, body) {
+    return postJson(`/adaptive/scans/${scanId}/recognizers/draft`, body);
+  },
+
+  saveRecognizer(scanId, body) {
+    return postJson(`/adaptive/scans/${scanId}/recognizers`, body);
+  },
+
+  rejectProvisionalLine(scanId, body) {
+    return postJson(`/adaptive/scans/${scanId}/provisional/reject`, body);
   },
 
   async listLearnedMappings(includeInactive = false) {

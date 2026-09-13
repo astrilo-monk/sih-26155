@@ -6,6 +6,8 @@ Conceptual model:
 * CONCEPT  — what the configuration means (``session_timeout``)
 * PATTERN  — how some vendor expresses it (``admin idle-timeout {value}``)
 * MAPPING  — the confirmed link between a pattern and a normalized field
+* RECOGNIZER (Phase 6) — a mapping that answers a security predicate directly
+  (``remote-console protocol {enum:protocol}`` → Telnet allowed); see ``app.facts.recognizers``
 
 Vendor is optional metadata, never part of a mapping's identity.
 
@@ -13,14 +15,17 @@ Safety rules enforced here:
 
 * patterns are safe templates (see ``app.adaptive.matcher``), never raw regex
 * only an administrator can confirm, update or disable a confirmed mapping
-* saving a mapping whose pattern is identical to an active confirmed mapping
+* saving a mapping whose pattern (and scope) is identical to an active confirmed mapping
   raises ``MappingConflictError`` instead of silently overwriting it
+* recognizers pass the gates of ``validate_recognizer``: two keywords besides stopwords,
+  stated polarity, a unit for durations, a value that matches the example line
 """
 
 from __future__ import annotations
 
 import dataclasses
-from dataclasses import dataclass
+import json
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -28,6 +33,7 @@ from typing import Any, Optional
 from app.adaptive.mapper import FIELD_REGISTRY, TYPE_LIST_STR
 from app.adaptive.matcher import (
     EXTRACTION_CONSTANT,
+    EXTRACTION_RECOGNIZER,
     EXTRACTION_TEMPLATE_CAPTURE,
     LearnedMappingMatcher,
     MappingMatch,
@@ -38,6 +44,8 @@ from app.adaptive.matcher import (
     validate_pattern,
 )
 from app.db.database import get_connection
+from app.facts.predicates import FIELD_PREDICATES
+from app.facts.recognizers import RecognizerError, validate_recognizer
 
 
 ADMIN_ACTOR = "admin"
@@ -51,7 +59,15 @@ EDITABLE_FIELDS = frozenset({
     "constant_value",
     "example_line",
     "active",
+    "scope_template",
+    "negatives",
 })
+
+_COLUMNS = (
+    "concept", "normalized_field", "vendor", "command_pattern", "extraction_method", "expected_value_type",
+    "constant_value", "confidence", "confirmed", "active", "example_line", "predicate", "subject",
+    "scope_template", "dialect_fingerprint", "negatives",
+)
 
 
 class MappingValidationError(ValueError):
@@ -65,7 +81,7 @@ class MappingConflictError(Exception):
         self.existing = existing
         super().__init__(
             f"Confirmed mapping #{existing.id} already uses pattern "
-            f"'{existing.command_pattern}' (→ {existing.normalized_field}). "
+            f"'{existing.command_pattern}' (→ {existing.normalized_field or existing.predicate}). "
             "Edit or disable it explicitly instead."
         )
 
@@ -94,6 +110,13 @@ class LearnedMapping:
     id: Optional[int] = None
     created_at: str = ""
     updated_at: str = ""
+    # Phase 6: the security fact the mapping answers (derived from the field for field mappings)
+    predicate: Optional[str] = None
+    subject: Optional[str] = None
+    scope_template: Optional[str] = None
+    dialect_fingerprint: Optional[str] = None
+    # Normalized lines the recognizer must never match
+    negatives: list[str] = field(default_factory=list)
 
 
 def _now() -> str:
@@ -101,6 +124,7 @@ def _now() -> str:
 
 
 def _row_to_mapping(row) -> LearnedMapping:
+    predicate, subject, _, _ = FIELD_PREDICATES.get(row["normalized_field"], (None, None, None, None))
     return LearnedMapping(
         id=row["id"],
         concept=row["concept"],
@@ -116,25 +140,53 @@ def _row_to_mapping(row) -> LearnedMapping:
         example_line=row["example_line"],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
+        predicate=row["predicate"] or predicate,
+        subject=row["subject"] or subject,
+        scope_template=row["scope_template"],
+        dialect_fingerprint=row["dialect_fingerprint"],
+        negatives=json.loads(row["negatives"] or "[]"),
     )
+
+
+def _values(mapping: LearnedMapping) -> tuple:
+    row = dataclasses.asdict(mapping)
+    row.update(confidence=float(mapping.confidence), confirmed=int(mapping.confirmed), active=int(mapping.active),
+               negatives=json.dumps(mapping.negatives))
+    return tuple(row[column] for column in _COLUMNS)
+
+
+def _validate_recognizer(mapping: LearnedMapping) -> LearnedMapping:
+    mapping.normalized_field = ""
+    mapping.expected_value_type = EXTRACTION_RECOGNIZER
+    mapping.command_pattern = " ".join((mapping.command_pattern or "").split())
+    mapping.scope_template = " ".join((mapping.scope_template or "").split()) or None
+    mapping.negatives = sorted({normalize_line(n) for n in mapping.negatives if n.strip()})
+    try:
+        validate_recognizer(mapping)
+    except RecognizerError as e:
+        raise MappingValidationError(str(e)) from e
+    return mapping
 
 
 def validate_mapping(mapping: LearnedMapping) -> LearnedMapping:
     """Validate a mapping in place (field, value type, pattern, example)."""
+    if not (mapping.concept or "").strip():
+        raise MappingValidationError("Concept must not be empty")
+    mapping.concept = mapping.concept.strip()
+    mapping.vendor = (mapping.vendor or "").strip() or None
+    if not 0.0 <= float(mapping.confidence) <= 1.0:
+        raise MappingValidationError("Confidence must be between 0.0 and 1.0")
+
+    if mapping.extraction_method == EXTRACTION_RECOGNIZER:
+        return _validate_recognizer(mapping)
+
     field_info = FIELD_REGISTRY.get(mapping.normalized_field)
     if field_info is None:
         raise MappingValidationError(
             f"'{mapping.normalized_field}' is not a settable NormalizedConfig field"
         )
     mapping.expected_value_type = field_info.type_category
-
-    if not (mapping.concept or "").strip():
-        raise MappingValidationError("Concept must not be empty")
-    mapping.concept = mapping.concept.strip()
-    mapping.vendor = (mapping.vendor or "").strip() or None
-
-    if not 0.0 <= float(mapping.confidence) <= 1.0:
-        raise MappingValidationError("Confidence must be between 0.0 and 1.0")
+    mapping.predicate, mapping.subject, _, _ = FIELD_PREDICATES.get(mapping.normalized_field, (None, None, None, None))
 
     try:
         validate_pattern(mapping.command_pattern, mapping.extraction_method)
@@ -187,26 +239,15 @@ class MappingRepository:
         if mapping.confirmed and actor != ADMIN_ACTOR:
             raise MappingPermissionError("Only an administrator can confirm a mapping")
 
-        mapping = validate_mapping(dataclasses.replace(mapping, id=None))
+        mapping = validate_mapping(dataclasses.replace(mapping, id=None, negatives=list(mapping.negatives)))
 
         with self._conn() as conn:
             self._raise_on_conflict(conn, mapping)
             now = _now()
             cur = conn.execute(
-                """
-                INSERT INTO learned_mappings (
-                    concept, normalized_field, vendor, command_pattern,
-                    extraction_method, expected_value_type, constant_value,
-                    confidence, confirmed, active, example_line, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    mapping.concept, mapping.normalized_field, mapping.vendor,
-                    mapping.command_pattern, mapping.extraction_method,
-                    mapping.expected_value_type, mapping.constant_value,
-                    float(mapping.confidence), int(mapping.confirmed), int(mapping.active),
-                    mapping.example_line, now, now,
-                ),
+                f"INSERT INTO learned_mappings ({', '.join(_COLUMNS)}, created_at, updated_at) "
+                f"VALUES ({', '.join('?' * len(_COLUMNS))}, ?, ?)",
+                (*_values(mapping), now, now),
             )
             return dataclasses.replace(mapping, id=cur.lastrowid, created_at=now, updated_at=now)
 
@@ -249,19 +290,8 @@ class MappingRepository:
                 self._raise_on_conflict(conn, updated, exclude_id=mapping_id)
             now = _now()
             conn.execute(
-                """
-                UPDATE learned_mappings SET
-                    concept = ?, normalized_field = ?, vendor = ?, command_pattern = ?,
-                    extraction_method = ?, expected_value_type = ?, constant_value = ?,
-                    active = ?, example_line = ?, updated_at = ?
-                WHERE id = ?
-                """,
-                (
-                    updated.concept, updated.normalized_field, updated.vendor,
-                    updated.command_pattern, updated.extraction_method,
-                    updated.expected_value_type, updated.constant_value,
-                    int(updated.active), updated.example_line, now, mapping_id,
-                ),
+                f"UPDATE learned_mappings SET {', '.join(f'{c} = ?' for c in _COLUMNS)}, updated_at = ? WHERE id = ?",
+                (*_values(updated), now, mapping_id),
             )
         return dataclasses.replace(updated, updated_at=now)
 
@@ -272,9 +302,11 @@ class MappingRepository:
         rows = conn.execute(
             "SELECT * FROM learned_mappings WHERE active = 1 AND confirmed = 1"
         ).fetchall()
-        key = normalize_line(mapping.command_pattern)
+        key = (normalize_line(mapping.command_pattern), normalize_line(mapping.scope_template or ""))
         for row in rows:
-            if row["id"] != exclude_id and normalize_line(row["command_pattern"]) == key:
+            if row["id"] != exclude_id and (
+                normalize_line(row["command_pattern"]), normalize_line(row["scope_template"] or "")
+            ) == key:
                 raise MappingConflictError(_row_to_mapping(row))
 
     # ── reviewed-but-unmapped lines ─────────────────────────────────────────

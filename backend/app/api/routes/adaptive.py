@@ -29,6 +29,7 @@ from app.adaptive.mapper import (
 )
 from app.adaptive.matcher import (
     EXTRACTION_CONSTANT,
+    EXTRACTION_RECOGNIZER,
     EXTRACTION_TEMPLATE_CAPTURE,
     VALUE_TOKEN,
     LearnedMappingMatcher,
@@ -37,7 +38,9 @@ from app.adaptive.matcher import (
     match_pattern,
 )
 from app.adaptive.vendor import UNKNOWN_VENDOR, normalize_vendor_name
+from app.analysis.engine import evaluate_controls
 from app.api.routes.scan import (
+    _device_results,
     build_scan_response,
     get_scan_store,
     reanalyze_scan,
@@ -49,11 +52,22 @@ from app.api.schemas import (
     LearnedMappingSchema,
     MappingUpdateRequest,
     NormalizedFieldSchema,
+    ProvisionalItemSchema,
+    ProvisionalLineSchema,
+    ProvisionalQueueResponse,
+    RecognizerDraftRequest,
+    RecognizerDraftResponse,
+    RecognizerDraftSchema,
+    RecognizerSaveResponse,
     RejectInterpretationRequest,
+    RejectProvisionalRequest,
+    ReplayChangeSchema,
     ReviewActionResponse,
     ReviewItemSchema,
     ReviewQueueResponse,
+    ScanResultResponse,
 )
+from app.controls.catalog import CONTROLS
 from app.db.mappings import (
     ADMIN_ACTOR,
     LearnedMapping,
@@ -62,8 +76,11 @@ from app.db.mappings import (
     MappingPermissionError,
     MappingRepository,
     MappingValidationError,
+    validate_mapping,
 )
+from app.facts.recognizers import draft_recognizer, provisional_lines
 from app.models.normalized import AIFieldMapping, NormalizedConfig, Vendor
+from app.models.results import DECISIVE_ASSURANCE, ControlResult, Status
 
 router = APIRouter(prefix="/adaptive")
 
@@ -347,6 +364,147 @@ async def reject_interpretation(
         item=_build_item(entry, config_index, config.ai_mappings[record_index]),
         scan=build_scan_response(scan_id),
     )
+
+
+# ── Endpoints: provisional results → recognizers (Phase 6) ───────────────────
+
+def _unknown_config(entry: dict, config_index: int) -> NormalizedConfig:
+    try:
+        config: NormalizedConfig = entry["configs"][config_index]
+    except IndexError:
+        raise HTTPException(404, "Config not found in this scan")
+    if config.device.vendor != Vendor.UNKNOWN:
+        raise HTTPException(422, f"The {config.device.vendor.value} parser reads this config; recognizers "
+                                 "are for configurations no confirmed parser reads")
+    return config
+
+
+def _control(control_id: str):
+    control = CONTROLS.get(control_id)
+    if control is None:
+        raise HTTPException(404, f"Unknown control '{control_id}'")
+    return control
+
+
+def _status_label(result: Optional[ControlResult]) -> str:
+    if result is None:
+        return "—"
+    return result.status.value + (f" ({result.assurance.value})" if result.assurance else "")
+
+
+def _replay(recognizer: LearnedMapping) -> tuple[int, list[ReplayChangeSchema]]:
+    """Evaluate every stored unknown-vendor config with and without the recognizer."""
+    # ponytail: scans live in memory, so "past configs" are this process's scans; persist scans to replay history
+    configs = list({id(c): c for e in get_scan_store().values() for c in e["configs"]
+                    if c.device.vendor == Vendor.UNKNOWN}.values())
+    changes = []
+    for config in configs:
+        before = {(r.control_id, r.scope): r for r in evaluate_controls(config)}
+        for result in evaluate_controls(config, extra_recognizers=[recognizer]):
+            old = before.get((result.control_id, result.scope))
+            if _status_label(old) != _status_label(result):
+                changes.append(ReplayChangeSchema(hostname=config.device.hostname, control_id=result.control_id,
+                                                  before=_status_label(old), after=_status_label(result)))
+    return len(configs), changes
+
+
+def _draft(scan_id: str, body: RecognizerDraftRequest) -> tuple[LearnedMapping, list[str]]:
+    entry = _get_entry(scan_id)
+    config = _unknown_config(entry, body.config_index)
+    control = _control(body.control_id)
+    try:
+        fields = draft_recognizer(config.raw_lines, control.needs, body.line_number)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+
+    for name, override in (("command_pattern", body.command_pattern), ("scope_template", body.scope_template),
+                           ("constant_value", body.value)):
+        if override is not None:
+            fields[name] = override.strip() or None
+    if body.any_dialect:
+        fields["dialect_fingerprint"] = None
+    mapping = LearnedMapping(concept=control.title, normalized_field="", extraction_method=EXTRACTION_RECOGNIZER,
+                             confirmed=True, negatives=list(body.negatives), **fields)
+    mapping.command_pattern = mapping.command_pattern or ""
+    try:
+        return validate_mapping(mapping), []
+    except MappingValidationError as e:
+        return mapping, [str(e)]
+
+
+def _draft_schema(m: LearnedMapping) -> RecognizerDraftSchema:
+    return RecognizerDraftSchema(
+        concept=m.concept, predicate=m.predicate, subject=m.subject, command_pattern=m.command_pattern,
+        scope_template=m.scope_template, value=m.constant_value, dialect_fingerprint=m.dialect_fingerprint,
+        example_line=m.example_line, negatives=m.negatives,
+    )
+
+
+@router.get("/scans/{scan_id}/provisional", response_model=ProvisionalQueueResponse)
+async def list_provisional_results(scan_id: str):
+    """Undecided or provisional control results and the heuristic lines an admin can confirm."""
+    entry = _get_entry(scan_id)
+    items = []
+    for index, config in enumerate(entry["configs"]):
+        if config.device.vendor != Vendor.UNKNOWN:
+            continue
+        seen = set()
+        for result in _device_results(entry.get("result"), entry["configs"], index):
+            if (result.control_id in seen or result.assurance in DECISIVE_ASSURANCE
+                    or result.status not in (Status.PASS, Status.FAIL, Status.UNKNOWN)):
+                continue
+            lines = provisional_lines(config.raw_lines, CONTROLS[result.control_id].needs)
+            if not lines:
+                continue
+            seen.add(result.control_id)
+            items.append(ProvisionalItemSchema(
+                config_index=index, control_id=result.control_id, question=CONTROLS[result.control_id].question,
+                status=result.status.value, assurance=result.assurance.value if result.assurance else None,
+                reason=result.reason,
+                lines=[ProvisionalLineSchema(line_number=n, text=config.raw_lines[n - 1].strip(),
+                                             predicate=c.predicate, subject=c.subject, value=c.value)
+                       for n, c in lines],
+            ))
+    return ProvisionalQueueResponse(scan_id=scan_id, items=items)
+
+
+@router.post("/scans/{scan_id}/recognizers/draft", response_model=RecognizerDraftResponse)
+async def draft_recognizer_from_line(scan_id: str, body: RecognizerDraftRequest):
+    """Draft a recognizer from a provisional line (with admin edits), check its gates and replay it."""
+    mapping, errors = _draft(scan_id, body)
+    checked, changes = (0, []) if errors else _replay(mapping)
+    return RecognizerDraftResponse(draft=_draft_schema(mapping), errors=errors, configs_checked=checked,
+                                   replay=changes)
+
+
+@router.post("/scans/{scan_id}/recognizers", response_model=RecognizerSaveResponse)
+async def save_recognizer(scan_id: str, body: RecognizerDraftRequest):
+    """Confirm: save the recognizer and re-evaluate the scan — its lines are now decided, no AI."""
+    mapping, errors = _draft(scan_id, body)
+    if errors:
+        raise HTTPException(422, errors[0])
+    _, changes = _replay(mapping)
+    try:
+        saved = _repository().save_mapping(mapping, actor=ADMIN_ACTOR)
+    except MappingConflictError as e:
+        raise HTTPException(409, str(e))
+    except MappingValidationError as e:
+        raise HTTPException(422, str(e))
+    reanalyze_scan(scan_id)
+    return RecognizerSaveResponse(mapping=_mapping_schema(saved), replay=changes, scan=build_scan_response(scan_id))
+
+
+@router.post("/scans/{scan_id}/provisional/reject", response_model=ScanResultResponse)
+async def reject_provisional_line(scan_id: str, body: RejectProvisionalRequest):
+    """The heuristic misread this line: remember it as reviewed-but-unmapped (no heuristic, no AI)."""
+    entry = _get_entry(scan_id)
+    config = _unknown_config(entry, body.config_index)
+    if body.line_number not in dict(provisional_lines(config.raw_lines, _control(body.control_id).needs)):
+        raise HTTPException(404, f"Line {body.line_number} holds no provisional statement for this control")
+    _repository().record_rejection(config.raw_lines[body.line_number - 1], vendor=config.device.vendor.value,
+                                   reason=body.reason or "Heuristic rejected by administrator")
+    reanalyze_scan(scan_id)
+    return build_scan_response(scan_id)
 
 
 # ── Endpoints: learned mappings ───────────────────────────────────────────────

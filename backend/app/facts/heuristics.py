@@ -40,10 +40,27 @@ class _Candidate:
     unit: Optional[str] = None
 
 
-def heuristic_facts(raw_lines: list[str]) -> list[SecurityFact]:
+def heuristic_facts(raw_lines: list[str], skip: frozenset[int] = frozenset()) -> list[SecurityFact]:
+    """``skip``: lines answered by a recognizer or rejected by an administrator."""
+    return combine(heuristic_candidates(raw_lines, skip), raw_lines)
+
+
+def heuristic_candidates(raw_lines: list[str], skip: frozenset[int] = frozenset()) -> list["_Candidate"]:
     statements = tokenize(raw_lines)
     candidates = [c for extract in _EXTRACTORS for c in extract(statements)]
-    return _combine(candidates, raw_lines)
+    # A skipped line still lends its block state to other lines: only candidates stated on it are dropped
+    return [c for c in candidates if not (set(c.lines) - state_lines(c, statements)) & skip]
+
+
+def state_lines(candidate: "_Candidate", statements: list[Statement]) -> set[int]:
+    """Cited lines that only switch a block on or off (``remote-console state enabled``)."""
+    by_line = {s.line: s for s in statements}
+    return {n for n in candidate.lines if n in by_line and by_line[n].scope_path
+            and len(candidate.lines) > 1 and _is_state(by_line[n])}
+
+
+def _is_state(s: Statement) -> bool:
+    return s.polarity is not None and {t for t in s.key_tokens if t != s.scope_path[-1]} <= L.STATE_WORDS
 
 
 # ── token helpers ───────────────────────────────────────────────────────────
@@ -77,9 +94,7 @@ def _polarity(s: Statement, statements: list[Statement]) -> tuple[Optional[bool]
         return s.polarity, [s.line]
     if not s.scope_path:
         return None, []
-    prefix = s.scope_path[-1]
-    states = [o for o in statements if (o.scope_path, o.block) == (s.scope_path, s.block) and o.polarity is not None
-              and {t for t in o.key_tokens if t != prefix} <= L.STATE_WORDS]
+    states = [o for o in statements if (o.scope_path, o.block) == (s.scope_path, s.block) and _is_state(o)]
     if len({o.polarity for o in states}) != 1:
         return None, []
     return states[0].polarity, sorted({s.line, *(o.line for o in states)})
@@ -284,7 +299,8 @@ _EXTRACTORS = (
 
 # ── combination ─────────────────────────────────────────────────────────────
 
-def _combine(candidates: list[_Candidate], raw_lines: list[str]) -> list[SecurityFact]:
+def combine(candidates: list[_Candidate], raw_lines: list[str],
+            assurance: Assurance = Assurance.HEURISTIC) -> list[SecurityFact]:
     groups: dict[tuple, list[_Candidate]] = {}
     for c in candidates:
         groups.setdefault((c.predicate, c.subject, c.scope), []).append(c)
@@ -302,7 +318,7 @@ def _combine(candidates: list[_Candidate], raw_lines: list[str]) -> list[Securit
             value, unit = None, None
             provenance = f"Conflicting statements on lines {', '.join(map(str, lines))}"
         facts.append(SecurityFact(
-            predicate, value, Assurance.HEURISTIC,
+            predicate, value, assurance,
             Evidence(line_numbers=lines, text=[raw_lines[n - 1] for n in lines]),
             subject=subject, scope=scope, unit=unit, provenance=provenance,
         ))

@@ -28,11 +28,14 @@ from typing import Callable, Optional
 from app.adaptive.interpreter import _make_unavailable_result, interpret_lines
 from app.adaptive.mapper import AdaptiveMapper
 from app.adaptive.matcher import (
+    EXTRACTION_RECOGNIZER,
     MATCH_AMBIGUOUS,
     MATCH_RELIABLE,
     LearnedMappingMatcher,
     MatchOutcome,
+    PatternError,
     SimilarMapping,
+    match_recognizer,
     normalize_line,
 )
 from app.ai.client import is_available
@@ -92,7 +95,7 @@ class AdaptiveService:
         outcome = AdaptiveOutcome()
         outcome.ai_available = bool(use_ai and self._safe_ai_available())
 
-        matcher, rejected_keys = self._load_knowledge()
+        matcher, rejected_keys, recognizers = self._load_knowledge()
         records: dict[int, AIFieldMapping] = {}
         unresolved: list[UnrecognizedLine] = []
 
@@ -100,6 +103,8 @@ class AdaptiveService:
             if normalize_line(line.raw_line) in rejected_keys:
                 records[line.line_number] = self.mapper.rejected_record(line)
                 continue
+            if self._recognized(line.raw_line, recognizers):
+                continue  # answered by a confirmed recognizer (facts/recognizers.py): no AI, no review
 
             match = matcher.match_line(line.raw_line) if matcher else MatchOutcome(status="none")
             if match.candidates:
@@ -141,13 +146,25 @@ class AdaptiveService:
             logger.warning("AI availability check failed: %s", e)
             return False
 
-    def _load_knowledge(self) -> tuple[Optional[LearnedMappingMatcher], set[str]]:
+    def _load_knowledge(self) -> tuple[Optional[LearnedMappingMatcher], set[str], list]:
         """Load learned mappings once per config; a DB failure means 'no knowledge'."""
         try:
-            return LearnedMappingMatcher(self.repository), self.repository.rejected_line_keys()
+            recognizers = [m for m in self.repository.list_mappings()
+                           if m.confirmed and m.extraction_method == EXTRACTION_RECOGNIZER]
+            return LearnedMappingMatcher(self.repository), self.repository.rejected_line_keys(), recognizers
         except Exception as e:
             logger.warning("Learned mapping store unavailable — continuing without it: %s", e)
-            return None, set()
+            return None, set(), []
+
+    @staticmethod
+    def _recognized(raw_line: str, recognizers: list) -> bool:
+        for recognizer in recognizers:
+            try:
+                if match_recognizer(recognizer.command_pattern, raw_line):
+                    return True
+            except PatternError:
+                continue
+        return False
 
     def _interpret(self, lines: list[UnrecognizedLine], outcome: AdaptiveOutcome) -> list[InterpretationResult]:
         if not outcome.ai_available:

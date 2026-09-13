@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, Check, ChevronDown, ChevronRight, Loader, Pencil, X } from 'lucide-react';
 import { apiClient } from '../api/client';
 import { validateInterpretation } from '../utils/adaptiveValidation';
+import RecognizerQueue from './RecognizerQueue';
 
 const inputStyle = {
   width: '100%',
@@ -458,6 +459,8 @@ export default function AdaptiveTraining({ scanResult, onScanUpdated }) {
         </div>
       )}
 
+      <RecognizerQueue scanId={scanId} onScanUpdated={onScanUpdated} />
+
       {message && <div style={{ fontSize: '0.8125rem', color: 'var(--success)' }}>{message}</div>}
       {loadError && <div style={{ fontSize: '0.8125rem', color: 'var(--critical)' }}>Error: {loadError}</div>}
 
@@ -493,7 +496,7 @@ export default function AdaptiveTraining({ scanResult, onScanUpdated }) {
       {mappings.length > 0 && (
         <>
           <div className="section-header" style={{ marginTop: '1rem' }}>
-            <span>Learned Mappings</span>
+            <span>Learned Mappings &amp; Recognizers</span>
             <span>{mappings.length} Active</span>
           </div>
           <div className="data-table-container">
@@ -512,8 +515,8 @@ export default function AdaptiveTraining({ scanResult, onScanUpdated }) {
                   <tr key={m.id}>
                     <td className="mono">{m.command_pattern}</td>
                     <td className="mono" style={{ color: 'var(--text-secondary)' }}>
-                      {m.normalized_field}
-                      {m.extraction_method === 'constant' ? ` = ${m.constant_value}` : ''}
+                      {m.normalized_field || `${m.predicate}${m.subject ? ` (${m.subject})` : ''}`}
+                      {['constant', 'recognizer'].includes(m.extraction_method) && m.constant_value ? ` = ${m.constant_value}` : ''}
                     </td>
                     <td style={{ color: 'var(--text-secondary)' }}>{m.concept}</td>
                     <td style={{ color: 'var(--text-secondary)' }}>{m.vendor || 'any'}</td>
