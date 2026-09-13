@@ -1,9 +1,11 @@
 // Heuristic / AI verdicts: shown with their evidence, never scored until confirmed.
+// AI verdicts arrive as status "unknown" with the AI's proposed_status.
 export const PROVISIONAL_ASSURANCE = new Set(['heuristic', 'ai_verified']);
 const LABELS = { fail: 'Suspected FAIL', pass: 'Probable PASS' };
+const verdict = (r) => r.proposed_status || r.status;
 
 export default function ProvisionalResults({ results = [] }) {
-  const provisional = results.filter((r) => PROVISIONAL_ASSURANCE.has(r.assurance) && LABELS[r.status]);
+  const provisional = results.filter((r) => PROVISIONAL_ASSURANCE.has(r.assurance) && LABELS[verdict(r)]);
   if (provisional.length === 0) return null;
 
   return (
@@ -26,7 +28,7 @@ export default function ProvisionalResults({ results = [] }) {
             {provisional.map((r, i) => (
               <tr key={`${r.config_index}-${r.control_id}-${i}`}>
                 <td>
-                  <span className={`badge ${r.status === 'fail' ? r.severity : 'neutral'}`}>{LABELS[r.status]}</span>
+                  <span className={`badge ${verdict(r) === 'fail' ? r.severity : 'neutral'}`}>{LABELS[verdict(r)]}</span>
                 </td>
                 <td>
                   <div className="finding-title-cell">

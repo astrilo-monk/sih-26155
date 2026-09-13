@@ -20,7 +20,9 @@ from __future__ import annotations
 
 from typing import Any, Iterable
 
-from app.facts.predicates import IDLE_TIMEOUT, LOGIN_BANNER, SOURCE_ROUTING, SSH_VERSION, SecurityFact
+from app.facts.predicates import (
+    IDLE_TIMEOUT, LOGIN_BANNER, NOT_SET, SNMP_COMMUNITY, SOURCE_ROUTING, SSH_VERSION, SecurityFact,
+)
 from app.models.normalized import Vendor
 from app.models.results import Assurance
 
@@ -30,6 +32,9 @@ DEFAULTS: dict[tuple[Vendor, str], tuple[Any, str | None, str]] = {
     (Vendor.FORTINET, SSH_VERSION): (2, None, "FortiOS default 'set admin-ssh-v1 disable'"),
     (Vendor.FORTINET, LOGIN_BANNER): (False, None, "FortiOS default 'set pre-login-banner disable'"),
     (Vendor.FORTINET, SOURCE_ROUTING): (False, None, "FortiOS default 'set ip-src-routing disable'"),
+    # No community configured: SNMPv1/v2c cannot be reached with a community string at all
+    (Vendor.CISCO_IOS, SNMP_COMMUNITY): (NOT_SET, None, "IOS default: no 'snmp-server community' is configured"),
+    (Vendor.FORTINET, SNMP_COMMUNITY): (NOT_SET, None, "FortiOS default: no 'config system snmp community' entry"),
 }
 
 

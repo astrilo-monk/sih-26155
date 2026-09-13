@@ -121,6 +121,8 @@ def source_restricted(fact, facts, vendor):
 
 def snmp_community(fact, facts, vendor):
     value = fact.value
+    if value is NOT_SET:
+        return _pass("No SNMP community is configured")
     if not isinstance(value, dict):
         return _unknown(fact, "An SNMP community was found but could not be read")
     is_default = str(value["name"]).lower() in DEFAULT_SNMP_COMMUNITIES

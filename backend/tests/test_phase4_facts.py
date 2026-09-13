@@ -174,8 +174,9 @@ def test_mapped_telnet_on_an_unknown_vendor_is_evaluated():
     config.ai_mappings.append(_applied("management.telnet_enabled", "true", 2, "ai_auto_mapped"))
 
     mgmt001 = [r for r in evaluate_controls(config) if r.control_id == "MGMT-001"]
-    assert [(r.status, r.assurance, r.evidence.line_numbers) for r in mgmt001] == [
-        (Status.FAIL, Assurance.AI_VERIFIED, [2]),
+    # AI verdicts are proposals (Phase 7): UNKNOWN with the proposed status
+    assert [(r.status, r.proposed_status, r.assurance, r.evidence.line_numbers) for r in mgmt001] == [
+        (Status.UNKNOWN, Status.FAIL, Assurance.AI_VERIFIED, [2]),
     ]
     # AI verdicts are provisional: never scored
     assert calculate_posture([evaluate_controls(config)]).posture is None

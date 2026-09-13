@@ -12,6 +12,7 @@ analysis. This is the main entry point for the security audit workflow.
 """
 
 from __future__ import annotations
+import logging
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -36,6 +37,7 @@ from app.api.schemas import (
     ControlResultSchema,
     EvidenceSchema,
 )
+from app import config as app_config
 from app.config import settings
 from app.adaptive import capture_unrecognized_lines
 from app.adaptive.interpreter import interpret_lines
@@ -43,9 +45,11 @@ from app.adaptive.mapper import REVIEWABLE_SOURCES, determine_tier
 from app.adaptive.vendor import EVIDENCE_CONFLICTING, EVIDENCE_IDENTIFIED, assess_vendor_evidence
 from app.adaptive.service import AdaptiveService
 from app.ai.client import is_available
+from app.ai.judge import Budget, judge_config
 
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # Keep scan results in memory for the demo.
 # A real product would use a database.
@@ -254,6 +258,8 @@ def _build_adaptive_info(
         hostname=config.device.hostname,
         vendor=_vendor_str(config),
         ai_called=run.get("ai_called", False),
+        ai_calls=run.get("ai_calls", 0),
+        ai_cache_hits=run.get("ai_cache_hits", 0),
         learned_matches=sum(1 for m in config.ai_mappings if m.source == "learned_mapping"),
         pending_review=pending,
         score_provisional=bool(reasons),
@@ -376,15 +382,16 @@ async def scan_configs(files: list[UploadFile] = File(...)):
     Upload one or more config files for security analysis.
     Returns findings, score, and device info.
 
-    Unknown-vendor configs enter the adaptive pipeline: confirmed learned
-    mappings are applied first, then ONE batched AI request interprets the
-    remaining security-relevant lines, and the AdaptiveMapper applies only
-    validated HIGH-confidence values. The deterministic compliance engine then
-    evaluates the enriched config. If AI is unavailable and nothing could be
-    normalized, the scan degrades gracefully to display-only results.
+    Unknown-vendor configs get recognizer, mapping and heuristic facts; then,
+    when AI is available, the AI judge (``app.ai.judge``) — the only AI path for
+    them — reads only the scopes of controls still UNKNOWN or NOT_CONFIGURED,
+    within a per-scan call budget and a cache, and adds verified provisional
+    facts. If AI is unavailable and nothing could be read, the scan degrades
+    gracefully to display-only results.
 
     Known-vendor configs use their parsers; confirmed learned mappings are
-    applied to lines those parsers do not understand.
+    applied to lines those parsers do not understand. The legacy interpreter
+    (``adaptive_ai_for_known_vendors``, off by default) only fills the review queue.
     """
     if not files:
         raise HTTPException(400, "No files uploaded")
@@ -420,12 +427,13 @@ async def scan_configs(files: list[UploadFile] = File(...)):
             # opinions are reported as evidence in the adaptive info instead.
             had_unknown_vendor = True
             normalized = _process_unknown_vendor(raw_config, file.filename)
-            outcome = service.process(normalized, use_ai=True)
-            had_ai_available = had_ai_available or outcome.ai_available
+            # learned mappings and recognizers only: the AI judge below is the only AI for unknown vendors
+            outcome = service.process(normalized, use_ai=False, report_unresolved=False)
         else:
             normalized = identification.config
             capture_unrecognized_lines(normalized)
-            use_ai = settings.adaptive_ai_for_known_vendors
+            # LEGACY, off by default: interpretations only reach the review queue (never applied without an admin)
+            use_ai = app_config.settings.adaptive_ai_for_known_vendors
             outcome = service.process(normalized, use_ai=use_ai, report_unresolved=use_ai)
 
         run = None
@@ -439,8 +447,24 @@ async def scan_configs(files: list[UploadFile] = File(...)):
         configs.append(normalized)
         adaptive_runs.append(run)
 
+    # settings read at call time: tests (and a config reload) replace the settings object
+    if had_unknown_vendor and is_available():
+        had_ai_available = True
+        budget = Budget(app_config.settings.ai_judge_max_calls_per_scan)
+        for cfg, run in zip(configs, adaptive_runs):
+            if cfg.device.vendor != Vendor.UNKNOWN:
+                continue
+            calls, hits = budget.calls, budget.cache_hits
+            try:
+                judge_config(cfg, evaluate_controls(cfg), budget)
+            except Exception as e:  # the AI is an escalation: a judge failure never fails the scan
+                logger.warning("AI judge failed: %s", e)
+                cfg.ai_facts = []
+            run.update(ai_available=True, ai_called=run["ai_called"] or budget.calls > calls,
+                       ai_calls=budget.calls - calls, ai_cache_hits=budget.cache_hits - hits)
+
     scan_id = str(uuid.uuid4())
-    anything_applied = any(m.applied for cfg in configs for m in cfg.ai_mappings) or any(
+    anything_applied =any(m.applied for cfg in configs for m in cfg.ai_mappings) or any(
         facts_from_config(cfg) for cfg in configs if cfg.device.vendor == Vendor.UNKNOWN
     )
 

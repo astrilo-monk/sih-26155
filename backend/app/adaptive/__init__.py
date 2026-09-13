@@ -11,7 +11,7 @@ Provides vendor-agnostic configuration parsing capabilities:
 
 from app.adaptive.relevance import is_security_relevant, filter_security_relevant, get_context_lines
 from app.adaptive.capture import capture_unrecognized_lines
-from app.adaptive.interpreter import interpret_lines, interpret_config
+from app.adaptive.interpreter import interpret_lines
 from app.adaptive.mapper import (
     ConfidenceTier,
     HIGH_THRESHOLD,
@@ -35,7 +35,6 @@ __all__ = [
     "capture_unrecognized_lines",
     # Phase 2
     "interpret_lines",
-    "interpret_config",
     # Phase 3
     "ConfidenceTier",
     "HIGH_THRESHOLD",

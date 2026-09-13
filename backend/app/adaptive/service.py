@@ -121,9 +121,11 @@ class AdaptiveService:
             outcome.interpretations = self._interpret(unresolved, outcome)
             for interp in outcome.interpretations:
                 similar = outcome.candidates.get(interp.line_number, [])
+                # an AI interpretation is a proposal: reviewed, never written to the config without an admin
                 records[interp.line_number] = self.mapper.process_interpretation(
                     config, interp,
                     learned_candidate_fields={c.mapping.normalized_field for c in similar},
+                    auto_apply=False,
                 )
 
         outcome.records = [records[n] for n in sorted(records)]

@@ -12,6 +12,11 @@ brace hierarchies, ``config``/``edit`` blocks and slash-path ``key=value``
 commands. None of them is special-cased anywhere in the application; the
 knowledge tables below only play the role of the external AI model.
 
+Phase 7: this pipeline is the legacy interpreter, reachable in production only for confirmed vendors behind
+``adaptive_ai_for_known_vendors`` (off by default), where ``AdaptiveService`` never applies an interpretation
+without an administrator. Its interpreter and mapper safety is tested here as units (``interpret_and_map``);
+unknown-vendor scans no longer call it.
+
 Groq is never called: the transport (``request_structured``) or the
 interpreter is replaced by fakes. Set ``NETAUDIT_LIVE_AI=1`` to additionally
 run the live repeatability check against the real API.
@@ -39,6 +44,7 @@ from app.adaptive.interpreter import (
     interpret_lines,
 )
 from app.adaptive.mapper import line_polarity, map_interpretations
+from app.analysis.engine import analyze
 from app.adaptive.service import AdaptiveService
 from app.adaptive.vendor import assess_vendor_evidence, normalize_vendor_name
 from app.ai import client as ai_client
@@ -49,7 +55,6 @@ from app.ai.interpretation_schemas import (
     InterpretationResult,
     InterpretationStatus,
 )
-from app.api.routes.scan import get_scan_store
 from app.db.mappings import LearnedMapping, MappingRepository
 from app.main import app
 from app.models.field_catalog import FIELD_REGISTRY, NORMALIZED_FIELD_PATHS, SETTABLE_FIELDS
@@ -309,7 +314,7 @@ def client():
 
 
 def _scan(client, text, responder, name="device.cfg"):
-    """Scan through the REAL interpreter with a fake Groq transport."""
+    """Scan an unknown-vendor config with a fake legacy Groq transport (which it must never call)."""
     transport = MagicMock(side_effect=responder)
     with patch("app.adaptive.interpreter.request_structured", transport), \
          patch("app.adaptive.interpreter.is_available", return_value=True), \
@@ -329,21 +334,27 @@ def _config(text: str) -> NormalizedConfig:
     return cfg
 
 
+def interpret_and_map(text: str, responder):
+    """The REAL legacy interpreter with a fake Groq transport, then the mapper (auto-apply as a unit)."""
+    cfg = _config(text)
+    transport = MagicMock(side_effect=responder)
+    with patch("app.adaptive.interpreter.request_structured", transport), \
+         patch("app.adaptive.interpreter.is_available", return_value=True):
+        records = map_interpretations(cfg, interpret_lines(cfg.unrecognized_lines))
+    return cfg, records, transport
+
+
 def _value(cfg: NormalizedConfig, path: str):
     info = FIELD_REGISTRY[path]
     return getattr(info.get_parent(cfg), info.attr_name)
 
 
-def _records(scan) -> dict[int, dict]:
-    return {m["line_number"]: m for m in scan["adaptive"]["ai_mappings"]}
+def _record_for(records: list[AIFieldMapping], fragment: str) -> AIFieldMapping:
+    return next(m for m in records if fragment in m.raw_line)
 
 
-def _record_for(scan, fragment: str) -> dict:
-    return next(m for m in scan["adaptive"]["ai_mappings"] if fragment in m["raw_line"])
-
-
-def _rule_ids(scan) -> set[str]:
-    return {f["rule_id"] for f in scan["findings"]}
+def _rule_ids(result) -> set[str]:
+    return {f.rule_id for f in result.findings}
 
 
 def _lines(*texts: str) -> list[UnrecognizedLine]:
@@ -356,90 +367,86 @@ def _lines(*texts: str) -> list[UnrecognizedLine]:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @pytest.mark.parametrize("dialect", list(DIALECTS))
-def test_dialect_high_confidence_populates_normalized_config(client, dialect):
+def test_dialect_high_confidence_populates_normalized_config(dialect):
     text, vendor, expected = DIALECTS[dialect]
     assert detect_vendor(text) == Vendor.UNKNOWN
 
-    scan, transport = _scan(client, text, make_responder(dialect, vendor=vendor))
-    cfg = get_scan_store()[scan["scan_id"]]["configs"][0]
+    cfg, records, transport = interpret_and_map(text, make_responder(dialect, vendor=vendor))
 
     assert transport.call_count >= 1
     for path, value in expected.items():
         assert _value(cfg, path) == value, path
 
-    applied = [m for m in scan["adaptive"]["ai_mappings"] if m["source"] == "ai_auto_mapped"]
+    applied = [m for m in records if m.source == "ai_auto_mapped"]
     assert len(applied) >= len(expected)
-    assert all(m["normalized_field"] in FIELD_REGISTRY for m in applied)
-    assert all(m["status"] != "ai_unavailable" for m in scan["adaptive"]["ai_mappings"])
+    assert all(m.normalized_field in FIELD_REGISTRY for m in applied)
+    assert all(m.status != "ai_unavailable" for m in records)
 
     # The vendor is never set from AI output, whatever the evidence says
-    assert scan["devices"][0]["vendor"] == "unknown"
+    assert cfg.device.vendor == Vendor.UNKNOWN
     # Absence never fails on an unidentified vendor (Phase 1c). Every control reads
-    # the applied values (Phase 4), so every dialect is assessed, and AI-mapped
-    # verdicts stay provisional (lexicon heuristics may answer controls the AI did not, Phase 5)
-    assert "LOG-001" not in _rule_ids(scan)
-    assert scan["score"] is not None
-    assert all(r["assurance"] in ("ai_verified", "heuristic") for r in scan["results"] if r["status"] in ("pass", "fail"))
+    # the applied values (Phase 4), but AI-mapped verdicts are proposals (UNKNOWN, Phase 7):
+    # never scored or assessed (lexicon heuristics may answer controls the AI did not, Phase 5)
+    result = analyze(cfg)
+    assert "LOG-001" not in _rule_ids(result)
+    assert result.score is None and result.devices[0]["assessed"] is False
+    results = result.device_results[0]
+    assert all(r.assurance.value == "heuristic" for r in results if r.status.value in ("pass", "fail"))
+    assert any(r.assurance and r.assurance.value == "ai_verified" and r.status.value == "unknown" and r.proposed_status
+               for r in results)
 
 
-def test_unsupported_structures_go_to_review_not_to_config(client):
-    scan, _ = _scan(client, FLAT_SET, make_responder("flat"))
+def test_unsupported_structures_go_to_review_not_to_config():
+    _, records, _ = interpret_and_map(FLAT_SET, make_responder("flat"))
     for fragment in ("rulebase security rules", "update-server", "permitted-ip"):
-        record = _record_for(scan, fragment)
-        assert record["source"] in ("needs_review", "needs_training")
-        assert record["normalized_field"] == "unknown"
+        record = _record_for(records, fragment)
+        assert record.source in ("needs_review", "needs_training")
+        assert record.normalized_field == "unknown"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Regression — the Palo Alto screenshot, stated generically
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def test_regression_unknown_vendor_does_not_downgrade_valid_syslog_and_ntp(client):
+def test_regression_unknown_vendor_does_not_downgrade_valid_syslog_and_ntp():
     """Valid syslog/NTP syntax must not become an unusable LOW-confidence
     mapping merely because the vendor is unknown."""
-    scan, _ = _scan(client, FLAT_SET, make_responder("flat", vendor="unknown"))
+    cfg, records, _ = interpret_and_map(FLAT_SET, make_responder("flat", vendor="unknown"))
 
     for fragment in ("syslog-server", "ntp-servers"):
-        records = [m for m in scan["adaptive"]["ai_mappings"] if fragment in m["raw_line"]]
-        assert len(records) == 2
-        for record in records:
-            assert record["source"] == "ai_auto_mapped"
-            assert record["confidence_tier"] == "high"
-            assert record["final_value"]
+        matching = [m for m in records if fragment in m.raw_line]
+        assert len(matching) == 2
+        for record in matching:
+            assert record.source == "ai_auto_mapped"
+            assert record.confidence_tier == "high"
+            assert record.final_value
 
-    cfg = get_scan_store()[scan["scan_id"]]["configs"][0]
     assert cfg.logging.remote_hosts == ["10.20.30.40", "10.20.30.41"]
     assert cfg.ntp.servers == ["ntp1.example.com", "ntp2.example.com"]
-    assert "LOG-001" not in _rule_ids(scan)
+    assert "LOG-001" not in _rule_ids(analyze(cfg))
 
     # Naming a vendor changes nothing about the mapping decision
-    named, _ = _scan(client, FLAT_SET, make_responder("flat", vendor="palo_alto"))
-    decisions = lambda s: sorted((m["line_number"], m["source"], m["confidence_tier"]) for m in s["adaptive"]["ai_mappings"])
-    assert decisions(named) == decisions(scan)
+    _, named, _ = interpret_and_map(FLAT_SET, make_responder("flat", vendor="palo_alto"))
+    decisions = lambda rs: sorted((m.line_number, m.source, m.confidence_tier) for m in rs)
+    assert decisions(named) == decisions(records)
 
 
-def test_regression_ai_outage_is_not_reported_as_low_confidence(client):
+def test_regression_ai_outage_is_not_reported_as_low_confidence():
     """The observed failure: every key hit the daily quota and the Training
     tab showed LOW / 30% / "No usable suggestion" for every line."""
-    quota = MagicMock(return_value=StructuredResponse(error="quota_exhausted", detail="tokens per day (TPD)"))
-    scan, transport = _scan(client, FLAT_SET, quota.side_effect or (lambda **kw: quota()))
+    quota = lambda **kw: StructuredResponse(error="quota_exhausted", detail="tokens per day (TPD)")
+    cfg, records, transport = interpret_and_map(FLAT_SET, quota)
 
-    adaptive = scan["adaptive"]
-    captured = len(adaptive["unrecognized_lines"])
+    captured = len(cfg.unrecognized_lines)
     assert captured > MAX_LINES_PER_BATCH                   # more than one chunk…
     assert transport.call_count == 1                        # …but no calls after the quota error
-    assert adaptive["ai_unavailable_lines"] == captured
-    assert any("AI interpretation was unavailable" in r for r in adaptive["provisional_reasons"])
+    assert len(records) == captured
 
-    for record in adaptive["ai_mappings"]:
-        assert record["status"] == "ai_unavailable"
-        assert record["confidence"] == 0.0
-        assert "LOW confidence" not in record["reason"]
-        assert "quota" in record["reasoning"]
-
-    queue = client.get(f"/api/adaptive/scans/{scan['scan_id']}/review").json()
-    assert queue["pending_count"] == captured
-    assert {i["interpretation_status"] for i in queue["items"]} == {"ai_unavailable"}
+    for record in records:
+        assert record.status == "ai_unavailable"
+        assert record.confidence == 0.0
+        assert "LOW confidence" not in record.reason
+        assert "quota" in record.reasoning
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -467,22 +474,22 @@ def test_vocabulary_derives_from_one_catalog(client):
 # 3 + 4 — invalid fields / values are rejected per line
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def test_invented_field_only_affects_its_own_line(client):
+def test_invented_field_only_affects_its_own_line():
     def invent(items):
         for item in items:
             if "disable-ssh" in item["raw_line"]:
                 item["normalized_field"] = "security_policies[].action"
         return items
 
-    scan, _ = _scan(client, FLAT_SET, make_responder("flat", transform=invent))
-    bad = _record_for(scan, "disable-ssh")
-    assert bad["normalized_field"] == "unknown"
-    assert bad["source"] == "needs_review"
-    assert "unsupported field" in bad["reasoning"]
+    _, records, _ = interpret_and_map(FLAT_SET, make_responder("flat", transform=invent))
+    bad = _record_for(records, "disable-ssh")
+    assert bad.normalized_field == "unknown"
+    assert bad.source == "needs_review"
+    assert "unsupported field" in bad.reasoning
 
-    others = [m for m in scan["adaptive"]["ai_mappings"] if "syslog-server" in m["raw_line"]]
-    assert all(m["source"] == "ai_auto_mapped" for m in others)
-    assert all(m["status"] != "ai_unavailable" for m in scan["adaptive"]["ai_mappings"])
+    others = [m for m in records if "syslog-server" in m.raw_line]
+    assert others and all(m.source == "ai_auto_mapped" for m in others)
+    assert all(m.status != "ai_unavailable" for m in records)
 
 
 def test_invalid_values_are_rejected():
@@ -510,7 +517,7 @@ def test_invalid_values_are_rejected():
     assert records[1].confidence_tier == "medium" and "Downgraded" in records[1].reason
 
 
-def test_negation_is_resolved_generically_and_contradictions_are_reviewed(client):
+def test_negation_is_resolved_generically_and_contradictions_are_reviewed():
     assert line_polarity("set deviceconfig system service disable-ssh no") is True
     assert line_polarity("/ip service set telnet disabled=yes") is False
     assert line_polarity("no ip source-route") is False
@@ -523,13 +530,12 @@ def test_negation_is_resolved_generically_and_contradictions_are_reviewed(client
                 item["extracted_value"] = "false"   # literal "no" mistaken for the state
         return items
 
-    scan, _ = _scan(client, FLAT_SET, make_responder("flat", transform=misread))
-    record = _record_for(scan, "disable-ssh")
-    assert record["source"] == "needs_review"
-    assert record["confidence_tier"] == "medium"
-    assert "Downgraded" in record["reason"]
-    cfg = get_scan_store()[scan["scan_id"]]["configs"][0]
-    assert record["line_number"] not in cfg.management.source_lines
+    cfg, records, _ = interpret_and_map(FLAT_SET, make_responder("flat", transform=misread))
+    record = _record_for(records, "disable-ssh")
+    assert record.source == "needs_review"
+    assert record.confidence_tier == "medium"
+    assert "Downgraded" in record.reason
+    assert record.line_number not in cfg.management.source_lines
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -541,11 +547,8 @@ def test_parser_values_are_never_overwritten():
     cfg.management.admin_timeout = 10          # e.g. set by a deterministic parser
     cfg.ntp.servers = ["10.1.1.1"]
 
-    service = AdaptiveService(
-        repository=MappingRepository(), interpreter=make_interpreter("block"), ai_available=lambda: True,
-    )
-    outcome = service.process(cfg)
-    by_line = {r.raw_line.strip(): r for r in outcome.records}
+    records = map_interpretations(cfg, make_interpreter("block")(cfg.unrecognized_lines))
+    by_line = {r.raw_line.strip(): r for r in records}
 
     assert cfg.management.admin_timeout == 10
     assert by_line["idle-timeout 20"].source == "needs_review"
@@ -596,101 +599,69 @@ def test_vendor_evidence_outcomes():
 
 
 @pytest.mark.parametrize("dialect", ["flat", "braces", "slash"])
-def test_vendor_evidence_is_reported_but_device_vendor_stays_unknown(client, dialect):
+def test_vendor_evidence_is_reported_but_device_vendor_stays_unknown(dialect):
     text, vendor, _ = DIALECTS[dialect]
-    scan, _ = _scan(client, text, make_responder(dialect, vendor=vendor, rng=random.Random(7)))
-    evidence = scan["adaptive"]["vendor_evidence"]
-    assert evidence["status"] == "identified"
-    assert evidence["likely_vendor"] == vendor
-    assert scan["devices"][0]["vendor"] == "unknown"
-    assert get_scan_store()[scan["scan_id"]]["configs"][0].device.vendor == Vendor.UNKNOWN
-    # MGMT-* controls evaluate the AI-mapped values, but only provisionally (Phase 4)
-    assert all(r["assurance"] == "ai_verified" for r in scan["results"] if r["status"] == "fail")
+    cfg, records, _ = interpret_and_map(text, make_responder(dialect, vendor=vendor, rng=random.Random(7)))
+    evidence = assess_vendor_evidence(records)
+    assert evidence.status == "identified"
+    assert evidence.likely_vendor == vendor
+    assert cfg.device.vendor == Vendor.UNKNOWN
 
 
-def test_conflicting_vendor_evidence_never_creates_a_vendor(client):
+def test_conflicting_vendor_evidence_never_creates_a_vendor():
     def mixed(items):
         for i, item in enumerate(items):
             item["likely_vendor"] = "juniper" if i % 2 else "fortinet"
         return items
 
-    scan, _ = _scan(client, SLASH_PATH, make_responder("slash", transform=mixed))
-    assert scan["adaptive"]["vendor_evidence"]["status"] == "conflicting"
-    assert scan["devices"][0]["vendor"] == "unknown"
-    assert any("conflicting" in r for r in scan["adaptive"]["provisional_reasons"])
+    cfg, records, _ = interpret_and_map(SLASH_PATH, make_responder("slash", transform=mixed))
+    assert assess_vendor_evidence(records).status == "conflicting"
+    assert cfg.device.vendor == Vendor.UNKNOWN
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 7 — MEDIUM (and evidence-less HIGH) never mutate the config
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def test_medium_confidence_does_not_mutate(client):
-    scan, _ = _scan(client, SLASH_PATH, make_responder("slash", confidence="medium"))
-    cfg = get_scan_store()[scan["scan_id"]]["configs"][0]
-    assert not any(m["source"] == "ai_auto_mapped" for m in scan["adaptive"]["ai_mappings"])
+def test_medium_confidence_does_not_mutate():
+    cfg, records, _ = interpret_and_map(SLASH_PATH, make_responder("slash", confidence="medium"))
+    assert records and not any(m.source == "ai_auto_mapped" for m in records)
     assert cfg.ntp.servers == [] and cfg.logging.remote_hosts == []
     assert cfg.management.ssh_enabled is False
     # Nothing applied: not a FAIL and not a score
-    assert "LOG-001" not in _rule_ids(scan)
-    assert scan["score"] is None and scan["adaptive"]["assessed"] is False
+    result = analyze(cfg)
+    assert "LOG-001" not in _rule_ids(result)
+    assert result.score is None and result.devices[0]["assessed"] is False
 
 
-def test_high_without_cited_evidence_is_capped_at_medium(client):
+def test_high_without_cited_evidence_is_capped_at_medium():
     def no_evidence(items):
         for item in items:
             item["value_evidence"] = None
         return items
 
-    scan, _ = _scan(client, FLAT_SET, make_responder("flat", transform=no_evidence))
-    record = _record_for(scan, "syslog-server 10.20.30.40")
-    assert record["confidence_tier"] == "medium"
-    assert record["source"] == "needs_review"
-    assert get_scan_store()[scan["scan_id"]]["configs"][0].logging.remote_hosts == []
+    cfg, records, _ = interpret_and_map(FLAT_SET, make_responder("flat", transform=no_evidence))
+    record = _record_for(records, "syslog-server 10.20.30.40")
+    assert record.confidence_tier == "medium"
+    assert record.source == "needs_review"
+    assert cfg.logging.remote_hosts == []
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 9 + 10 + 11 — learned knowledge takes precedence over AI
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def test_first_scan_admin_confirmation_second_scan_without_ai(client):
-    first, transport = _scan(client, FLAT_SET, make_responder("flat", confidence="medium"))
-    assert transport.call_count >= 1
-    scan_id = first["scan_id"]
+def test_rejected_lines_bypass_ai():
+    repository = MappingRepository()
+    repository.record_rejection("ntp-server time.example.net", vendor="unknown", reason="cosmetic")
+    cfg = _config(BLOCK_EDIT)
+    interpreter = make_interpreter("block", confidence=ConfidenceLevel.MEDIUM, numeric=0.6)
 
-    queue = client.get(f"/api/adaptive/scans/{scan_id}/review").json()
-    for fragment in ("syslog-server 10.20.30.40", "primary-ntp-server"):
-        item = next(i for i in queue["items"] if fragment in i["raw_line"])
-        resp = client.post(f"/api/adaptive/scans/{scan_id}/review/{item['item_id']}/accept")
-        assert resp.status_code == 200, resp.text
+    outcome = AdaptiveService(repository=repository, interpreter=interpreter, ai_available=lambda: True).process(cfg)
 
-    patterns = {m.command_pattern for m in MappingRepository().list_mappings()}
-    assert "set deviceconfig system syslog-server {value}" in patterns
-    assert "set deviceconfig system ntp-servers primary-ntp-server {value}" in patterns
-
-    second_text = (
-        "set deviceconfig system syslog-server 10.99.0.1\n"
-        "set deviceconfig system ntp-servers primary-ntp-server ntp9.example.org\n"
-    )
-    second, transport2 = _scan(client, second_text, make_responder("flat"))
-    assert transport2.call_count == 0
-    assert second["adaptive"]["ai_called"] is False
-    assert {m["source"] for m in second["adaptive"]["ai_mappings"]} == {"learned_mapping"}
-    cfg = get_scan_store()[second["scan_id"]]["configs"][0]
-    assert cfg.logging.remote_hosts == ["10.99.0.1"]
-    assert cfg.ntp.servers == ["ntp9.example.org"]
-    assert "LOG-001" not in _rule_ids(second)
-
-
-def test_rejected_lines_bypass_ai(client):
-    first, _ = _scan(client, BLOCK_EDIT, make_responder("block", confidence="medium"))
-    queue = client.get(f"/api/adaptive/scans/{first['scan_id']}/review").json()
-    item = next(i for i in queue["items"] if "ntp-server" in i["raw_line"])
-    assert client.post(f"/api/adaptive/scans/{first['scan_id']}/review/{item['item_id']}/reject").status_code == 200
-
-    second, transport = _scan(client, BLOCK_EDIT, make_responder("block"))
-    sent = [text for call in transport.call_args_list for _, text in _targets(call.kwargs["prompt"])]
+    sent = [ln.raw_line for ln in interpreter.call_args.args[0]]
     assert sent and not any("ntp-server" in t for t in sent)
-    assert _record_for(second, "ntp-server")["source"] == "rejected"
+    assert _record_for(outcome.records, "ntp-server").source == "rejected"
 
 
 def test_conflicting_learned_mappings_go_to_review():
@@ -741,8 +712,9 @@ def test_ai_high_that_disagrees_with_similar_confirmed_mapping_goes_to_review():
     cfg = _config(text)
     record = AdaptiveService(repository=repo, interpreter=interpreter_for("logging.remote_hosts"),
                              ai_available=lambda: True).process(cfg).records[0]
-    assert record.source == "ai_auto_mapped"
-    assert cfg.logging.remote_hosts == ["10.20.30.99"]
+    # agreeing with confirmed knowledge is still only a proposal: the service never applies AI output (Phase 7)
+    assert record.source == "needs_review" and "administrator review" in record.reason
+    assert cfg.logging.remote_hosts == []
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -756,24 +728,20 @@ def test_ai_outage_keeps_learned_values_and_scoring(client):
         extraction_method="template_capture", confirmed=True,
     ))
     down = lambda **kw: StructuredResponse(error="request_failed", detail="timeout")
-    scan, _ = _scan(client, FLAT_SET, down)
+    scan, transport = _scan(client, FLAT_SET, down)
 
     assert scan["score"] is not None
-    assert "LOG-001" not in _rule_ids(scan)
+    assert "LOG-001" not in {f["rule_id"] for f in scan["findings"]}
     sources = {m["source"] for m in scan["adaptive"]["ai_mappings"]}
     assert "learned_mapping" in sources
-    unavailable = [m for m in scan["adaptive"]["ai_mappings"] if m["status"] == "ai_unavailable"]
-    assert unavailable and all("failed or timed out" in m["reasoning"] for m in unavailable)
+    # unknown vendors never reach the legacy interpreter: learned values are scored without any AI call
+    transport.assert_not_called()
 
 
-def test_transport_exception_is_contained(client):
+def test_transport_exception_is_contained():
     boom = MagicMock(side_effect=RuntimeError("socket closed"))
-    with patch("app.adaptive.interpreter.request_structured", boom), \
-         patch("app.adaptive.interpreter.is_available", return_value=True), \
-         patch("app.api.routes.scan.is_available", return_value=True):
-        resp = client.post("/api/scan", files=[("files", ("d.cfg", BRACES.encode(), "text/plain"))])
-    assert resp.status_code == 200
-    assert {m["status"] for m in resp.json()["adaptive"]["ai_mappings"]} == {"ai_unavailable"}
+    _, records, _ = interpret_and_map(BRACES, boom)
+    assert records and {m.status for m in records} == {"ai_unavailable"}
 
 
 def test_transient_failure_is_retried_once():
@@ -950,46 +918,46 @@ def test_structural_paths_for_braces_blocks_and_indentation():
     assert all(p == () for line, p in zip(flat, structural_paths(flat)) if line.strip())
 
 
-def test_context_is_sent_but_results_stay_tied_to_the_target_line(client):
-    scan, transport = _scan(client, BRACES, make_responder("braces"))
+def test_context_is_sent_but_results_stay_tied_to_the_target_line():
+    cfg, records, transport = interpret_and_map(BRACES, make_responder("braces"))
     prompt = transport.call_args_list[0].kwargs["prompt"]
 
-    target = next(ln for ln in scan["adaptive"]["unrecognized_lines"] if "protocol-version" in ln["raw_line"])
-    assert target["structural_path"] == ["system", "services", "ssh"]
-    assert f"[TARGET line {target['line_number']}]\nprotocol-version v2;\n  block: system > services > ssh" in prompt
+    target = next(ln for ln in cfg.unrecognized_lines if "protocol-version" in ln.raw_line)
+    assert list(target.structural_path) == ["system", "services", "ssh"]
+    assert f"[TARGET line {target.line_number}]\nprotocol-version v2;\n  block: system > services > ssh" in prompt
     assert "context before:" in prompt
     assert "do not return objects for them" in prompt
-    assert _records(scan)[target["line_number"]]["normalized_field"] == "management.ssh_version"
+    assert {m.line_number: m for m in records}[target.line_number].normalized_field == "management.ssh_version"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 13 — repeated scans are semantically stable
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _semantics(scan):
-    adaptive = scan["adaptive"]
+def _semantics(cfg, records):
+    evidence = assess_vendor_evidence(records)
+    result = analyze(cfg)
     return (
         sorted(
-            (m["line_number"], m["normalized_field"], m["extracted_value"], m["source"],
-             m["final_value"], m["confidence_tier"])
-            for m in adaptive["ai_mappings"]
+            (m.line_number, m.normalized_field, m.extracted_value, m.source, m.final_value, m.confidence_tier)
+            for m in records
         ),
-        (adaptive["vendor_evidence"]["status"], adaptive["vendor_evidence"]["likely_vendor"]),
-        scan["score"],
-        sorted(_rule_ids(scan)),
+        (evidence.status, evidence.likely_vendor),
+        result.score,
+        sorted(_rule_ids(result)),
     )
 
 
 @pytest.mark.parametrize("dialect", list(DIALECTS))
-def test_repeated_scans_are_semantically_consistent(client, dialect):
+def test_repeated_scans_are_semantically_consistent(dialect):
     """Reasoning text, numeric confidence inside the band, vendor spelling and
     item order vary between runs; the normalized outcome must not."""
     text, vendor, _ = DIALECTS[dialect]
-    outcomes = [
-        _semantics(_scan(client, text, make_responder(dialect, vendor=vendor, rng=random.Random(seed)))[0])
-        for seed in range(5)
-    ]
-    assert all(o == outcomes[0] for o in outcomes)
+    outcomes = []
+    for seed in range(5):
+        cfg, records, _ = interpret_and_map(text, make_responder(dialect, vendor=vendor, rng=random.Random(seed)))
+        outcomes.append(_semantics(cfg, records))
+    assert outcomes[0][0] and all(o == outcomes[0] for o in outcomes)
 
 
 @pytest.mark.skipif(not os.environ.get("NETAUDIT_LIVE_AI"), reason="set NETAUDIT_LIVE_AI=1 to call the real Groq API")

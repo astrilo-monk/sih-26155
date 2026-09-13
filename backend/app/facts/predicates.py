@@ -101,3 +101,5 @@ class SecurityFact:
     unit: Optional[str] = None
     # Where the fact came from, or why its value is undetermined
     provenance: str = ""
+    # Set on AI judge facts: only this control may read the fact
+    control_id: Optional[str] = None

@@ -208,19 +208,20 @@ def test_unknown_vendor_without_evidence_is_never_pass_or_fail():
     assert results["LOG-001"].status == Status.NOT_CONFIGURED
 
 
-@pytest.mark.parametrize("source,assurance", [
-    ("learned_mapping", Assurance.CONFIRMED),
-    ("admin_confirmed", Assurance.CONFIRMED),
-    ("ai_auto_mapped", Assurance.AI_VERIFIED),
+@pytest.mark.parametrize("source,assurance,status,proposed", [
+    ("learned_mapping", Assurance.CONFIRMED, Status.PASS, None),
+    ("admin_confirmed", Assurance.CONFIRMED, Status.PASS, None),
+    # an AI verdict is a proposal until a human confirms it (Phase 7)
+    ("ai_auto_mapped", Assurance.AI_VERIFIED, Status.UNKNOWN, Status.PASS),
 ])
-def test_unknown_vendor_decision_carries_the_assurance_of_its_evidence(source, assurance):
+def test_unknown_vendor_decision_carries_the_assurance_of_its_evidence(source, assurance, status, proposed):
     cfg = _unknown_config("audit-stream destination 10.44.60.20\n")
     cfg.logging.remote_hosts.append("10.44.60.20")
     cfg.logging.source_lines.append(1)
     cfg.ai_mappings.append(_applied("logging.remote_hosts", "10.44.60.20", 1, source))
 
     log001 = next(r for r in evaluate_controls(cfg) if r.control_id == "LOG-001")
-    assert log001.status == Status.PASS
+    assert (log001.status, log001.proposed_status) == (status, proposed)
     assert log001.assurance == assurance
     assert log001.evidence.line_numbers == [1]
 
@@ -274,7 +275,7 @@ def test_api_returns_results_alongside_unchanged_findings(fixture):
     assert sum(r["status"] == "fail" for r in results) == data["total_findings"]
     for r in results:
         assert r["config_index"] == 0 and r["question"] and r["title"] and r["reason"]
-        if r["status"] == "pass":
+        if r["status"] == "pass" and r["assurance"] != "default":  # a documented vendor default cites no line
             assert r["evidence"]["line_numbers"] and r["evidence"]["lines"] and r["assurance"] == "parser"
 
 

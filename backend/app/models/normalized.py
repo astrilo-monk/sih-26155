@@ -330,6 +330,10 @@ class NormalizedConfig:
     # is traceable.  Empty when no AI interpretation has been applied.
     ai_mappings: list[AIFieldMapping] = field(default_factory=list)
 
+    # Phase 7: AI_VERIFIED SecurityFacts from the AI judge (app.ai.judge), and why a control stayed unjudged
+    ai_facts: list = field(default_factory=list)
+    ai_notes: dict[str, str] = field(default_factory=dict)
+
     def get_evidence_lines(self, line_numbers: list[int]) -> list[str]:
         """Pull the actual config text for a list of line numbers (1-indexed)."""
         result = []

@@ -62,6 +62,29 @@ SOURCE_ROUTING = frozenset({"source-route", "source-routing", "ip-src-routing", 
 DISCOVERY = frozenset({"cdp", "lldp"})
 BANNER_TYPES = frozenset({"login", "motd", "pre-login", "prelogin"})
 
+# ── related vocabulary (Phase 7 AI judge) ──────────────────────────────────
+# Broader than the extractors: an unfamiliar line naming one of these may state the setting. The AI reads
+# its meaning; the verifier still requires the line's own value (polarity, number with a unit, address).
+SOURCE_RELATED = SOURCE_RESTRICTION | RESTRICTED | frozenset({
+    "allowed", "permitted", "trusted", "allowlist", "whitelist", "access-class", "restrict", "restriction",
+})
+IDLE_RELATED = IDLE | TIMEOUT_KEYWORDS | frozenset({
+    "timeout", "lock", "autolock", "logout", "autologout", "inactive",
+})
+SSH_VERSION_RELATED = VERSION | frozenset({"protocol", "proto", "ver"})
+LOG_RELATED = REMOTE_LOG | frozenset({"logs", "audit", "event", "events", "siem"})
+TIME_RELATED = TIME_SYNC | frozenset({"time", "clock", "time-source", "timesource", "timeserver"})
+AUTH_RELATED = AUTHENTICATED | frozenset({"signed", "trusted", "auth-key", "authentication-key"})
+AAA_RELATED = AAA_SERVERS | CENTRAL | frozenset({"ldap", "remote-auth", "tacacs-plus"})
+BANNER_RELATED = frozenset({"banner", "motd", "pre-login", "prelogin", "login-message", "legal-notice"})
+# A protocol named with one of these is not its management server: ``http-proxy``, ``telnet client``
+NOT_A_SERVER = frozenset({"proxy", "client", "redirect", "forward", "forwarding", "filter", "inspect", "inspection"})
+# Limits, counters and lockouts: a line naming one never states any of the related settings above
+UNRELATED = frozenset({
+    "max", "maximum", "limit", "sessions", "retries", "retry", "attempts", "failed", "failure", "failures",
+    "threshold", "lockout", "quarantine", "count", "rate", "size",
+})
+
 PERMIT = frozenset({"permit", "allow", "accept"})
 # A rule naming any of these is narrower than "all traffic"
 NARROWING = frozenset({"tcp", "udp", "icmp", "sctp", "gre", "esp", "eq", "range", "host", "port", "dst-port",

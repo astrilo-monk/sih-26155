@@ -203,21 +203,23 @@ def _stored_knowledge() -> tuple[list, set[str]]:
 
 # ── review queue and drafting ───────────────────────────────────────────────
 
-def provisional_lines(raw_lines: list[str], needs: Iterable[str]) -> list[tuple[int, _Candidate]]:
-    """Heuristic statements an administrator can confirm for a control, by line."""
+def provisional_lines(raw_lines: list[str], needs: Iterable[str],
+                      extra: Iterable[_Candidate] = ()) -> list[tuple[int, _Candidate]]:
+    """Heuristic statements (and ``extra``: verified AI judge proposals) an administrator can confirm, by line."""
     _, skip = recognizer_facts(raw_lines)
     statements = tokenize(raw_lines)
     found: dict[int, _Candidate] = {}
-    for c in heuristic_candidates(raw_lines, skip):
+    for c in [*heuristic_candidates(raw_lines, skip), *extra]:
         if c.predicate in needs and c.predicate in RECOGNIZER_PREDICATES:
-            for n in set(c.lines) - state_lines(c, statements):
+            for n in set(c.lines) - state_lines(c, statements) - skip:
                 found.setdefault(n, c)
     return sorted(found.items(), key=lambda item: item[0])
 
 
-def draft_recognizer(raw_lines: list[str], needs: Iterable[str], line_number: int) -> dict:
+def draft_recognizer(raw_lines: list[str], needs: Iterable[str], line_number: int,
+                     extra: Iterable[_Candidate] = ()) -> dict:
     """Recognizer fields drafted from a provisional line (the admin reviews them before saving)."""
-    candidate = dict(provisional_lines(raw_lines, needs)).get(line_number)
+    candidate = dict(provisional_lines(raw_lines, needs, extra)).get(line_number)
     if candidate is None:
         raise LookupError(f"Line {line_number} holds no provisional statement for this control")
     statement = next(s for s in tokenize(raw_lines) if s.line == line_number)

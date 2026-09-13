@@ -10,11 +10,11 @@ The main idea of NetAuditAI is to keep vendor-specific parsing separate from sec
 4. **Normalize**: **(The most important step)** Vendor-specific concepts are mapped into the generic `NormalizedConfig` model.
 5. **Adapt**: Captured lines and unknown-vendor configs go through the adaptive layer:
    * relevance filter
-   * confirmed learned mappings
-   * AI interpretation into a fixed field vocabulary
-   * evidence validation and confidence tiers
+   * confirmed learned mappings and recognizers
+   * lexicon heuristics (unknown vendors, provisional)
+   * the AI judge for controls still UNKNOWN or NOT_CONFIGURED (unknown vendors; provisional until confirmed)
 
-   Uncertain results wait in the Training queue.
+   Provisional results wait in the Training queue. The legacy line interpreter (confirmed vendors, off by default) only adds review items.
 6. **Analyze**: The deterministic rules engine runs against the *normalized* model, not the raw configs.
 7. **Score**: A security score is calculated from the findings. Scores that depend on adaptively normalized values are flagged provisional.
 8. **Remediation**: A deterministic vendor-specific command template is selected for a finding.

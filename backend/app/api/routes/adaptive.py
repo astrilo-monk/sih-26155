@@ -78,6 +78,7 @@ from app.db.mappings import (
     MappingValidationError,
     validate_mapping,
 )
+from app.facts.heuristics import _Candidate
 from app.facts.recognizers import draft_recognizer, provisional_lines
 from app.models.normalized import AIFieldMapping, NormalizedConfig, Vendor
 from app.models.results import DECISIVE_ASSURANCE, ControlResult, Status
@@ -379,6 +380,12 @@ def _unknown_config(entry: dict, config_index: int) -> NormalizedConfig:
     return config
 
 
+def _ai_candidates(config: NormalizedConfig, control_id: str) -> list[_Candidate]:
+    """Verified AI judge proposals for this control: lines an administrator can confirm, like heuristics."""
+    return [_Candidate(f.predicate, f.value, f.evidence.line_numbers, f.subject, f.scope, f.unit)
+            for f in config.ai_facts if f.value is not None and f.control_id == control_id]
+
+
 def _control(control_id: str):
     control = CONTROLS.get(control_id)
     if control is None:
@@ -413,7 +420,8 @@ def _draft(scan_id: str, body: RecognizerDraftRequest) -> tuple[LearnedMapping, 
     config = _unknown_config(entry, body.config_index)
     control = _control(body.control_id)
     try:
-        fields = draft_recognizer(config.raw_lines, control.needs, body.line_number)
+        fields = draft_recognizer(config.raw_lines, control.needs, body.line_number,
+                                  _ai_candidates(config, control.control_id))
     except LookupError as e:
         raise HTTPException(404, str(e))
 
@@ -453,7 +461,8 @@ async def list_provisional_results(scan_id: str):
             if (result.control_id in seen or result.assurance in DECISIVE_ASSURANCE
                     or result.status not in (Status.PASS, Status.FAIL, Status.UNKNOWN)):
                 continue
-            lines = provisional_lines(config.raw_lines, CONTROLS[result.control_id].needs)
+            lines = provisional_lines(config.raw_lines, CONTROLS[result.control_id].needs,
+                                      _ai_candidates(config, result.control_id))
             if not lines:
                 continue
             seen.add(result.control_id)
@@ -499,7 +508,8 @@ async def reject_provisional_line(scan_id: str, body: RejectProvisionalRequest):
     """The heuristic misread this line: remember it as reviewed-but-unmapped (no heuristic, no AI)."""
     entry = _get_entry(scan_id)
     config = _unknown_config(entry, body.config_index)
-    if body.line_number not in dict(provisional_lines(config.raw_lines, _control(body.control_id).needs)):
+    if body.line_number not in dict(provisional_lines(config.raw_lines, _control(body.control_id).needs,
+                                                      _ai_candidates(config, body.control_id))):
         raise HTTPException(404, f"Line {body.line_number} holds no provisional statement for this control")
     _repository().record_rejection(config.raw_lines[body.line_number - 1], vendor=config.device.vendor.value,
                                    reason=body.reason or "Heuristic rejected by administrator")

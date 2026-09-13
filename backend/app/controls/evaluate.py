@@ -51,7 +51,8 @@ def evaluate_controls(config: NormalizedConfig, extra_recognizers=()) -> list[Co
 
 def evaluate_control(control: Control, facts: list[SecurityFact], config: NormalizedConfig) -> list[ControlResult]:
     vendor = config.device.vendor
-    needed = [f for f in facts if f.predicate in control.needs]
+    # a fact bound to one control (an AI judge answer) is never read by another
+    needed = [f for f in facts if f.predicate in control.needs and f.control_id in (None, control.control_id)]
     if not needed and vendor in PARSER_COVERAGE:
         unread = sorted(set(control.needs) - PARSER_COVERAGE[vendor])
         if unread:
@@ -75,6 +76,13 @@ def evaluate_control(control: Control, facts: list[SecurityFact], config: Normal
             continue
         cited = [f for fact, o in group for f in (fact, *o.also)]
         reason = "; ".join(dict.fromkeys(o.reason for _, o in group))
+        ai_pass = [(fact, o) for fact, o in judged if o.status == Status.PASS and fact.control_id == control.control_id]
+        if status == Status.UNKNOWN and ai_pass:
+            # The AI judge answered what the lexicon could not decide: still UNKNOWN, a PASS awaiting confirmation
+            cited += [f for fact, o in ai_pass for f in (fact, *o.also)]
+            reason = (f"AI proposes PASS, awaiting confirmation: {'; '.join(dict.fromkeys(o.reason for _, o in ai_pass))}"
+                      f" (undecided: {reason})")
+            return [_result(config, control, status, reason, cited, assured=False, proposed=Status.PASS)]
         if status == Status.PASS:
             if any(f.assurance == Assurance.DEFAULT for f in cited):
                 reason += f" ({'; '.join(dict.fromkeys(f.provenance for f in cited if f.assurance == Assurance.DEFAULT))})"
@@ -88,18 +96,26 @@ def evaluate_control(control: Control, facts: list[SecurityFact], config: Normal
     return [_result(config, control, Status.NOT_CONFIGURED, "No relevant setting was found in this configuration")]
 
 
-def _result(config, control, status, reason, facts=(), scope=None, failure=None, assured=True) -> ControlResult:
+def _result(config, control, status, reason, facts=(), scope=None, failure=None, assured=True,
+            proposed=None) -> ControlResult:
     facts = list(facts)
     numbers = list(dict.fromkeys(n for f in facts for n in f.evidence.line_numbers))
     raw = config.raw_lines
     decided = status in (Status.PASS, Status.FAIL)
+    note = config.ai_notes.get(control.control_id) if status == Status.UNKNOWN and not proposed else None
+    assurance = Assurance.AI_VERIFIED if proposed else weakest(f.assurance for f in facts) if decided and assured else None
+    if assurance == Assurance.AI_VERIFIED and decided:
+        # An AI verdict is a proposal: undecided (never scored, counted or remediated) until a human confirms it
+        status, proposed, failure = Status.UNKNOWN, status, None
+        reason = f"AI proposes {proposed.value.upper()}, awaiting confirmation: {reason}"
     return ControlResult(
         control_id=control.control_id,
         status=status,
-        reason=reason,
+        reason=f"{reason} (AI: {note})" if note else reason,
         device_hostname=config.device.hostname,
         vendor=config.device.vendor.value,
-        assurance=weakest(f.assurance for f in facts) if decided and assured else None,
+        assurance=assurance,
+        proposed_status=proposed,
         scope=scope,
         evidence=Evidence(line_numbers=numbers, text=[raw[n - 1] for n in numbers]),
         facts=facts,

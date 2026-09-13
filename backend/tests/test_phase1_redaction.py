@@ -237,18 +237,25 @@ def test_context_without_block_paths_is_redacted_conservatively():
     assert "NoPathComm" not in _build_prompt([line])
 
 
-def test_scan_api_sends_no_raw_secret_to_the_ai():
+def test_scan_api_sends_no_raw_secret_to_the_legacy_interpreter(monkeypatch):
+    """The legacy interpreter is reachable only for confirmed vendors, behind adaptive_ai_for_known_vendors."""
+    import app.config as app_config
+
+    monkeypatch.setattr(app_config.settings, "adaptive_ai_for_known_vendors", True)
+    text = (FIXTURES / "cisco_secure.cfg").read_text() + SECRET_CONFIG
     transport = MagicMock(return_value=StructuredResponse(data={"interpretations": []}))
     with patch("app.adaptive.interpreter.request_structured", transport), \
          patch("app.adaptive.interpreter.is_available", return_value=True), \
          patch("app.api.routes.scan.is_available", return_value=True):
-        resp = TestClient(app).post("/api/scan", files=[("files", ("s.cfg", SECRET_CONFIG.encode(), "text/plain"))])
+        resp = TestClient(app).post("/api/scan", files=[("files", ("s.cfg", text.encode(), "text/plain"))])
     assert resp.status_code == 200, resp.text
+    assert resp.json()["devices"][0]["vendor"] == "cisco_ios"
 
     sent = _sent_text(transport)
-    assert transport.call_count >= 1
-    for secret in SECRETS:
-        assert secret not in sent
+    assert transport.call_count >= 1 and "admin-account ops password" in sent
+    # the fixture's own secrets travel on captured lines too
+    for secret in [*SECRETS, "vpnsecret", "StrongAuthKey", "StrongPrivKey", "NTPSecretKey"]:
+        assert secret not in sent, secret
 
 
 @pytest.mark.parametrize("fixture", ["cisco_vulnerable.cfg", "fortinet_vulnerable.cfg"])

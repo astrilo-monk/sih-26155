@@ -34,15 +34,20 @@ class Settings(BaseSettings):
     # SQLite database holding administrator-confirmed adaptive mappings
     adaptive_db_path: Path = _BACKEND_DIR / "data" / "adaptive.db"
 
-    # Send unresolved lines from Cisco/FortiGate configs to the AI as well.
-    # Off by default: known-vendor scans stay deterministic and offline;
-    # confirmed learned mappings are still applied to them.
+    # LEGACY, isolated: send lines the Cisco/FortiGate parsers do not read to the line-by-line interpreter
+    # (app.adaptive.interpreter). The Phase 7 judge never escalates confirmed vendors, so it cannot replace this
+    # yet. Off by default; when on, every interpretation goes to the review queue and is never applied without
+    # an administrator (AdaptiveService), so it cannot change any result, score, finding or coverage.
     adaptive_ai_for_known_vendors: bool = False
 
     # Share of meaningful lines that must follow the detected vendor's grammar
     # before its profile (parser, vendor-specific rules) is trusted. Below it
     # the config is UNVERIFIED and takes the unknown-vendor path.
     vendor_parse_coverage_threshold: float = 0.7
+
+    # Phase 7: the AI judges only UNKNOWN controls of unknown-vendor configs, at most this many
+    # calls per scan (cache hits are free)
+    ai_judge_max_calls_per_scan: int = 2
 
 
 settings = Settings()

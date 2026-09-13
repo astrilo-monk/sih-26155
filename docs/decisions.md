@@ -35,15 +35,13 @@ The scanner uses deterministic Python rules for detection. The AI is optional. R
 
 **Why:** The problem statement asks for a vendor-agnostic engine, and writing a parser for every vendor does not scale. Unknown configs go through one generic pipeline:
 1. relevance filter
-2. learned mappings
-3. AI interpretation
-4. evidence validation
-5. confidence tiers
+2. recognizers and learned mappings
+3. lexicon heuristics
+4. AI judge for undecided controls
+5. deterministic citation verification
 6. Training queue
 
-The AI may only choose fields from one shared catalog (`field_catalog.py`), must cite evidence from the line, and cannot activate rules on its own:
-- **HIGH confidence** results need valid evidence before they are applied.
-- **Uncertain** results wait for an administrator.
+The AI judge proposes facts that cite configuration lines. A deterministic verifier checks every citation against the cited line and its tokenizer scope. A verified fact stays provisional (UNKNOWN with a proposed status) until an administrator confirms it as a recognizer. The AI cannot activate rules or change the score on its own.
 
 ## 8. AI Never Decides the Vendor
 

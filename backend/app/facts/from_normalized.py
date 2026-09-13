@@ -80,7 +80,9 @@ def facts_from_config(config: NormalizedConfig, extra_recognizers: Iterable = ()
             subject=mapped.subject, scope=mapped.scope, unit=mapped.unit,
             provenance=f"The AI mapping and the lexicon heuristic disagree (lines {', '.join(map(str, lines))})",
         )
-    return recognized + facts
+    # AI judge facts (provisional) step aside for any line a recognizer answered or an admin rejected
+    judged = [f for f in config.ai_facts if not set(f.evidence.line_numbers) & skip]
+    return recognized + facts + judged
 
 
 # ── confirmed vendors ───────────────────────────────────────────────────────

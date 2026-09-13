@@ -57,6 +57,14 @@ MIGRATIONS: list[str] = [
     ALTER TABLE learned_mappings ADD COLUMN dialect_fingerprint TEXT;
     ALTER TABLE learned_mappings ADD COLUMN negatives TEXT NOT NULL DEFAULT '[]';
     """,
+    # v3 — AI judge cache (Phase 7): proposals keyed by hash(prompt version + model + redacted prompt)
+    """
+    CREATE TABLE IF NOT EXISTS ai_judge_cache (
+        key         TEXT PRIMARY KEY,
+        response    TEXT NOT NULL,
+        created_at  TEXT NOT NULL
+    );
+    """,
 ]
 
 

@@ -8,14 +8,12 @@ ALL Groq requests are mocked. No real Groq API calls are made.
 
 Tests:
 A - Unknown vendor reaches adaptive pipeline (no 422 rejection)
-B - Unknown vendor invokes Phase 2 with interpretation results
-C - One Groq request per config (batching)
+B - Unknown vendor never invokes the legacy interpreter (Phase 7: the AI judge is its only AI path)
 D - Groq unavailable (graceful degradation)
 E - Phase 3 AdaptiveMapper safely mediates AI → config (HIGH auto-mapped)
 E2 - MEDIUM confidence NOT written to config
 F - Existing Cisco/Fortinet behavior unchanged
 G - Existing remediation/scoring unchanged
-H - Multiple unknown configs each get their own Groq request
 """
 
 import sys
@@ -135,69 +133,27 @@ def test_a_unknown_vendor_reaches_adaptive_pipeline():
 
 
 # ===========================================================================
-# Test B - Unknown vendor invokes Phase 2
+# Test B - Unknown vendor never invokes the legacy interpreter
 # ===========================================================================
 
-def test_b_unknown_vendor_invokes_phase2():
-    """Phase 2 Groq interpretation is invoked and results returned."""
+def test_b_unknown_vendor_never_invokes_the_legacy_interpreter(monkeypatch):
+    """Unknown vendors reach AI only through the Phase 7 judge, even with the known-vendor legacy flag on."""
+    import app.config as app_config
 
-    client = TestClient(app)
-
-    unrecognized = _get_unrecognized_lines(UNKNOWN_CONFIG)
-    mock_interpretations = _mock_valid_interpretations(unrecognized)
-
-    mock_interpret = MagicMock(return_value=mock_interpretations)
+    monkeypatch.setattr(app_config.settings, "adaptive_ai_for_known_vendors", True)
+    mock_interpret = MagicMock(return_value=[])
 
     with patch("app.api.routes.scan.interpret_lines", mock_interpret):
         with patch("app.api.routes.scan.is_available", return_value=True):
-            response = client.post(
+            response = TestClient(app).post(
                 "/api/scan",
                 files=[("files", ("unknown.cfg", UNKNOWN_CONFIG.encode("utf-8"), "text/plain"))],
             )
 
     assert response.status_code == 200
     data = response.json()
-
-    # Phase 2 was invoked
-    assert mock_interpret.call_count == 1
-
-    # Interpretation results returned
-    assert data["adaptive"] is not None
-    assert len(data["adaptive"]["interpretations"]) > 0
-
-    # AI availability reflected
-    assert data["adaptive"]["ai_available"] is True
-
-    # Original unrecognized lines preserved
-    assert len(data["adaptive"]["unrecognized_lines"]) > 0
-
-    print("\nPASS [B]: Phase 2 interpretation invoked and results returned")
-
-
-# ===========================================================================
-# Test C - One Groq request per config (batching)
-# ===========================================================================
-
-def test_c_one_groq_request_per_config():
-    """One unknown config produces exactly one Groq API call."""
-
-    client = TestClient(app)
-
-    unrecognized = _get_unrecognized_lines(UNKNOWN_CONFIG)
-    mock_interpretations = _mock_valid_interpretations(unrecognized)
-    mock_interpret = MagicMock(return_value=mock_interpretations)
-
-    with patch("app.api.routes.scan.interpret_lines", mock_interpret):
-        with patch("app.api.routes.scan.is_available", return_value=True):
-            response = client.post(
-                "/api/scan",
-                files=[("files", ("unknown.cfg", UNKNOWN_CONFIG.encode("utf-8"), "text/plain"))],
-            )
-
-    assert response.status_code == 200
-    assert mock_interpret.call_count == 1
-
-    print("\nPASS [C]: One Groq request per config guaranteed")
+    assert mock_interpret.call_count == 0
+    assert data["adaptive"]["interpretations"] == [] and data["adaptive"]["ai_available"] is True
 
 
 # ===========================================================================
@@ -463,51 +419,6 @@ def test_g2_remediation_unchanged():
 
 
 # ===========================================================================
-# Test H - Multiple unknown configs each get own Groq request
-# ===========================================================================
-
-def test_h_multiple_unknown_configs_one_request_each():
-    """Each unknown config must get its own Groq request (not combined)."""
-
-    client = TestClient(app)
-
-    config1 = """\
-secure-shell host-key minimum 3072
-operator failed-login lockout 120
-remote-console protocol telnet
-"""
-
-    config2 = """\
-credential-policy minimum-length 14
-control-plane defense enabled
-audit-stream transport tls
-"""
-
-    # Mock to count calls per config
-    call_count = [0]
-
-    def mock_interpret(lines):
-        call_count[0] += 1
-        return [_mock_valid_interpretations([ln])[0] for ln in lines]
-
-    with patch("app.api.routes.scan.interpret_lines", side_effect=mock_interpret):
-        with patch("app.api.routes.scan.is_available", return_value=True):
-            response = client.post(
-                "/api/scan",
-                files=[
-                    ("files", ("config1.cfg", config1.encode("utf-8"), "text/plain")),
-                    ("files", ("config2.cfg", config2.encode("utf-8"), "text/plain")),
-                ],
-            )
-
-    assert response.status_code == 200
-    # Each config gets its own request
-    assert call_count[0] == 2, f"Expected 2 Groq requests, got {call_count[0]}"
-
-    print("\nPASS [H]: Multiple configs each get own Groq request")
-
-
-# ===========================================================================
 # Test H2 - One known + one unknown vendor (mixed upload)
 # ===========================================================================
 
@@ -572,8 +483,7 @@ def test_unknown_config_preserves_raw_lines():
 
 if __name__ == "__main__":
     test_a_unknown_vendor_reaches_adaptive_pipeline()
-    test_b_unknown_vendor_invokes_phase2()
-    test_c_one_groq_request_per_config()
+    test_b_unknown_vendor_never_invokes_the_legacy_interpreter()
     test_d_groq_unavailable_graceful()
     test_d2_groq_exception_graceful()
     test_e_ai_interpretations_through_adaptive_mapper()
@@ -582,7 +492,6 @@ if __name__ == "__main__":
     test_f2_fortinet_behavior_unchanged()
     test_g_scoring_unchanged()
     test_g2_remediation_unchanged()
-    test_h_multiple_unknown_configs_one_request_each()
     test_h2_mixed_known_and_unknown_vendors()
     test_unknown_config_preserves_raw_lines()
 

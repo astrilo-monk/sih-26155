@@ -18,7 +18,7 @@ A user uploads one or more network configuration files. NetAuditAI then:
 8. Applies the commands to a copy of the configuration.
 9. Re-runs the analysis to show before-and-after results.
 
-The system has parsers for Cisco IOS and FortiGate. Configurations from other vendors, and lines the parsers do not recognize, go through an adaptive layer: learned mappings plus AI interpretation, with administrator review in the Training tab. See [ai-design.md](ai-design.md).
+The system has parsers for Cisco IOS and FortiGate. Configurations from other vendors, and lines the parsers do not recognize, go through an adaptive layer: recognizers, learned mappings and lexicon heuristics, then an AI judge whose verified proposals stay provisional until an administrator confirms them in the Training tab. See [ai-design.md](ai-design.md).
 
 ## Architecture
 

@@ -7,15 +7,13 @@ End-to-end Phase 3 tests covering the full adaptive pipeline:
 All Groq/AI requests are mocked. No real API calls are made.
 
 Tests:
-  1  - Full pipeline: unknown vendor → AI HIGH interpretations →
-      vendor evidence (reporting only) → compliance analysis → findings + score
-  2  - HIGH confidence valid interpretations are auto-mapped to config
-  3  - MEDIUM confidence interpretations do NOT mutate config (needs_review)
+  2  - HIGH confidence valid interpretations are auto-mapped to config (mapper unit)
   4  - LOW confidence interpretations do NOT mutate config (needs_training)
   5  - Container fields (interfaces[].name) are rejected even at HIGH
-  6  - Vendor evidence reported from unanimous HIGH entries; device vendor unchanged
-  7  - Vendor stays UNKNOWN when HIGH auto-mapped entries conflict
   8  - HIGH confidence with invalid type conversion → needs_review
+
+The scan-API cases 1, 3, 6 and 7 exercised AI interpretation of unknown-vendor configs, retired in Phase 7
+(the AI judge is the only AI path for unknown vendors; production never auto-applies interpretations).
   9  - AI unavailable → graceful degradation (no score, no findings)
   10 - Remediation round-trip: scan → download-fixed → re-scan → score 100
 """
@@ -31,7 +29,6 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.main import app
-from app.api.routes.scan import get_scan_store
 from app.parsers.detector import detect_vendor
 from app.models.normalized import (
     Vendor,
@@ -120,61 +117,6 @@ def _build_mock_interpretations(pairs):
 
 
 # ===========================================================================
-# Test 1 — Full pipeline: unknown vendor → AI → Phase 3 → vendor ID → analyze
-# ===========================================================================
-
-def test_e2e_full_pipeline_high_confidence_vendor_identified():
-    """End-to-end: unknown vendor config, AI believes it is Cisco IOS (HIGH),
-    Phase 3 auto-maps ssh_version=1. The AI vendor opinion is reported as
-    evidence only — it does not set device.vendor or activate Cisco rules."""
-
-    assert detect_vendor(E2E_CONFIG) == Vendor.UNKNOWN
-
-    client = TestClient(app)
-
-    # AI mocks three HIGH-confidence cisco_ios interpretations
-    mock = _build_mock_interpretations([
-        ("management.ssh_version", "1", "cisco_ios", 0.95, ConfidenceLevel.HIGH),
-        ("management.ssh_enabled",  "true", "cisco_ios", 0.95, ConfidenceLevel.HIGH),
-        ("authentication.aaa_enabled", "true", "cisco_ios", 0.95, ConfidenceLevel.HIGH),
-    ])
-
-    with patch("app.api.routes.scan.interpret_lines", side_effect=mock):
-        with patch("app.api.routes.scan.is_available", return_value=True):
-            resp = client.post(
-                "/api/scan",
-                files=[("files", ("unknown.cfg", E2E_CONFIG.encode(), "text/plain"))],
-            )
-
-    assert resp.status_code == 200
-    data = resp.json()
-
-    # AI vendor opinions are evidence only: device.vendor stays UNKNOWN
-    assert data["devices"][0]["vendor"] == "unknown"
-    evidence = data["adaptive"]["vendor_evidence"]
-    assert evidence["status"] == "identified"
-    assert evidence["likely_vendor"] == "cisco_ios"
-
-    # Every control reads the applied values whatever the vendor (Phase 4): the
-    # auto-mapped SSHv1 is a FAIL and AAA a PASS, but AI verdicts are provisional
-    # (never scored in posture), and nothing fails from missing data
-    assert [f["rule_id"] for f in data["findings"]] == ["MGMT-007"]
-    results = {r["control_id"]: r for r in data["results"]}
-    assert (results["MGMT-007"]["status"], results["MGMT-007"]["assurance"]) == ("fail", "ai_verified")
-    assert (results["MGMT-008"]["status"], results["MGMT-008"]["assurance"]) == ("pass", "ai_verified")
-    assert data["posture"] is None
-    assert get_scan_store()[data["scan_id"]]["configs"][0].management.ssh_version == 1
-
-    # Adaptive info present with auto-mapped entries
-    assert data["adaptive"] is not None
-    auto_mapped = [m for m in data["adaptive"]["ai_mappings"]
-                   if m["source"] == "ai_auto_mapped"]
-    assert len(auto_mapped) > 0
-
-    print("\nPASS [1]: Full pipeline with vendor identification and compliance analysis")
-
-
-# ===========================================================================
 # Test 2 — HIGH confidence auto-mapped to config (unit-level)
 # ===========================================================================
 
@@ -214,50 +156,6 @@ def test_e2e_high_confidence_auto_mapped_to_config():
     assert mappings[0].confidence_tier == "high"
 
     print("\nPASS [2]: HIGH confidence auto-mapped to config")
-
-
-# ===========================================================================
-# Test 3 — MEDIUM confidence NOT written to config (full pipeline via API)
-# ===========================================================================
-
-def test_e2e_medium_confidence_not_written_to_config():
-    """MEDIUM confidence interpretations are routed to needs_review and
-    do NOT mutate NormalizedConfig.  Through the API, this means the
-    vendor stays UNKNOWN and no vendor-specific findings fire."""
-
-    client = TestClient(app)
-
-    # All lines interpreted as MEDIUM confidence (0.60)
-    mock = _build_mock_interpretations([
-        ("management.ssh_version", "1", "cisco_ios", 0.60, ConfidenceLevel.MEDIUM),
-        ("management.ssh_version", "1", "cisco_ios", 0.60, ConfidenceLevel.MEDIUM),
-        ("management.ssh_version", "1", "cisco_ios", 0.60, ConfidenceLevel.MEDIUM),
-    ])
-
-    with patch("app.api.routes.scan.interpret_lines", side_effect=mock):
-        with patch("app.api.routes.scan.is_available", return_value=True):
-            resp = client.post(
-                "/api/scan",
-                files=[("files", ("unknown.cfg", E2E_CONFIG.encode(), "text/plain"))],
-            )
-
-    assert resp.status_code == 200
-    data = resp.json()
-
-    # All mappings should be needs_review (MEDIUM never auto-maps)
-    sources = [m["source"] for m in data["adaptive"]["ai_mappings"]]
-    assert all(s == "needs_review" for s in sources)
-
-    # Vendor is still UNKNOWN — no unanimous HIGH auto-mapped entries
-    assert data["devices"][0]["vendor"] == "unknown"
-
-    # No MGMT-* findings from the MEDIUM interpretations — they didn't enrich config.
-    # Lexicon heuristics may still suspect SSHv1 on the raw line (Phase 5, provisional).
-    rule_ids = [f["rule_id"] for f in data["findings"] if f["assurance"] != "heuristic"]
-    mgmt_rules = [r for r in rule_ids if r.startswith("MGMT-")]
-    assert len(mgmt_rules) == 0
-
-    print("\nPASS [3]: MEDIUM confidence not written to config")
 
 
 # ===========================================================================
@@ -332,87 +230,6 @@ def test_e2e_container_field_rejected():
     assert len(normalized.interfaces) == 0
 
     print("\nPASS [5]: Container field rejected → needs_review")
-
-
-# ===========================================================================
-# Test 6 — Vendor identified from unanimous HIGH auto-mapped entries (API)
-# ===========================================================================
-
-def test_e2e_vendor_identified_from_unanimous_mappings():
-    """When all HIGH auto-mapped entries agree on likely_vendor, the vendor is
-    reported as evidence only: device.vendor stays UNKNOWN. The applied values are
-    still evaluated by the vendor-neutral controls, provisionally (Phase 4)."""
-
-    client = TestClient(app)
-
-    mock = _build_mock_interpretations([
-        ("management.ssh_version", "1", "cisco_ios", 0.90, ConfidenceLevel.HIGH),
-        ("management.ssh_enabled",  "true", "cisco", 0.90, ConfidenceLevel.HIGH),
-        ("authentication.aaa_enabled", "true", "ios", 0.90, ConfidenceLevel.HIGH),
-    ])
-
-    with patch("app.api.routes.scan.interpret_lines", side_effect=mock):
-        with patch("app.api.routes.scan.is_available", return_value=True):
-            resp = client.post(
-                "/api/scan",
-                files=[("files", ("unknown.cfg", E2E_CONFIG.encode(), "text/plain"))],
-            )
-
-    assert resp.status_code == 200
-    data = resp.json()
-
-    # All three vendor aliases normalize to cisco_ios → unanimous evidence,
-    # reported only; the device vendor is never set from AI output
-    assert data["adaptive"]["vendor_evidence"]["status"] == "identified"
-    assert data["adaptive"]["vendor_evidence"]["likely_vendor"] == "cisco_ios"
-    assert data["devices"][0]["vendor"] == "unknown"
-    assert [f["rule_id"] for f in data["findings"]] == ["MGMT-007"]
-    assert data["posture"] is None
-
-    print("\nPASS [6]: Vendor identified from unanimous HIGH mappings")
-
-
-# ===========================================================================
-# Test 7 — Vendor NOT identified when HIGH entries conflict (API)
-# ===========================================================================
-
-def test_e2e_vendor_not_identified_when_conflicting():
-    """When HIGH auto-mapped entries disagree on likely_vendor, the vendor
-    stays UNKNOWN."""
-
-    client = TestClient(app)
-
-    mock = _build_mock_interpretations([
-        ("management.ssh_version", "1", "cisco_ios", 0.95, ConfidenceLevel.HIGH),
-        ("management.ssh_enabled",  "true", "fortinet", 0.95, ConfidenceLevel.HIGH),
-        ("authentication.aaa_enabled", "true", "cisco_ios", 0.95, ConfidenceLevel.HIGH),
-    ])
-
-    with patch("app.api.routes.scan.interpret_lines", side_effect=mock):
-        with patch("app.api.routes.scan.is_available", return_value=True):
-            resp = client.post(
-                "/api/scan",
-                files=[("files", ("unknown.cfg", E2E_CONFIG.encode(), "text/plain"))],
-            )
-
-    assert resp.status_code == 200
-    data = resp.json()
-
-    # CISCO_IOS and FORTINET disagree → vendor stays UNKNOWN
-    assert data["devices"][0]["vendor"] == "unknown"
-    assert data["adaptive"]["vendor_evidence"]["status"] == "conflicting"
-
-    # Config WAS enriched (auto-mapped entries exist) but no vendor-specific rules fire
-    auto_mapped = [m for m in data["adaptive"]["ai_mappings"]
-                   if m["source"] == "ai_auto_mapped"]
-    assert len(auto_mapped) > 0
-
-    # UNKNOWN vendor → only the applied values are evaluated, provisionally (Phase 4);
-    # absence-based LOG-001/LOG-002 do not fail on an unknown vendor (Phase 1c)
-    assert [f["rule_id"] for f in data["findings"]] == ["MGMT-007"]
-    assert data["posture"] is None
-
-    print("\nPASS [7]: Vendor not identified when conflicting mappings")
 
 
 # ===========================================================================
@@ -718,13 +535,9 @@ def test_e2e_groq_schema_strict_and_additional_properties():
 
 
 if __name__ == "__main__":
-    test_e2e_full_pipeline_high_confidence_vendor_identified()
     test_e2e_high_confidence_auto_mapped_to_config()
-    test_e2e_medium_confidence_not_written_to_config()
     test_e2e_low_confidence_not_written_to_config()
     test_e2e_container_field_rejected()
-    test_e2e_vendor_identified_from_unanimous_mappings()
-    test_e2e_vendor_not_identified_when_conflicting()
     test_e2e_invalid_type_conversion_routed_to_review()
     test_e2e_ai_unavailable_graceful()
     test_e2e_remediation_round_trip()

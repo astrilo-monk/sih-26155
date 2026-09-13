@@ -53,10 +53,17 @@ _EXACT_KEYWORDS = {
     "token": "key",
     "psk": "psk",
     "psksecret": "psk",
-    "community": "snmp-community",
+    "pwd": "password",
+    "passcode": "password",
+    "credential": "password",
+    "credentials": "password",
+    "hash": "password",
 }
 _COMPOUND_KEYWORDS = (
-    (re.compile(r"^[a-z0-9][\w-]*-(?:password|passwd|passphrase|pwd|secret)(?:-value)?$"), "password"),
+    (re.compile(r"^[a-z0-9][\w-]*-(?:password|passwd|passphrase|pwd|secret|pass|passcode|credentials?)(?:-value)?$"
+                r"|^(?:[\w-]+-)?(?:auth|secret|password)-string$"), "password"),
+    (re.compile(r"^(?:[\w-]+-)?community(?:-string)?$"), "snmp-community"),
+    (re.compile(r"^[a-z0-9][\w-]*-token$"), "key"),
     (re.compile(r"^(?:[\w-]+-)?(?:pre-shared|preshared|shared|psk|wep|wpa|ppk)-key$|^[a-z0-9][\w-]*-(?:psk|psksecret)$"), "psk"),
     (re.compile(
         r"^(?:[\w-]+-)?(?:authentication|message-digest|auth|api|private|secret|tacacs|radius|server|md5|hmac|encryption)"
@@ -68,7 +75,7 @@ _COMPOUND_KEYWORDS = (
 _STORAGE_TOKENS = frozenset({
     "enc", "encrypted", "hashed", "plaintext", "plain-text", "cleartext", "unencrypted",
     "ascii", "ascii-text", "hex", "hexadecimal", "simple", "cipher", "irreversible-cipher",
-    "sha512", "sha256", "sha1", "md5", "scrypt", "pbkdf2", "local", "remote", "level",
+    "sha512", "sha384", "sha256", "sha1", "sha", "md5", "scrypt", "pbkdf2", "local", "remote", "level",
 })
 _COMMUNITY_SKIP = frozenset({"read", "write", "ro", "rw", "cipher", "simple", "plain", "encrypted", "ascii"})
 
@@ -118,6 +125,9 @@ _SNMP_HOST = re.compile(
     re.IGNORECASE,
 )
 _AUTH_TEXT = re.compile(r"(?<![\w-])(?P<head>authentication\s+text\s+)(?P<value>(?!<SECRET:)[^\s;]+)", re.IGNORECASE)
+# Routing peers: bgp neighbor <addr> [...] md5 <key>
+_PEER_MD5 = re.compile(r"(?<![\w-])(?P<head>(?:neighbor|peer)\s+\S+\s+(?:\S+\s+)*?md5\s+)(?P<value>(?!<SECRET:)[^\s;]+)",
+                       re.IGNORECASE)
 _SNMP_COMMUNITY_SCOPE = re.compile(r"snmp.*communit", re.IGNORECASE)
 _SET_NAME = re.compile(r'(?<![\w-])(?P<head>set\s+name\s+)(?P<value>"[^"]*"|\'[^\']*\'|[^\s;]+)', re.IGNORECASE)
 
@@ -171,6 +181,7 @@ class Redactor:
             text = _SNMP_V3.sub(lambda m: self._swap(m, "password"), text)
         text = _SNMP_HOST.sub(lambda m: self._swap(m, "snmp-community"), text)
         text = _AUTH_TEXT.sub(lambda m: self._swap(m, "password"), text)
+        text = _PEER_MD5.sub(lambda m: self._swap(m, "key"), text)
         if any(_SNMP_COMMUNITY_SCOPE.search(h) for h in scope):
             text = _SET_NAME.sub(lambda m: self._swap(m, "snmp-community"), text)
         return self._keyword_values(text, prose)

@@ -79,6 +79,9 @@ class AdaptiveScanInfoSchema(BaseModel):
     vendor: str = "unknown"
     # Whether the AI interpreter was actually called for this config
     ai_called: bool = False
+    # AI judge requests sent for this config, and blocks answered from the judge cache (Phase 7)
+    ai_calls: int = 0
+    ai_cache_hits: int = 0
     # Lines resolved by confirmed learned mappings (no AI involved)
     learned_matches: int = 0
     # Lines awaiting administrator review / training
@@ -144,8 +147,9 @@ class ControlResultSchema(BaseModel):
     severity: str
     # pass | fail | not_configured | unknown | n_a
     status: str
-    # parser | confirmed | default | heuristic | ai_verified (decided results only)
+    # parser | confirmed | default | heuristic (decided results) | ai_verified (UNKNOWN results with a proposal)
     assurance: Optional[str] = None
+    # the AI's verdict (pass | fail) awaiting human confirmation; never scored
     proposed_status: Optional[str] = None
     device_hostname: str
     vendor: str

@@ -902,6 +902,110 @@ Cut Groq usage to a few calls per config and make AI output verifiable.
 
 - `sample/unknown.cfg`: at most 1–2 calls on first scan, zero after confirmations.
 
+## Status: done (after the validation fixes; not committed)
+
+Suite: **759 passed, 2 skipped**; frontend 14 passed, build OK. Phase 0 snapshots unchanged (32 passed).
+One live Groq call on a synthetic config: 3 controls sent, fake secret absent (a banner reusing it was scrubbed),
+2 proposals accepted, a unitless `600` idle timeout rejected, 0 status changes.
+
+A first validation found the verifier accepted any on/off line or number in the excerpt (NTP authentication
+from `time-sync state enabled`, SSH version from `login-retries 1`), AI facts answered controls that never asked
+(an http fact from MGMT-001 passed MGMT-002), AI verdicts moved the legacy score / findings / assessed, blank-line
+blocks merged scopes, per-line redaction leaked reused and unknown-vendor secrets, and useless answers were
+cached forever. Fixed as below.
+
+- **Judge** `app/ai/judge.py`: targets UNKNOWN results citing a line the lexicon reads as one of the
+  control's AI-readable settings (MGMT-001 telnet / MGMT-002 http subjects only). Excerpt = each cited line's
+  tokenizer scope: its block siblings (same scope path and flat block, nearest 15) plus enclosing block
+  headers — never blank-line paragraphs. The whole config is redacted first (so every secret is known), then
+  every excerpt and the prompt are `Redactor.scrub`bed as a whole. Up to 4 controls per call, most severe
+  first; `ai_judge_max_calls_per_scan` (default 2) shared by a scan; an exhausted quota zeroes it. A control
+  left unjudged gets `(AI: …)` appended (budget used up / unavailable / no verifiable citation). The scan
+  route catches any judge exception (the scan still returns).
+- **Cache**: migration v3 `ai_judge_cache`, key = sha256(prompt version `judge-v2` + model + system prompt +
+  prompt). Relative line refs, so identical scopes across a fleet are one call. Only answers with at least one
+  verified proposal are stored; a cached answer is re-verified, and one that verifies to nothing (or is not a
+  list) is not a hit — the judge asks again and overwrites it.
+- **Verifier** (deterministic, per proposal): control asked; predicate needed and AI-readable; line refs all
+  valid (any out-of-range, zero or negative ref rejects the proposal); quoted evidence on a cited line; every
+  cited setting line is read by the lexicon heuristics (`heuristic_candidates`) as this predicate and subject
+  with the same value (bool, SSH version, timeout converted to minutes from the AI's unit, address); other cited
+  lines may only be that reading's block state lines; all setting lines in one tokenizer scope (a top-level
+  line is its own scope). Passing proposals → `config.ai_facts`, AI_VERIFIED, `control_id` = the asking control.
+- **Authority**: `SecurityFact.control_id` — the evaluator gives an AI fact only to its control. Any PASS / FAIL
+  whose weakest evidence is AI_VERIFIED (judge facts and legacy `ai_auto_mapped` mappings, confirmed vendors
+  included) is reported as UNKNOWN with `proposed_status` and no failure: no finding, no severity count, no
+  legacy score, no `assessed`, no posture / coverage, no remediation. `_is_assessed` counts decisive assurance
+  only. The frontend provisional table shows `proposed_status`.
+- **Recognizer drafts** (task 4): verified AI facts of a control are candidate lines in that control's
+  provisional queue, draft and reject endpoints; the template is drafted deterministically. A rejected or
+  hallucinated citation never becomes an AI fact, so it cannot reach Training.
+- **Redaction** (Phase 1 extended): `pwd`, `passcode`, `credential(s)`, `hash`, `*-pass`, `*-credential`,
+  `*-token`, `auth-string`, `*community*` / `community-string`, and `neighbor|peer … md5 <key>`.
+- **Legacy path** (task 5): retired for unknown vendors in the final improvement below. The conftest
+  `no_real_ai_judge` fixture keeps the judge off the network in every test.
+- **API**: `adaptive.ai_calls`, `adaptive.ai_cache_hits`. The scan route reads the new settings from
+  `app_config.settings` at call time (a config reload replaces the settings object).
+- **Tests** `tests/test_phase7_ai_judge.py` (62, AI mocked): 5 accepted and 21 discarded proposals (unrelated
+  enabled / disabled line, unrelated numbers, a number smuggled from a sibling line, shared keyword
+  `http-proxy`, another control's subject, hallucinated / zero / negative / missing refs, wrong quote, reversed
+  polarity, another block's state line, separate scopes, invented / wrong unit, other address, unneeded
+  predicate, control not asked); unrelated citation discarded end to end; excerpt = tokenizer scope in a
+  config without blank lines, and two scopes never form one block; ineligible controls never sent; confirmed
+  vendors never escalated; an AI fact read only by its control; AI PASS and FAIL leave score, findings, severity
+  counts, assessed and posture unchanged (engine and scan API vs AI off); an AI mapping on Cisco is a proposal,
+  not a finding; 1 call then fleet cache hits; budget / quota; empty, all-rejected, malformed and invalid
+  answers never cached; a poisoned cache entry is re-verified and asked again; verified line drafts a
+  recognizer; hallucinated / unrelated lines absent from the queue, draft and reject 404; 12 unknown-vendor
+  secret syntaxes redacted and none — nor a value reused on a neighbour line — in the prompt.
+
+### Final improvement: unfamiliar syntax, NOT_CONFIGURED discovery, legacy retirement (not committed)
+
+- **Unfamiliar syntax**: an UNKNOWN control without a lexicon-read line sends at most 3 lines naming related
+  vocabulary (`lexicon.*_RELATED`, never limits / counters / lockouts in `UNRELATED`), each with its tokenizer
+  scope. A cited line the lexicon does not read must itself be related to the predicate (subject by name) and state
+  the proposed value: its own or its block's polarity, the number with a unit word written on the line (a
+  converted `600 s` for `lock-after 10 minutes` is rejected), an address or hostname token. `lock-after 10 minutes`
+  → proposed idle timeout; `max-sessions 10` and `lock-after 3 failures` never.
+- **NOT_CONFIGURED discovery**: the judge also takes NOT_CONFIGURED results, ranked after every UNKNOWN control,
+  with only related lines and a `task: discover` marker; same redaction, scope, verifier, control binding and cache
+  (`judge-v4`). A verified fact makes the control UNKNOWN (a proposed PASS / FAIL when its judge decides, else no
+  proposal: an NTP server without authentication stays UNKNOWN). No verified citation leaves NOT_CONFIGURED and
+  its reason untouched. Absence cannot be cited; an empty config sends nothing. NTP / log destinations may be
+  dotted hostnames that are a value of the cited line (not its leading keyword).
+- **Legacy audit**: `ai_legacy_line_interpreter` and the unknown-vendor legacy branch are removed (the judge replaces
+  them), as are `interpret_config` and the `legacy_line_interpreter` fixture. `adaptive_ai_for_known_vendors`
+  (default off) remains: the judge never escalates confirmed vendors, so it cannot replace that path. It is
+  isolated: `AdaptiveService` passes `auto_apply=False`, so every interpretation (HIGH included) goes to the review
+  queue and only an administrator's accept / edit writes the config. `interpret_lines`, the mapper's interpretation
+  path and the Phase 4 review API stay for it. Tests of unknown-vendor AI interpretation through the scan API were
+  deleted (integration B/C/H, Phase 3 e2e 1/3/6/7, the Phase 6 unknown-vendor demo) or moved: interpreter / mapper
+  safety to unit level (`test_adaptive_generic`), the review API and scan redaction onto a confirmed Cisco config
+  with the flag on, learned-vs-AI masking to the service.
+- **Validation**: backend 795 passed, 2 skipped (Phase 0 32, Phases 1–6 513, Phase 7 106, API / e2e 126 + 2
+  skipped, remediation 41); frontend 14 passed, build OK. One live Groq call on a synthetic config with fake
+  secrets asked 4 controls (3 as discovery). No secret was in the prompt. Verified: `admin-gui allowed-networks`
+  (MGMT-003 proposed PASS), `operator lock-after 10 minutes` (MGMT-006 proposed PASS), a login message
+  (MGMT-009 proposed PASS) and an NTP hostname (LOG-002 UNKNOWN, no proposal). The AI's "NTP authenticated" from
+  `authentication-key <SECRET>` was rejected. PASS / FAIL set, posture, coverage, score, findings and assessed
+  were unchanged. An earlier run spelled the unit `minutes` and was rejected, so the verifier now normalizes the
+  AI's unit label (the line must still write the unit word).
+
+Known limits:
+
+- The legacy interpreter, the `FIELD_REGISTRY` AI vocabulary, the mapper's auto-apply (`map_interpretations`, now
+  without a production caller) and the line review queue remain for `adaptive_ai_for_known_vendors`. Delete them
+  together once confirmed-vendor escalation is decided (judge for parser-UNKNOWN controls, or drop the option).
+- Discovery and unfamiliar-syntax targeting read related vocabulary only, at most 3 lines per control: a setting
+  named with words outside it is never sent. Hostnames are accepted by shape, never resolved.
+- Vendor evidence (`assess_vendor_evidence`) has no AI records on unknown vendors any more: it reports unknown.
+- An AI PASS next to an undetermined heuristic still reports plain UNKNOWN without a proposal (evaluator
+  precedence).
+- Redaction is pattern-based: an unknown vendor's secret keyword outside the lexicon can still leak.
+- Two AI proposals of one control on different lines combine into one fact; rejecting either line drops both.
+- Heuristic suspected FAILs still count in `total_findings` (Phase 5 behaviour, unchanged here).
+- The frontend does not show `ai_calls` / `ai_cache_hits` yet.
+
 ---
 
 # Phase 8 — Remediation v2

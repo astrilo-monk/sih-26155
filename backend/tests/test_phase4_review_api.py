@@ -4,6 +4,10 @@ Phase 4 — Admin training API tests.
 Covers: queue listing, accept, edit, reject, invalid field, invalid value,
 already-reviewed items, rejected lines not retried, admin mapping management.
 All AI calls are mocked.
+
+Phase 7: AI review items come only from the legacy line interpreter, which is reachable only for confirmed
+vendors behind ``adaptive_ai_for_known_vendors`` (off by default). These tests turn it on for a Cisco config
+whose appended lines the parser does not read; every interpretation lands in the queue, none is applied.
 """
 
 from unittest.mock import MagicMock, patch
@@ -11,10 +15,33 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+import app.config as app_config
 from app.ai.interpretation_schemas import ConfidenceLevel, InterpretationResult, InterpretationStatus
 from app.api.routes.scan import get_scan_store
 from app.main import app
 
+
+# A confirmed Cisco IOS config: no logging, NTP or SSH version, and no line the capture step keeps
+BASE = """\
+hostname EDGE-RTR
+!
+service password-encryption
+enable secret 9 $9$abcdefghijklmn
+username admin privilege 15 secret 9 $9$abcdefghijklmn
+aaa new-model
+ip domain-name corp.example
+no ip http server
+no ip source-route
+no cdp run
+!
+line con 0
+ exec-timeout 5 0
+line vty 0 4
+ transport input ssh
+ exec-timeout 5 0
+!
+"""
+FIRST = len(BASE.splitlines()) + 1
 
 CONFIG = (
     "secure-shell protocol-version 1\n"
@@ -50,7 +77,8 @@ def _interpret(lines):
 
 
 @pytest.fixture
-def client():
+def client(monkeypatch):
+    monkeypatch.setattr(app_config.settings, "adaptive_ai_for_known_vendors", True)
     return TestClient(app)
 
 
@@ -58,9 +86,11 @@ def _scan(client, text=CONFIG, interpreter=None):
     interpreter = interpreter or MagicMock(side_effect=_interpret)
     with patch("app.api.routes.scan.interpret_lines", interpreter), \
          patch("app.api.routes.scan.is_available", return_value=True):
-        resp = client.post("/api/scan", files=[("files", ("device.cfg", text.encode(), "text/plain"))])
+        resp = client.post("/api/scan", files=[("files", ("device.cfg", (BASE + text).encode(), "text/plain"))])
     assert resp.status_code == 200, resp.text
-    return resp.json()
+    scan = resp.json()
+    assert scan["devices"][0]["vendor"] == "cisco_ios"
+    return scan
 
 
 def _queue(client, scan_id, **params):
@@ -73,13 +103,17 @@ def _item_for(queue, prefix):
     return next(i for i in queue["items"] if i["raw_line"].startswith(prefix))
 
 
+def _rule_ids(scan):
+    return {f["rule_id"] for f in scan["findings"]}
+
+
 def test_review_queue_lists_unresolved_interpretations(client):
     scan = _scan(client)
     queue = _queue(client, scan["scan_id"])
 
     assert queue["pending_count"] == 3
     item = _item_for(queue, "secure-shell")
-    assert item["line_number"] == 1
+    assert item["line_number"] == FIRST
     assert item["context_after"] == ["remote-console protocol telnet", "audit-stream destination 10.44.60.20"]
     assert item["normalized_field"] == "management.ssh_version"
     assert item["extracted_value"] == "1"
@@ -98,9 +132,8 @@ def test_review_queue_lists_unresolved_interpretations(client):
 def test_accept_persists_mapping_and_rescans(client):
     scan = _scan(client)
     scan_id = scan["scan_id"]
-    # Nothing applied yet on an unidentified vendor: absence is not a FAIL, nothing is scored
-    assert "LOG-001" not in [f["rule_id"] for f in scan["findings"]]
-    assert scan["score"] is None and scan["adaptive"]["assessed"] is False
+    # Nothing applied yet: the parser reads no remote log host, so LOG-001 fails
+    assert "LOG-001" in _rule_ids(scan)
 
     item = _item_for(_queue(client, scan_id), "audit-stream")
     resp = client.post(f"/api/adaptive/scans/{scan_id}/review/{item['item_id']}/accept")
@@ -112,8 +145,8 @@ def test_accept_persists_mapping_and_rescans(client):
     assert body["mapping"]["command_pattern"] == "audit-stream destination {value}"
     assert body["mapping"]["confirmed"] is True
     # Deterministic rule re-evaluated on the confirmed value
-    assert "LOG-001" not in [f["rule_id"] for f in body["scan"]["findings"]]
-    assert body["scan"]["score"] is not None and body["scan"]["adaptive"]["assessed"] is True
+    assert "LOG-001" not in _rule_ids(body["scan"])
+    assert body["scan"]["score"] > scan["score"] and body["scan"]["adaptive"]["assessed"] is True
 
     config = get_scan_store()[scan_id]["configs"][0]
     assert config.logging.remote_hosts == ["10.44.60.20"]
@@ -267,13 +300,13 @@ def test_fields_endpoint_lists_settable_fields(client):
 
 
 def test_display_only_scan_returns_409_for_result_routes(client):
-    # display-only remains only when lexicon heuristics find nothing either (Phase 5)
+    # display-only remains only when lexicon heuristics find nothing either (Phase 5); unknown vendor, AI off
     with patch("app.api.routes.scan.is_available", return_value=False), \
          patch("app.api.routes.scan.facts_from_config", return_value=[]):
         scan = client.post("/api/scan", files=[("files", ("d.cfg", CONFIG.encode(), "text/plain"))]).json()
-    assert scan["score"] is None
+    assert scan["score"] is None and scan["devices"][0]["vendor"] == "unknown"
 
     assert client.post("/api/download-fixed", json={"scan_id": scan["scan_id"]}).status_code == 409
     assert client.get(f"/api/assistant/summary/{scan['scan_id']}").status_code == 409
-    # Lines are still reviewable without AI
-    assert _queue(client, scan["scan_id"])["pending_count"] == 3
+    # Unknown vendors never reach the legacy interpreter (Phase 7): nothing is queued for line review
+    assert _queue(client, scan["scan_id"])["pending_count"] == 0

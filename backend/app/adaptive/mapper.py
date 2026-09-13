@@ -496,6 +496,7 @@ class AdaptiveMapper:
         config: NormalizedConfig,
         interp: InterpretationResult,
         learned_candidate_fields: Optional[Iterable[str]] = None,
+        auto_apply: bool = True,
     ) -> AIFieldMapping:
         """
         Decide and apply one AI interpretation; does not touch ``ai_mappings``.
@@ -503,6 +504,7 @@ class AdaptiveMapper:
         ``learned_candidate_fields`` — fields of confirmed learned mappings
         whose patterns resemble this line. A HIGH interpretation that maps the
         line somewhere else conflicts with confirmed knowledge and is reviewed.
+        ``auto_apply=False`` — a valid HIGH interpretation is reviewed too, never written.
         """
         # Step 1 — validate
         validation = self.validator.validate(interp)
@@ -527,6 +529,11 @@ class AdaptiveMapper:
                     return self._needs_review(
                         interp, min(confidence, _TIER_CEILING[ConfidenceTier.MEDIUM]), ConfidenceTier.MEDIUM,
                         f"Downgraded from HIGH confidence: {concern}",
+                    )
+                if not auto_apply:
+                    return self._needs_review(
+                        interp, confidence, tier,
+                        "HIGH confidence — AI interpretations are never applied without administrator review",
                     )
                 return self._auto_map(config, interp, validation, confidence)
             # HIGH but invalid → needs_review

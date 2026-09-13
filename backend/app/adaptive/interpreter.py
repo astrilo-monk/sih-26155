@@ -578,8 +578,3 @@ def interpret_lines(
 
     logger.info("AI interpretation finished with %d request(s)", state.requests)
     return results
-
-
-def interpret_config(config: NormalizedConfig) -> list[InterpretationResult]:
-    """Interpret all unrecognized lines in a NormalizedConfig."""
-    return interpret_lines(config.unrecognized_lines)
