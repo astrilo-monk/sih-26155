@@ -1,47 +1,24 @@
 """
 Control evaluation engine.
 
-Runs every catalog control against a normalized config. Each control yields
-ControlResults (PASS / FAIL / NOT_CONFIGURED / UNKNOWN / N_A); Findings are
-the view of the FAIL results, and the legacy score is computed from them.
+Runs every catalog control against a normalized config through the generic
+evaluator (``controls/evaluate.py``). Each control yields ControlResults
+(PASS / FAIL / NOT_CONFIGURED / UNKNOWN / N_A); Findings are the view of the
+FAIL results, and the legacy score is computed from them.
 """
 
 from __future__ import annotations
 
-import logging
 import uuid
 
-from app.analysis.rules.boundary import BOUNDARY_RULES
-from app.analysis.rules.crypto import CRYPTO_RULES
-from app.analysis.rules.logging_rules import LOGGING_RULES
-from app.analysis.rules.management import MANAGEMENT_RULES
 from app.analysis.scoring import calculate_score
+from app.controls.evaluate import evaluate_controls
 from app.controls.views import finding_from_result
 from app.models.findings import ScanResult
 from app.models.normalized import NormalizedConfig, Vendor
 from app.models.results import ControlResult, Status
 
-logger = logging.getLogger(__name__)
-
-ALL_RULES = MANAGEMENT_RULES + BOUNDARY_RULES + LOGGING_RULES + CRYPTO_RULES
-
-
-def evaluate_controls(config: NormalizedConfig) -> list[ControlResult]:
-    """Results of every control for one config (a broken rule yields UNKNOWN, never a crash)."""
-    results: list[ControlResult] = []
-    for rule in ALL_RULES:
-        try:
-            results.extend(rule.evaluate(config))
-        except Exception as e:
-            logger.warning("Control %s failed: %s", rule.rule_id, e)
-            results.append(ControlResult(
-                control_id=rule.rule_id,
-                status=Status.UNKNOWN,
-                reason=f"The control could not be evaluated: {e}",
-                device_hostname=config.device.hostname,
-                vendor=config.device.vendor.value,
-            ))
-    return results
+__all__ = ["analyze", "analyze_multiple", "evaluate_controls"]
 
 
 def _is_assessed(config: NormalizedConfig, results: list[ControlResult]) -> bool:

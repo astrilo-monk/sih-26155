@@ -9,18 +9,19 @@ catalog with their version, and no control reports PASS without evidence.
 import json
 from collections import defaultdict
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 import app.remediation.engine as remediation_engine
 from app.adaptive.capture import capture_unrecognized_lines
-from app.analysis.engine import ALL_RULES, analyze, evaluate_controls
+from app.analysis.engine import analyze, evaluate_controls
 from app.controls.catalog import CIS, CONTROLS, NIST, ControlKind
+from app.controls.judges import JUDGES
 from app.controls.views import finding_from_result
 from app.main import app
-from app.models.field_catalog import FIELD_REGISTRY
+from app.facts.predicates import PREDICATES
 from app.models.normalized import AIFieldMapping, DeviceInfo, NormalizedConfig, Vendor
 from app.models.results import Assurance, Status
 from app.parsers.detector import identify_vendor
@@ -67,7 +68,7 @@ NIST_REV5_WITHDRAWN = {"AU-8(1)", "AU-8(2)"}
 
 def test_catalog_has_exactly_one_control_per_rule():
     assert set(CONTROLS) == ORIGINAL_RULE_IDS
-    assert sorted(rule.rule_id for rule in ALL_RULES) == sorted(ORIGINAL_RULE_IDS)
+    assert set(JUDGES) == ORIGINAL_RULE_IDS
 
 
 @pytest.mark.parametrize("control_id", sorted(ORIGINAL_RULE_IDS))
@@ -81,7 +82,7 @@ def test_every_control_is_fully_described(control_id):
     assert any(m.framework == NIST for m in control.mappings)
     assert all(m.version for m in control.mappings)
     assert control.remediation_keys and all(key in templates for key in control.remediation_keys)
-    assert set(control.normalized_fields) <= set(FIELD_REGISTRY)
+    assert control.needs and set(control.needs) <= PREDICATES
 
 
 def test_nist_mappings_are_current_rev5_controls_with_official_titles():
@@ -150,9 +151,10 @@ def test_no_decision_without_evidence_or_assurance(path):
     config = _config_for(path)
     for result in evaluate_controls(config):
         if result.status == Status.PASS:
-            assert result.evidence and result.assurance is not None, result
+            # a documented vendor default decides without a configuration line (Phase 4)
+            assert result.assurance is not None and (result.evidence or result.assurance == Assurance.DEFAULT), result
         if result.decided and config.device.vendor != Vendor.UNKNOWN:
-            assert result.assurance == Assurance.PARSER, result
+            assert result.assurance in (Assurance.PARSER, Assurance.DEFAULT), result
         if config.device.vendor == Vendor.UNKNOWN:
             assert not result.decided, result  # no adaptive values applied here
 
@@ -222,15 +224,16 @@ def test_unknown_vendor_decision_carries_the_assurance_of_its_evidence(source, a
     assert log001.evidence.line_numbers == [1]
 
 
-def test_vendor_gated_control_reports_a_found_setting_as_unknown():
+def test_formerly_vendor_gated_control_evaluates_a_confirmed_mapping():
+    # Phase 4 removed the vendor gates: a confirmed mapping is a decisive fact for every control
     cfg = _unknown_config("remote-console protocol telnet\n")
     cfg.management.telnet_enabled = True
     cfg.ai_mappings.append(_applied("management.telnet_enabled", "true", 1))
 
     mgmt001 = next(r for r in evaluate_controls(cfg) if r.control_id == "MGMT-001")
-    assert mgmt001.status == Status.UNKNOWN
+    assert mgmt001.status == Status.FAIL
+    assert mgmt001.assurance == Assurance.CONFIRMED
     assert mgmt001.evidence.line_numbers == [1]
-    assert "management.telnet_enabled" in mgmt001.reason
 
 
 def test_ntp_server_without_known_authentication_is_unknown_not_pass():
@@ -243,9 +246,8 @@ def test_ntp_server_without_known_authentication_is_unknown_not_pass():
     assert log002.status == Status.UNKNOWN
 
 
-def test_a_broken_rule_yields_unknown_and_the_scan_continues():
-    rule = next(r for r in ALL_RULES if r.rule_id == "MGMT-007")
-    with patch.object(type(rule), "check", side_effect=RuntimeError("boom")):
+def test_a_broken_control_yields_unknown_and_the_scan_continues():
+    with patch.dict(JUDGES, {"MGMT-007": MagicMock(side_effect=RuntimeError("boom"))}):
         results = evaluate_controls(_config_for(TESTS / "fixtures" / "cisco_vulnerable.cfg"))
     broken = [r for r in results if r.control_id == "MGMT-007"]
     assert len(broken) == 1 and broken[0].status == Status.UNKNOWN and "boom" in broken[0].reason

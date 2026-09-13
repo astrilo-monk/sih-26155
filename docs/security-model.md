@@ -34,7 +34,7 @@ The engine currently runs 15 deterministic rules. The rule IDs below are the IDs
 | MGMT-005 | Plaintext or weak passwords | Critical | Cisco-only check for plaintext, Type 7, and missing password encryption service. |
 | MGMT-006 | Missing or disabled timeout | Medium | Checks Cisco VTY/console and long FortiGate admin timeouts. |
 | MGMT-007 | Weak SSH configuration | High | Checks SSH version 1. |
-| MGMT-008 | AAA not configured | High | Cisco-only check for missing `aaa new-model`. |
+| MGMT-008 | AAA not configured | High | Checks central AAA (Cisco `aaa new-model`); UNKNOWN for FortiGate, whose parser does not read AAA. |
 | MGMT-009 | Missing login banner | Low | Checks Cisco login/MOTD and FortiGate pre-login banners. |
 | BOUNDARY-001 | Overly permissive ACL/firewall rule | Critical | Checks Cisco IP any-any permits and FortiGate all-service permits. |
 | BOUNDARY-002 | IP source routing enabled | Medium | Checks the global source-routing setting. |
@@ -43,4 +43,4 @@ The engine currently runs 15 deterministic rules. The rule IDs below are the IDs
 | LOG-002 | Missing or unauthenticated NTP | Medium | Checks NTP servers and authentication. |
 | CRYPTO-001 | Weak VPN/IPsec cryptography | High | Checks DES, 3DES, MD5, and weak DH groups. |
 
-The rules are implemented in `backend/app/analysis/rules/` and are assembled by `backend/app/analysis/engine.py`.
+Controls are declared in `backend/app/controls/catalog.py`, judged over security facts in `backend/app/controls/judges.py` and evaluated by `backend/app/controls/evaluate.py`. Vendor parsers and adaptive mappings become facts in `backend/app/facts/from_normalized.py`; `backend/app/analysis/engine.py` turns the results into findings.

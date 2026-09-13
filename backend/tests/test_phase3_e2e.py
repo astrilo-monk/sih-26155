@@ -155,16 +155,14 @@ def test_e2e_full_pipeline_high_confidence_vendor_identified():
     assert evidence["status"] == "identified"
     assert evidence["likely_vendor"] == "cisco_ios"
 
-    # The applied values (SSH version, AAA) feed only vendor-specific rules, so
-    # nothing was evaluated: not assessed, and no FAIL from missing data
-    assert data["score"] is None
-    assert data["findings"] == []
-    assert data["adaptive"]["assessed"] is False
-
-    # ssh_version was auto-mapped to 1, but the Cisco-specific MGMT-007 rule
-    # is not activated by an AI vendor guess
-    rule_ids = [f["rule_id"] for f in data["findings"]]
-    assert "MGMT-007" not in rule_ids
+    # Every control reads the applied values whatever the vendor (Phase 4): the
+    # auto-mapped SSHv1 is a FAIL and AAA a PASS, but AI verdicts are provisional
+    # (never scored in posture), and nothing fails from missing data
+    assert [f["rule_id"] for f in data["findings"]] == ["MGMT-007"]
+    results = {r["control_id"]: r for r in data["results"]}
+    assert (results["MGMT-007"]["status"], results["MGMT-007"]["assurance"]) == ("fail", "ai_verified")
+    assert (results["MGMT-008"]["status"], results["MGMT-008"]["assurance"]) == ("pass", "ai_verified")
+    assert data["posture"] is None
     assert get_scan_store()[data["scan_id"]]["configs"][0].management.ssh_version == 1
 
     # Adaptive info present with auto-mapped entries
@@ -342,8 +340,8 @@ def test_e2e_container_field_rejected():
 
 def test_e2e_vendor_identified_from_unanimous_mappings():
     """When all HIGH auto-mapped entries agree on likely_vendor, the vendor is
-    reported as evidence only: device.vendor stays UNKNOWN, no vendor-specific
-    rule fires and nothing is scored from values those rules would read."""
+    reported as evidence only: device.vendor stays UNKNOWN. The applied values are
+    still evaluated by the vendor-neutral controls, provisionally (Phase 4)."""
 
     client = TestClient(app)
 
@@ -368,8 +366,8 @@ def test_e2e_vendor_identified_from_unanimous_mappings():
     assert data["adaptive"]["vendor_evidence"]["status"] == "identified"
     assert data["adaptive"]["vendor_evidence"]["likely_vendor"] == "cisco_ios"
     assert data["devices"][0]["vendor"] == "unknown"
-    assert data["score"] is None
-    assert data["findings"] == []
+    assert [f["rule_id"] for f in data["findings"]] == ["MGMT-007"]
+    assert data["posture"] is None
 
     print("\nPASS [6]: Vendor identified from unanimous HIGH mappings")
 
@@ -409,11 +407,10 @@ def test_e2e_vendor_not_identified_when_conflicting():
                    if m["source"] == "ai_auto_mapped"]
     assert len(auto_mapped) > 0
 
-    # UNKNOWN vendor → no vendor-specific (MGMT-*) findings fire
-    # (absence-based LOG-001/LOG-002 do not fail on an unknown vendor either — Phase 1c)
-    rule_ids = [f["rule_id"] for f in data["findings"]]
-    mgmt_rules = [r for r in rule_ids if r.startswith("MGMT-")]
-    assert len(mgmt_rules) == 0
+    # UNKNOWN vendor → only the applied values are evaluated, provisionally (Phase 4);
+    # absence-based LOG-001/LOG-002 do not fail on an unknown vendor (Phase 1c)
+    assert [f["rule_id"] for f in data["findings"]] == ["MGMT-007"]
+    assert data["posture"] is None
 
     print("\nPASS [7]: Vendor not identified when conflicting mappings")
 

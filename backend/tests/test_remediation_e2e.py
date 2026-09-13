@@ -373,6 +373,19 @@ def test_fortinet_firewall_restricted():
     assert 'set srcaddr "all"' not in fixed_text
 
 
+def test_fortinet_banner_fix_is_added_when_the_default_applies():
+    """FortiOS defaults the pre-login banner to disabled (Phase 4 defaults): the fix
+    must add the setting, not only rewrite an existing line."""
+    fixtures = Path(__file__).parent / "fixtures"
+    lines = (fixtures / "fortinet_vulnerable.cfg").read_text().splitlines()
+    silent = "\n".join(line for line in lines if "pre-login-banner" not in line)
+    original, fixed, fixed_text = _remediate_and_rescore(FortinetParser, silent)
+
+    assert "MGMT-009" in {f.rule_id for f in original.findings}
+    assert "MGMT-009" not in {f.rule_id for f in fixed.findings}
+    assert "set pre-login-banner enable" in fixed_text
+
+
 # ── Universal invariant test ──────────────────────────────────────────────
 
 

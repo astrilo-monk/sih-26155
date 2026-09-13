@@ -154,11 +154,11 @@ Keeping the raw lines and line numbers allows the application to show the exact 
 
 ## Security Rules
 
-The rules are combined in [backend/app/analysis/engine.py](../backend/app/analysis/engine.py). There are currently 15 implemented rules.
+There are 15 controls, declared in [backend/app/controls/catalog.py](../backend/app/controls/catalog.py). Controls read security facts, never vendor structures: vendor parsers feed facts through [backend/app/facts/from_normalized.py](../backend/app/facts/from_normalized.py), and [backend/app/controls/evaluate.py](../backend/app/controls/evaluate.py) runs every control on every config.
 
 ### Management Rules
 
-Defined in [backend/app/analysis/rules/management.py](../backend/app/analysis/rules/management.py):
+Judged in [backend/app/controls/judges.py](../backend/app/controls/judges.py):
 
 | Rule | Finding | Severity |
 |---|---|---|
@@ -172,11 +172,11 @@ Defined in [backend/app/analysis/rules/management.py](../backend/app/analysis/ru
 | MGMT-008 | AAA not configured | High |
 | MGMT-009 | Missing login banner | Low |
 
-Cisco-specific checks include password encoding and AAA. FortiGate checks use interface management services, admin timeout, and FortiOS global settings.
+Cisco facts come from VTY lines, global services, password encoding and AAA. FortiGate facts come from interface management services, admin timeout and FortiOS global settings; the FortiGate parser does not read password storage or AAA, so those controls report UNKNOWN for FortiGate. Documented FortiOS defaults ([backend/app/facts/defaults.py](../backend/app/facts/defaults.py)) decide when the configuration is silent.
 
 ### Boundary Rules
 
-Defined in [backend/app/analysis/rules/boundary.py](../backend/app/analysis/rules/boundary.py):
+Judged in [backend/app/controls/judges.py](../backend/app/controls/judges.py):
 
 | Rule | Finding | Severity |
 |---|---|---|
@@ -188,7 +188,7 @@ The any-any check detects Cisco rules such as `permit ip any any` and FortiGate 
 
 ### Logging Rules
 
-Defined in [backend/app/analysis/rules/logging_rules.py](../backend/app/analysis/rules/logging_rules.py):
+Judged in [backend/app/controls/judges.py](../backend/app/controls/judges.py):
 
 | Rule | Finding | Severity |
 |---|---|---|
@@ -197,7 +197,7 @@ Defined in [backend/app/analysis/rules/logging_rules.py](../backend/app/analysis
 
 ### Cryptography Rules
 
-Defined in [backend/app/analysis/rules/crypto.py](../backend/app/analysis/rules/crypto.py):
+Judged in [backend/app/controls/judges.py](../backend/app/controls/judges.py):
 
 | Rule | Finding | Severity |
 |---|---|---|

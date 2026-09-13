@@ -617,15 +617,31 @@ def _apply_fortinet_remediation(config: NormalizedConfig, commands: str) -> Norm
     modified = config.raw_config
 
     # --- Phase 1: Process 'set' commands from remediation templates ---
-    # These replace existing 'set key value' lines in-place.
+    # These replace existing 'set key value' lines in-place. A key the config does
+    # not state (the FortiOS default applies) is added to the template's top-level block.
+    block = None
     for line in commands.splitlines():
         line = line.strip()
         if not line or line.startswith("!") or line.startswith("#"):
             continue
 
-        if line.startswith("set "):
+        if line.startswith("config "):
+            block = line
+        elif line.startswith("edit "):
+            # ponytail: lines are only inserted into top-level blocks; nested edits wait for Phase 8 structured edits
+            block = None
+        elif line.startswith("set "):
             key = line.split()[1] if len(line.split()) > 1 else ""
-            modified = _replace_fortinet_set(modified, key, line)
+            if re.search(rf"^[ \t]*set {re.escape(key)}\b", modified, re.IGNORECASE | re.MULTILINE):
+                modified = _replace_fortinet_set(modified, key, line)
+            elif block:
+                lines = modified.splitlines()
+                header = next((i for i, l in enumerate(lines) if l.strip() == block and not l[:1].isspace()), None)
+                if header is None:
+                    modified = f"{modified.rstrip()}\n{block}\n    {line}\nend\n"
+                else:
+                    lines.insert(header + 1, f"    {line}")
+                    modified = "\n".join(lines)
 
     # --- Phase 2: Fix allowaccess on WAN interfaces ---
     # Remove all management services (telnet, http, https, ssh) from allowaccess

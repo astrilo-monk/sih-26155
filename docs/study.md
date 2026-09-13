@@ -56,7 +56,7 @@ If a judge asks you to show them the code for a specific feature, here is where 
 
 * **`backend/app/api/`**: The REST API routes. Show them this if they ask about how the frontend and backend talk.
 * **`backend/app/parsers/`**: Show them this if they ask how you parse complex network configurations. 
-* **`backend/app/analysis/rules/`**: Show them this if they ask about your security logic and how you detect vulnerabilities.
+* **`backend/app/controls/`** and **`backend/app/facts/`**: Show them this if they ask about your security logic and how you detect vulnerabilities (controls judge vendor-neutral security facts).
 * **`backend/app/ai/`**: Show them this if they ask how the LLM (Gemini) integration works.
 * **`frontend/src/components/`**: Show them this if they ask about the UI, charts, and dashboard structure.
 

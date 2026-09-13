@@ -171,9 +171,12 @@ def test_adaptive_learning_first_scan_then_second_scan_without_ai():
     assert cfg2.management.telnet_enabled is True
     assert cfg2.logging.remote_hosts == ["10.9.9.9"]
 
-    assert second["score"] is not None                                       # 5. rule evaluates it
+    assert second["score"] is not None                                       # 5. rules evaluate it
     assert "LOG-001" not in _rule_ids(second)
-    assert second["score"] == final_first["score"]
+    # Every control reads the confirmed values (Phase 4): SSHv1 fails on the first device only
+    assert "MGMT-007" in _rule_ids(final_first) and "MGMT-007" not in _rule_ids(second)
+    assert "MGMT-001" in _rule_ids(final_first) and "MGMT-001" in _rule_ids(second)
+    assert second["score"] > final_first["score"]
 
     assert ai_second.call_count == 0                                         # 6. AI NOT called
     assert adaptive2["ai_called"] is False
@@ -181,10 +184,14 @@ def test_adaptive_learning_first_scan_then_second_scan_without_ai():
     print(f"[scan 2] {adaptive2['learned_matches']} lines recognized from learned mappings — "
           f"AI calls: {ai_second.call_count}; score={second['score']}")
 
-    # Without the syslog line nothing is evaluated: not assessed, never a silent PASS or a FAIL
+    # Without the syslog line remote logging is not configured (never a silent PASS or a FAIL),
+    # while the recognized SSH line is decided from the learned mapping
     third = _scan(client, "secure-shell protocol-version 2\n", MagicMock(side_effect=_mock_ai))
     assert "LOG-001" not in _rule_ids(third)
-    assert third["score"] is None and third["adaptive"]["assessed"] is False
+    third_results = {r["control_id"]: r for r in third["results"]}
+    assert third_results["LOG-001"]["status"] == "not_configured"
+    assert (third_results["MGMT-007"]["status"], third_results["MGMT-007"]["assurance"]) == ("pass", "confirmed")
+    assert third["adaptive"]["assessed"] is True
     assert third["adaptive"]["ai_called"] is False
     print("=== Unknown syntax → AI interpretation → admin confirmation → "
           "mapping persisted → same syntax recognized automatically later ===")

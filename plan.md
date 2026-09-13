@@ -566,6 +566,80 @@ Controls should run for every vendor. Vendor parsers become one source of facts.
 
 - `analysis/rules/*` no longer check `config.device.vendor` to decide whether to run.
 
+## Status: done
+
+Suite after Phase 4: **652 passed, 2 skipped, 1 xfailed** (frontend unchanged).
+Shadow mode before the switch — old rules vs new evaluator on 42 configs (30
+snapshot files, 9 look-alikes, `sample/unknown.cfg`, `sample/paloalto.cfg`,
+`fortigate_broken_snmp_remediation.cfg`): **0 FAIL differences, 0 status
+differences**. Then `app/analysis/rules/` was deleted. Phase 0 snapshots unchanged.
+
+- **Facts** `app/facts/predicates.py`: 16 predicates, each consumed by a control
+  (test-enforced); `SecurityFact` (predicate, subject, scope, value, unit,
+  assurance, evidence, provenance). Value `None` = present but undetermined;
+  `NOT_SET` = a confirmed parser read the config and the setting is absent (the
+  consuming control decides what absence means).
+  - Deviations: `crypto.ipsec.proposal` is one fact per proposal
+    (`{encryption, hash, dh_group}`) so a proposal keeps one FAIL listing all its
+    weaknesses; `snmp.v3.enabled` dropped (no control consumes it);
+    `auth.password.encryption_service` added (MGMT-005 needs it).
+- **Adapter** `app/facts/from_normalized.py` holds all vendor knowledge.
+  - Cisco IOS / FortiGate: facts from the parser model with the exact Phase 0
+    citations; assurance PARSER, or the weaker assurance of adaptive mappings on
+    the cited lines. Several Cisco VTY ranges answer as one scope (first offending
+    range), keeping one finding.
+  - Other vendors: one fact per applied mapped field (lists collect their items,
+    conflicting scalars → value `None` → UNKNOWN).
+  - `PARSER_COVERAGE`: the FortiGate parser does not read password storage or AAA,
+    so MGMT-005 / MGMT-008 are UNKNOWN for FortiGate.
+- **Defaults** `app/facts/defaults.py`: FortiOS `admintimeout 5`,
+  `admin-ssh-v1 disable`, `pre-login-banner disable`, `ip-src-routing disable`.
+  Confirmed vendors only, only when a control has no fact at all. Cisco defaults
+  are deliberately absent (reasons in the file): `ip source-route` / `ip ssh
+  version` differ by release and would add FAILs; `exec-timeout` must be explicit
+  (CIS 1.2.7 / 1.2.8).
+- **Evaluator** `app/controls/evaluate.py` + `app/controls/judges.py`: catalog
+  `needs` replaces `normalized_fields`; one judge per control turns a fact into
+  PASS / FAIL / UNKNOWN; generic combination: one FAIL per failing scope > UNKNOWN >
+  PASS (a cited line required unless DEFAULT) > NOT_CONFIGURED (UNKNOWN for
+  relational). The vendor only selects recommendation wording. Extraction or
+  judge errors → UNKNOWN; the scan continues.
+- **Deliberate semantics changes** (tests updated with explicit expectations:
+  `test_phase2_controls`, `test_phase3_e2e`, `test_adaptive_generic`,
+  `test_phase6_adaptive_e2e`):
+  - Unknown vendors: every applied mapped value is evaluated by its control
+    (AI-mapped SSHv1 → MGMT-007 FAIL `ai_verified`; confirmed Telnet mapping →
+    MGMT-001 FAIL `confirmed`). AI verdicts stay provisional (posture "—"); the
+    deprecated legacy score counts them.
+  - FortiGate silent on `admintimeout` / `admin-ssh-v1` / `ip-src-routing` → PASS
+    DEFAULT; silent on `pre-login-banner` → FAIL DEFAULT. No snapshot file is
+    silent on these.
+  - Unclassified password storage (e.g. Cisco `enable password` without a type)
+    → UNKNOWN instead of PASS.
+  - The idle-timeout bound (> 15 min fails) applies to every source, not only
+    FortiGate `admintimeout`.
+- **Remediation**: FortiGate `set` templates now add a key the config does not
+  state to the template's top-level block (reachable through the banner default);
+  `test_fortinet_banner_fix_is_added_when_the_default_applies`.
+- **Tests** `tests/test_phase4_facts.py`: vocabulary = control needs; rules package
+  gone and judges never compare the vendor; parser facts cited; decision table per
+  kind (prohibition, requirement, threshold, relational); one FAIL per scope; PASS
+  without a line → UNKNOWN; weakest assurance; unknown vendor + no facts ⇒ never
+  PASS/FAIL (every control × UNKNOWN / PALO_ALTO); unread predicate → UNKNOWN;
+  FortiOS defaults PASS and FAIL; mapped facts (AI Telnet, conflict, list
+  collection); API answers every control.
+
+Known limits:
+
+- Cisco VTY / console without `exec-timeout` still FAILs although IOS defaults to
+  10 minutes (parity; CIS requires it explicitly).
+- Interface WAN / external detection is still the parser heuristic, at PARSER assurance.
+- Finding descriptions are vendor-neutral now (scope names the object);
+  recommendations keep vendor wording.
+- `ControlResult.facts` is populated but not yet exposed by the API.
+- The Phase 0 xfail (Telnet on `sample/unknown.cfg` with AI off) is unchanged —
+  it needs Phase 5 heuristics.
+
 ---
 
 # Phase 5 — Generic Tokenizer + Lexicon Heuristics

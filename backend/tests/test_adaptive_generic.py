@@ -374,16 +374,12 @@ def test_dialect_high_confidence_populates_normalized_config(client, dialect):
 
     # The vendor is never set from AI output, whatever the evidence says
     assert scan["devices"][0]["vendor"] == "unknown"
-    # Absence never fails on an unidentified vendor, and a score needs a value
-    # that some rule actually evaluated (Phase 1c)
+    # Absence never fails on an unidentified vendor (Phase 1c). Every control reads
+    # the applied values (Phase 4), so every dialect is assessed, and AI-mapped
+    # verdicts stay provisional
     assert "LOG-001" not in _rule_ids(scan)
-    assert (scan["score"] is not None) is DIALECT_IS_ASSESSED[dialect]
-
-
-# Syslog / NTP server values are evaluated by vendor-neutral rules; the braces
-# dialect only yields SSH, Telnet, AAA and timeout values, which feed
-# vendor-specific rules and therefore leave the config unassessed.
-DIALECT_IS_ASSESSED = {"flat": True, "braces": False, "block": True, "slash": True}
+    assert scan["score"] is not None
+    assert all(r["assurance"] == "ai_verified" for r in scan["results"] if r["status"] in ("pass", "fail"))
 
 
 def test_unsupported_structures_go_to_review_not_to_config(client):
@@ -608,7 +604,8 @@ def test_vendor_evidence_is_reported_but_device_vendor_stays_unknown(client, dia
     assert evidence["likely_vendor"] == vendor
     assert scan["devices"][0]["vendor"] == "unknown"
     assert get_scan_store()[scan["scan_id"]]["configs"][0].device.vendor == Vendor.UNKNOWN
-    assert not any(r.startswith("MGMT-") for r in _rule_ids(scan))
+    # MGMT-* controls evaluate the AI-mapped values, but only provisionally (Phase 4)
+    assert all(r["assurance"] == "ai_verified" for r in scan["results"] if r["status"] == "fail")
 
 
 def test_conflicting_vendor_evidence_never_creates_a_vendor(client):

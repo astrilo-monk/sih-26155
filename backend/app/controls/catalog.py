@@ -3,8 +3,8 @@ Control catalog — the security questions the auditor answers.
 
 One entry per control (ids kept from the original rules). Each control states
 its question, decision kind, the highest severity a FAIL can have, the
-remediation template keys, and its framework mappings with the exact
-framework version.
+remediation template keys, the security-fact predicates it needs, and its
+framework mappings with the exact framework version.
 
 Mapping sources (verified 2026-09-13):
 
@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
+from app.facts import predicates as P
 from app.models.findings import Severity
 from app.models.normalized import Vendor
 
@@ -67,9 +68,8 @@ class Control:
     category: str
     mappings: tuple[Mapping, ...]
     remediation_keys: tuple[str, ...]
-    # INTERIM(phase4): NormalizedConfig fields the control reads; replaced by
-    # the security-fact predicates it needs
-    normalized_fields: tuple[str, ...] = ()
+    # Security-fact predicates the control consumes
+    needs: tuple[str, ...] = ()
 
 
 def _nist(requirement_id: str, title: str) -> Mapping:
@@ -99,7 +99,7 @@ _CONTROLS = (
             _cis_fortigate("2.4.5", "Ensure only encrypted access channels are enabled"),
         ),
         remediation_keys=("MGMT-001",),
-        normalized_fields=("management.telnet_enabled",),
+        needs=(P.PROTOCOL_ENABLED,),
     ),
     Control(
         control_id="MGMT-002",
@@ -115,7 +115,7 @@ _CONTROLS = (
             _cis_fortigate("2.4.5", "Ensure only encrypted access channels are enabled"),
         ),
         remediation_keys=("MGMT-002",),
-        normalized_fields=("management.http_enabled", "management.https_enabled"),
+        needs=(P.PROTOCOL_ENABLED,),
     ),
     Control(
         control_id="MGMT-003",
@@ -134,6 +134,7 @@ _CONTROLS = (
             _cis_fortigate("2.4.2", "Ensure all the login accounts having specific trusted hosts enabled"),
         ),
         remediation_keys=("MGMT-003",),
+        needs=(P.SOURCE_RESTRICTED,),
     ),
     Control(
         control_id="MGMT-004",
@@ -152,7 +153,7 @@ _CONTROLS = (
             _cis_fortigate("2.3.1", "Ensure only SNMPv3 is enabled"),
         ),
         remediation_keys=("MGMT-004",),
-        normalized_fields=("snmp.enabled", "snmp.v3_configured"),
+        needs=(P.SNMP_COMMUNITY,),
     ),
     Control(
         control_id="MGMT-005",
@@ -169,12 +170,7 @@ _CONTROLS = (
             _cis_ios("1.4.3", "Set 'username secret' for all local users"),
         ),
         remediation_keys=("MGMT-005",),
-        normalized_fields=(
-            "authentication.enable_password_type",
-            "authentication.password_encryption_service",
-            "services.password_encryption",
-            "management.console.password_type",
-        ),
+        needs=(P.PASSWORD_STORAGE, P.PASSWORD_ENCRYPTION_SERVICE),
     ),
     Control(
         control_id="MGMT-006",
@@ -192,11 +188,7 @@ _CONTROLS = (
             _cis_fortigate("2.4.4", "Ensure Admin idle timeout time is configured"),
         ),
         remediation_keys=("MGMT-006",),
-        normalized_fields=(
-            "management.admin_timeout",
-            "management.console.exec_timeout_minutes",
-            "management.console.exec_timeout_seconds",
-        ),
+        needs=(P.IDLE_TIMEOUT,),
     ),
     Control(
         control_id="MGMT-007",
@@ -211,7 +203,7 @@ _CONTROLS = (
             _cis_ios("2.1.1.2", "Set version 2 for 'ip ssh version'"),
         ),
         remediation_keys=("MGMT-007",),
-        normalized_fields=("management.ssh_version", "management.ssh_enabled"),
+        needs=(P.SSH_VERSION,),
     ),
     Control(
         control_id="MGMT-008",
@@ -226,7 +218,7 @@ _CONTROLS = (
             _cis_ios("1.1.1", "Enable 'aaa new-model'"),
         ),
         remediation_keys=("MGMT-008",),
-        normalized_fields=("authentication.aaa_enabled", "authentication.aaa_auth_methods"),
+        needs=(P.CENTRAL_AAA,),
     ),
     Control(
         control_id="MGMT-009",
@@ -242,7 +234,7 @@ _CONTROLS = (
             _cis_fortigate("2.1.1", "Ensure 'Pre-Login Banner' is set"),
         ),
         remediation_keys=("MGMT-009",),
-        normalized_fields=("banners.login_banner", "banners.motd_banner", "banners.pre_login_banner_enabled"),
+        needs=(P.LOGIN_BANNER,),
     ),
     Control(
         control_id="BOUNDARY-001",
@@ -258,6 +250,7 @@ _CONTROLS = (
             _cis_fortigate("3.2", 'Ensure that policies do not use "ALL" as Service'),
         ),
         remediation_keys=("BOUNDARY-001",),
+        needs=(P.PERMIT_ANY,),
     ),
     Control(
         control_id="BOUNDARY-002",
@@ -272,7 +265,7 @@ _CONTROLS = (
             _cis_ios("3.1.1", "Set 'no ip source-route'", version=CIS_IOS_XE_210_L1),
         ),
         remediation_keys=("BOUNDARY-002",),
-        normalized_fields=("services.ip_source_route",),
+        needs=(P.SOURCE_ROUTING,),
     ),
     Control(
         control_id="BOUNDARY-003",
@@ -286,7 +279,7 @@ _CONTROLS = (
             _cis_ios("2.1.2", "Set 'no cdp run'"),
         ),
         remediation_keys=("BOUNDARY-003",),
-        normalized_fields=("services.cdp_globally_enabled", "services.lldp_globally_enabled"),
+        needs=(P.DISCOVERY_PROTOCOL,),
     ),
     Control(
         control_id="LOG-001",
@@ -301,7 +294,7 @@ _CONTROLS = (
             _cis_fortigate("7.2.1", "Centralized Logging and Reporting", version=CIS_FORTIGATE_L2),
         ),
         remediation_keys=("LOG-001",),
-        normalized_fields=("logging.remote_hosts",),
+        needs=(P.LOG_REMOTE_DESTINATION,),
     ),
     Control(
         control_id="LOG-002",
@@ -318,7 +311,7 @@ _CONTROLS = (
             _cis_fortigate("2.1.4", "Ensure correct system time is configured through NTP"),
         ),
         remediation_keys=("LOG-002",),
-        normalized_fields=("ntp.servers", "ntp.authentication_enabled"),
+        needs=(P.NTP_SERVER, P.NTP_AUTHENTICATED),
     ),
     Control(
         control_id="CRYPTO-001",
@@ -332,6 +325,7 @@ _CONTROLS = (
             _nist("SC-8", "Transmission Confidentiality and Integrity"),
         ),
         remediation_keys=("CRYPTO-001",),
+        needs=(P.IPSEC_PROPOSAL,),
     ),
 )
 
