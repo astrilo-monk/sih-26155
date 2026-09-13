@@ -12,7 +12,6 @@ import ProvisionalResults, { PROVISIONAL_ASSURANCE } from './components/Provisio
 import FindingDetail from './components/FindingDetail';
 import RemediationView from './components/RemediationView';
 import RemediationQueue from './components/RemediationQueue';
-import BeforeAfter from './components/BeforeAfter';
 import HistoryView from './components/HistoryView';
 import AdaptiveTraining from './components/AdaptiveTraining';
 import { saveScanToHistory } from './utils/history';
@@ -68,7 +67,6 @@ export default function App() {
 
   const [selectedFinding, setSelectedFinding] = useState(null);
   const [remediation, setRemediation] = useState(null);
-  const [comparison, setComparison] = useState(null);
   const [notification, setNotification] = useState(null);
 
   const showNotification = (msg) => {
@@ -96,14 +94,12 @@ export default function App() {
     setScanResult(null);
     setSelectedFinding(null);
     setRemediation(null);
-    setComparison(null);
     setError(null);
   };
 
   const handleSelectFinding = (finding) => {
     setSelectedFinding(finding);
     setRemediation(null);
-    setComparison(null);
   };
 
   const handleRemediation = (rem) => {
@@ -111,15 +107,9 @@ export default function App() {
     setRemediation(rem);
   };
 
-  const handleVerified = (result) => {
-    setRemediation(null);
-    setComparison(result);
-  };
-
   const handleCloseModal = () => {
     setSelectedFinding(null);
     setRemediation(null);
-    setComparison(null);
   };
 
   const handleSelectHistoryEntry = (fullResult) => {
@@ -233,16 +223,8 @@ export default function App() {
       {remediation && (
         <RemediationView
           remediation={remediation}
-          scanId={scanResult?.scan_id}
           onClose={handleCloseModal}
-          onVerified={handleVerified}
-        />
-      )}
-      
-      {comparison && (
-        <BeforeAfter
-          comparison={comparison}
-          onClose={handleCloseModal}
+          onOpenQueue={() => { handleCloseModal(); setView('remediation'); }}
         />
       )}
 

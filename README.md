@@ -11,8 +11,8 @@ Upload network device configuration files (Cisco IOS, Fortinet FortiGate), and t
 3. Run 15 security checks against it
 4. Show a security score with findings by severity
 5. Explain each finding with evidence from the actual config
-6. Generate vendor-specific fix commands
-7. Let you verify the fix by re-analyzing the patched config
+6. Generate deterministic, vendor-aware fixes for confirmed Cisco / FortiGate findings
+7. Verify every fix by rescanning the generated configuration before calling it fixed
 8. Map findings to CIS Benchmarks and NIST 800-53 controls
 
 ## Current Status
@@ -169,8 +169,6 @@ unrelated config syntaxes. Its live Groq tests are skipped unless
   unknown-vendor lines show "AI unavailable" and must be mapped manually
 - `/api/assistant/status` reports AI as available whenever a key is configured,
   even if the Groq quota is exhausted
-- For Cisco configs, `/api/verify` does not yet reflect only the supplied
-  commands — the preview can report more resolved findings than the fix covers
 - The Training endpoints have no authentication — any client can confirm mappings
 - Scanned PDF/image configs are not supported (text configs only)
 - No live device connections — upload-only

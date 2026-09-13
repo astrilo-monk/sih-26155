@@ -902,7 +902,7 @@ Cut Groq usage to a few calls per config and make AI output verifiable.
 
 - `sample/unknown.cfg`: at most 1–2 calls on first scan, zero after confirmations.
 
-## Status: done (after the validation fixes; not committed)
+## Status: done (committed as `feat/ phase 7 ai judge`)
 
 Suite: **759 passed, 2 skipped**; frontend 14 passed, build OK. Phase 0 snapshots unchanged (32 passed).
 One live Groq call on a synthetic config: 3 controls sent, fake secret absent (a banner reusing it was scrubbed),
@@ -959,7 +959,7 @@ cached forever. Fixed as below.
   recognizer; hallucinated / unrelated lines absent from the queue, draft and reject 404; 12 unknown-vendor
   secret syntaxes redacted and none — nor a value reused on a neighbour line — in the prompt.
 
-### Final improvement: unfamiliar syntax, NOT_CONFIGURED discovery, legacy retirement (not committed)
+### Final improvement: unfamiliar syntax, NOT_CONFIGURED discovery, legacy retirement
 
 - **Unfamiliar syntax**: an UNKNOWN control without a lexicon-read line sends at most 3 lines naming related
   vocabulary (`lexicon.*_RELATED`, never limits / counters / lockouts in `UNRELATED`), each with its tokenizer
@@ -1037,6 +1037,73 @@ Fixes must be safe, parameterized and truly verified.
 ## Done when
 
 - Every "verified" fix passed the regression check with real inputs.
+
+## Status: done
+
+Suite after Phase 8: **827 passed, 2 skipped** (frontend 16 passed, build OK). Phase 0 snapshots unchanged.
+
+- **Recipes** `app/remediation/recipes.py`: `RECIPES[(control_id, vendor)]` for Cisco IOS and FortiGate — 28
+  recipes over all 15 controls (MGMT-005 / MGMT-008 Cisco only: the FortiGate parser never decides them). A recipe
+  gets the control's decisive FAIL results and the parser model and returns edited lines. Parameters come from the
+  parser model and the results' cited lines (VTY ranges, interfaces, proposals, communities), never from evidence
+  text; `_extract_interface_name` is gone. Edits are local: a setting is replaced in place with its indentation, or
+  added as the last child of its block (Cisco indented children; FortiOS `config/edit` tree with `next/end`), or
+  before the final `end`. Comments and unrelated lines are untouched; CRLF and the trailing newline are kept. The
+  FortiGate SNMP nested-block remover is kept verbatim (`remove_default_snmp_communities`).
+- **Inputs**, not placeholders: `syslog_server`, `ntp_server` (IPv4), `ntp_key_id` (1–65535), `ntp_key`
+  (8–32 of `[A-Za-z0-9._+=@%-]`), `management_subnet` (IPv4 CIDR, never `/0`). Validated at the API (422); the only
+  caller data ever written, and only into fixed templates. A recipe missing one is `needs_input`, never verified.
+  `10.0.0.100`, `10.0.0.50`, `$9$…`, `Internal_Subnet` and the like are gone.
+- **No safe change → `manual_review`**: weak stored passwords (a hash cannot be derived offline), AAA when no local
+  account has a strong secret (lockout), any-to-any ACL / policy (needs operator intent).
+- **Engine** `app/remediation/engine.py`: `remediate_control(text, control, inputs)` and `remediate_all` (every
+  failing control in catalog order, each step verified against the previous text). Gates, in order: vendor confirmed
+  (`vendor_unverified`), a FAIL with decisive assurance (`provisional` / `not_failing`), a recipe (`no_recipe`),
+  inputs (`needs_input`), safety (`manual_review`). The output is rescanned exactly like an upload with AI off
+  (identify_vendor + parse coverage → capture → confirmed learned mappings → facts → every control → posture):
+  **fixed** only if the vendor is still confirmed, lines outside the grammar and the longest foreign run did not
+  grow, the target control is PASS with decisive assurance on every scope, and no other control regressed (PASS →
+  not PASS, or a new / additional FAIL). Otherwise `verification_failed` with the failed checks, the generated
+  output kept for review. Each outcome carries control, vendor, scopes, cited evidence (before), diff (proposed
+  change), generated config (after), checks, and posture / coverage before and after (scoring v2).
+- **Idempotent** by construction: recipes run only on decisive FAILs, so a fixed config yields no change.
+- **API**: `POST /api/remediate` (one control; `inputs`; returns status, reason, evidence, diff, checks,
+  before/after, `fixed_config`), `POST /api/remediation/plan` (every device and failing control; per-device combined
+  output), `POST /api/download-fixed` (verified changes only; `inputs`; 409 when no confirmed vendor, 400 when
+  nothing verified). `POST /api/verify` (applied client command text) is **removed**: no request field carries
+  commands. The routes gate on the stored scan too: a control whose stored verdict is provisional (heuristic, or
+  an AI proposal) is never changed, even where the fresh parser rescan could decide it.
+- **Compatibility**: `generate_remediation` / `apply_remediation` remain as deprecated shims over the engine (the
+  repository's `verify_fix.py` and `backend/diagnose_remediation.py` import them). `apply_remediation` ignores the
+  command text it is given.
+- **Frontend**: Remediation page runs the plan and separates **Fixed** / **Proposed** (needs input, with an input
+  form) / **Requires human review** (manual review, verification failed, provisional) / **Unable to remediate** /
+  **Unverified vendor**; each row expands to cited evidence, diff, rescan checks and before/after posture +
+  coverage; download is enabled only for verified output. The finding drawer shows the same detail; provisional
+  and unverified-vendor findings offer no remediation. The command-text "Verify Fix" flow is gone.
+- **Tests** `tests/test_remediation_e2e.py` (rewritten, 69): Cisco and FortiGate plans (exact statuses), single
+  control with scope / evidence / diff / checks / before-after, missing settings inside their blocks, FortiOS NTP
+  block created or extended with balanced nesting, existing NTP servers keyed without duplicates, already-fixed
+  configs untouched, every confirmed sample (30) verified + idempotent + no placeholder, per-control idempotence,
+  byte-exact "only the failing settings changed" (Cisco with banner text and comments, FortiGate with config-version
+  comments), CRLF, needs-input, 7 invalid inputs, malformed output kept and failed (vendor lost), no-fix and
+  regression detected, unknown / Palo Alto / look-alike / mixed configs blocked, heuristic FAIL blocked, API scan →
+  plan → download → real rescan equal to the plan's after posture / coverage / critical-unassessed, FortiGate
+  download rescans confirmed, inputs 422 and extra command fields ignored, `/verify` gone, unknown vendor
+  `vendor_unverified` + download 409, stored AI proposal blocks remediation on a confirmed vendor.
+- **Deliberate test updates**: the old "every sample remediates to 100 / 0 findings" expectations were only reachable
+  with placeholder secrets and invented address objects. `test_download_fixed` (HTTP fix is `no ip http server`),
+  `test_phase1_honest_unknowns` (`/verify` gone; `/remediate` returns `vendor_unverified`), `test_phase2_controls`
+  (remediation keys = recipe controls), `test_adaptive_api_integration` G2 (shims ignore command text),
+  `test_phase3_e2e` round trip (rescan leaves exactly MGMT-005, MGMT-008, BOUNDARY-001).
+
+Known limits:
+
+- Remediation coverage is the recipe table: only Cisco IOS and FortiGate, only these 15 controls.
+- MGMT-003 on FortiGate removes management services from WAN interfaces; MGMT-001 Cisco sets `transport input ssh`
+  on every VTY range. Both carry lockout warnings; the rescan cannot know whether SSH keys exist on the device.
+- The plan fixes in catalog order and does not revisit a control a later step could have made fixable.
+- A generated configuration holds the NTP key the operator typed; it is returned to the caller, never persisted.
 
 ---
 

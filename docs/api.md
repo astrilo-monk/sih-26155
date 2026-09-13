@@ -29,38 +29,37 @@ Retrieve a previous scan from the in-memory store.
 
 ## Remediation
 
-### `POST /api/remediate`
-Generate deterministic remediation commands for one finding.
-* **Request JSON:**
-  ```json
-  {
-    "scan_id": "123-abc",
-    "rule_id": "MGMT-001",
-    "device_hostname": "CORP-RTR-01"
-  }
-  ```
-* **Response JSON:**
-  ```json
-  {
-    "rule_id": "MGMT-001",
-    "title": "Insecure Management Protocol (Telnet) Enabled",
-    "device_hostname": "CORP-RTR-01",
-    "vendor": "cisco_ios",
-    "original_lines": ["transport input telnet ssh"],
-    "remediation_commands": "line vty 0 4\n transport input ssh\n no transport input telnet",
-    "explanation": "This restricts VTY access to SSH only, removing Telnet."
-  }
-  ```
+Remediation is deterministic (`backend/app/remediation/`). It runs only for a **decisive FAIL** (parser, confirmed recognizer or documented default) on a **confirmed Cisco IOS / FortiGate** configuration. It is reported `fixed` only after the generated configuration was rescanned and verified. No request field carries command text, and AI output is never used.
 
-### `POST /api/verify`
-Apply remediation commands to a copy of the config and re-analyze it.
-* **Request JSON:** `{"scan_id": "123-abc", "remediation_commands": "line vty 0 4\n transport input ssh"}`
-* **Response JSON:** `VerifyResponse` with original vs. new scores and remaining findings.
-* **Known issue:** for Cisco configs the preview does not yet reflect only the supplied commands.
+Every remediation response (`RemediationResponse`) has:
+
+| Field | Meaning |
+|---|---|
+| `status` | `fixed` · `needs_input` · `manual_review` · `verification_failed` · `no_recipe` · `vendor_unverified` · `provisional` · `not_failing` |
+| `reason`, `explanation`, `warnings` | Why this status; what the recipe changes; operational warnings |
+| `scopes`, `evidence` | Failing scopes and the cited configuration lines (before state) |
+| `required_inputs`, `missing_inputs` | Operator values the recipe uses / still needs |
+| `diff` | The proposed deterministic change (unified diff) |
+| `fixed_config` | Generated configuration (after state); also returned when verification failed, for review |
+| `checks` | Rescan checks: `vendor`, `parse_coverage`, `target`, `no_regression` |
+| `control_status_before` / `_after`, `before` / `after` | Control status and posture, coverage, critical-unassessed, parse coverage before and after |
+
+Inputs (all optional, validated, `422` when invalid): `syslog_server` and `ntp_server` (IPv4), `ntp_key_id` (1–65535), `ntp_key` (8–32 characters of `A-Z a-z 0-9 . _ + = @ % -`), `management_subnet` (IPv4 CIDR, not `/0`).
+
+### `POST /api/remediate`
+Remediate one control on one device.
+* **Request JSON:** `{"scan_id": "123-abc", "rule_id": "LOG-001", "device_hostname": "CORP-RTR-01", "config_index": null, "inputs": {"syslog_server": "10.20.0.5"}}`
+* **Response JSON:** `RemediationResponse`, e.g. `{"status": "fixed", "diff": "…\n+logging host 10.20.0.5\n end", "checks": [{"name": "target", "passed": true, "detail": "LOG-001 now passes: Logs are forwarded to 10.20.0.5"}, …], …}`. Without the input: `{"status": "needs_input", "missing_inputs": ["syslog_server"], "fixed_config": null, …}`. Unknown or unverified vendor: `{"status": "vendor_unverified", …}`.
+
+### `POST /api/remediation/plan`
+Remediate every failing control of every device, in catalog order, verifying each step.
+* **Request JSON:** `{"scan_id": "123-abc", "inputs": {}}`
+* **Response JSON:** `RemediationPlanResponse`: `inputs` (every input spec) and `devices[]`, each with `vendor_status`, `remediations[]`, `fixed_controls`, the combined `checks`, `before` / `after` and `fixed_config` (every verified change; `null` when none).
 
 ### `POST /api/download-fixed`
-Download the fully remediated configuration(s) for a scan.
-* **Request JSON:** `{"scan_id": "123-abc"}`
+Download the configuration(s) with every verified fix applied (unverified changes are never included).
+* **Request JSON:** `{"scan_id": "123-abc", "inputs": {}}`
+* **Response:** one `.cfg` (text/plain) or a `.zip` of `<hostname>_fixed.cfg`. `409` when no configuration has a confirmed vendor; `400` when nothing was verified.
 
 ## Assistant (AI)
 

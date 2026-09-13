@@ -48,7 +48,7 @@ def test_single_fixed_config_is_readable_cfg():
     )
     body = response.body.decode("utf-8")
     assert "hostname CORP-RTR-01" in body
-    assert "ip http secure-server" in body
+    assert "no ip http server" in body  # Phase 8: the verified MGMT-002 fix disables HTTP in place
     assert not any(
         line.strip() == "ip http server"
         for line in body.splitlines()
@@ -79,7 +79,7 @@ def test_multiple_fixed_configs_are_cfg_files_in_zip():
         }
 
     assert all(name.endswith("_fixed.cfg") for name in names)
-    assert "ip http secure-server" in contents["CORP-RTR-01_fixed.cfg"]
+    assert "no ip http server" in contents["CORP-RTR-01_fixed.cfg"]
     assert not any(
         line.strip() == "ip http server"
         for line in contents["CORP-RTR-01_fixed.cfg"].splitlines()

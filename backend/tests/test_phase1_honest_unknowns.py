@@ -123,8 +123,9 @@ def test_remediation_routes_never_reparse_an_unconfirmed_config_as_cisco():
     client = TestClient(app)
     scan = _unknown_scan_with_result(client)
 
+    # Phase 8: the command-text /verify route is gone — nothing a client sends becomes configuration
     verify = client.post("/api/verify", json={"scan_id": scan["scan_id"], "remediation_commands": ""})
-    assert verify.status_code == 409
+    assert verify.status_code in (404, 405)
     download = client.post("/api/download-fixed", json={"scan_id": scan["scan_id"]})
     assert download.status_code == 409
 
@@ -134,7 +135,10 @@ def test_remediation_routes_never_reparse_an_unconfirmed_config_as_cisco():
     remediate = client.post("/api/remediate", json={
         "scan_id": scan["scan_id"], "rule_id": "LOG-002", "device_hostname": "unknown",
     })
-    assert remediate.status_code == 409
+    # Phase 8 reports the block as a status the UI shows ("unverified vendor") instead of a 409
+    assert remediate.status_code == 200
+    body = remediate.json()
+    assert body["status"] == "vendor_unverified" and body["fixed_config"] is None and body["diff"] == ""
 
 
 def test_apply_remediation_refuses_an_unknown_vendor():

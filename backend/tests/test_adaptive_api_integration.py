@@ -383,39 +383,30 @@ def test_g_scoring_unchanged():
     print("\nPASS [G1]: Scoring math unchanged")
 
 
-def test_g2_remediation_unchanged():
-    """Remediation pipeline produces expected fixed config."""
+def test_g2_remediation_compatibility_shims_never_apply_caller_commands():
+    """Phase 8: the pre-Phase 8 functions remain as shims over the verified engine. Command text passed in
+    is ignored, and the result is no longer 100/100 — unsafe fixes (weak passwords, AAA without a strong
+    local account, any-any ACL) and fixes needing operator values are left for a human."""
 
     from app.remediation.engine import generate_remediation, apply_remediation
     from app.parsers.cisco_ios import CiscoIOSParser
     from app.analysis.engine import analyze
 
     cisco_config = (FIXTURES / "cisco_vulnerable.cfg").read_text()
-
-    parser = CiscoIOSParser()
-    config = parser.parse(cisco_config)
+    config = CiscoIOSParser().parse(cisco_config)
     original = analyze(config)
 
-    # Generate and apply remediation for each finding
-    all_commands = []
-    for finding in original.findings:
-        remediation = generate_remediation(finding, [config])
-        all_commands.append(remediation["commands"])
+    ssh = next(f for f in original.findings if f.rule_id == "MGMT-007")
+    remediation = generate_remediation(ssh, [config])
+    assert remediation["status"] == "fixed" and "+ip ssh version 2" in remediation["commands"]
 
-    modified = config
-    import copy
-    modified = copy.deepcopy(config)
-    for commands in all_commands:
-        modified = apply_remediation(modified, commands)
+    modified = apply_remediation(config, "ip http server\nno service password-encryption\nsnmp-server community public RW")
+    fixed_result = analyze(CiscoIOSParser().parse(modified.raw_config))
 
-    fixed_config = parser.parse(modified.raw_config)
-    fixed_result = analyze(fixed_config)
-
-    # After remediation, score should be 100 and 0 findings
-    assert fixed_result.score == 100
-    assert fixed_result.total_findings == 0
-
-    print(f"\nPASS [G2]: Remediation pipeline unchanged (original={original.score}, fixed={fixed_result.score})")
+    assert not any(line.strip() in ("ip http server", "snmp-server community public RW") for line in modified.raw_lines)
+    assert {f.rule_id for f in fixed_result.findings} == {
+        "MGMT-003", "MGMT-005", "MGMT-008", "BOUNDARY-001", "LOG-001", "LOG-002",
+    }
 
 
 # ===========================================================================

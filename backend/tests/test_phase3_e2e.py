@@ -329,10 +329,13 @@ def test_e2e_remediation_round_trip():
 
     scan_id = scan_data["scan_id"]
 
-    # Step 2 — download the fully remediated config
+    # Step 2 — download the config with every verified fix (operator values for syslog / NTP / ACL)
     dl_resp = client.post(
         "/api/download-fixed",
-        json={"scan_id": scan_id},
+        json={"scan_id": scan_id, "inputs": {
+            "syslog_server": "10.20.0.5", "ntp_key_id": "7", "ntp_key": "NtpKey2026x",
+            "management_subnet": "10.10.0.0/24",
+        }},
     )
     assert dl_resp.status_code == 200
     remediated_text = dl_resp.text
@@ -346,12 +349,15 @@ def test_e2e_remediation_round_trip():
     assert rescan_resp.status_code == 200
     rescan_data = rescan_resp.json()
 
-    # Step 4 — all findings resolved, perfect score
-    assert rescan_data["score"] == 100
-    assert rescan_data["total_findings"] == 0
+    # Step 4 — (Phase 8) every verified fix holds on a real rescan; only the controls with no
+    # known-safe deterministic fix remain: weak stored passwords, AAA without a strong local
+    # account (lockout risk), and the any-any ACL
+    assert rescan_data["vendor_identification"][0]["status"] == "confirmed"
+    assert {f["rule_id"] for f in rescan_data["findings"]} == {"MGMT-005", "MGMT-008", "BOUNDARY-001"}
+    assert rescan_data["posture"] > scan_data["posture"]
 
     print(f"\nPASS [10]: Remediation round-trip complete "
-          f"(original={scan_data['score']}, fixed={rescan_data['score']})")
+          f"(posture {scan_data['posture']} -> {rescan_data['posture']})")
 
 
 # ---------------------------------------------------------------------------

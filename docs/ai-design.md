@@ -67,9 +67,9 @@ Keys are tried in order: `GROQ_API_KEY`, then `GROQ_API_KEY_1` .. `_4`.
 
 Keys that belong to the same Groq organization share one daily quota, so adding keys from the same account does not increase capacity. Key material is never logged.
 
-## Remediation Generation: Deterministic Templates
+## Remediation: Deterministic Recipes
 
-**AI does not generate remediation commands.** Fixes come from deterministic, vendor-specific templates in `remediation/engine.py`, because an invented command could disrupt real network equipment.
+**AI does not generate or apply remediation.** Fixes come from deterministic recipes keyed by control and confirmed vendor (`backend/app/remediation/recipes.py`), filled only with validated operator inputs, and are reported fixed only after a full rescan (`backend/app/remediation/engine.py`). AI_VERIFIED proposals and heuristic verdicts never trigger remediation. See [api.md](api.md#remediation).
 
 ## Fallback Behavior
 

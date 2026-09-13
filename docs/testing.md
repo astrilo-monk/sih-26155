@@ -7,7 +7,7 @@ The backend uses `pytest`; the frontend uses Vitest with Testing Library. No tes
 | Area | Tests |
 |------|-------|
 | Parsers, rules, scoring | `test_pipeline.py`, `test_cisco_acl.py`. Fixture configs in `backend/tests/fixtures/` |
-| Remediation | `test_remediation_e2e.py`, `test_download_fixed.py`. Fixed configs re-scan to 100/100 |
+| Remediation | `test_remediation_e2e.py`, `test_download_fixed.py`. Verified fixes pass on a real rescan, nothing regresses, output is idempotent, unsafe / unverified cases are never reported fixed |
 | Settings | `test_config_loading.py` |
 | Adaptive capture and relevance filter | `test_adaptive.py`, `test_adaptive_api_integration.py` |
 | Confidence tiers and evidence validation | `test_phase3_adaptive_mapper.py`, `test_phase3_e2e.py` |

@@ -6,8 +6,9 @@ import { PROVISIONAL_ASSURANCE } from './ProvisionalResults';
 export default function FindingDetail({ finding, scanId, onClose, onRemediation }) {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-  // Vendor commands exist only for a confirmed vendor profile (the API refuses the rest)
-  const canRemediate = finding.vendor !== 'unknown';
+  // Deterministic remediation only for decisive findings on a confirmed vendor (the API enforces both)
+  const provisional = PROVISIONAL_ASSURANCE.has(finding.assurance);
+  const canRemediate = finding.vendor !== 'unknown' && !provisional;
 
   const handleGenerateFix = async () => {
     setLoading(true);
@@ -130,7 +131,9 @@ export default function FindingDetail({ finding, scanId, onClose, onRemediation 
             </button>
           ) : (
             <div className="drawer-text" style={{ color: 'var(--text-secondary)' }}>
-              No vendor commands: the vendor is unknown or unverified. Follow the recommendation above.
+              {finding.vendor === 'unknown'
+                ? 'Unverified vendor: no vendor commands are generated. Follow the recommendation above.'
+                : 'Provisional finding: confirm it in Training before remediation.'}
             </div>
           )}
         </div>

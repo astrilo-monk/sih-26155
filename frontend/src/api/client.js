@@ -1,9 +1,17 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
+function errorMessage(detail, status) {
+  if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
+    const fields = Object.entries(detail.errors || {}).map(([name, msg]) => `${name}: ${msg}`);
+    return [detail.message, ...fields].filter(Boolean).join(' — ');
+  }
+  return (typeof detail === 'string' && detail) || `API error: ${status}`;
+}
+
 async function handleResponse(response) {
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: response.statusText }));
-    throw new Error(error.detail || `API error: ${response.status}`);
+    throw new Error(errorMessage(error.detail, response.status));
   }
   return response.json();
 }
@@ -41,33 +49,18 @@ export const apiClient = {
     return handleResponse(response);
   },
 
-  async getRemediation(scanId, ruleId, deviceHostname) {
-    const response = await fetch(`${API_BASE_URL}/remediate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        scan_id: scanId,
-        rule_id: ruleId,
-        device_hostname: deviceHostname,
-      }),
-      cache: 'no-cache',
+  // Deterministic remediation of one control, verified by a rescan (no command text is ever sent)
+  getRemediation(scanId, ruleId, deviceHostname, inputs = {}) {
+    return postJson('/remediate', {
+      scan_id: scanId,
+      rule_id: ruleId,
+      device_hostname: deviceHostname,
+      inputs,
     });
-
-    return handleResponse(response);
   },
 
-  async verifyFix(scanId, remediationCommands) {
-    const response = await fetch(`${API_BASE_URL}/verify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        scan_id: scanId,
-        remediation_commands: remediationCommands,
-      }),
-      cache: 'no-cache',
-    });
-
-    return handleResponse(response);
+  getRemediationPlan(scanId, inputs = {}) {
+    return postJson('/remediation/plan', { scan_id: scanId, inputs });
   },
 
   async getExplanation(scanId, ruleId, hostname) {
@@ -175,17 +168,17 @@ export const apiClient = {
     return handleResponse(response);
   },
 
-  async downloadFixedConfigs(scanId) {
+  async downloadFixedConfigs(scanId, inputs = {}) {
     const response = await fetch(`${API_BASE_URL}/download-fixed`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scan_id: scanId }),
+      body: JSON.stringify({ scan_id: scanId, inputs }),
       cache: 'no-cache',
     });
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: response.statusText }));
-      throw new Error(error.detail || `API error: ${response.status}`);
+      throw new Error(errorMessage(error.detail, response.status));
     }
 
     const contentType = response.headers.get('Content-Type') || '';

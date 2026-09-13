@@ -1,222 +1,216 @@
 """
-Remediation API routes.
+Remediation API routes (Phase 8).
 
-Generates vendor-specific fix commands for findings and
-supports before/after verification by re-analyzing a
-patched config copy.
+Every route works from a stored scan and the deterministic engine in
+``app.remediation.engine``: a remediation runs only for a decisive FAIL on a
+confirmed vendor, and is reported FIXED only after a full rescan verified it.
+No request field carries command text.
 """
 
 from __future__ import annotations
-import copy
+
 import io
 import zipfile
+from typing import Optional
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
+
+from app.api.routes.scan import _device_results, get_scan_store
 from app.api.schemas import (
+    DeviceRemediationPlanSchema, DownloadFixedRequest, EvidenceSchema, PostureSummarySchema,
+    RemediationCheckSchema, RemediationInputSchema, RemediationPlanRequest, RemediationPlanResponse,
     RemediationRequest, RemediationResponse,
-    VerifyRequest, VerifyResponse,
-    FindingSchema, ComplianceMappingSchema,
-    DownloadFixedRequest,
 )
-from app.api.routes.scan import get_scan_store, get_scan_result_or_409
-from app.parsers.detector import detect_vendor
-from app.parsers.cisco_ios import CiscoIOSParser
-from app.parsers.fortinet import FortinetParser
-from app.analysis.engine import analyze
+from app.controls.catalog import CONTROLS
 from app.models.normalized import Vendor
-from app.remediation.engine import generate_remediation, apply_remediation
+from app.models.results import DECISIVE_ASSURANCE, Status
+from app.remediation.engine import (
+    INPUTS, Outcome, RemediationStatus, parse_inputs, remediate_all, remediate_control,
+)
 
 router = APIRouter()
 
-_UNCONFIRMED_VENDOR = (
-    "Remediation needs a confirmed vendor profile. This configuration's vendor is unknown "
-    "or unverified, so vendor commands cannot be generated, applied or verified."
-)
+
+def _stored(scan_id: str) -> dict:
+    stored = get_scan_store().get(scan_id)
+    if not stored:
+        raise HTTPException(404, "Scan not found")
+    if not stored.get("configs"):
+        raise HTTPException(400, "No configs available")
+    return stored
 
 
-def _confirmed_configs(configs):
-    return [cfg for cfg in configs if cfg.device.vendor != Vendor.UNKNOWN]
+def _inputs(raw: dict) -> dict:
+    values, errors = parse_inputs(raw)
+    if errors:
+        raise HTTPException(422, {"message": "Invalid remediation inputs", "errors": errors})
+    return values
+
+
+def _confirmed(stored: dict, index: int) -> bool:
+    identifications = stored.get("identifications")
+    if identifications and identifications[index] is not None and not identifications[index].confirmed:
+        return False
+    return stored["configs"][index].device.vendor in (Vendor.CISCO_IOS, Vendor.FORTINET)
+
+
+def _gate(stored: dict, index: int, control_id: str) -> Optional[Outcome]:
+    """What the stored scan (the results the user saw) says before any recipe runs."""
+    config = stored["configs"][index]
+    base = dict(hostname=config.device.hostname, vendor=config.device.vendor.value)
+    if not _confirmed(stored, index):
+        identification = (stored.get("identifications") or [None] * (index + 1))[index]
+        detail = f" ({identification.reason})" if identification is not None and identification.reason else ""
+        return Outcome(control_id, RemediationStatus.VENDOR_UNVERIFIED,
+                       f"Vendor-specific remediation is blocked: the vendor is unknown or unverified{detail}. "
+                       "Follow the vendor-neutral recommendation.", **base)
+    results = [r for r in _device_results(stored.get("result"), stored["configs"], index) if r.control_id == control_id]
+    decisive = any(r.status == Status.FAIL and r.assurance in DECISIVE_ASSURANCE for r in results)
+    if not decisive and any(r.status == Status.FAIL or r.proposed_status for r in results):
+        return Outcome(control_id, RemediationStatus.PROVISIONAL,
+                       "Only a provisional (heuristic or AI) verdict exists: confirm it before remediation", **base)
+    return None
+
+
+def _provisional(stored: dict, index: int) -> dict[str, Outcome]:
+    """Controls of a confirmed-vendor device whose stored verdict is only provisional: never remediated."""
+    return {c: gate for c in CONTROLS if (gate := _gate(stored, index, c)) is not None}
+
+
+def _summary(summary: Optional[dict]) -> Optional[PostureSummarySchema]:
+    return PostureSummarySchema(**summary) if summary else None
+
+
+def _checks(checks) -> list[RemediationCheckSchema]:
+    return [RemediationCheckSchema(name=c.name, passed=c.passed, detail=c.detail) for c in checks]
+
+
+def _input_schema(name: str) -> RemediationInputSchema:
+    spec = INPUTS[name]
+    return RemediationInputSchema(name=spec.name, label=spec.label, help=spec.help)
+
+
+def _response(outcome: Outcome, index: int) -> RemediationResponse:
+    numbers, lines = zip(*outcome.evidence) if outcome.evidence else ((), ())
+    return RemediationResponse(
+        rule_id=outcome.control_id,
+        title=CONTROLS[outcome.control_id].title,
+        device_hostname=outcome.hostname,
+        vendor=outcome.vendor,
+        config_index=index,
+        status=outcome.status.value,
+        reason=outcome.reason,
+        explanation=outcome.explanation,
+        warnings=outcome.warnings,
+        scopes=outcome.scopes,
+        evidence=EvidenceSchema(line_numbers=list(numbers), lines=list(lines)),
+        required_inputs=[_input_schema(n) for n in outcome.inputs],
+        missing_inputs=outcome.missing_inputs,
+        control_status_before=outcome.control_status_before,
+        control_status_after=outcome.control_status_after,
+        diff=outcome.diff,
+        checks=_checks(outcome.checks),
+        before=_summary(outcome.before),
+        after=_summary(outcome.after),
+        fixed_config=outcome.fixed_config,
+    )
 
 
 @router.post("/remediate", response_model=RemediationResponse)
 async def remediate_finding(req: RemediationRequest):
-    """Generate a fix for a specific finding."""
-    store = get_scan_store()
-    stored = store.get(req.scan_id)
-    if not stored:
-        raise HTTPException(404, "Scan not found")
+    """Generate and verify the deterministic remediation of one control on one device."""
+    stored = _stored(req.scan_id)
+    if req.rule_id not in CONTROLS:
+        raise HTTPException(404, f"Unknown control '{req.rule_id}'")
+    configs = stored["configs"]
+    if req.config_index is not None:
+        if not 0 <= req.config_index < len(configs) or configs[req.config_index].device.hostname != req.device_hostname:
+            raise HTTPException(404, "Device not found in scan")
+        index = req.config_index
+    else:
+        index = next((i for i, c in enumerate(configs) if c.device.hostname == req.device_hostname), None)
+        if index is None:
+            raise HTTPException(404, "Device not found in scan")
+    inputs = _inputs(req.inputs)
 
-    result = get_scan_result_or_409(stored)
+    outcome = _gate(stored, index, req.rule_id)
+    if outcome is None:
+        outcome, _ = remediate_control(configs[index].raw_config, req.rule_id, inputs)
+    return _response(outcome, index)
 
-    # Find the specific finding
-    finding = None
-    for f in result.findings:
-        if f.rule_id == req.rule_id and f.device_hostname == req.device_hostname:
-            finding = f
-            break
 
-    if not finding:
-        raise HTTPException(404, "Finding not found in scan results")
-    if finding.vendor == Vendor.UNKNOWN.value:
-        raise HTTPException(409, _UNCONFIRMED_VENDOR)
-
-    remediation = generate_remediation(finding, stored["configs"])
-
-    return RemediationResponse(
-        rule_id=finding.rule_id,
-        title=finding.title,
-        device_hostname=finding.device_hostname,
-        vendor=finding.vendor,
-        original_lines=finding.evidence_lines,
-        remediation_commands=remediation["commands"],
-        explanation=remediation["explanation"],
+def _device_plan(stored: dict, index: int, inputs: dict) -> DeviceRemediationPlanSchema:
+    config = stored["configs"][index]
+    if not _confirmed(stored, index):
+        results = _device_results(stored.get("result"), stored["configs"], index)
+        flagged = [c for c in CONTROLS if any(r.control_id == c and (r.status == Status.FAIL or r.proposed_status)
+                                              for r in results)]
+        identification = (stored.get("identifications") or [None] * (index + 1))[index]
+        return DeviceRemediationPlanSchema(
+            config_index=index, device_hostname=config.device.hostname, vendor=config.device.vendor.value,
+            vendor_status=identification.status if identification is not None else "unknown",
+            remediations=[_response(_gate(stored, index, c), index) for c in flagged],
+        )
+    gates = _provisional(stored, index)
+    plan = remediate_all(config.raw_config, inputs, skip=set(gates))
+    remediations = [_response(gates.get(o.control_id, o), index) for o in plan.outcomes]
+    return DeviceRemediationPlanSchema(
+        config_index=index, device_hostname=plan.hostname, vendor=plan.vendor, vendor_status=plan.vendor_status,
+        remediations=remediations, fixed_controls=plan.fixed_controls, checks=_checks(plan.checks),
+        before=_summary(plan.before), after=_summary(plan.after), fixed_config=plan.fixed_config,
     )
 
 
-@router.post("/verify", response_model=VerifyResponse)
-async def verify_remediation(req: VerifyRequest):
-    """
-    Apply remediation to a copy of the config and re-analyze.
-    Shows before/after comparison.
-    """
-    store = get_scan_store()
-    stored = store.get(req.scan_id)
-    if not stored:
-        raise HTTPException(404, "Scan not found")
-
-    original_result = get_scan_result_or_409(stored)
-    configs = stored["configs"]
-
-    if not configs:
-        raise HTTPException(400, "No configs available for verification")
-    if configs[0].device.vendor == Vendor.UNKNOWN:
-        raise HTTPException(409, _UNCONFIRMED_VENDOR)
-
-    # Apply remediation to a copy and re-analyze
-    modified_config = apply_remediation(configs[0], req.remediation_commands)
-
-    new_result = analyze(modified_config)
-
-    resolved = []
-    new_rule_ids = {f.rule_id for f in new_result.findings}
-    for f in original_result.findings:
-        if f.rule_id not in new_rule_ids:
-            resolved.append(f.title)
-
-    return VerifyResponse(
-        original_score=original_result.score,
-        new_score=new_result.score,
-        original_findings=original_result.total_findings,
-        new_findings=new_result.total_findings,
-        original_critical=original_result.critical_count,
-        new_critical=new_result.critical_count,
-        resolved_findings=resolved,
-        remaining_findings=[
-            FindingSchema(
-                rule_id=f.rule_id,
-                title=f.title,
-                severity=f.severity.value,
-                description=f.description,
-                device_hostname=f.device_hostname,
-                vendor=f.vendor,
-                evidence_lines=f.evidence_lines,
-                line_numbers=f.line_numbers,
-                security_impact=f.security_impact,
-                recommendation=f.recommendation,
-                compliance=[
-                    ComplianceMappingSchema(
-                        framework=c.framework,
-                        control_id=c.control_id,
-                        description=c.description,
-                        version=c.version,
-                    ) for c in f.compliance
-                ],
-                ai_explanation=f.ai_explanation,
-                category=f.category,
-            ) for f in new_result.findings
-        ],
+@router.post("/remediation/plan", response_model=RemediationPlanResponse)
+async def remediation_plan(req: RemediationPlanRequest):
+    """Remediate every failing control of every device; each change verified by a rescan."""
+    stored = _stored(req.scan_id)
+    inputs = _inputs(req.inputs)
+    return RemediationPlanResponse(
+        scan_id=req.scan_id,
+        inputs=[_input_schema(n) for n in INPUTS],
+        devices=[_device_plan(stored, i, inputs) for i in range(len(stored["configs"]))],
     )
 
 
 @router.post("/download-fixed")
 async def download_fixed_configs(req: DownloadFixedRequest):
     """
-    Auto-generate and apply ALL remediation fixes to
-    the stored configs and return the fully remediated config text(s).
+    The configurations with every verified fix applied.
 
-    Single config  -> plain .cfg response
-    Multiple configs -> .zip containing one .cfg per device
+    Single config -> plain .cfg response; multiple -> .zip with one .cfg per fixed device.
+    Unverified changes are never included.
     """
-    store = get_scan_store()
-    stored = store.get(req.scan_id)
-    if not stored:
-        raise HTTPException(404, "Scan not found")
-
-    result = get_scan_result_or_409(stored)
-    if not stored["configs"]:
-        raise HTTPException(400, "No configs available")
-    # Only configs with a confirmed vendor profile can be remediated and re-parsed
-    configs = _confirmed_configs(stored["configs"])
-    if not configs:
-        raise HTTPException(409, _UNCONFIRMED_VENDOR)
-
-    # Fix ALL findings (all severities) to achieve 100/100 score
-    actionable = [f for f in result.findings if f.vendor != Vendor.UNKNOWN.value]
-
-    if not actionable:
-        raise HTTPException(400, "No findings to fix")
-
-    # Generate remediation commands for each actionable finding
-    all_commands = []
-    for finding in actionable:
-        try:
-            remediation = generate_remediation(finding, configs)
-            all_commands.append(remediation["commands"])
-        except Exception:
-            # Skip findings that don't have a remediation template
-            continue
-
-    if not all_commands:
-        raise HTTPException(400, "No remediation templates available for the findings")
-
-    # Apply every fix sequentially to each config copy
-    fixed_configs = []
-    for cfg in configs:
-        modified = copy.deepcopy(cfg)
-        for commands in all_commands:
-            modified = apply_remediation(modified, commands)
-        hostname = modified.device.hostname or "device"
-        fixed_configs.append((hostname, modified.raw_config))
-
-    # Single config -> return the readable configuration as plain text.
-    if len(fixed_configs) == 1:
-        hostname, text = fixed_configs[0]
-        filename = f"{hostname}_fixed.cfg"
-        return Response(
-            content=text,
-            media_type="text/plain",
-            headers={
-                "Content-Disposition": f'attachment; filename="{filename}"',
-            },
+    stored = _stored(req.scan_id)
+    inputs = _inputs(req.inputs)
+    confirmed = [i for i in range(len(stored["configs"])) if _confirmed(stored, i)]
+    if not confirmed:
+        raise HTTPException(
+            409,
+            "Remediation needs a confirmed vendor profile. This configuration's vendor is unknown "
+            "or unverified, so vendor commands cannot be generated, applied or verified.",
         )
 
-    # Multiple configs -> return as .zip
+    fixed = []
+    for index in confirmed:
+        plan = remediate_all(stored["configs"][index].raw_config, inputs, skip=set(_provisional(stored, index)))
+        if plan.fixed_config is not None:
+            fixed.append((plan.hostname or "device", plan.fixed_config))
+    if not fixed:
+        raise HTTPException(400, "No verified fixes are available for this scan (see the remediation plan)")
+
+    if len(fixed) == 1:
+        hostname, text = fixed[0]
+        return Response(content=text, media_type="text/plain",
+                        headers={"Content-Disposition": f'attachment; filename="{hostname}_fixed.cfg"'})
+
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        seen = {}
-        for hostname, text in fixed_configs:
-            # Avoid duplicate filenames
+        seen: dict[str, int] = {}
+        for hostname, text in fixed:
             count = seen.get(hostname, 0)
             seen[hostname] = count + 1
-            suffix = f"_{count + 1}" if count > 0 else ""
-            fname = f"{hostname}{suffix}_fixed.cfg"
-            zf.writestr(fname, text)
-    buf.seek(0)
-
-    return Response(
-        content=buf.getvalue(),
-        media_type="application/zip",
-        headers={
-            "Content-Disposition": 'attachment; filename="NetAuditAI_Fixed_Configs.zip"',
-        },
-    )
+            zf.writestr(f"{hostname}{f'_{count + 1}' if count else ''}_fixed.cfg", text)
+    return Response(content=buf.getvalue(), media_type="application/zip",
+                    headers={"Content-Disposition": 'attachment; filename="NetAuditAI_Fixed_Configs.zip"'})

@@ -74,7 +74,8 @@ def test_catalog_has_exactly_one_control_per_rule():
 @pytest.mark.parametrize("control_id", sorted(ORIGINAL_RULE_IDS))
 def test_every_control_is_fully_described(control_id):
     control = CONTROLS[control_id]
-    templates = next(v for v in vars(remediation_engine).values() if isinstance(v, dict) and "MGMT-001" in v)
+    # Phase 8: remediation keys name the deterministic recipes (control, vendor)
+    templates = {control_id for control_id, _ in remediation_engine.RECIPES}
 
     assert control.title and control.question.endswith("?")
     assert isinstance(control.kind, ControlKind)

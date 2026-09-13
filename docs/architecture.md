@@ -17,7 +17,7 @@ The main idea of NetAuditAI is to keep vendor-specific parsing separate from sec
    Provisional results wait in the Training queue. The legacy line interpreter (confirmed vendors, off by default) only adds review items.
 6. **Analyze**: The deterministic rules engine runs against the *normalized* model, not the raw configs.
 7. **Score**: A security score is calculated from the findings. Scores that depend on adaptively normalized values are flagged provisional.
-8. **Remediation**: A deterministic vendor-specific command template is selected for a finding.
+8. **Remediation**: For a decisive FAIL on a confirmed vendor, a deterministic recipe edits a copy of the configuration; the output is rescanned and reported fixed only when the control passes and nothing regressed.
 9. **Optional AI assistant**: Finding context can be sent to Groq for explanations, summaries and chat.
 
 ## Why this approach?

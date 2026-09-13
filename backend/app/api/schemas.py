@@ -210,6 +210,35 @@ class RemediationRequest(BaseModel):
     scan_id: str
     rule_id: str
     device_hostname: str
+    # Picks the config when several uploads share a hostname
+    config_index: Optional[int] = None
+    # Operator values a recipe may need (syslog_server, ntp_server, ntp_key_id, ntp_key, management_subnet).
+    # Validated and written only into fixed templates; there is no field for command text.
+    inputs: dict[str, str] = {}
+
+
+class RemediationInputSchema(BaseModel):
+    name: str
+    label: str
+    help: str
+
+
+class RemediationCheckSchema(BaseModel):
+    # vendor | parse_coverage | target | no_regression | controls
+    name: str
+    passed: bool
+    detail: str
+
+
+class PostureSummarySchema(BaseModel):
+    posture: Optional[int] = None
+    coverage: int = 0
+    posture_bounds: Optional[list[int]] = None
+    critical_unassessed: list[str] = []
+    # confirmed | unverified | unknown
+    vendor_status: str
+    parse_coverage: Optional[float] = None
+    uncovered_lines: int = 0
 
 
 class RemediationResponse(BaseModel):
@@ -217,25 +246,51 @@ class RemediationResponse(BaseModel):
     title: str
     device_hostname: str
     vendor: str
-    original_lines: list[str]
-    remediation_commands: str
-    explanation: str
+    config_index: int = 0
+    # fixed | needs_input | manual_review | verification_failed | no_recipe | vendor_unverified | provisional | not_failing
+    status: str
+    reason: str
+    explanation: str = ""
+    warnings: list[str] = []
+    scopes: list[str] = []
+    # Before state: the lines the decisive FAIL results cite
+    evidence: EvidenceSchema = EvidenceSchema()
+    required_inputs: list[RemediationInputSchema] = []
+    missing_inputs: list[str] = []
+    control_status_before: Optional[str] = None
+    control_status_after: Optional[str] = None
+    # Proposed deterministic change (unified diff of the configuration)
+    diff: str = ""
+    checks: list[RemediationCheckSchema] = []
+    before: Optional[PostureSummarySchema] = None
+    after: Optional[PostureSummarySchema] = None
+    # After state: the generated configuration (also kept when verification failed, for review)
+    fixed_config: Optional[str] = None
 
 
-class VerifyRequest(BaseModel):
+class RemediationPlanRequest(BaseModel):
     scan_id: str
-    remediation_commands: str
+    inputs: dict[str, str] = {}
 
 
-class VerifyResponse(BaseModel):
-    original_score: Optional[int] = None
-    new_score: Optional[int] = None
-    original_findings: int
-    new_findings: int
-    original_critical: int
-    new_critical: int
-    resolved_findings: list[str]
-    remaining_findings: list[FindingSchema]
+class DeviceRemediationPlanSchema(BaseModel):
+    config_index: int
+    device_hostname: str
+    vendor: str
+    vendor_status: str
+    remediations: list[RemediationResponse]
+    fixed_controls: list[str] = []
+    checks: list[RemediationCheckSchema] = []
+    before: Optional[PostureSummarySchema] = None
+    after: Optional[PostureSummarySchema] = None
+    # Every verified change applied in sequence; None when nothing was fixed
+    fixed_config: Optional[str] = None
+
+
+class RemediationPlanResponse(BaseModel):
+    scan_id: str
+    inputs: list[RemediationInputSchema]
+    devices: list[DeviceRemediationPlanSchema]
 
 
 class AssistantRequest(BaseModel):
@@ -250,6 +305,7 @@ class AssistantResponse(BaseModel):
 
 class DownloadFixedRequest(BaseModel):
     scan_id: str
+    inputs: dict[str, str] = {}
 
 
 # ── Adaptive training (Phase 4/5) ─────────────────────────────────────────────
