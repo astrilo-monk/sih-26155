@@ -1,38 +1,49 @@
-# Testing Strategy
+# Testing
 
-The backend uses `pytest`; the frontend uses Vitest with Testing Library. No test needs network access or an API key: every AI call is mocked, and each backend test gets its own temporary SQLite database (`backend/tests/conftest.py`).
+Backend tests use `pytest`; frontend tests use Vitest with Testing Library. No test needs a network or an API key:
+the AI judge transport is patched in every test (`backend/tests/conftest.py`), and each test gets its own temporary
+SQLite database.
 
-## Backend
-
-| Area | Tests |
-|------|-------|
-| Parsers, rules, scoring | `test_pipeline.py`, `test_cisco_acl.py`. Fixture configs in `backend/tests/fixtures/` |
-| Remediation | `test_remediation_e2e.py`, `test_download_fixed.py`. Verified fixes pass on a real rescan, nothing regresses, output is idempotent, unsafe / unverified cases are never reported fixed |
-| Settings | `test_config_loading.py` |
-| Adaptive capture and relevance filter | `test_adaptive.py`, `test_adaptive_api_integration.py` |
-| Confidence tiers and evidence validation | `test_phase3_adaptive_mapper.py`, `test_phase3_e2e.py` |
-| Training review API | `test_phase4_review_api.py` |
-| Learned mappings (SQLite) | `test_phase5_learned_mappings.py` |
-| Scan → confirm → rescan with no AI call | `test_phase6_adaptive_e2e.py` |
-| Vendor-agnostic pipeline over four unrelated syntaxes | `test_adaptive_generic.py` |
-| Groq API-key rotation | `test_ai_client_key_rotation.py` |
-
-`test_adaptive_generic.py` also contains live Groq tests. They are skipped unless `NETAUDIT_LIVE_AI=1` is set and a key is configured.
-
-## Frontend
+## Backend (`backend/tests/`)
 
 | Area | Tests |
-|------|-------|
-| Training tab (review queue, AI-unavailable state, vendor evidence) | `src/components/AdaptiveTraining.test.jsx` |
-| Client-side mapping validation | `src/utils/adaptiveValidation.test.js` |
+|---|---|
+| Phase 0 — golden findings snapshots for 30 Cisco / FortiGate configs | `test_phase0_snapshots.py` |
+| Phase 1 — redaction, vendor identification and look-alikes, honest unknowns | `test_phase1_redaction.py`, `test_phase1_vendor_identification.py`, `test_phase1_honest_unknowns.py` |
+| Phase 2 — control catalog, NIST / CIS mappings, ControlResult | `test_phase2_controls.py` |
+| Phase 3 — posture and coverage | `test_scoring_v2.py` |
+| Phase 4 — security facts, decision tables, defaults | `test_phase4_facts.py` |
+| Phase 5 — tokenizer and lexicon heuristics (`sample/unknown.cfg` acceptance) | `test_phase5_heuristics.py` |
+| Phase 6 — recognizers, gates, replay, Training API | `test_phase6_recognizers.py`, `test_phase6_adaptive_e2e.py` |
+| Phase 7 — AI judge: verifier, budget, cache, redaction, authority | `test_phase7_ai_judge.py` |
+| Phase 8 — remediation: recipes, inputs, verification, idempotence, API rescan | `test_remediation_e2e.py`, `test_download_fixed.py` |
+| Phase 9 — framework views, recognizer persistence across a restart, secret-free stores | `test_phase9_frameworks_persistence.py` |
+| Parsers, pipeline, ACLs | `test_pipeline.py`, `test_cisco_acl.py` |
+| Adaptive layer and legacy interpreter, learned mappings, review API | `test_adaptive.py`, `test_adaptive_generic.py`, `test_adaptive_api_integration.py`, `test_phase3_adaptive_mapper.py`, `test_phase3_e2e.py`, `test_phase4_review_api.py`, `test_phase5_learned_mappings.py` |
+| Settings, Groq key rotation | `test_config_loading.py`, `test_ai_client_key_rotation.py` |
 
-## Run the Tests
+Two live Groq tests in `test_adaptive_generic.py` are skipped unless `NETAUDIT_LIVE_AI=1` and a key are set.
+
+## Frontend (`frontend/src/`)
+
+| Area | Tests |
+|---|---|
+| Review queue and learned mappings | `components/AdaptiveTraining.test.jsx` |
+| Recognizer confirmation | `components/RecognizerQueue.test.jsx` |
+| Remediation statuses, inputs, download | `components/RemediationQueue.test.jsx` |
+| Framework view | `components/FrameworkView.test.jsx` |
+| Summary-only history | `utils/history.test.js` |
+| Mapping form validation | `utils/adaptiveValidation.test.js` |
+
+## Run
 
 ```powershell
 cd backend
-pytest tests/ -q
+venv\Scripts\python -m pytest tests -q     # 834 passed, 2 skipped
 
-cd ../frontend
-npm test
+cd ..\frontend
+npm test                                    # 19 passed
 npm run build
 ```
+
+No linter or type checker is configured in the repository.

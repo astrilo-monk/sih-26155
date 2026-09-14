@@ -1,5 +1,10 @@
 # Project Audit Report: NetAuditAI
 
+> **Historical report (2026-08-26).** It describes the code at that date. Several statements no longer apply —
+> penalty scoring, vendor-gated rules and template remediation were replaced by controls over security facts,
+> posture + coverage and verified remediation (plan.md phases 0–9). The current design is in
+> [architecture.md](architecture.md).
+
 This document provides a formal technical audit of the NetAuditAI project. The audit reviews the current architecture, documentation, parsing stability, and testing coverage to ensure readiness for the SIH hackathon demo.
 
 ## Executive Summary

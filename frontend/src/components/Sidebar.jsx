@@ -1,4 +1,4 @@
-import { Shield, LayoutDashboard, Search, Server, AlertCircle, History, Wrench, GraduationCap } from 'lucide-react';
+import { Shield, LayoutDashboard, Search, Server, AlertCircle, History, Wrench, GraduationCap, ListChecks } from 'lucide-react';
 
 export default function Sidebar({ view, setView, devices, pendingReview = 0 }) {
   const navItems = [
@@ -6,8 +6,9 @@ export default function Sidebar({ view, setView, devices, pendingReview = 0 }) {
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
     { id: 'devices', label: 'Devices', icon: Server },
     { id: 'findings', label: 'Findings', icon: AlertCircle },
+    { id: 'frameworks', label: 'Frameworks', icon: ListChecks },
     { id: 'remediation', label: 'Remediation', icon: Wrench },
-    { id: 'training', label: 'Training', icon: GraduationCap, count: pendingReview },
+    { id: 'training', label: 'Review & Recognizers', icon: GraduationCap, count: pendingReview },
     { id: 'history', label: 'History', icon: History },
   ];
 

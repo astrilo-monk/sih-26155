@@ -183,7 +183,9 @@ def recognizer_facts(raw_lines: list[str], extra: Iterable = ()) -> tuple[list[S
             candidates.append(_Candidate(r.predicate, value, lines or [s.line], subject=r.subject,
                                          unit="min" if r.predicate == IDLE_TIMEOUT else None))
 
-    skip = recognized | {n for n, text in enumerate(raw_lines, 1) if text.strip() and normalize_line(text) in rejected}
+    from app.db.mappings import rejection_key  # the store imports this module for its gates
+
+    skip = recognized | {n for n, text in enumerate(raw_lines, 1) if text.strip() and rejection_key(text) in rejected}
     return combine(candidates, raw_lines, Assurance.CONFIRMED), frozenset(skip)
 
 

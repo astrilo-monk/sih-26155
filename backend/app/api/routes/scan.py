@@ -22,6 +22,7 @@ from app.analysis.engine import analyze, analyze_multiple, evaluate_controls
 from app.analysis.scoring import calculate_posture
 from app.facts.from_normalized import facts_from_config
 from app.controls.catalog import CONTROLS
+from app.controls.frameworks import framework_views
 from app.models.results import ControlResult, Status
 from app.models.normalized import Vendor, NormalizedConfig, DeviceInfo, AIFieldMapping
 from app.api.schemas import (
@@ -36,6 +37,7 @@ from app.api.schemas import (
     VendorIdentificationSchema,
     ControlResultSchema,
     EvidenceSchema,
+    FrameworkViewSchema,
 )
 from app import config as app_config
 from app.config import settings
@@ -341,6 +343,7 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
         coverage=posture.coverage,
         posture_bounds=list(posture.bounds) if posture.bounds else None,
         critical_unassessed=posture.critical_unassessed,
+        frameworks=[FrameworkViewSchema(**view) for view in framework_views(device_results)],
     )
 
     if result is None:

@@ -1,48 +1,53 @@
 # Key Decisions
 
-Here are the major technical and design decisions we've made for this hackathon project, and why.
+The major technical and design decisions, and why.
 
-## 1. Vendor Selection: Cisco IOS + FortiGate
-**Why:** Cisco IOS has massive market share and standard text-based configs that are well-documented. FortiGate gives us a firewall context, proving our platform handles both routing and edge security. Both are impressive for the demo and distinct enough to prove the value of our normalized model.
+## 1. Dedicated parsers for Cisco IOS and FortiGate only
+Cisco IOS covers routing and switching, FortiGate covers edge firewalls, and both are well documented. Other vendors
+use the generic path instead of more parsers: a parser per vendor does not scale, and a half-finished parser would
+look more trustworthy than it is.
 
-## 2. Tech Stack: Python/FastAPI + React + In-Memory Storage + SQLite + Groq
-**Why:** 
-- **Python/FastAPI**: Fastest way to build a backend, great text processing/regex support, and easy to integrate with AI SDKs.
-- **React**: Standard, easy to build a clean dashboard quickly.
-- **In-memory storage**: We kept the prototype simple and avoided adding a database before the core scan flow was stable. Scan results currently disappear when the backend restarts.
-- **SQLite**: Administrator-confirmed adaptive mappings must survive restarts, and SQLite needs no extra service.
-- **Groq** (`openai/gpt-oss-120b`): Fast, supports strict JSON-schema output, and has a free tier. The project originally used Gemini; all AI calls are isolated in `backend/app/ai/client.py`, so the provider can be swapped again.
+## 2. Tech stack: FastAPI + React + SQLite + Groq
+- **Python / FastAPI** — fast to build, strong text processing.
+- **React / Vite** — a dashboard quickly.
+- **SQLite** — administrator knowledge (recognizers, learned mappings, rejected lines) and the AI judge cache must
+  survive restarts; SQLite needs no extra service. Scan results stay in memory: persisting uploaded configurations
+  is not needed for the demo and would store secrets.
+- **Groq** (`openai/gpt-oss-120b`) — strict JSON-schema output and a free tier. All calls are isolated in
+  `backend/app/ai/client.py`.
 
-## 3. The Normalized Model Approach
-**Why:** We realized that writing security rules specific to every vendor would be a nightmare. By converting everything to a shared dataclass model with interfaces, services, ACLs, firewall policies, VPN data, and source line numbers, we only have to write the security rules engine once.
+## 3. Controls over rules, facts over vendor structures
+Controls are the security questions; facts are cited statements that answer them. Every control runs on every
+configuration, and the vendor only selects where facts come from. The old vendor-gated rules were removed after a
+shadow comparison showed identical results on 42 configurations (plan Phase 4).
 
-## 4. Deterministic Rules > AI for Detection
-**Why:** AI can miss obvious things or invent vulnerabilities. We use hardcoded, deterministic rules against the normalized data for **detection**. The AI is used for explanations, summaries, chat, and translating unfamiliar syntax into normalized fields. Remediation commands come from deterministic vendor-specific templates.
+## 4. Honest statuses and assurance
+UNKNOWN and NOT_CONFIGURED exist so missing data is never silently a PASS or a FAIL. Every decision carries an
+assurance level; only parser, confirmed and default evidence is decisive.
 
-## 5. Penalty-based Scoring Algorithm
-**Why:** We need a way to grade configs. We decided on a starting score of 100, subtracting points based on findings:
-- Critical: -12 points
-- High: -6 points
-- Medium: -3 points
-- Low: -1 point
-(Bounded at 0, obviously). Easy to implement and understand.
+## 5. Posture and coverage instead of a penalty score
+`100 − penalties` scored unassessed checks as passed. Posture measures how secure the decided controls are;
+coverage measures how much could be decided. Both are shown, with the range if undecided controls failed or passed,
+and critical controls not assessed are listed. The penalty `score` is deprecated.
 
-## 6. AI Is Not Used for Detection or Commands
+## 6. AI proposes, deterministic code verifies, humans confirm
+AI is used for explanations and for judging undecided controls of unknown vendors. Every AI citation is verified
+deterministically; a verified answer is still provisional until an administrator confirms it as a recognizer.
+AI never decides compliance, selects a vendor, saves a recognizer or writes remediation.
 
-The scanner uses deterministic Python rules for detection. The AI is optional. Remediation commands come from vendor-specific templates, because an invented command could disrupt real network equipment.
+## 7. Learning = confirmed recognizers, not model training
+The system does not retrain or fine-tune a model. It "learns" a dialect only when an administrator confirms a
+recognizer, which is stored in SQLite and applied decisively on later scans without AI.
 
-## 7. Generic Adaptive Layer Instead of Per-Vendor Patches
+## 8. Deterministic, verified remediation
+An invented command can take down network equipment. Fixes are fixed recipes filled with validated operator inputs,
+limited to decisive FAILs on confirmed vendors, and only called fixed after the output is rescanned: vendor still
+confirmed, coverage not reduced, control passing, nothing regressed. Unsafe cases go to a human.
 
-**Why:** The problem statement asks for a vendor-agnostic engine, and writing a parser for every vendor does not scale. Unknown configs go through one generic pipeline:
-1. relevance filter
-2. recognizers and learned mappings
-3. lexicon heuristics
-4. AI judge for undecided controls
-5. deterministic citation verification
-6. Training queue
+## 9. Framework views without inventing mappings
+Framework views regroup existing results under NIST SP 800-53 Rev. 5 and verified CIS items. Unverified mappings
+(ISO 27001, DISA SRG, CIS Controls v8) were not added, because they would inflate apparent compliance coverage.
 
-The AI judge proposes facts that cite configuration lines. A deterministic verifier checks every citation against the cited line and its tokenizer scope. A verified fact stays provisional (UNKNOWN with a proposed status) until an administrator confirms it as a recognizer. The AI cannot activate rules or change the score on its own.
-
-## 8. AI Never Decides the Vendor
-
-**Why:** Vendor-specific rules (for example SSH-version checks written for Cisco) would fire wrongly if an AI guess switched them on. `device.vendor` is set only by the deterministic detector. The AI's vendor guesses are reported as *vendor evidence* for information only.
+## 10. What we deliberately did not build
+Ontologies or graph databases, SMT solvers, embeddings or vector databases, local LLMs or fine-tuning, extra vendor
+parsers, AI-generated remediation, and large framework crosswalks.

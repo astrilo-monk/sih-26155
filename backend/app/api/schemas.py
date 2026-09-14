@@ -158,6 +158,42 @@ class ControlResultSchema(BaseModel):
     evidence: EvidenceSchema
 
 
+class FrameworkControlSchema(BaseModel):
+    """One mapped control's result on one device, as scanned (no re-evaluation)."""
+    control_id: str
+    title: str
+    config_index: int
+    device_hostname: str
+    status: str
+    assurance: Optional[str] = None
+    proposed_status: Optional[str] = None
+    # heuristic / AI verdict involved: never decisive
+    provisional: bool = False
+    decisive: bool = False
+    outcome: str
+    reason: str
+    evidence: EvidenceSchema
+
+
+class FrameworkRequirementSchema(BaseModel):
+    requirement_id: str
+    title: str
+    # pass | fail | partial | unknown | not_configured | n_a
+    status: str
+    provisional: bool = False
+    controls: list[FrameworkControlSchema]
+
+
+class FrameworkViewSchema(BaseModel):
+    """Control results regrouped by one framework version (mapped device-configuration controls only)."""
+    framework: str
+    version: str
+    # share of applicable requirements decided PASS or FAIL on decisive evidence
+    coverage: int
+    counts: dict[str, int]
+    requirements: list[FrameworkRequirementSchema]
+
+
 class FindingSchema(BaseModel):
     rule_id: str
     title: str
@@ -204,6 +240,8 @@ class ScanResultResponse(BaseModel):
     vendor_identification: list[VendorIdentificationSchema] = []
     # Every control's result for every config (findings are the FAIL results)
     results: list[ControlResultSchema] = []
+    # The same results regrouped by framework requirement (NIST SP 800-53, CIS for confirmed vendors)
+    frameworks: list[FrameworkViewSchema] = []
 
 
 class RemediationRequest(BaseModel):

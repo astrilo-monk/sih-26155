@@ -1,23 +1,20 @@
 # Project Requirements (SIH26155)
 
-This document tracks what we actually need to build for the hackathon to satisfy the problem statement.
+What the hackathon build needs, and where it stands.
 
-## MVP Requirements (Must Have for Demo)
-- [x] Basic project structure and models
-- [x] Vendor detection logic
-- [x] Parse at least 2 distinct vendor configs (Cisco IOS and FortiGate)
-- [x] Normalize configurations into a standard format
-- [x] Deterministic rules engine with 15 security rules
-- [x] Compliance mapping to CIS and NIST 800-53
-- [x] Security scoring system
-- [x] Optional Gemini integration for explanations, summaries, and chat
-- [x] Deterministic vendor-specific remediation snippets
-- [x] React dashboard to upload configs and view results
+## Must have
+- [x] Upload configurations and detect the vendor deterministically
+- [x] Dedicated parsers for two distinct vendors (Cisco IOS, FortiGate)
+- [x] Vendor-agnostic analysis for other vendors (generic tokenizer, heuristics, recognizers) — honestly provisional
+- [x] Deterministic security controls with evidence (15 controls)
+- [x] Compliance mappings to NIST SP 800-53 Rev. 5 and CIS Benchmarks, with versions
+- [x] Posture and coverage scoring
+- [x] Optional AI (Groq) for explanations and for proposals on undecided controls
+- [x] Deterministic, verified remediation for confirmed vendors
+- [x] React dashboard: upload, results, findings, frameworks, remediation, review & recognizers, history
 
-## Stretch Goals (If we have time)
-- [x] Backend AI assistant endpoints (frontend chat UI still pending)
-- [ ] Support for a 3rd vendor (maybe Palo Alto or Juniper?)
-- [ ] PDF Report Generation
-- [ ] Historical scan comparisons
-
-*Note: The MVP flow works locally. The next priority is improving persistence, parser coverage, remediation verification, and test coverage before treating this as a production tool.*
+## Stretch
+- [x] Human-in-the-loop learning that persists (recognizers)
+- [x] Backend AI assistant endpoints (no chat view yet)
+- [ ] A third dedicated parser — deliberately not built; other vendors use the generic path
+- [ ] PDF reports, historical scan comparison

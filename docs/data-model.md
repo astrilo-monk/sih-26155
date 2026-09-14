@@ -1,60 +1,51 @@
-# Data Models
+# Data Model
 
-This document describes the Python dataclasses used by the backend. These objects carry parsed configuration data into the rules engine and carry findings back to the API.
+The main objects, from parsed configuration to API response.
 
-## `NormalizedConfig` (backend/app/models/normalized.py)
+## `NormalizedConfig` — `app/models/normalized.py`
+Parser-internal model of a configuration: device (vendor, hostname, OS version), interfaces, management access (VTY,
+console, SSH/HTTP/Telnet), authentication, SNMP, logging, NTP, ACLs, firewall policies, VPN proposals, banners,
+services, plus `raw_config` / `raw_lines` and the source line numbers of every parsed object. For unknown vendors it
+only carries the raw lines, captured lines and adaptive records; controls never read it directly.
 
-This is the generic model that all supported vendor configs are mapped into. It is implemented in `backend/app/models/normalized.py`.
-
+## `SecurityFact` — `app/facts/predicates.py`
 ```python
-@dataclass
-class NormalizedConfig:
-    device: DeviceInfo
-    interfaces: list[Interface]
-    management: ManagementAccess
-    authentication: Authentication
-    snmp: SnmpConfig
-    logging: LoggingConfig
-    ntp: NtpConfig
-    access_lists: list[AccessList]
-    firewall_policies: list[FirewallPolicy]
-    vpn: VpnConfig
-    banners: BannerConfig
-    services: ServiceConfig
-    raw_config: str
-    raw_lines: list[str]
+predicate: str        # one of 16 predicates, each consumed by a control
+value: Any            # concrete value | None (undetermined) | NOT_SET (parser-read absence)
+assurance: Assurance  # parser | confirmed | default | heuristic | ai_verified
+evidence: Evidence    # cited line numbers and text
+subject, scope, unit, provenance
+control_id            # set on AI judge facts: only that control may read them
 ```
 
-## `Finding` (backend/app/models/findings.py)
+## `Control` and `Mapping` — `app/controls/catalog.py`
+A control has `control_id`, `title`, `question`, `kind`, `severity`, `category`, `needs` (predicates),
+`remediation_keys` and `mappings`. A `Mapping` has `framework`, exact `version`, `requirement_id`, `title` and an
+optional `vendor` (product benchmarks such as CIS).
 
-When a rule fails, it generates a Finding.
-
+## `ControlResult` — `app/models/results.py`
 ```python
-@dataclass
-class Finding:
-    rule_id: str
-    title: str
-    severity: Severity
-    description: str
-    evidence_lines: list[str]
-    line_numbers: list[int]
-    security_impact: str
-    recommendation: str
-    compliance: list[ComplianceMapping]
-    ai_explanation: Optional[str]
-    category: str
+control_id, status          # pass | fail | not_configured | unknown | n_a
+assurance                   # set on decided results (and ai_verified on AI proposals)
+proposed_status             # the AI's verdict awaiting confirmation
+scope, reason, evidence, facts
+failure: FailureDetail      # severity, description, impact, recommendation — present exactly when FAIL
 ```
+A `Finding` (`app/models/findings.py`) is the view of a FAIL result used by the findings table.
 
-## `ScanResult` (backend/app/models/findings.py)
+## `LearnedMapping` — `app/db/mappings.py`
+Row of SQLite `learned_mappings`. A **recognizer** has `extraction_method = "recognizer"`, `command_pattern`
+(typed-slot template), `predicate`, `subject`, `scope_template`, `dialect_fingerprint`, `negatives`,
+`constant_value` (JSON value or enum table), `example_line`, `confirmed`, `active`. Learned field mappings (legacy
+review queue) use `normalized_field` instead of a predicate.
 
-The final payload sent to the frontend.
+## Remediation — `app/remediation/engine.py`
+`Outcome`: `control_id`, `status` (`fixed`, `needs_input`, `manual_review`, `verification_failed`, `no_recipe`,
+`vendor_unverified`, `provisional`, `not_failing`), `reason`, `explanation`, `warnings`, `scopes`, `evidence`,
+`inputs` / `missing_inputs`, `diff`, `checks`, `before` / `after` summaries, `fixed_config`. `Plan` holds the
+outcomes of every failing control of one configuration and the combined verified output.
 
-```python
-@dataclass
-class ScanResult:
-    scan_id: str
-    timestamp: str
-    score: int
-    findings: list[Finding]
-    devices: list[dict]
-```
+## Scan response — `ScanResultResponse` in `app/api/schemas.py`
+`scan_id`, `devices`, `vendor_identification[]`, `results[]` (every control × config), `findings[]`, `posture`,
+`coverage`, `posture_bounds`, `critical_unassessed`, `frameworks[]`, `adaptive` / `adaptive_configs[]` (AI calls,
+cache hits, provisional reasons, vendor evidence), severity counts and the deprecated `score`.

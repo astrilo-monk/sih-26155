@@ -43,6 +43,7 @@ from app.adaptive.matcher import (
     normalize_line,
     validate_pattern,
 )
+from app.ai.redaction import redact_line
 from app.db.database import get_connection
 from app.facts.predicates import FIELD_PREDICATES
 from app.facts.recognizers import RecognizerError, validate_recognizer
@@ -168,6 +169,21 @@ def _validate_recognizer(mapping: LearnedMapping) -> LearnedMapping:
     return mapping
 
 
+def rejection_key(raw_line: str) -> str:
+    """Key of a reviewed-but-unmapped line. Built from the redacted line, so a secret is never stored or compared."""
+    return normalize_line(redact_line(raw_line))
+
+
+def _refuse_secrets(mapping: LearnedMapping) -> None:
+    texts = [mapping.example_line, mapping.command_pattern, mapping.scope_template, mapping.constant_value,
+             *mapping.negatives]
+    if any(text and redact_line(text) != text for text in texts):
+        raise MappingValidationError(
+            "This line holds a secret (password, key or community string): it cannot be stored as a mapping "
+            "or recognizer"
+        )
+
+
 def validate_mapping(mapping: LearnedMapping) -> LearnedMapping:
     """Validate a mapping in place (field, value type, pattern, example)."""
     if not (mapping.concept or "").strip():
@@ -176,6 +192,8 @@ def validate_mapping(mapping: LearnedMapping) -> LearnedMapping:
     mapping.vendor = (mapping.vendor or "").strip() or None
     if not 0.0 <= float(mapping.confidence) <= 1.0:
         raise MappingValidationError("Confidence must be between 0.0 and 1.0")
+    # the mapping store is persistent: configuration secrets never go into it
+    _refuse_secrets(mapping)
 
     if mapping.extraction_method == EXTRACTION_RECOGNIZER:
         return _validate_recognizer(mapping)
@@ -318,13 +336,14 @@ class MappingRepository:
                 INSERT OR IGNORE INTO rejected_lines (line_key, raw_line, vendor, reason, created_at)
                 VALUES (?, ?, ?, ?, ?)
                 """,
-                (normalize_line(raw_line), raw_line.strip(), vendor, reason, _now()),
+                (rejection_key(raw_line), redact_line(raw_line).strip(), vendor, reason, _now()),
             )
 
     def rejected_line_keys(self) -> set[str]:
+        """Keys to compare with ``rejection_key(line)``."""
         with self._conn() as conn:
             rows = conn.execute("SELECT line_key FROM rejected_lines").fetchall()
         return {r["line_key"] for r in rows}
 
     def is_rejected(self, raw_line: str) -> bool:
-        return normalize_line(raw_line) in self.rejected_line_keys()
+        return rejection_key(raw_line) in self.rejected_line_keys()

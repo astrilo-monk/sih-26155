@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { Trash2 } from 'lucide-react';
 import { getScanHistory, clearScanHistory } from '../utils/history';
 
-function getScoreColor(score) {
-  if (score < 40) return 'var(--critical)';
-  if (score < 70) return 'var(--high)';
-  if (score < 90) return 'var(--medium)';
+function postureColor(posture) {
+  if (posture == null) return 'var(--text-tertiary)';
+  if (posture < 40) return 'var(--critical)';
+  if (posture < 70) return 'var(--high)';
+  if (posture < 90) return 'var(--medium)';
   return 'var(--success)';
 }
 
@@ -43,7 +44,10 @@ export default function HistoryView({ onSelectHistoryEntry }) {
         <span>{history.length} {history.length === 1 ? 'Scan' : 'Scans'}</span>
       </div>
 
-      <div className="filter-bar" style={{ justifyContent: 'flex-end' }}>
+      <div className="filter-bar" style={{ justifyContent: 'space-between' }}>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+          Summaries are kept in this browser. Full results stay on the backend only until it restarts.
+        </span>
         <button
           onClick={handleClear}
           style={{
@@ -63,9 +67,10 @@ export default function HistoryView({ onSelectHistoryEntry }) {
           <thead>
             <tr>
               <th>Time</th>
-              <th>Hostname</th>
+              <th>Devices</th>
               <th>Vendor</th>
-              <th>Score</th>
+              <th>Posture</th>
+              <th>Coverage</th>
               <th>Findings</th>
             </tr>
           </thead>
@@ -74,19 +79,17 @@ export default function HistoryView({ onSelectHistoryEntry }) {
               <tr
                 key={entry.id || i}
                 className="clickable"
-                onClick={() => onSelectHistoryEntry(entry.fullResult)}
+                onClick={() => onSelectHistoryEntry(entry.id)}
               >
                 <td style={{ color: 'var(--text-secondary)' }}>
                   {new Date(entry.timestamp).toLocaleString()}
                 </td>
-                <td className="mono">{entry.hostname || '—'}</td>
-                <td>{entry.vendor || 'Unknown'}</td>
-                <td
-                  className="mono"
-                  style={{ color: getScoreColor(entry.score), fontWeight: 600 }}
-                >
-                  {entry.score ?? '—'}
+                <td className="mono">{(entry.hostnames || []).join(', ') || '—'}</td>
+                <td>{(entry.vendors || []).join(', ') || 'unknown'}</td>
+                <td className="mono" style={{ color: postureColor(entry.posture), fontWeight: 600 }}>
+                  {entry.posture ?? '—'}
                 </td>
+                <td className="mono">{entry.coverage ?? 0}%</td>
                 <td className="mono">{entry.findingsCount}</td>
               </tr>
             ))}

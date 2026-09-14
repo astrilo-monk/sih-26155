@@ -40,7 +40,7 @@ from app.adaptive.matcher import (
 )
 from app.ai.client import is_available
 from app.ai.interpretation_schemas import InterpretationResult
-from app.db.mappings import MappingRepository
+from app.db.mappings import MappingRepository, rejection_key
 from app.models.normalized import AIFieldMapping, NormalizedConfig, UnrecognizedLine
 
 logger = logging.getLogger(__name__)
@@ -100,7 +100,7 @@ class AdaptiveService:
         unresolved: list[UnrecognizedLine] = []
 
         for line in config.unrecognized_lines:
-            if normalize_line(line.raw_line) in rejected_keys:
+            if rejection_key(line.raw_line) in rejected_keys:
                 records[line.line_number] = self.mapper.rejected_record(line)
                 continue
             if self._recognized(line.raw_line, recognizers):

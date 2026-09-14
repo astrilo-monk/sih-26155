@@ -93,6 +93,7 @@ export default function RemediationQueue({ scanResult }) {
                     className="filter-input"
                     aria-label={spec.label}
                     type={spec.name === 'ntp_key' ? 'password' : 'text'}
+                    autoComplete="off"
                     value={inputs[spec.name] || ''}
                     placeholder={spec.help}
                     onChange={(e) => setInputs((prev) => ({ ...prev, [spec.name]: e.target.value }))}

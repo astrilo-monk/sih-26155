@@ -1,185 +1,149 @@
 # NetAuditAI
 
-AI-driven multi-vendor network security compliance auditor. Built for Smart India Hackathon 2026 (SIH26155).
+Configuration security auditor for network devices, built for Smart India Hackathon 2026
+(SIH26155 — AI-Driven Multi-Vendor Network Security Compliance Auditor, NTRO, Cybersecurity).
 
-## What This Does
+NetAuditAI answers 15 security questions (**controls**) about every uploaded configuration, cites the
+configuration lines behind every answer, keeps what it could decide separate from what it could not, and
+fixes confirmed Cisco / FortiGate findings with deterministic changes that are verified by a rescan.
+AI is optional: it only proposes answers for controls the deterministic engine left undecided, and a
+human confirms them before they count.
 
-Upload network device configuration files (Cisco IOS, Fortinet FortiGate), and the system will:
+## Status
 
-1. Auto-detect the vendor
-2. Parse the configuration
-3. Run 15 security checks against it
-4. Show a security score with findings by severity
-5. Explain each finding with evidence from the actual config
-6. Generate deterministic, vendor-aware fixes for confirmed Cisco / FortiGate findings
-7. Verify every fix by rescanning the generated configuration before calling it fixed
-8. Map findings to CIS Benchmarks and NIST 800-53 controls
+Working hackathon prototype. All phases of [plan.md](plan.md) (0–9) are implemented. Backend: 834 tests
+passed, 2 live-AI tests skipped. Frontend: 19 tests passed, production build OK.
 
-## Current Status
+## Pipeline
 
-**Working hackathon prototype.** See [docs/project-overview.md](docs/project-overview.md) for the current implementation and [docs/roadmap.md](docs/roadmap.md) for next steps.
-
-### What works
-- Cisco IOS and FortiGate parsers
-- Shared normalized configuration model
-- 15 deterministic security rules
-- Security scoring, evidence, and compliance mappings
-- Remediation templates and before/after verification
-- React/Vite dashboard
-- Adaptive parsing for unknown vendors and unfamiliar syntax: relevance filter
-  → learned mappings → batched AI interpretation into a fixed field vocabulary
-  → evidence validation and confidence tiers → admin Training tab → confirmed
-  mappings persisted in SQLite
-
-### What's in progress
-- Wider parser coverage and stronger automated tests
-- Persistent scan storage
-
-### What's planned
-- Vendor-neutral control catalog (CIS / NIST / STIG / ISO) so unknown vendors
-  are checked by more than the vendor-neutral rules
-- PDF reports and historical scan comparisons
-
-## Architecture
-
-```
-Upload config → Auto-detect vendor → Parse → Normalize → Analyze → Score → Dashboard
-                                                                         ↓
-                                                                    AI explains
-                                                                         ↓
-                                                                   Generate fix
-                                                                         ↓
-                                                                  Re-analyze → Compare
+```text
+Raw configuration (read into memory, never written to disk)
+  ↓
+Vendor detection + parse coverage ..................... app/parsers/detector.py, coverage.py
+  ↓ confirmed Cisco IOS / FortiGate            ↓ unknown or unverified vendor
+Dedicated parser → PARSER facts               Generic tokenizer ......... app/structure/tokenizer.py
++ documented vendor defaults → DEFAULT          → confirmed recognizers → CONFIRMED facts
+                                                → lexicon heuristics  → HEURISTIC facts (provisional)
+  ↓
+SecurityFacts: predicate, value, scope, cited lines, assurance ...... app/facts/
+  ↓
+Control evaluation: every control on every configuration ............ app/controls/
+  ↓
+Posture + coverage .................................................. app/analysis/scoring.py
+  ↓ UNKNOWN / NOT_CONFIGURED controls (unknown vendors only)
+AI judge: budgeted, redacted, cached (optional) ..................... app/ai/judge.py
+  ↓
+Deterministic citation verification → AI_VERIFIED proposal (never scored)
+  ↓
+Human confirmation ("Review & Recognizers") → recognizer saved in SQLite
+  ↓
+Future scans: the recognizer answers decisively, with no AI call
+  ↓ decisive FAIL on a confirmed vendor
+Deterministic remediation → re-parse → re-verify .................... app/remediation/
 ```
 
-Lines a parser does not understand (and every line of an unknown-vendor
-config) go through the adaptive layer before analysis:
+Details: [docs/architecture.md](docs/architecture.md).
 
-```
-Unrecognized line (with its block path, e.g. "config system > edit admin")
-  → not security-relevant?        → ignored
-  → previously rejected?          → skip (never re-sent to AI)
-  → confirmed learned mapping?    → normalize, no AI call
-  → AI interpretation (Groq, 10 lines per request, fixed field vocabulary)
-      → evidence check: cited text is in the line, value present, on/off polarity
-      → HIGH confidence + valid evidence  → auto-map
-      → MEDIUM / LOW / contradicted       → Training queue
-      → AI unavailable (no key, quota)    → Training queue, marked "AI unavailable"
-  → admin accept / edit           → mapping saved to SQLite, config re-analyzed
-```
+## Vendor support
 
-The deterministic rules stay the only compliance authority. The system does
-not retrain the AI model; it learns by persisting administrator-confirmed
-syntax-to-concept mappings.
+| Configuration | How it is analyzed | Assurance | Remediation |
+|---|---|---|---|
+| Cisco IOS / IOS-XE (common patterns) | Dedicated parser, confirmed by grammar coverage | Decisive (parser facts; no Cisco defaults are assumed) | Deterministic, verified |
+| Fortinet FortiGate (FortiOS with a `config firewall` / `config vpn` section) | Dedicated parser, confirmed by grammar coverage | Decisive; password storage and AAA are not read by the parser (UNKNOWN) | Deterministic, verified |
+| Look-alikes (Arista EOS, NX-OS, IOS-XR, ASA, Dell OS10, Brocade, FortiSwitch) and mixed configs | Reported **unverified**, then the generic path | Provisional unless a recognizer is confirmed | Blocked |
+| Palo Alto, Juniper and every other vendor | **No dedicated parser.** Generic tokenizer, lexicon heuristics, confirmed recognizers, optional AI judge | Provisional; decisive only through confirmed recognizers | Blocked |
 
-For configs no parser recognizes, `device.vendor` stays `unknown`. The AI's
-view of the likely vendor is reported separately as *vendor evidence* and is
-never used to switch on vendor-specific rules.
+The vendor is decided deterministically. An AI vendor guess is reported as evidence only and never selects a parser, defaults or remediation.
 
-The list of fields the AI may map to lives in one place,
-`backend/app/models/field_catalog.py`, and drives the AI schema, the prompt,
-validation and the Training tab dropdown.
+## Reading the results
 
-See [docs/architecture.md](docs/architecture.md) for the full architecture.
+- **Status** per control: `PASS`, `FAIL`, `UNKNOWN` (something relevant exists but could not be decided), `NOT_CONFIGURED` (nothing relevant found — never counted as PASS), `N_A`.
+- **Assurance**: `parser`, `confirmed` (recognizer or administrator mapping) and `default` (documented vendor default) are **decisive**; `heuristic` and `ai_verified` are **provisional** ("Suspected FAIL", "Probable PASS", "AI proposes …").
+- **Posture** = weighted PASS ÷ (PASS + FAIL) over decisive results; "—" when nothing was decided.
+- **Coverage** = weighted share of applicable controls decided decisively. Posture and coverage are shown side by side, with the posture range if every undecided control failed or passed.
+- **Critical not assessed** lists critical controls that were not decided.
+- Provisional verdicts are shown with their evidence but never change posture, coverage, findings counts or remediation.
+- **Framework views** regroup the same results under NIST SP 800-53 Rev. 5 and, for confirmed vendors, CIS Benchmarks. They are not a compliance certification.
 
-## Tech Stack
-
-- **Backend**: Python 3.11+ / FastAPI
-- **Frontend**: React (Vite)
-- **Storage**: In-memory scan store; SQLite for learned adaptive mappings
-- **AI**: Groq API (structured JSON output)
-- **Testing**: pytest (backend), Vitest + Testing Library (frontend)
-
-See [docs/decisions.md](docs/decisions.md) for why we chose these.
+The scan response still carries `score`, the deprecated penalty score (kept for existing scripts). The UI does not use it.
 
 ## Setup
 
-### Prerequisites
-- Python 3.11+
-- Node.js 18+
-- Groq API key (for AI features — optional, the tool works without it)
+Prerequisites: Python 3.10+, Node.js 18+. A Groq API key is optional.
 
-### Backend
 ```bash
+# backend
 cd backend
 python -m venv venv
-venv\Scripts\activate    # Windows
+venv\Scripts\activate          # Windows; macOS/Linux: source venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
 
-### Frontend
-```bash
+# frontend (second terminal)
 cd frontend
 npm install
-npm run dev
+npm run dev                    # http://localhost:5173
 ```
 
-### Environment
-Copy the example files and fill in what you need:
-```bash
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env
-```
+Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `frontend/.env` if you need to change a setting. Everything is optional:
 
 | Variable | File | Purpose |
-|----------|------|---------|
-| `GROQ_API_KEY`, `GROQ_API_KEY_1..4` | `backend/.env` | Optional. Keys are tried in order; the next key is used on a rate limit (429) or key rejection (401/403/404). Keys in the same Groq organization share one daily quota. |
-| `ADAPTIVE_DB_PATH` | `backend/.env` | Optional. Learned-mapping database, default `backend/data/adaptive.db`. |
-| `ADAPTIVE_AI_FOR_KNOWN_VENDORS` | `backend/.env` | Optional, default `false`. Also send unparsed Cisco/FortiGate lines to the AI. |
-| `VITE_API_BASE_URL` | `frontend/.env` | Backend URL, default `http://localhost:8000/api`. Change it if uvicorn runs on another port. |
+|---|---|---|
+| `GROQ_API_KEY`, `GROQ_API_KEY_1..4` | `backend/.env` | AI judge, explanations and chat. Keys are tried in order; the next key is used on 429 / 401 / 403 / 404. Keys of one Groq organization share one daily quota. |
+| `ADAPTIVE_DB_PATH` | `backend/.env` | SQLite database for recognizers, learned mappings, rejected lines and the AI judge cache. Default `backend/data/adaptive.db`. |
+| `AI_JUDGE_MAX_CALLS_PER_SCAN` | `backend/.env` | AI judge requests per scan (default 2; cache hits are free). |
+| `VENDOR_PARSE_COVERAGE_THRESHOLD` | `backend/.env` | Share of lines that must follow the detected vendor's grammar (default 0.7). |
+| `ADAPTIVE_AI_FOR_KNOWN_VENDORS` | `backend/.env` | Legacy, default `false`: send lines the Cisco / FortiGate parsers do not read to the line interpreter; results only reach the review queue. |
+| `VITE_API_BASE_URL` | `frontend/.env` | Backend URL, default `http://localhost:8000/api`. |
 
 ## Testing
+
 ```bash
 cd backend
-pytest tests/ -v
+venv\Scripts\python -m pytest tests -q     # 834 passed, 2 skipped (live AI, needs NETAUDIT_LIVE_AI=1)
 
 cd frontend
-npm test
+npm test                                    # 19 passed
 npm run build
 ```
 
-Backend tests use a temporary SQLite database per test and mock every AI call.
-`tests/test_phase6_adaptive_e2e.py` is the end-to-end adaptive learning demo,
-and `tests/test_adaptive_generic.py` runs the adaptive pipeline over four
-unrelated config syntaxes. Its live Groq tests are skipped unless
-`NETAUDIT_LIVE_AI=1` is set.
+Every AI call is mocked and every test gets its own SQLite database. See [docs/testing.md](docs/testing.md).
 
-## Supported Vendors
+## Persistence
 
-| Vendor | Format | Status |
-|--------|--------|--------|
-| Cisco IOS/IOS-XE | CLI text (`show running-config`) | Implemented for common patterns |
-| Fortinet FortiGate | Block CLI (`config/edit/set/end`) | Implemented for common patterns |
-| Palo Alto PAN-OS | XML / set CLI | No parser; scanned through the adaptive layer (vendor stays `unknown`) |
-| Any other vendor | Text | Scanned through the adaptive layer; score flagged provisional |
+| Data | Where | Survives restart |
+|---|---|---|
+| Confirmed recognizers and learned mappings | SQLite `learned_mappings` | Yes — reused by every later scan and process |
+| Lines an administrator rejected | SQLite `rejected_lines`, stored redacted | Yes |
+| Verified AI judge answers | SQLite `ai_judge_cache` (answers to redacted prompts) | Yes |
+| Scan results, uploaded configurations | Backend memory | No |
+| Scan history in the UI | Browser `localStorage`: summaries only (no findings, evidence or config lines) | Browser only; reopening needs the backend to still hold the scan |
 
-## Known Limitations
+A line holding a secret (password, key, community string) is never stored as a mapping or recognizer.
 
-- This is a hackathon prototype, not a production security tool
-- Parsers handle common config patterns but won't cover every edge case
-- AI explanations are optional and should be reviewed, not blindly trusted
-- Remediation operates on copies — it never modifies real configs
-- Scan results are stored only in memory and disappear when the backend restarts
-  (learned mappings persist in SQLite)
-- Most management rules are vendor-specific; for an unknown vendor only the
-  vendor-neutral rules (logging, NTP, source routing, IPsec crypto) can evaluate
-  adaptively normalized values, so its score is flagged provisional
-- Adaptive AI interpretation needs Groq quota; once the daily quota is used up,
-  unknown-vendor lines show "AI unavailable" and must be mapped manually
-- `/api/assistant/status` reports AI as available whenever a key is configured,
-  even if the Groq quota is exhausted
-- The Training endpoints have no authentication — any client can confirm mappings
-- Scanned PDF/image configs are not supported (text configs only)
-- No live device connections — upload-only
+## Known limitations
 
-## Project
-
-- **Problem**: SIH26155 — AI-Driven Multi-Vendor Network Security Compliance Auditor
-- **Sponsor**: NTRO (National Technical Research Organisation)
-- **Theme**: Cybersecurity
-- **Hackathon**: Smart India Hackathon 2026
+- Prototype, not a production security tool. No authentication on any endpoint; CORS is open.
+- Parsers cover common Cisco IOS and FortiGate syntax; the IOS grammar is a curated root list, so an unusual real IOS config can come out unverified.
+- 15 controls. Remediation recipes exist only for Cisco IOS and FortiGate; weak stored passwords, AAA without a strong local account and any-to-any rules always need a human.
+- Unknown vendors rely on lexicon heuristics and confirmed recognizers; heuristics can misread a dialect until an administrator confirms or rejects the line.
+- Redaction is pattern-based: a secret behind an unlisted keyword could still reach the AI.
+- The AI judge escalates only unknown / unverified vendors; UNKNOWN controls of confirmed vendors are not sent to AI.
+- Scan results live in memory; recognizer replay only checks scans held by the running backend.
+- Framework views cover NIST SP 800-53 Rev. 5 and verified CIS items only (no ISO 27001, DISA SRG or CIS Controls v8 mappings).
+- `/api/assistant/status` reports AI available whenever a key is configured, even if the quota is used up.
+- Text configurations only; no live device connections.
 
 ## Documentation
 
-See the [docs/](docs/) directory for detailed documentation.
+| Document | Contents |
+|---|---|
+| [docs/architecture.md](docs/architecture.md) | Pipeline, vendors, facts, controls, scoring, AI, recognizers, persistence, remediation, frameworks |
+| [docs/security-model.md](docs/security-model.md) | Trust boundaries and safety guarantees |
+| [docs/ai-design.md](docs/ai-design.md) | AI judge, verification, cache, legacy interpreter |
+| [docs/api.md](docs/api.md) | Endpoints and response fields |
+| [docs/detection-rules.md](docs/detection-rules.md) | The 15 controls, per-vendor facts and remediation |
+| [docs/data-model.md](docs/data-model.md) | Core objects |
+| [docs/demo.md](docs/demo.md) | SIH demo script |
+| [docs/setup.md](docs/setup.md), [docs/testing.md](docs/testing.md), [docs/deployment.md](docs/deployment.md) | Running and testing |
+| [plan.md](plan.md) | Phase-by-phase implementation record |

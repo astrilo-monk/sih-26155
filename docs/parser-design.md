@@ -66,14 +66,10 @@ We do not write a parser per vendor beyond Cisco IOS and FortiGate. Two kinds of
 
 For example, `set admin-ssh enable` inside `config system global` gets the path `config system global`. The AI sees this path as context, so the same leaf command can be read correctly in different blocks.
 
-The rest of the adaptive pipeline is described in [ai-design.md](ai-design.md). An AI result only reaches the normalized model after it passes these checks:
-* the field is in the catalog
-* the cited evidence appears in the line
-* the value matches the line's on/off polarity
+For unknown-vendor configs the generic tokenizer (`backend/app/structure/tokenizer.py`) reuses these block paths to build statements; lexicon heuristics and confirmed recognizers turn them into security facts, and the AI judge may propose facts for undecided controls. See [architecture.md](architecture.md) and [ai-design.md](ai-design.md). No AI interpretation is applied to a configuration without an administrator.
 
-A HIGH-confidence result that passes is applied automatically. Anything less certain goes to the Training queue for an administrator.
+## Vendor confirmation
+A parser's output is trusted only when grammar coverage (`backend/app/parsers/coverage.py`) confirms the vendor; otherwise the config is *unverified* and takes the generic path. Parsers feed security facts through `backend/app/facts/from_normalized.py`.
 
 ## Known Limitations
-The parsers are intentionally limited to common configuration patterns. They may miss unusual syntax, vendor version differences, or complex ACL options.
-
-The adaptive layer only fills the fields in `field_catalog.py`, and most management rules are still vendor-specific. As a result, unknown-vendor configs are currently evaluated mainly by the vendor-neutral rules, and their scores are flagged provisional.
+The parsers are intentionally limited to common configuration patterns. They may miss unusual syntax, vendor version differences, or complex ACL options. The IOS grammar is a curated list of command roots, so an unusual but genuine IOS config can come out unverified. The FortiGate parser does not read password storage or AAA, so those controls are UNKNOWN for FortiGate.

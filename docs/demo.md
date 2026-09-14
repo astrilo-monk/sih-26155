@@ -1,24 +1,29 @@
-# Demo Flow
+# Demo Script (SIH)
 
-This is the 11-step script we will use when presenting to the SIH judges. We need to make sure the app can flawlessly execute these steps.
+Uses files in the repository. Run with AI off (no Groq key) unless step 9 is shown; check the Groq quota first if it is.
+Start from an empty recognizer database for a clean replay (`ADAPTIVE_DB_PATH` pointing at a new file).
 
-## The Script
+1. **Problem.** Multi-vendor configurations are audited by hand; a tool that guesses is worse than none.
+2. **Upload `backend/tests/fixtures/cisco_vulnerable.cfg`.** Overview → Analysis Path: vendor *cisco_ios · confirmed*,
+   facts from the dedicated parser. Posture 0, coverage 100%. Open MGMT-001: cited lines, impact, NIST / CIS mappings.
+3. **Frameworks.** NIST SP 800-53 Rev. 5 and the Cisco CIS benchmark: requirement status comes from the same control
+   results; point out the "not a certification" note.
+4. **Remediation.** The plan shows *Fixed*, *Proposed* (needs input) and *Requires human review* (weak passwords, AAA
+   lockout risk, any-any ACL). Enter a syslog server, NTP key ID and key, and a management subnet; regenerate. Expand a
+   fixed control: cited evidence → diff → rescan checks → posture before/after. Download, then upload the downloaded
+   file: vendor still confirmed, posture 72, remaining findings exactly the three human-review controls.
+5. **Upload `backend/tests/fixtures/fortinet_vulnerable.cfg`.** Same controls, FortiGate facts. Posture 4, coverage 82%,
+   *critical not assessed: MGMT-005* — the FortiGate parser does not read password storage, and the tool says so.
+6. **Upload `sample/unknown.cfg`.** Analysis Path: *unknown*, generic tokenizer, remediation blocked. Posture "—",
+   coverage 0. Provisional results: *Suspected FAIL* Telnet on lines 70–71 with evidence, never scored.
+7. **Review & Recognizers.** Confirm line 71 for MGMT-001: drafted template `remote-console protocol {enum:protocol}`,
+   gates, replay diff. Save: MGMT-001 becomes a decisive *confirmed* FAIL, coverage rises, zero AI calls.
+8. **Restart the backend and upload `sample/unknown.cfg` again.** The recognizer is reused from SQLite: still decisive,
+   still no AI. Upload `sample/paloalto.cfg`: generic analysis, provisional results, no invented parser, no remediation.
+9. **(Optional, AI on.)** The judge is asked only about undecided controls, with a redacted excerpt; a verified answer
+   appears as "AI proposes …, awaiting confirmation" and changes neither posture nor coverage.
+10. **Close.** Architecture: parser or tokenizer → facts → controls → posture + coverage → AI only for what is
+    unresolved → human confirmation → recognizer → future scans; remediation only where it can be verified.
 
-1. **Introduction:** Briefly explain the problem (multi-vendor networks are a nightmare to audit manually).
-2. **The Dashboard:** Show the React dashboard and the upload screen.
-3. **Upload Cisco:** Upload a purposely vulnerable Cisco IOS config (e.g., Telnet enabled, weak passwords).
-4. **Auto-Detection:** Explain that the backend detects Cisco IOS from configuration patterns and selects the parser automatically.
-5. **The Results (Cisco):** Reveal the generated report. Show the low score (e.g., 45/100) and the list of findings.
-6. **Finding Explanation:** Open a critical finding such as MGMT-001 Telnet and show its description, security impact, evidence, recommendation, and compliance mappings. If a Groq key is configured, the assistant API can provide an AI explanation.
-7. **Reliable Remediation:** Click "Fix this". Emphasize that while we use AI for explanations, we deliberately use **deterministic templates** for remediation. Explain that while this doesn't eliminate all security risks, it significantly reduces the risk of generating hallucinated or malformed commands on critical infrastructure. Show the generated Cisco CLI commands to disable Telnet and enable SSH.
-8. **Upload FortiGate:** Upload a FortiGate config with different vulnerabilities (e.g., any-any firewall rule).
-9. **The Results (FortiGate):** Show the UI parsing the FortiGate config flawlessly and applying the *exact same* rules engine to generate a score.
-10. **Unknown Vendor (optional):** Upload `sample/unknown.cfg` or `sample/paloalto.cfg`. Show that:
-    * the vendor stays `unknown`, with vendor evidence shown separately
-    * the score is marked provisional
-    * uncertain lines appear in the **Training** tab
-
-    Accept one mapping, then rescan: the learned mapping is applied with no AI call. Before the demo, check the Groq quota. If it is used up, lines show "AI unavailable" and must be mapped manually.
-11. **Conclusion:** Explain our architecture (the Normalized Model plus the adaptive layer) and why it gives us a practical path to new vendors. Do not claim that every vendor or syntax variation is already supported.
-
-*(Note: Use `backend/tests/fixtures/cisco_vulnerable.cfg` and `backend/tests/fixtures/fortinet_vulnerable.cfg` for a predictable demo.)*
+Do not claim dedicated support for vendors other than Cisco IOS and FortiGate, AI-decided compliance, or automatic
+learning without confirmation.

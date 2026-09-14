@@ -14,8 +14,16 @@ Returns a simple status payload confirming the backend is running.
 ### `POST /api/scan`
 Upload one or more raw configuration files for analysis.
 * **Request:** `multipart/form-data` with one or more `files` fields (UTF-8 text, max 2 MB each).
-* **Response:** `ScanResultResponse`, containing the `scan_id`, score, device details and findings.
+* **Response:** `ScanResultResponse`:
+  * `scan_id`, `timestamp`, `devices[]` (hostname, vendor — `unknown` unless confirmed)
+  * `vendor_identification[]`: `detected_vendor`, `status` (`confirmed` / `unverified` / `unknown`), `parse_coverage`, `uncovered_lines`, `reason`
+  * `results[]`: every control for every config — `status`, `assurance`, `proposed_status` (AI verdict awaiting confirmation), `scope`, `reason`, `evidence`
+  * `findings[]`: FAIL results (`assurance` heuristic = suspected, not scored) and severity counts
+  * `posture` (null when nothing decided), `coverage`, `posture_bounds`, `critical_unassessed`
+  * `frameworks[]`: the same results by framework version — `coverage`, `counts`, `requirements[]` (`status` pass / fail / partial / unknown / not_configured / n_a, `provisional`, mapped `controls[]` with status, assurance, evidence)
+  * `score`: **deprecated** penalty score, kept for existing scripts; do not use for compliance
 * **`adaptive` block:** present when lines went through the adaptive layer. It holds:
+  * `ai_calls`, `ai_cache_hits`: AI judge requests and cached answers for this config
   * `unrecognized_lines`, each with its `structural_path`
   * `ai_mappings`: source, confidence tier, status, cited `value_evidence`
   * `learned_matches`
@@ -25,7 +33,7 @@ Upload one or more raw configuration files for analysis.
   * the reasons a score is provisional
 
 ### `GET /api/scan/{scan_id}`
-Retrieve a previous scan from the in-memory store.
+Retrieve a previous scan from the in-memory store (`404` after a backend restart).
 
 ## Remediation
 
@@ -79,7 +87,21 @@ Ask a question about a scan.
 
 ## Adaptive Training
 
-These endpoints back the Training tab. **They have no authentication yet.**
+These endpoints back the Review & Recognizers page. **They have no authentication yet.** A mapping or recognizer whose text holds a secret (password, key, community string) is refused with `422`; rejected lines are stored redacted.
+
+### `GET /api/adaptive/scans/{scan_id}/provisional`
+Undecided or provisional control results of unknown-vendor configs, with the heuristic lines and verified AI proposal lines an administrator can confirm.
+
+### `POST /api/adaptive/scans/{scan_id}/recognizers/draft`
+Draft a recognizer from a provisional line. **Request JSON:** `{"config_index": 0, "control_id": "MGMT-001", "line_number": 71, "command_pattern": null, "scope_template": null, "value": null, "any_dialect": false, "negatives": []}`. **Response:** the draft, gate `errors` and the `replay` of results it would change on scans held by the backend.
+
+### `POST /api/adaptive/scans/{scan_id}/recognizers`
+Save the recognizer (same body) to SQLite and return the re-evaluated scan. `422` when a gate fails, `409` on a conflicting recognizer.
+
+### `POST /api/adaptive/scans/{scan_id}/provisional/reject`
+Record a provisional line as reviewed-but-unmapped: heuristics and AI ignore it on later scans. **Request JSON:** `{"config_index": 0, "control_id": "MGMT-001", "line_number": 71, "reason": null}`.
+
+The review-queue endpoints below serve the legacy line interpreter (`ADAPTIVE_AI_FOR_KNOWN_VENDORS`, off by default).
 
 ### `GET /api/adaptive/fields`
 Normalized fields an interpretation may map to. Each entry has `field`, `value_type`, `label`, `description` and `value_rule`. The list comes from `backend/app/models/field_catalog.py`.

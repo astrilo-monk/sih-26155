@@ -1132,6 +1132,73 @@ Known limits:
 6. Switch framework view      → NIST / ISO / SRG, with "not assessable" labelled
 ```
 
+(As built, step 6 shows NIST SP 800-53 Rev. 5 and the confirmed vendor's CIS benchmark; the script actually used is
+`docs/demo.md`.)
+
+## Status: done
+
+Suite after Phase 9: **834 passed, 2 skipped** (frontend 19 passed, build OK). Phase 0 snapshots unchanged.
+
+- **Framework views** `app/controls/frameworks.py`, `frameworks[]` on every scan response: the scan's control
+  results regrouped per (framework, version) and requirement — nothing re-evaluated. Requirement FAIL if a mapped
+  control FAILs decisively; PASS only if every applicable mapped control PASSes decisively; PARTIAL; NOT_CONFIGURED
+  if all mapped controls are; else UNKNOWN; N/A if all N/A. Heuristic / AI verdicts set `provisional` and never make
+  a requirement PASS or FAIL. Coverage = decided ÷ applicable requirements. Each mapped control carries status,
+  assurance, proposed status, decisive flag, reason and evidence.
+- **Task 2** ("not assessable from configuration"): every catalog mapping is a device-configuration requirement, so
+  no listed requirement needs the label; unmapped requirements are not listed, and the UI says the view is not a
+  certification. **Task 3**: CIS items stay attached only to their confirmed vendor. ISO/IEC 27001:2022, DISA NDM SRG
+  and CIS Controls v8 are **not implemented** — no mapping was verified and unverified mappings would inflate coverage.
+- **Task 4 (remove the legacy `score`) — deliberately not done.** It stays in the API, marked deprecated, and the UI no
+  longer shows it (history uses posture / coverage). `backend/test_api.py` reads `score` and
+  `backend/diagnose_remediation.py` imports `calculate_score`; both are pre-existing repository scripts left untouched.
+- **Persistence audit**:
+  | Item | Finding |
+  |---|---|
+  | Recognizers | SQLite `learned_mappings` at `ADAPTIVE_DB_PATH`, loaded fresh on every scan → survive restart; a new process reuses them (test runs two real processes) |
+  | AI cache | SQLite `ai_judge_cache`, intentional (Phase 7): verified answers to redacted prompts, re-verified on hit |
+  | Scan history | backend: in memory only; frontend: `localStorage` |
+  | Raw configurations | never written to disk (`upload_dir` is created but unused) or to SQLite |
+  | **Fixed** | a provisional line `syslog host … key <secret>` could be confirmed as a recognizer or rejected, storing the key in `learned_mappings` / `rejected_lines`. Mappings and recognizers whose text holds a secret are now refused; rejected lines are stored redacted and matched via `rejection_key` (redacted, normalized) |
+  | **Fixed** | the browser history stored the full scan result (findings evidence, e.g. `enable password 7 …`). It now stores summaries only and strips old entries on read |
+- **Frontend**: Overview gains the per-device **Analysis Path** (vendor detection → dedicated parser or generic
+  tokenizer → controls decided → AI calls / cache hits → provisional → confirmed recognizers → remediation
+  available / blocked) with an explicit generic-analysis notice for unknown / unverified vendors; **Frameworks** page;
+  "Review & Recognizers" navigation; history reopens scans through `GET /api/scan/{id}` and explains when the backend
+  no longer holds them; loading steps name the real pipeline.
+- **Tests** `tests/test_phase9_frameworks_persistence.py` (7): framework requirements equal the catalog's NIST ids and
+  carry the scanned statuses; AC-17(2) FAIL with parser evidence; CIS only for the confirmed vendor; PASS needs every
+  mapped control decisive and an AI proposal turns it PARTIAL + provisional; unknown vendor → NIST only, coverage 0,
+  never PASS / FAIL; multi-device CIS scoping; rejected secret line stored redacted and still matched; secret line
+  never becomes a recognizer; recognizer saved in one process, reused decisively (confirmed FAIL [70, 71], zero AI
+  calls, coverage > 0) by a second process, with no raw configuration line persisted. Frontend:
+  `FrameworkView.test.jsx`, `utils/history.test.js`.
+- **Real-world matrix** (API in-process, AI off unless stated, AI transport mocked and every prompt captured):
+
+  | Config | Vendor | Posture / coverage | Result |
+  |---|---|---|---|
+  | Cisco vulnerable | confirmed | 0 / 100 | 15 decisive FAILs; plan: 9 fixed, 3 needs input, 3 human review |
+  | Cisco secure | confirmed | 100 / 100 | nothing to fix (download 400) |
+  | FortiGate vulnerable | confirmed | 4 / 82, MGMT-005 not assessed | 9 fixed, 2 needs input, BOUNDARY-001 review |
+  | FortiGate secure | confirmed | 100 / 83, MGMT-005 not assessed | nothing to fix |
+  | `sample/unknown.cfg` | unknown | — / 0 | 6 provisional; NIST view only; remediation `vendor_unverified`, download 409 |
+  | `sample/paloalto.cfg` | unknown | — / 0 | 4 provisional (suspected Telnet / HTTP FAIL); remediation blocked |
+  | Synthetic Junos | unknown | — / 0 | 1 provisional; nothing decisive |
+  | Arista EOS look-alike | unverified (33 % grammar) | — / 0 | nothing decisive, blocked |
+  | Mixed IOS + foreign block | unverified (9 foreign statements) | — / 0 | provisional only, blocked |
+  | Remediation (Cisco, inputs) | confirmed | 0 → 72 on real rescan (= plan) | 12 fixed; remaining FAILs = MGMT-005, MGMT-008, BOUNDARY-001 |
+  | Confirmed recognizer | unknown | — / 0 → 11 | MGMT-001 confirmed FAIL [70, 71]; AI judge asked only MGMT-003 / MGMT-006 (line 71 appears only as scope context) |
+  | Unfamiliar syntax (AI on) | unknown | — / 0 | `lock-after 10 minutes` → MGMT-006 UNKNOWN, AI proposes PASS; no finding, no posture |
+  | Fake secrets (AI on) | unknown | — / 0 | 1 judge call; none of 6 fake secrets in the prompt |
+
+Known limits:
+
+- Framework views cover NIST SP 800-53 Rev. 5 and verified CIS items only.
+- A line holding a secret cannot become a recognizer, so such a setting stays provisional on unknown vendors.
+- Replay and `GET /api/scan/{id}` only reach scans held by the running backend.
+- Pre-existing rejected lines in an existing database keep their old unredacted keys (the audited local database was
+  empty).
+
 ---
 
 # What Not To Build
@@ -1163,14 +1230,14 @@ in "verified" fixes.
 
 # Final Success Criteria
 
-- [ ] Cisco/FortiGate FAIL findings unchanged from Phase 0 snapshots
-- [ ] No raw secret ever reaches the AI
-- [ ] Every control runs on every config
-- [ ] Every result has status, assurance, evidence lines and a reason
-- [ ] No PASS without evidence; no FAIL from missing data on unknown vendors
-- [ ] Posture and coverage shown; unassessed never scores as passed
-- [ ] `sample/unknown.cfg` gives useful cited results with AI off
-- [ ] Admin confirmation makes the next scan decisive with zero AI calls
-- [ ] AI calls per config bounded by a budget and cached
-- [ ] Verified remediation includes a regression check
-- [ ] Full backend test suite green at every phase
+- [x] Cisco/FortiGate FAIL findings unchanged from Phase 0 snapshots
+- [x] No raw secret ever reaches the AI (for every secret syntax the pattern-based redactor knows)
+- [x] Every control runs on every config
+- [x] Every result has status, reason and evidence lines; decided results carry assurance
+- [x] No PASS without evidence or a documented default; no FAIL from missing data on unknown vendors
+- [x] Posture and coverage shown; unassessed never scores as passed
+- [x] `sample/unknown.cfg` gives useful cited results with AI off
+- [x] Admin confirmation makes the next scan decisive with zero AI calls — including after a backend restart
+- [x] AI calls per config bounded by a budget and cached
+- [x] Verified remediation includes a regression check
+- [x] Full backend test suite green at every phase

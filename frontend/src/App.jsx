@@ -13,6 +13,8 @@ import FindingDetail from './components/FindingDetail';
 import RemediationView from './components/RemediationView';
 import RemediationQueue from './components/RemediationQueue';
 import HistoryView from './components/HistoryView';
+import AnalysisPath from './components/AnalysisPath';
+import FrameworkView from './components/FrameworkView';
 import AdaptiveTraining from './components/AdaptiveTraining';
 import { saveScanToHistory } from './utils/history';
 
@@ -30,11 +32,11 @@ function LoadingState() {
   }, []);
 
   const steps = [
-    'Parsing configuration',
-    'Detecting devices',
-    'Running security rules',
-    'Generating findings',
-    'Calculating security score'
+    'Detecting vendor and checking parse coverage',
+    'Parsing or tokenizing the configuration',
+    'Extracting security facts',
+    'Evaluating every control',
+    'Calculating posture and coverage'
   ];
 
   return (
@@ -112,9 +114,14 @@ export default function App() {
     setRemediation(null);
   };
 
-  const handleSelectHistoryEntry = (fullResult) => {
-    setScanResult(fullResult);
-    setView('dashboard');
+  const handleSelectHistoryEntry = async (scanId) => {
+    setError(null);
+    try {
+      setScanResult(await apiClient.getScan(scanId));
+      setView('dashboard');
+    } catch {
+      setError('This scan is no longer held by the backend (scan results are kept in memory and cleared on restart). Upload the configuration again.');
+    }
   };
 
   const adaptiveConfigs = scanResult?.adaptive_configs || [];
@@ -176,6 +183,8 @@ export default function App() {
                   low={decisiveCount('low')}
                 />
 
+                <AnalysisPath scanResult={scanResult} />
+
                 <ProvisionalResults results={scanResult.results} />
 
                 <FindingsTable
@@ -194,6 +203,10 @@ export default function App() {
                 findings={scanResult.findings}
                 onSelectFinding={handleSelectFinding}
               />
+            )}
+
+            {view === 'frameworks' && scanResult && (
+              <FrameworkView key={scanResult.scan_id} frameworks={scanResult.frameworks} />
             )}
 
             {view === 'remediation' && scanResult && (
