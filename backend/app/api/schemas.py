@@ -201,6 +201,8 @@ class FindingSchema(BaseModel):
     description: str
     device_hostname: str
     vendor: str
+    # The uploaded config this finding belongs to: the identity (hostnames can repeat)
+    config_index: int = 0
     evidence_lines: list[str]
     line_numbers: list[int]
     security_impact: str

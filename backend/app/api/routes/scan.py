@@ -13,8 +13,10 @@ analysis. This is the main entry point for the security audit workflow.
 
 from __future__ import annotations
 import logging
+import re
 import uuid
 from datetime import datetime
+from functools import partial
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from app.parsers.detector import STATUS_UNVERIFIED, VendorIdentification, identify_vendor
@@ -42,6 +44,9 @@ from app.api.schemas import (
 from app import config as app_config
 from app.config import settings
 from app.adaptive import capture_unrecognized_lines
+from app.adaptive.context import structural_paths
+from app.ai.redaction import Redactor, placeholder
+from app.facts.heuristics import generic_hostname
 from app.adaptive.interpreter import interpret_lines
 from app.adaptive.mapper import REVIEWABLE_SOURCES, determine_tier
 from app.adaptive.vendor import EVIDENCE_CONFLICTING, EVIDENCE_IDENTIFIED, assess_vendor_evidence
@@ -57,18 +62,64 @@ logger = logging.getLogger(__name__)
 # A real product would use a database.
 _scan_store: dict[str, dict] = {}
 
-def _finding_to_schema(f) -> FindingSchema:
+def config_redactor(configs) -> Redactor:
+    """A redactor that knows every secret value in the scanned configs.
+
+    Each config line is redacted with its block path (to collect values) and
+    parsed SNMP community names are added, so any of them can be scrubbed from
+    text leaving the process: AI prompts and every API response that quotes
+    configuration (evidence, reasons, diffs, review lines).
+    """
+    redactor = Redactor()
+    for cfg in configs or []:
+        for raw, path in zip(cfg.raw_lines, structural_paths(cfg.raw_lines)):
+            redactor.line(raw, path)
+        for community in cfg.snmp.communities:
+            redactor.add_secret(community.name)
+    return redactor
+
+
+def display_scrub(redactor: Redactor, text):
+    """Replace every known secret value that stands as a whole token, for text shown in the browser.
+
+    Stricter about token edges than ``Redactor.scrub`` (which AI prompts keep using): a password
+    'console' is removed from ``password console`` but leaves ``remote-console`` readable.
+    """
+    if not text:
+        return text
+    for secret in sorted(redactor.secrets, key=len, reverse=True):
+        if len(secret) >= 2:
+            text = re.sub(rf"(?<![\w$./-]){re.escape(secret)}(?![\w$./-])", placeholder("redacted"), text)
+    return text
+
+
+def redact_lines(redactor: Redactor, lines, scope=()) -> list[str]:
+    return [display_scrub(redactor, redactor.line(text, scope)) for text in lines]
+
+
+def redact_config_text(redactor: Redactor, text: Optional[str]) -> Optional[str]:
+    """A whole configuration (or diff) with every secret replaced; block paths keep scope-dependent rules."""
+    if text is None:
+        return None
+    lines = text.split("\n")
+    return "\n".join(display_scrub(redactor, redactor.line(line, path))
+                     for line, path in zip(lines, structural_paths(lines)))
+
+
+def _finding_to_schema(f, redactor: Redactor) -> FindingSchema:
+    scrub = partial(display_scrub, redactor)
     return FindingSchema(
         rule_id=f.rule_id,
-        title=f.title,
+        title=scrub(f.title),
         severity=f.severity.value,
-        description=f.description,
+        description=scrub(f.description),
         device_hostname=f.device_hostname,
         vendor=f.vendor,
-        evidence_lines=f.evidence_lines,
+        config_index=f.config_index,
+        evidence_lines=redact_lines(redactor, f.evidence_lines),
         line_numbers=f.line_numbers,
-        security_impact=f.security_impact,
-        recommendation=f.recommendation,
+        security_impact=scrub(f.security_impact),
+        recommendation=scrub(f.recommendation),
         compliance=[
             ComplianceMappingSchema(
                 framework=c.framework,
@@ -77,13 +128,13 @@ def _finding_to_schema(f) -> FindingSchema:
                 version=c.version,
             ) for c in f.compliance
         ],
-        ai_explanation=f.ai_explanation,
+        ai_explanation=scrub(f.ai_explanation),
         category=f.category,
         assurance=f.assurance,
     )
 
 
-def _result_to_schema(result: ControlResult, config_index: int) -> ControlResultSchema:
+def _result_to_schema(result: ControlResult, config_index: int, redactor: Redactor) -> ControlResultSchema:
     control = CONTROLS[result.control_id]
     return ControlResultSchema(
         config_index=config_index,
@@ -99,10 +150,10 @@ def _result_to_schema(result: ControlResult, config_index: int) -> ControlResult
         device_hostname=result.device_hostname,
         vendor=result.vendor,
         scope=result.scope,
-        reason=result.reason,
+        reason=display_scrub(redactor, result.reason),
         evidence=EvidenceSchema(
             line_numbers=list(result.evidence.line_numbers),
-            lines=list(result.evidence.text),
+            lines=redact_lines(redactor, result.evidence.text, result.evidence.scope_path),
             scope_path=list(result.evidence.scope_path),
         ),
     )
@@ -118,22 +169,24 @@ def _device_results(result, configs: list[NormalizedConfig], config_index: int) 
     return result.device_results[config_index]
 
 
-def mapping_record_to_schema(m: AIFieldMapping) -> AIFieldMappingSchema:
+def mapping_record_to_schema(m: AIFieldMapping, redactor: Optional[Redactor] = None) -> AIFieldMappingSchema:
+    redactor = redactor or Redactor()
+    scrub = partial(display_scrub, redactor)
     return AIFieldMappingSchema(
         line_number=m.line_number,
-        raw_line=m.raw_line,
+        raw_line=scrub(redactor.line(m.raw_line)),
         normalized_field=m.normalized_field,
-        extracted_value=m.extracted_value,
+        extracted_value=scrub(m.extracted_value),
         confidence=m.confidence,
         confidence_tier=m.confidence_tier,
-        reasoning=m.reasoning,
+        reasoning=scrub(m.reasoning),
         source=m.source,
         status=m.status,
         likely_vendor=m.likely_vendor,
         security_concept=m.security_concept,
-        final_value=m.final_value,
+        final_value=scrub(m.final_value),
         mapping_id=m.mapping_id,
-        reason=m.reason,
+        reason=scrub(m.reason),
     )
 
 
@@ -161,19 +214,22 @@ def _build_adaptive_info(
     identification: Optional[VendorIdentification] = None,
     assessed: bool = False,
     results: Optional[list[ControlResult]] = None,
+    redactor: Optional[Redactor] = None,
 ) -> AdaptiveScanInfoSchema:
     """Build the adaptive response info for one config."""
     results = results or []
+    redactor = redactor or config_redactor([config])
+    scrub = partial(display_scrub, redactor)
     records_by_line = {m.line_number: m for m in config.ai_mappings}
 
     lines_schema = [
         AdaptiveLineSchema(
             line_number=ln.line_number,
-            raw_line=ln.raw_line,
+            raw_line=scrub(redactor.line(ln.raw_line, ln.structural_path)),
             vendor=ln.vendor,
-            context_before=list(ln.context_before),
-            context_after=list(ln.context_after),
-            structural_path=list(ln.structural_path),
+            context_before=redact_lines(redactor, ln.context_before),
+            context_after=redact_lines(redactor, ln.context_after),
+            structural_path=redact_lines(redactor, ln.structural_path),
         )
         for ln in config.unrecognized_lines
     ]
@@ -181,12 +237,12 @@ def _build_adaptive_info(
     interp_schema = [
         AdaptiveInterpretationSchema(
             line_number=r.line_number,
-            raw_line=r.raw_line,
+            raw_line=scrub(redactor.line(r.raw_line)),
             likely_vendor=r.likely_vendor,
             security_concept=r.security_concept,
             normalized_field=r.normalized_field,
-            extracted_value=r.extracted_value,
-            value_evidence=r.value_evidence,
+            extracted_value=scrub(r.extracted_value),
+            value_evidence=scrub(redactor.line(r.value_evidence)) if r.value_evidence else r.value_evidence,
             confidence=r.confidence.value,
             numeric_confidence=r.numeric_confidence,
             confidence_tier=(
@@ -194,7 +250,7 @@ def _build_adaptive_info(
                 if r.line_number in records_by_line
                 else determine_tier(r.effective_confidence).value
             ),
-            reasoning=r.reasoning,
+            reasoning=scrub(r.reasoning),
             status=r.status.value,
             source=records_by_line[r.line_number].source if r.line_number in records_by_line else None,
         )
@@ -255,7 +311,7 @@ def _build_adaptive_info(
         ai_available=run.get("ai_available", False),
         unrecognized_lines=lines_schema,
         interpretations=interp_schema,
-        ai_mappings=[mapping_record_to_schema(m) for m in config.ai_mappings],
+        ai_mappings=[mapping_record_to_schema(m, redactor) for m in config.ai_mappings],
         config_index=config_index,
         hostname=config.device.hostname,
         vendor=_vendor_str(config),
@@ -265,7 +321,7 @@ def _build_adaptive_info(
         learned_matches=sum(1 for m in config.ai_mappings if m.source == "learned_mapping"),
         pending_review=pending,
         score_provisional=bool(reasons),
-        provisional_reasons=reasons,
+        provisional_reasons=[scrub(r) for r in reasons],
         vendor_evidence=VendorEvidenceSchema(
             likely_vendor=evidence.likely_vendor,
             status=evidence.status,
@@ -287,7 +343,7 @@ def _process_unknown_vendor(raw_config: str, filename: str) -> NormalizedConfig:
     raw_lines = raw_config.splitlines()
 
     normalized = NormalizedConfig(
-        device=DeviceInfo(vendor=Vendor.UNKNOWN, hostname="unknown"),
+        device=DeviceInfo(vendor=Vendor.UNKNOWN, hostname=generic_hostname(raw_lines) or "unknown"),
         raw_config=raw_config,
         raw_lines=raw_lines,
     )
@@ -318,6 +374,9 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
     entry = _scan_store[scan_id]
     configs = entry["configs"]
     result = entry.get("result")
+    # Every configuration quote in the response is redacted with its own config's secrets:
+    # the browser never receives a secret, and one config's weak password never blanks words in another
+    redactors = [config_redactor([cfg]) for cfg in configs]
     identifications = entry.get("identifications") or [None] * len(configs)
     device_results = [_device_results(result, configs, idx) for idx in range(len(configs))]
     infos = [
@@ -325,13 +384,21 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
             cfg, run, idx, identifications[idx],
             assessed=bool(result is not None and result.devices[idx].get("assessed", True)),
             results=device_results[idx],
+            redactor=redactors[idx],
         )
         for idx, (cfg, run) in enumerate(zip(configs, entry["adaptive_runs"]))
         if run is not None
     ]
     results_schema = [
-        _result_to_schema(r, idx) for idx, results in enumerate(device_results) for r in results
+        _result_to_schema(r, idx, redactors[idx]) for idx, results in enumerate(device_results) for r in results
     ]
+    views = framework_views(device_results)
+    for view in views:
+        for requirement in view["requirements"]:
+            for control in requirement["controls"]:
+                own = redactors[control["config_index"]]
+                control["reason"] = display_scrub(own, control["reason"])
+                control["evidence"]["lines"] = redact_lines(own, control["evidence"]["lines"])
     adaptive = infos[0] if infos else None
     identification_schemas = [
         _identification_schema(ident, idx) for idx, ident in enumerate(identifications) if ident is not None
@@ -343,7 +410,7 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
         coverage=posture.coverage,
         posture_bounds=list(posture.bounds) if posture.bounds else None,
         critical_unassessed=posture.critical_unassessed,
-        frameworks=[FrameworkViewSchema(**view) for view in framework_views(device_results)],
+        frameworks=[FrameworkViewSchema(**view) for view in views],
     )
 
     if result is None:
@@ -370,7 +437,7 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
         medium=result.medium_count,
         low=result.low_count,
         devices=result.devices,
-        findings=[_finding_to_schema(f) for f in result.findings],
+        findings=[_finding_to_schema(f, redactors[f.config_index]) for f in result.findings],
         adaptive=adaptive,
         adaptive_configs=infos,
         vendor_identification=identification_schemas,
@@ -496,6 +563,15 @@ async def get_scan(scan_id: str):
     return build_scan_response(scan_id)
 
 
+@router.get("/scan/{scan_id}/status")
+async def scan_status(scan_id: str):
+    """Whether this backend still holds the scan (results live in memory until it restarts).
+
+    Always 200: history checks every stored entry, and an expired scan is an answer, not an error.
+    """
+    return {"scan_id": scan_id, "held": scan_id in _scan_store}
+
+
 def get_scan_store() -> dict:
     """Expose store for other routes that need scan data."""
     return _scan_store
@@ -508,6 +584,6 @@ def get_scan_result_or_409(stored: dict):
         raise HTTPException(
             409,
             "This scan has no compliance result yet — AI interpretation was unavailable. "
-            "Review the adaptive lines in the Training tab first.",
+            "Review the adaptive lines on the Review & Recognizers page first.",
         )
     return result

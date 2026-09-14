@@ -100,6 +100,8 @@ button {
 }
 
 .nav-item {
+  width: 100%;
+  justify-content: flex-start;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -236,6 +238,8 @@ button {
 
 /* Typography & Hierarchy */
 .section-header {
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -424,11 +428,14 @@ button {
 
 .filter-bar {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.75rem;
   margin-bottom: 1rem;
 }
 
 .filter-input {
+  max-width: 100%;
   background-color: var(--surface);
   border: 1px solid var(--border);
   color: var(--text-primary);
@@ -682,7 +689,14 @@ button {
 
 @media (max-width: 768px) {
   .app-layout { flex-direction: column; }
-  .sidebar { display: none; } /* Could add mobile nav */
+  /* the sidebar becomes a horizontally scrolling navigation bar */
+  .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+  .sidebar-header, .sidebar-footer { display: none; }
+  .sidebar-nav { flex-direction: row; overflow-x: auto; padding: 0.5rem; }
+  .nav-item { width: auto; white-space: nowrap; }
+  .header { padding: 0 1rem; }
+  .main-content { padding: 1rem; }
+  .filter-bar .filter-input { width: 100% !important; max-width: 100% !important; }
   .posture-grid { grid-template-columns: 1fr; }
   .severity-breakdown { flex-wrap: wrap; }
   .drawer { max-width: 100%; }

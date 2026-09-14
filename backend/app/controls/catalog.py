@@ -229,8 +229,8 @@ _CONTROLS = (
         category="management",
         mappings=(
             _nist("AC-8", "System Use Notification"),
+            # 1.3.3 (banner motd) is not mapped: the banner fact does not tell a motd banner from a login banner
             _cis_ios("1.3.2", "Set the 'banner-text' for 'banner login'"),
-            _cis_ios("1.3.3", "Set the 'banner-text' for 'banner motd'"),
             _cis_fortigate("2.1.1", "Ensure 'Pre-Login Banner' is set"),
         ),
         remediation_keys=("MGMT-009",),

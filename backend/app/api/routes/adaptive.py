@@ -39,11 +39,15 @@ from app.adaptive.matcher import (
 )
 from app.adaptive.vendor import UNKNOWN_VENDOR, normalize_vendor_name
 from app.analysis.engine import evaluate_controls
+from app.ai.redaction import Redactor, redact_line
 from app.api.routes.scan import (
     _device_results,
     build_scan_response,
+    config_redactor,
+    display_scrub,
     get_scan_store,
     reanalyze_scan,
+    redact_lines,
 )
 from app.api.schemas import (
     AcceptInterpretationRequest,
@@ -91,7 +95,11 @@ def _repository() -> MappingRepository:
 
 
 def _mapping_schema(m: LearnedMapping) -> LearnedMappingSchema:
-    return LearnedMappingSchema(**asdict(m))
+    # Display only: a stored example line or pattern never reaches the browser with a secret in it
+    fields = asdict(m)
+    fields["example_line"] = redact_line(m.example_line) if m.example_line else m.example_line
+    fields["command_pattern"] = redact_line(m.command_pattern)
+    return LearnedMappingSchema(**fields)
 
 
 # ── Review queue helpers ──────────────────────────────────────────────────────
@@ -107,12 +115,17 @@ def _item_id(config_index: int, line_number: int) -> str:
     return f"{config_index}-{line_number}"
 
 
-def _build_item(entry: dict, config_index: int, record: AIFieldMapping) -> ReviewItemSchema:
+def _build_item(entry: dict, config_index: int, record: AIFieldMapping,
+                redactor: Optional[Redactor] = None) -> ReviewItemSchema:
     config: NormalizedConfig = entry["configs"][config_index]
     item_id = _item_id(config_index, record.line_number)
     line = next((ln for ln in config.unrecognized_lines if ln.line_number == record.line_number), None)
     run = entry["adaptive_runs"][config_index] or {}
     state = entry["review_state"].get(item_id)
+    redactor = redactor or config_redactor([config])
+
+    def scrub(text):
+        return display_scrub(redactor, text)
 
     return ReviewItemSchema(
         item_id=item_id,
@@ -120,20 +133,20 @@ def _build_item(entry: dict, config_index: int, record: AIFieldMapping) -> Revie
         hostname=config.device.hostname,
         vendor=config.device.vendor.value,
         line_number=record.line_number,
-        raw_line=record.raw_line,
-        context_before=list(line.context_before) if line else [],
-        context_after=list(line.context_after) if line else [],
-        structural_path=list(line.structural_path) if line else [],
+        raw_line=scrub(redactor.line(record.raw_line, line.structural_path if line else ())),
+        context_before=redact_lines(redactor, line.context_before) if line else [],
+        context_after=redact_lines(redactor, line.context_after) if line else [],
+        structural_path=redact_lines(redactor, line.structural_path) if line else [],
         likely_vendor=record.likely_vendor,
         security_concept=record.security_concept,
         normalized_field=record.normalized_field,
-        extracted_value=record.extracted_value,
+        extracted_value=scrub(record.extracted_value),
         confidence=record.confidence,
         confidence_tier=record.confidence_tier,
-        reasoning=record.reasoning,
+        reasoning=scrub(record.reasoning),
         interpretation_status=record.status,
         source=record.source,
-        reason=record.reason,
+        reason=scrub(record.reason),
         review_status=state["status"] if state else "pending",
         mapping_id=record.mapping_id,
         candidates=[
@@ -301,11 +314,12 @@ async def list_review_items(scan_id: str, include_resolved: bool = False):
     entry = _get_entry(scan_id)
     items = []
     for config_index, config in enumerate(entry["configs"]):
+        redactor = config_redactor([config])
         for record in config.ai_mappings:
             reviewed = _item_id(config_index, record.line_number) in entry["review_state"]
             pending = record.source in REVIEWABLE_SOURCES and not reviewed
             if pending or (include_resolved and reviewed):
-                items.append(_build_item(entry, config_index, record))
+                items.append(_build_item(entry, config_index, record, redactor))
 
     return ReviewQueueResponse(
         scan_id=scan_id,
@@ -424,6 +438,10 @@ def _draft(scan_id: str, body: RecognizerDraftRequest) -> tuple[LearnedMapping, 
                                   _ai_candidates(config, control.control_id))
     except LookupError as e:
         raise HTTPException(404, str(e))
+    redactor = config_redactor([config])
+    raw = config.raw_lines[body.line_number - 1]
+    secret_error = ("This line holds a secret value: a recognizer would store it, so it cannot be drafted from "
+                    "this line") if display_scrub(redactor, redactor.line(raw)) != raw else None
 
     for name, override in (("command_pattern", body.command_pattern), ("scope_template", body.scope_template),
                            ("constant_value", body.value)):
@@ -434,17 +452,21 @@ def _draft(scan_id: str, body: RecognizerDraftRequest) -> tuple[LearnedMapping, 
     mapping = LearnedMapping(concept=control.title, normalized_field="", extraction_method=EXTRACTION_RECOGNIZER,
                              confirmed=True, negatives=list(body.negatives), **fields)
     mapping.command_pattern = mapping.command_pattern or ""
+    if secret_error:
+        return mapping, [secret_error]
     try:
         return validate_mapping(mapping), []
     except MappingValidationError as e:
         return mapping, [str(e)]
 
 
-def _draft_schema(m: LearnedMapping) -> RecognizerDraftSchema:
+def _draft_schema(m: LearnedMapping, redactor: Redactor) -> RecognizerDraftSchema:
+    def show(text):
+        return display_scrub(redactor, redactor.line(text)) if text else text
     return RecognizerDraftSchema(
-        concept=m.concept, predicate=m.predicate, subject=m.subject, command_pattern=m.command_pattern,
-        scope_template=m.scope_template, value=m.constant_value, dialect_fingerprint=m.dialect_fingerprint,
-        example_line=m.example_line, negatives=m.negatives,
+        concept=m.concept, predicate=m.predicate, subject=m.subject, command_pattern=show(m.command_pattern),
+        scope_template=show(m.scope_template), value=show(m.constant_value), dialect_fingerprint=m.dialect_fingerprint,
+        example_line=show(m.example_line), negatives=[show(n) for n in m.negatives],
     )
 
 
@@ -456,6 +478,7 @@ async def list_provisional_results(scan_id: str):
     for index, config in enumerate(entry["configs"]):
         if config.device.vendor != Vendor.UNKNOWN:
             continue
+        redactor = config_redactor([config])
         seen = set()
         for result in _device_results(entry.get("result"), entry["configs"], index):
             if (result.control_id in seen or result.assurance in DECISIVE_ASSURANCE
@@ -469,9 +492,10 @@ async def list_provisional_results(scan_id: str):
             items.append(ProvisionalItemSchema(
                 config_index=index, control_id=result.control_id, question=CONTROLS[result.control_id].question,
                 status=result.status.value, assurance=result.assurance.value if result.assurance else None,
-                reason=result.reason,
-                lines=[ProvisionalLineSchema(line_number=n, text=config.raw_lines[n - 1].strip(),
-                                             predicate=c.predicate, subject=c.subject, value=c.value)
+                reason=display_scrub(redactor, result.reason),
+                lines=[ProvisionalLineSchema(line_number=n, text=redact_lines(redactor, [config.raw_lines[n - 1].strip()])[0],
+                                             predicate=c.predicate, subject=c.subject,
+                                             value=display_scrub(redactor, c.value) if isinstance(c.value, str) else c.value)
                        for n, c in lines],
             ))
     return ProvisionalQueueResponse(scan_id=scan_id, items=items)
@@ -482,7 +506,8 @@ async def draft_recognizer_from_line(scan_id: str, body: RecognizerDraftRequest)
     """Draft a recognizer from a provisional line (with admin edits), check its gates and replay it."""
     mapping, errors = _draft(scan_id, body)
     checked, changes = (0, []) if errors else _replay(mapping)
-    return RecognizerDraftResponse(draft=_draft_schema(mapping), errors=errors, configs_checked=checked,
+    redactor = config_redactor([_get_entry(scan_id)["configs"][body.config_index]])
+    return RecognizerDraftResponse(draft=_draft_schema(mapping, redactor), errors=errors, configs_checked=checked,
                                    replay=changes)
 
 

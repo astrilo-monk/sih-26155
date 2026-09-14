@@ -235,7 +235,9 @@ def remediate_control(text: str, control_id: str, inputs: dict,
         outcome.reason = f"Provide {', '.join(INPUTS[n].label for n in e.names)} to generate this change"
         return outcome, None
     except ManualReview as e:
+        # nothing was generated: the recipe's description of its change would contradict the status
         outcome.status, outcome.reason = RemediationStatus.MANUAL_REVIEW, str(e)
+        outcome.explanation, outcome.warnings = "", []
         return outcome, None
 
     new_text = _join(new_lines, text)

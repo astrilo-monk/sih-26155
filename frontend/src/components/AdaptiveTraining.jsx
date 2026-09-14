@@ -53,10 +53,11 @@ function FieldRow({ label, error, children }) {
   );
 }
 
-export default function AdaptiveTraining({ scanResult, onScanUpdated }) {
+export default function AdaptiveTraining({ scanResult, onScanUpdated, onScanExpired }) {
   const scanId = scanResult?.scan_id;
 
   const [items, setItems] = useState([]);
+  const [provisionalCount, setProvisionalCount] = useState(0);
   const [fields, setFields] = useState([]);
   const [mappings, setMappings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -84,7 +85,9 @@ export default function AdaptiveTraining({ scanResult, onScanUpdated }) {
       setFields(fieldList);
       setMappings(mappingList);
     } catch (err) {
-      setLoadError(err.message);
+      // a scan cleared by a backend restart is reported once, by the app, not as errors on this page
+      if (err.status === 404) onScanExpired?.(scanId);
+      else setLoadError(err.message);
     } finally {
       setLoading(false);
     }
@@ -102,6 +105,11 @@ export default function AdaptiveTraining({ scanResult, onScanUpdated }) {
   const provisionalReasons = adaptiveConfigs.flatMap((c) => c.provisional_reasons || []);
   const learnedMatches = adaptiveConfigs.reduce((sum, c) => sum + (c.learned_matches || 0), 0);
   const aiCalled = adaptiveConfigs.some((c) => c.ai_called);
+  const aiCalls = adaptiveConfigs.reduce((sum, c) => sum + (c.ai_calls || 0), 0);
+  const aiCacheHits = adaptiveConfigs.reduce((sum, c) => sum + (c.ai_cache_hits || 0), 0);
+  const aiConsulted = aiCalled
+    ? `yes${aiCalls ? ` (${aiCalls} call(s)${aiCacheHits ? `, ${aiCacheHits} cached` : ''})` : ''}`
+    : aiCacheHits ? `cached answers only (${aiCacheHits})` : 'no';
   const aiUnavailableLines = adaptiveConfigs.reduce((sum, c) => sum + (c.ai_unavailable_lines || 0), 0);
   const vendorEvidence = adaptiveConfigs.map((c) => c.vendor_evidence).find((e) => e && e.status !== 'unknown');
   const pendingCount = items.filter((i) => i.review_status === 'pending').length;
@@ -416,12 +424,12 @@ export default function AdaptiveTraining({ scanResult, onScanUpdated }) {
   return (
     <div className="posture-section">
       <div className="section-header">
-        <span>Adaptive Parsing — Training</span>
-        <span>{pendingCount} Pending</span>
+        <span>Review &amp; Recognizers</span>
+        <span>{provisionalCount + pendingCount} to review</span>
       </div>
 
       <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', ...mutedStyle }}>
-        <span>AI consulted: {aiCalled ? 'yes' : 'no'}</span>
+        <span>AI consulted: {aiConsulted}</span>
         <span>Recognized from learned mappings: {learnedMatches}</span>
         <span>Learned mappings stored: {mappings.length}</span>
         {aiUnavailableLines > 0 && <span style={warningTextStyle}>AI unavailable for {aiUnavailableLines} line(s)</span>}
@@ -451,7 +459,7 @@ export default function AdaptiveTraining({ scanResult, onScanUpdated }) {
         >
           <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 2 }} />
           <div>
-            <div style={{ fontWeight: 600 }}>Score is provisional</div>
+            <div style={{ fontWeight: 600 }}>Why results are provisional or not assessed</div>
             {provisionalReasons.map((r, i) => (
               <div key={i}>{r}</div>
             ))}
@@ -459,7 +467,13 @@ export default function AdaptiveTraining({ scanResult, onScanUpdated }) {
         </div>
       )}
 
-      <RecognizerQueue scanId={scanId} onScanUpdated={onScanUpdated} />
+      <RecognizerQueue
+        scanId={scanId}
+        onScanUpdated={onScanUpdated}
+        onChanged={load}
+        onItemsLoaded={setProvisionalCount}
+        onScanExpired={onScanExpired}
+      />
 
       {message && <div style={{ fontSize: '0.8125rem', color: 'var(--success)' }}>{message}</div>}
       {loadError && <div style={{ fontSize: '0.8125rem', color: 'var(--critical)' }}>Error: {loadError}</div>}

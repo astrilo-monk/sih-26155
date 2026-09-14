@@ -130,10 +130,11 @@ def test_remediation_routes_never_reparse_an_unconfirmed_config_as_cisco():
     assert download.status_code == 409
 
     result = get_scan_store()[scan["scan_id"]]["result"]
+    hostname = scan["devices"][0]["hostname"]  # the name unknown.cfg states (system-name), vendor still unknown
     result.findings.append(Finding(rule_id="LOG-002", title="t", severity=Severity.MEDIUM, description="d",
-                                   device_hostname="unknown", vendor="unknown"))
+                                   device_hostname=hostname, vendor="unknown"))
     remediate = client.post("/api/remediate", json={
-        "scan_id": scan["scan_id"], "rule_id": "LOG-002", "device_hostname": "unknown",
+        "scan_id": scan["scan_id"], "rule_id": "LOG-002", "device_hostname": hostname,
     })
     # Phase 8 reports the block as a status the UI shows ("unverified vendor") instead of a 409
     assert remediate.status_code == 200

@@ -16,7 +16,11 @@ import HistoryView from './components/HistoryView';
 import AnalysisPath from './components/AnalysisPath';
 import FrameworkView from './components/FrameworkView';
 import AdaptiveTraining from './components/AdaptiveTraining';
-import { saveScanToHistory } from './utils/history';
+import { markScansExpired, saveScanToHistory } from './utils/history';
+
+// Views that show one scan: without a loaded scan they explain why they are empty
+const SCAN_VIEWS = new Set(['dashboard', 'devices', 'findings', 'frameworks', 'remediation', 'training']);
+const EXPIRED_MESSAGE = 'This scan is no longer held by the backend (scan results are kept in memory and cleared on restart). Upload the configuration again.';
 
 function LoadingState() {
   const [step, setStep] = useState(0);
@@ -62,8 +66,17 @@ function LoadingState() {
   );
 }
 
+function NoScan({ onNewScan }) {
+  return (
+    <div className="empty-state">
+      <div style={{ marginBottom: '1rem' }}>No scan loaded. Upload a configuration to begin.</div>
+      <button className="btn-primary" onClick={onNewScan}>Upload a configuration</button>
+    </div>
+  );
+}
+
 export default function App() {
-  const [view, setView] = useState('upload'); // upload | loading | dashboard | devices | findings | history
+  const [view, setView] = useState('upload'); // upload | loading | dashboard | devices | findings | frameworks | remediation | training | history
   const [error, setError] = useState(null);
   const [scanResult, setScanResult] = useState(null);
 
@@ -114,31 +127,57 @@ export default function App() {
     setRemediation(null);
   };
 
+  // The backend no longer holds these scans (restart): never keep showing one as the current scan
+  const handleScansExpired = (ids) => {
+    markScansExpired(ids);
+    setScanResult((current) => {
+      if (!current || !ids.includes(current.scan_id)) return current;
+      setSelectedFinding(null);
+      setRemediation(null);
+      setError(EXPIRED_MESSAGE);
+      return null;
+    });
+  };
+
   const handleSelectHistoryEntry = async (scanId) => {
     setError(null);
     try {
       setScanResult(await apiClient.getScan(scanId));
+      setSelectedFinding(null);
+      setRemediation(null);
       setView('dashboard');
-    } catch {
-      setError('This scan is no longer held by the backend (scan results are kept in memory and cleared on restart). Upload the configuration again.');
+    } catch (err) {
+      if (err.status === 404) {
+        handleScansExpired([scanId]);
+        setError(EXPIRED_MESSAGE);
+      } else {
+        setError(`Could not open the scan: ${err.message}`);
+      }
     }
   };
 
   const adaptiveConfigs = scanResult?.adaptive_configs || [];
   const pendingReview = adaptiveConfigs.reduce((sum, c) => sum + (c.pending_review || 0), 0);
-  const scoreProvisional = adaptiveConfigs.some((c) => c.score_provisional);
   const aiUnavailable = adaptiveConfigs.some((c) => (c.ai_unavailable_lines || 0) > 0);
-  const vendorUnverified = (scanResult?.vendor_identification || []).some((v) => v.status === 'unverified');
+  const identifications = scanResult?.vendor_identification || [];
+  const vendorUnverified = identifications.some((v) => v.status === 'unverified');
+  const genericConfigs = identifications.filter((v) => v.status !== 'confirmed').length;
+  // Heuristic / AI verdicts awaiting confirmation (one per control per config) plus legacy review lines
+  const provisionalControls = new Set((scanResult?.results || [])
+    .filter((r) => PROVISIONAL_ASSURANCE.has(r.assurance) || r.proposed_status)
+    .map((r) => `${r.config_index}-${r.control_id}`)).size;
+  const reviewCount = provisionalControls + pendingReview;
   // Suspected (heuristic / AI) findings are listed but never counted as decided severities
   const decisiveCount = (severity) => (scanResult?.findings || [])
     .filter((f) => f.severity === severity && !PROVISIONAL_ASSURANCE.has(f.assurance)).length;
+  const expire = (scanId) => handleScansExpired([scanId]);
 
   return (
     <div className="app-layout">
-      <Sidebar view={view} setView={setView} devices={scanResult?.devices} pendingReview={pendingReview} />
-      
+      <Sidebar view={view} setView={setView} reviewCount={reviewCount} />
+
       <div className="main-wrapper">
-        <Header 
+        <Header
           onNewScan={handleNewScan}
           timestamp={scanResult?.timestamp}
         />
@@ -156,18 +195,22 @@ export default function App() {
 
             {view === 'loading' && <LoadingState />}
 
+            {SCAN_VIEWS.has(view) && !scanResult && <NoScan onNewScan={handleNewScan} />}
+
             {view === 'dashboard' && scanResult && (
               <>
-                {(scoreProvisional || scanResult.posture == null) && adaptiveConfigs.length > 0 && (
+                {(scanResult.posture == null || genericConfigs > 0 || reviewCount > 0 || aiUnavailable) && (
                   <div style={{ backgroundColor: 'var(--medium-bg)', border: '1px solid var(--medium-border)', padding: '0.75rem 1rem', borderRadius: 'var(--radius)', color: 'var(--medium)', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.8125rem' }}>
                     <AlertCircle size={16} />
                     <span style={{ flex: 1 }}>
                       {scanResult.posture == null
                         ? 'Not assessed: no control could be decided from confirmed evidence, so no posture was calculated.'
-                        : 'This score is provisional: some configuration lines could not be normalized automatically.'}
-                      {vendorUnverified && ' The configuration resembles a supported vendor, but its syntax could not be verified.'}
+                        : genericConfigs > 0
+                          ? `${genericConfigs} configuration(s) had no dedicated parser: their heuristic and AI verdicts are provisional and are not counted in posture or coverage.`
+                          : 'Some results are provisional and are not counted in posture or coverage.'}
+                      {vendorUnverified && ' A configuration resembles a supported vendor, but its syntax could not be verified.'}
                       {aiUnavailable && ' AI interpretation was unavailable for some lines.'}
-                      {pendingReview > 0 && ` ${pendingReview} line(s) await review.`}
+                      {reviewCount > 0 && ` ${reviewCount} item(s) await review.`}
                     </span>
                     <button className="btn-secondary" onClick={() => setView('training')}>Review</button>
                   </div>
@@ -189,18 +232,20 @@ export default function App() {
 
                 <FindingsTable
                   findings={scanResult.findings}
+                  devices={scanResult.devices}
                   onSelectFinding={handleSelectFinding}
                 />
               </>
             )}
-            
+
             {view === 'devices' && scanResult && (
-              <DeviceInfo devices={scanResult.devices} findings={scanResult.findings} />
+              <DeviceInfo scanResult={scanResult} />
             )}
-            
+
             {view === 'findings' && scanResult && (
               <FindingsTable
                 findings={scanResult.findings}
+                devices={scanResult.devices}
                 onSelectFinding={handleSelectFinding}
               />
             )}
@@ -210,15 +255,15 @@ export default function App() {
             )}
 
             {view === 'remediation' && scanResult && (
-              <RemediationQueue scanResult={scanResult} />
+              <RemediationQueue scanResult={scanResult} onScanExpired={expire} />
             )}
 
-            {view === 'training' && (
-              <AdaptiveTraining scanResult={scanResult} onScanUpdated={setScanResult} />
+            {view === 'training' && scanResult && (
+              <AdaptiveTraining scanResult={scanResult} onScanUpdated={setScanResult} onScanExpired={expire} />
             )}
 
             {view === 'history' && (
-              <HistoryView onSelectHistoryEntry={handleSelectHistoryEntry} />
+              <HistoryView onSelectHistoryEntry={handleSelectHistoryEntry} onScansExpired={handleScansExpired} />
             )}
           </div>
         </main>

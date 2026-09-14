@@ -1,6 +1,7 @@
 import { Shield, LayoutDashboard, Search, Server, AlertCircle, History, Wrench, GraduationCap, ListChecks } from 'lucide-react';
+import pkg from '../../package.json';
 
-export default function Sidebar({ view, setView, devices, pendingReview = 0 }) {
+export default function Sidebar({ view, setView, reviewCount = 0 }) {
   const navItems = [
     { id: 'upload', label: 'New Scan', icon: Search },
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -8,7 +9,7 @@ export default function Sidebar({ view, setView, devices, pendingReview = 0 }) {
     { id: 'findings', label: 'Findings', icon: AlertCircle },
     { id: 'frameworks', label: 'Frameworks', icon: ListChecks },
     { id: 'remediation', label: 'Remediation', icon: Wrench },
-    { id: 'training', label: 'Review & Recognizers', icon: GraduationCap, count: pendingReview },
+    { id: 'training', label: 'Review & Recognizers', icon: GraduationCap, count: reviewCount },
     { id: 'history', label: 'History', icon: History },
   ];
 
@@ -18,25 +19,24 @@ export default function Sidebar({ view, setView, devices, pendingReview = 0 }) {
         <Shield size={20} color="var(--text-primary)" />
         NetAuditAI
       </div>
-      <div className="sidebar-nav">
+      <nav className="sidebar-nav">
         {navItems.map((item) => (
-          <div key={item.id}>
-            <button
-              className={`nav-item ${view === item.id || (view === 'loading' && item.id === 'upload') ? 'active' : ''}`}
-              onClick={() => setView(item.id)}
-              style={{ width: '100%', justifyContent: 'flex-start' }}
-            >
-              <item.icon size={16} />
-              {item.label}
-              {item.count > 0 && (
-                <span className="badge medium" style={{ marginLeft: 'auto' }}>{item.count}</span>
-              )}
-            </button>
-          </div>
+          <button
+            key={item.id}
+            className={`nav-item ${view === item.id || (view === 'loading' && item.id === 'upload') ? 'active' : ''}`}
+            onClick={() => setView(item.id)}
+            title={item.count > 0 ? `${item.count} provisional result(s) or line(s) await review` : undefined}
+          >
+            <item.icon size={16} />
+            {item.label}
+            {item.count > 0 && (
+              <span className="badge medium" style={{ marginLeft: 'auto' }}>{item.count}</span>
+            )}
+          </button>
         ))}
-      </div>
+      </nav>
       <div className="sidebar-footer">
-        v2.4.1-stable
+        v{pkg.version}
       </div>
     </aside>
   );

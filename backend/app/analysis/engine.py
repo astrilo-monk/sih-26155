@@ -61,8 +61,10 @@ def analyze_multiple(configs: list[NormalizedConfig]) -> ScanResult:
     Used when a user uploads several config files at once.
     """
     merged = ScanResult(scan_id=str(uuid.uuid4()))
-    for config in configs:
+    for index, config in enumerate(configs):
         result = analyze(config)
+        for finding in result.findings:
+            finding.config_index = index
         merged.findings.extend(result.findings)
         merged.devices.extend(result.devices)
         merged.device_results.extend(result.device_results)

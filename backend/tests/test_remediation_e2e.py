@@ -17,7 +17,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.analysis.engine import analyze
-from app.api.routes.scan import get_scan_store
+from app.api.routes.scan import config_redactor, get_scan_store, redact_config_text
 from app.main import app
 from app.models.normalized import Vendor
 from app.models.results import DECISIVE_ASSURANCE, Assurance, Status
@@ -452,7 +452,12 @@ def test_api_remediation_then_real_rescan_matches_the_plan():
 
     download = client.post("/api/download-fixed", json={"scan_id": scan["scan_id"], "inputs": RAW_INPUTS})
     assert download.status_code == 200
-    assert download.text == device["fixed_config"]
+    # the plan shows the verified configuration with secrets redacted; the download is that same file, unredacted
+    redactor = config_redactor(get_scan_store()[scan["scan_id"]]["configs"])
+    redactor.add_secret(RAW_INPUTS["ntp_key"])
+    assert redact_config_text(redactor, download.text) == device["fixed_config"]
+    assert "0822455D0A16" in download.text and RAW_INPUTS["ntp_key"] in download.text
+    assert "0822455D0A16" not in device["fixed_config"] and RAW_INPUTS["ntp_key"] not in device["fixed_config"]
 
     rescan = _scan(client, "cisco_fixed.cfg", download.content)
     assert rescan["vendor_identification"][0]["status"] == "confirmed"
@@ -507,7 +512,8 @@ def test_api_unknown_vendor_is_blocked_and_heuristic_findings_listed_as_unverifi
     assert any(f["rule_id"] == "MGMT-001" and f["assurance"] == "heuristic" for f in scan["findings"])
 
     remediate = client.post("/api/remediate", json={"scan_id": scan["scan_id"], "rule_id": "MGMT-001",
-                                                    "device_hostname": "unknown"})
+                                                    "device_hostname": scan["devices"][0]["hostname"],
+                                                    "config_index": 0})
     assert remediate.status_code == 200 and remediate.json()["status"] == "vendor_unverified"
     assert remediate.json()["fixed_config"] is None and remediate.json()["diff"] == ""
 

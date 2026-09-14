@@ -13,8 +13,9 @@ export default function FindingDetail({ finding, scanId, onClose, onRemediation 
   const handleGenerateFix = async () => {
     setLoading(true);
     try {
+      // config_index identifies the uploaded config: hostnames can repeat across uploads
       const remediation = await apiClient.getRemediation(
-        scanId, finding.rule_id, finding.device_hostname
+        scanId, finding.rule_id, finding.device_hostname, finding.config_index ?? 0
       );
       onRemediation(remediation);
     } catch (err) {
@@ -133,7 +134,7 @@ export default function FindingDetail({ finding, scanId, onClose, onRemediation 
             <div className="drawer-text" style={{ color: 'var(--text-secondary)' }}>
               {finding.vendor === 'unknown'
                 ? 'Unverified vendor: no vendor commands are generated. Follow the recommendation above.'
-                : 'Provisional finding: confirm it in Training before remediation.'}
+                : 'Provisional finding: confirm it on the Review & Recognizers page before remediation.'}
             </div>
           )}
         </div>

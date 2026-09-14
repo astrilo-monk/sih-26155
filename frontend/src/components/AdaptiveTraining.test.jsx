@@ -12,6 +12,9 @@ vi.mock('../api/client', () => ({
     rejectInterpretation: vi.fn(),
     disableLearnedMapping: vi.fn(),
     getProvisionalResults: vi.fn(),
+    draftRecognizer: vi.fn(),
+    saveRecognizer: vi.fn(),
+    rejectProvisionalLine: vi.fn(),
   },
 }));
 
@@ -78,7 +81,8 @@ describe('AdaptiveTraining', () => {
     expect(await screen.findByText('secure-shell protocol-version 1')).toBeTruthy();
     expect(screen.getByText('management.ssh_version = 1')).toBeTruthy();
     expect(screen.getByText('78%')).toBeTruthy();
-    expect(screen.getByText('Score is provisional')).toBeTruthy();
+    expect(screen.getByText('Why results are provisional or not assessed')).toBeTruthy();
+    expect(screen.queryByText(/Score is provisional/)).toBeNull();
 
     fireEvent.click(screen.getByLabelText('Toggle details for line 3'));
     expect(screen.getByText('Declares the SSH protocol version')).toBeTruthy();
@@ -185,6 +189,45 @@ describe('AdaptiveTraining', () => {
     expect(screen.getByText('SSH protocol version — management.ssh_version (optional_int)')).toBeTruthy();
     expect(screen.getByText('Value: whole number, digits only')).toBeTruthy();
     expect(screen.getByText('juniper_junos')).toBeTruthy();
+  });
+
+  it('refreshes stored mappings and the review count as soon as a recognizer is saved', async () => {
+    const provisional = {
+      config_index: 0, control_id: 'MGMT-001', question: 'Is Telnet disabled?', status: 'fail', assurance: 'heuristic',
+      reason: 'Telnet is allowed', lines: [{ line_number: 71, text: 'remote-console protocol telnet', predicate: 'p', subject: 'telnet', value: true }],
+    };
+    const saved = {
+      id: 7, command_pattern: 'remote-console protocol {enum:protocol}', normalized_field: '', predicate: 'mgmt.remote_access.protocol_enabled',
+      subject: 'telnet', extraction_method: 'recognizer', constant_value: null, concept: 'Telnet', vendor: null,
+    };
+    apiClient.getProvisionalResults.mockResolvedValueOnce({ items: [provisional] }).mockResolvedValue({ items: [] });
+    apiClient.listLearnedMappings.mockResolvedValueOnce([]).mockResolvedValue([saved]);
+    apiClient.draftRecognizer.mockResolvedValue({
+      draft: { predicate: 'p', command_pattern: saved.command_pattern, scope_template: null, value: '{"telnet": true}', example_line: 'remote-console protocol telnet' },
+      errors: [], configs_checked: 1, replay: [],
+    });
+    apiClient.saveRecognizer.mockResolvedValue({ mapping: { id: 7 }, replay: [], scan: SCAN });
+    renderComponent();
+
+    expect(await screen.findByText('Learned mappings stored: 0')).toBeTruthy();
+    expect(await screen.findByText('2 to review')).toBeTruthy();
+    fireEvent.click(await screen.findByLabelText('Confirm line 71 for MGMT-001'));
+    fireEvent.click(await screen.findByText('Save Recognizer'));
+
+    expect(await screen.findByText('Learned mappings stored: 1')).toBeTruthy();
+    expect(screen.getByText('remote-console protocol {enum:protocol}')).toBeTruthy();
+    expect(await screen.findByText('1 to review')).toBeTruthy();
+  });
+
+  it('reports an expired scan once instead of showing errors', async () => {
+    const expired = Object.assign(new Error('Scan not found'), { status: 404 });
+    apiClient.getReviewQueue.mockRejectedValue(expired);
+    apiClient.getProvisionalResults.mockRejectedValue(expired);
+    const onScanExpired = vi.fn();
+    render(<AdaptiveTraining scanResult={SCAN} onScanUpdated={vi.fn()} onScanExpired={onScanExpired} />);
+
+    await waitFor(() => expect(onScanExpired).toHaveBeenCalledWith('scan-1'));
+    expect(screen.queryByText(/Scan not found/)).toBeNull();
   });
 
   it('shows the structural block path of a line', async () => {

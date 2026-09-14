@@ -45,6 +45,25 @@ def heuristic_facts(raw_lines: list[str], skip: frozenset[int] = frozenset()) ->
     return combine(heuristic_candidates(raw_lines, skip), raw_lines)
 
 
+_HOSTNAME_VALUE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$")
+
+
+def generic_hostname(raw_lines: list[str]) -> Optional[str]:
+    """The device name of a configuration no parser reads, or None.
+
+    A statement names the device when its last token follows a hostname keyword
+    (``hostname X``, ``system-name X``, ``set deviceconfig setting management hostname X``).
+    Comments, free text and negations never count; different names on different lines are
+    conflicting evidence, so no name is reported rather than a guess.
+    """
+    names = set()
+    for statement in tokenize(raw_lines):
+        tokens = [t.strip("\"'") for t in statement.text.replace(";", " ").split()]
+        if len(tokens) >= 2 and tokens[-2].lower() in L.HOSTNAME and _HOSTNAME_VALUE.match(tokens[-1]):
+            names.add(tokens[-1])
+    return names.pop() if len(names) == 1 else None
+
+
 def heuristic_candidates(raw_lines: list[str], skip: frozenset[int] = frozenset()) -> list["_Candidate"]:
     statements = tokenize(raw_lines)
     candidates = [c for extract in _EXTRACTORS for c in extract(statements)]

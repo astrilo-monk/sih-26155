@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { StrictMode } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
@@ -63,9 +64,41 @@ it('separates fixed, proposed, human review, unable and unverified vendor; input
   fireEvent.change(screen.getByLabelText('Syslog server'), { target: { value: '10.20.0.5' } });
   fireEvent.click(screen.getByText('Generate with these values'));
   await waitFor(() => expect(apiClient.getRemediationPlan).toHaveBeenLastCalledWith('scan-1', { syslog_server: '10.20.0.5' }));
+  // the regenerated plan must be on screen before its configuration can be downloaded
+  await waitFor(() => expect(screen.getByText('Download verified configuration').closest('button').disabled).toBe(false));
 
   fireEvent.click(screen.getByText('Download verified configuration'));
   await waitFor(() => expect(apiClient.downloadFixedConfigs).toHaveBeenCalledWith('scan-1', { syslog_server: '10.20.0.5' }));
+});
+
+it('downloads only the reviewed plan: changed values are never silently used', async () => {
+  apiClient.getRemediationPlan.mockResolvedValue(PLAN);
+  render(<RemediationQueue scanResult={{ scan_id: 'scan-1' }} />);
+  const button = () => screen.getByText('Download verified configuration').closest('button');
+
+  fireEvent.change(await screen.findByLabelText('Syslog server'), { target: { value: '10.0.0.1' } });
+  fireEvent.click(screen.getByText('Generate with these values'));
+  await waitFor(() => expect(button().disabled).toBe(false));
+
+  fireEvent.change(screen.getByLabelText('Syslog server'), { target: { value: '10.0.0.2' } });
+  expect(button().disabled).toBe(true);
+  expect(screen.getByText(/Values changed since this plan was generated/)).toBeTruthy();
+  fireEvent.click(button());
+  expect(apiClient.downloadFixedConfigs).not.toHaveBeenCalled();
+
+  fireEvent.click(screen.getByText('Generate with these values'));
+  await waitFor(() => expect(apiClient.getRemediationPlan).toHaveBeenLastCalledWith('scan-1', { syslog_server: '10.0.0.2' }));
+  await waitFor(() => expect(button().disabled).toBe(false));
+  fireEvent.click(button());
+  await waitFor(() => expect(apiClient.downloadFixedConfigs).toHaveBeenCalledWith('scan-1', { syslog_server: '10.0.0.2' }));
+  expect(apiClient.downloadFixedConfigs).toHaveBeenCalledTimes(1);
+});
+
+it('generates the plan once per scan, even when StrictMode runs effects twice', async () => {
+  apiClient.getRemediationPlan.mockResolvedValue(PLAN);
+  render(<StrictMode><RemediationQueue scanResult={{ scan_id: 'scan-1' }} /></StrictMode>);
+  expect(await screen.findByText('Fixed: 1')).toBeTruthy();
+  expect(apiClient.getRemediationPlan).toHaveBeenCalledTimes(1);
 });
 
 it('disables download when nothing was verified', async () => {

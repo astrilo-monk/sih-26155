@@ -16,7 +16,10 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
-from app.api.routes.scan import _device_results, get_scan_store
+from app.ai.redaction import Redactor
+from app.api.routes.scan import (
+    _device_results, config_redactor, display_scrub, get_scan_store, redact_config_text, redact_lines,
+)
 from app.api.schemas import (
     DeviceRemediationPlanSchema, DownloadFixedRequest, EvidenceSchema, PostureSummarySchema,
     RemediationCheckSchema, RemediationInputSchema, RemediationPlanRequest, RemediationPlanResponse,
@@ -91,8 +94,19 @@ def _input_schema(name: str) -> RemediationInputSchema:
     return RemediationInputSchema(name=spec.name, label=spec.label, help=spec.help)
 
 
-def _response(outcome: Outcome, index: int) -> RemediationResponse:
+def _redactor(stored: dict, inputs: dict, index: int) -> Redactor:
+    """Knows this config's secrets and any secret the operator typed (the NTP key)."""
+    redactor = config_redactor([stored["configs"][index]])
+    redactor.add_secret(inputs.get("ntp_key"))
+    return redactor
+
+
+def _response(outcome: Outcome, index: int, redactor: Redactor) -> RemediationResponse:
+    """What the browser sees: every configuration quote redacted. /download-fixed alone returns the real file."""
     numbers, lines = zip(*outcome.evidence) if outcome.evidence else ((), ())
+
+    def scrub(text):
+        return display_scrub(redactor, text)
     return RemediationResponse(
         rule_id=outcome.control_id,
         title=CONTROLS[outcome.control_id].title,
@@ -100,20 +114,20 @@ def _response(outcome: Outcome, index: int) -> RemediationResponse:
         vendor=outcome.vendor,
         config_index=index,
         status=outcome.status.value,
-        reason=outcome.reason,
-        explanation=outcome.explanation,
-        warnings=outcome.warnings,
-        scopes=outcome.scopes,
-        evidence=EvidenceSchema(line_numbers=list(numbers), lines=list(lines)),
+        reason=scrub(outcome.reason),
+        explanation=scrub(outcome.explanation),
+        warnings=[scrub(w) for w in outcome.warnings],
+        scopes=[scrub(s) for s in outcome.scopes],
+        evidence=EvidenceSchema(line_numbers=list(numbers), lines=redact_lines(redactor, lines)),
         required_inputs=[_input_schema(n) for n in outcome.inputs],
         missing_inputs=outcome.missing_inputs,
         control_status_before=outcome.control_status_before,
         control_status_after=outcome.control_status_after,
-        diff=outcome.diff,
+        diff="\n".join(redact_lines(redactor, outcome.diff.split("\n"))) if outcome.diff else "",
         checks=_checks(outcome.checks),
         before=_summary(outcome.before),
         after=_summary(outcome.after),
-        fixed_config=outcome.fixed_config,
+        fixed_config=redact_config_text(redactor, outcome.fixed_config),
     )
 
 
@@ -129,19 +143,25 @@ async def remediate_finding(req: RemediationRequest):
             raise HTTPException(404, "Device not found in scan")
         index = req.config_index
     else:
-        index = next((i for i, c in enumerate(configs) if c.device.hostname == req.device_hostname), None)
-        if index is None:
+        # A hostname is display metadata: it identifies a config only when no other upload shares it
+        matches = [i for i, c in enumerate(configs) if c.device.hostname == req.device_hostname]
+        if not matches:
             raise HTTPException(404, "Device not found in scan")
+        if len(matches) > 1:
+            raise HTTPException(409, f"{len(matches)} configs in this scan are named '{req.device_hostname}': "
+                                     "pass config_index to choose one")
+        index = matches[0]
     inputs = _inputs(req.inputs)
 
     outcome = _gate(stored, index, req.rule_id)
     if outcome is None:
         outcome, _ = remediate_control(configs[index].raw_config, req.rule_id, inputs)
-    return _response(outcome, index)
+    return _response(outcome, index, _redactor(stored, inputs, index))
 
 
 def _device_plan(stored: dict, index: int, inputs: dict) -> DeviceRemediationPlanSchema:
     config = stored["configs"][index]
+    redactor = _redactor(stored, inputs, index)
     if not _confirmed(stored, index):
         results = _device_results(stored.get("result"), stored["configs"], index)
         flagged = [c for c in CONTROLS if any(r.control_id == c and (r.status == Status.FAIL or r.proposed_status)
@@ -150,15 +170,16 @@ def _device_plan(stored: dict, index: int, inputs: dict) -> DeviceRemediationPla
         return DeviceRemediationPlanSchema(
             config_index=index, device_hostname=config.device.hostname, vendor=config.device.vendor.value,
             vendor_status=identification.status if identification is not None else "unknown",
-            remediations=[_response(_gate(stored, index, c), index) for c in flagged],
+            remediations=[_response(_gate(stored, index, c), index, redactor) for c in flagged],
         )
     gates = _provisional(stored, index)
     plan = remediate_all(config.raw_config, inputs, skip=set(gates))
-    remediations = [_response(gates.get(o.control_id, o), index) for o in plan.outcomes]
+    remediations = [_response(gates.get(o.control_id, o), index, redactor) for o in plan.outcomes]
     return DeviceRemediationPlanSchema(
         config_index=index, device_hostname=plan.hostname, vendor=plan.vendor, vendor_status=plan.vendor_status,
         remediations=remediations, fixed_controls=plan.fixed_controls, checks=_checks(plan.checks),
-        before=_summary(plan.before), after=_summary(plan.after), fixed_config=plan.fixed_config,
+        before=_summary(plan.before), after=_summary(plan.after),
+        fixed_config=redact_config_text(redactor, plan.fixed_config),
     )
 
 

@@ -8,7 +8,7 @@ map to" derives from this module:
 * the Pydantic field allowlist                            (interpretation_schemas)
 * value conversion and validation                         (mapper)
 * learned-mapping validation                              (db.mappings)
-* the Training UI field picker                            (/api/adaptive/fields)
+* the Review & Recognizers field picker                           (/api/adaptive/fields)
 
 ``FIELD_REGISTRY`` lists the scalar fields an adaptive value can be written
 to, with a human label and value rules. ``NORMALIZED_FIELD_PATHS`` is the

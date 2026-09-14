@@ -702,7 +702,10 @@ RECIPES: dict[tuple[str, Vendor], Recipe] = {
         warnings=("SNMP managers using these communities lose access; configure SNMPv3 for monitoring.",)),
     ("MGMT-004", Vendor.FORTINET): Recipe(
         forti_snmp, "Comments out every SNMP community block with a default name, nested hosts included.",
-        warnings=("SNMP managers using these communities lose access; configure SNMPv3 for monitoring.",)),
+        warnings=("SNMP managers using these communities lose access; configure SNMPv3 for monitoring.",
+                  "The removed block is kept as '#' comment lines. NetAuditAI's FortiOS grammar ignores them, but "
+                  "whether your restore method accepts them was not verified on a device: delete those lines "
+                  "(or run 'delete <id>' under 'config system snmp community') if it does not.")),
     ("MGMT-005", Vendor.CISCO_IOS): Recipe(
         ios_passwords, "Enables 'service password-encryption'. Weak stored passwords need a new secret set on the device."),
     ("MGMT-006", Vendor.CISCO_IOS): Recipe(

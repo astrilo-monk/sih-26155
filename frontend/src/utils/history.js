@@ -1,6 +1,6 @@
 // Scan history kept in this browser. Only a summary is stored — never findings, evidence or configuration
 // lines (they can hold secrets). Opening an entry fetches the scan from the backend, which keeps scans in
-// memory until it restarts.
+// memory until it restarts: an entry the backend no longer holds is marked expired, never reopened.
 // TODO: once auth lands, scope per-user, e.g. `netauditai_scan_history_${userId}`.
 export function getHistoryStorageKey() {
   return "netauditai_scan_history";
@@ -42,6 +42,16 @@ export function getScanHistory() {
     return stored;
   } catch {
     return [];
+  }
+}
+
+export function markScansExpired(ids) {
+  try {
+    const expired = new Set(ids);
+    const updated = getScanHistory().map((e) => (expired.has(e.id) ? { ...e, expired: true } : e));
+    localStorage.setItem(getHistoryStorageKey(), JSON.stringify(updated));
+  } catch (err) {
+    console.warn("Failed to update scan history:", err);
   }
 }
 

@@ -9,33 +9,15 @@ for individual findings.
 from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from app.api.schemas import AssistantRequest, AssistantResponse
-from app.api.routes.scan import get_scan_store, get_scan_result_or_409
+from app.api.routes.scan import config_redactor as _config_redactor, get_scan_store, get_scan_result_or_409
 from app.ai.client import generate, is_available
 from app.ai.prompts import explain_finding, generate_summary
-from app.adaptive.context import structural_paths
-from app.ai.redaction import Redactor
 
 router = APIRouter()
 
 
 def _score_text(score) -> str:
     return f"{score}/100" if score is not None else "not assessed"
-
-
-def _config_redactor(configs) -> Redactor:
-    """A redactor that knows every secret value in the scanned configs.
-
-    Each config line is redacted with its block path (to collect values) and
-    parsed SNMP community names are added, so any of them can be scrubbed from
-    text sent to the AI — evidence, finding descriptions or chat questions.
-    """
-    redactor = Redactor()
-    for cfg in configs or []:
-        for raw, path in zip(cfg.raw_lines, structural_paths(cfg.raw_lines)):
-            redactor.line(raw, path)
-        for community in cfg.snmp.communities:
-            redactor.add_secret(community.name)
-    return redactor
 
 
 CHAT_SYSTEM_PROMPT = """You are NetAuditAI, a network security compliance assistant.

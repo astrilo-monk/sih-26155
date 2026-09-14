@@ -8,11 +8,16 @@ function errorMessage(detail, status) {
   return (typeof detail === 'string' && detail) || `API error: ${status}`;
 }
 
+// Errors carry the HTTP status: a 404 on a scan means the backend no longer holds it
+async function throwApiError(response) {
+  const error = await response.json().catch(() => ({ detail: response.statusText }));
+  const err = new Error(errorMessage(error.detail, response.status));
+  err.status = response.status;
+  throw err;
+}
+
 async function handleResponse(response) {
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: response.statusText }));
-    throw new Error(errorMessage(error.detail, response.status));
-  }
+  if (!response.ok) await throwApiError(response);
   return response.json();
 }
 
@@ -49,12 +54,20 @@ export const apiClient = {
     return handleResponse(response);
   },
 
-  // Deterministic remediation of one control, verified by a rescan (no command text is ever sent)
-  getRemediation(scanId, ruleId, deviceHostname, inputs = {}) {
+  // true when the backend still holds the scan, false when it was cleared (restart); throws if unreachable
+  async isScanHeld(scanId) {
+    const response = await fetch(`${API_BASE_URL}/scan/${scanId}/status`, { cache: 'no-cache' });
+    return (await handleResponse(response)).held === true;
+  },
+
+  // Deterministic remediation of one control on one uploaded config (config_index is the identity;
+  // hostnames can repeat), verified by a rescan. No command text is ever sent.
+  getRemediation(scanId, ruleId, deviceHostname, configIndex, inputs = {}) {
     return postJson('/remediate', {
       scan_id: scanId,
       rule_id: ruleId,
       device_hostname: deviceHostname,
+      config_index: configIndex,
       inputs,
     });
   },
@@ -65,7 +78,7 @@ export const apiClient = {
 
   async getExplanation(scanId, ruleId, hostname) {
     const response = await fetch(
-      `${API_BASE_URL}/assistant/explain/${scanId}/${ruleId}/${hostname}`,
+      `${API_BASE_URL}/assistant/explain/${scanId}/${ruleId}/${encodeURIComponent(hostname)}`,
       { cache: 'no-cache' }
     );
     return handleResponse(response);
@@ -176,10 +189,7 @@ export const apiClient = {
       cache: 'no-cache',
     });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: response.statusText }));
-      throw new Error(errorMessage(error.detail, response.status));
-    }
+    if (!response.ok) await throwApiError(response);
 
     const contentType = response.headers.get('Content-Type') || '';
     const blob = await response.blob();

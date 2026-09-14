@@ -29,6 +29,10 @@ export default function AnalysisPath({ scanResult }) {
         const provisional = count((r) => PROVISIONAL_ASSURANCE.has(r.assurance));
         const recognized = count((r) => r.assurance === 'confirmed');
         const controls = new Set(results.map((r) => r.control_id)).size;
+        // Only the Remediation page generates and verifies changes: this step never claims a verified fix
+        const failing = count((r) => r.status === 'fail' && !PROVISIONAL_ASSURANCE.has(r.assurance));
+        const remediation = !confirmed ? ['blocked', 'critical']
+          : failing ? [`${failing} failing control(s) · open Remediation`, 'medium'] : ['nothing to remediate', 'neutral'];
         return (
           <div key={index} style={{ marginBottom: '1rem' }}>
             <div className="drawer-section-title">{device.hostname}</div>
@@ -58,7 +62,7 @@ export default function AnalysisPath({ scanResult }) {
               <Arrow />
               <Step label="Recognizers" value={`${recognized} control(s) confirmed`} tone={recognized ? 'low' : 'neutral'} />
               <Arrow />
-              <Step label="Remediation" value={confirmed ? 'deterministic · verified' : 'blocked'} tone={confirmed ? 'low' : 'critical'} />
+              <Step label="Remediation" value={remediation[0]} tone={remediation[1]} />
             </div>
           </div>
         );

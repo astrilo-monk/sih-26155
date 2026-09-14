@@ -37,6 +37,8 @@ class Finding:
     description: str
     device_hostname: str = "unknown"
     vendor: str = "unknown"
+    # Position of the config in the upload: the device identity (hostnames can repeat)
+    config_index: int = 0
 
     # The actual config lines that triggered this finding
     evidence_lines: list[str] = field(default_factory=list)

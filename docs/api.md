@@ -15,10 +15,15 @@ Returns a simple status payload confirming the backend is running.
 Upload one or more raw configuration files for analysis.
 * **Request:** `multipart/form-data` with one or more `files` fields (UTF-8 text, max 2 MB each).
 * **Response:** `ScanResultResponse`:
-  * `scan_id`, `timestamp`, `devices[]` (hostname, vendor — `unknown` unless confirmed)
+  * `scan_id`, `timestamp`, `devices[]` in upload order (hostname, vendor — `unknown` unless confirmed). For a
+    configuration no parser reads, the hostname is the one a single statement states (`hostname X`, `system-name X`,
+    `set … hostname X`); `unknown` when absent or conflicting. Hostnames can repeat: a device is identified by its
+    position, `config_index`.
   * `vendor_identification[]`: `detected_vendor`, `status` (`confirmed` / `unverified` / `unknown`), `parse_coverage`, `uncovered_lines`, `reason`
   * `results[]`: every control for every config — `status`, `assurance`, `proposed_status` (AI verdict awaiting confirmation), `scope`, `reason`, `evidence`
-  * `findings[]`: FAIL results (`assurance` heuristic = suspected, not scored) and severity counts
+  * `findings[]`: FAIL results with their `config_index` (`assurance` heuristic = suspected, not scored) and severity counts
+  * Every configuration quote (evidence lines, reasons, adaptive lines and their context) is redacted with that
+    configuration's own secrets, e.g. `username admin password 0 <SECRET:type0>`. Evidence keeps its line numbers.
   * `posture` (null when nothing decided), `coverage`, `posture_bounds`, `critical_unassessed`
   * `frameworks[]`: the same results by framework version — `coverage`, `counts`, `requirements[]` (`status` pass / fail / partial / unknown / not_configured / n_a, `provisional`, mapped `controls[]` with status, assurance, evidence)
   * `score`: **deprecated** penalty score, kept for existing scripts; do not use for compliance
@@ -35,6 +40,10 @@ Upload one or more raw configuration files for analysis.
 ### `GET /api/scan/{scan_id}`
 Retrieve a previous scan from the in-memory store (`404` after a backend restart).
 
+### `GET /api/scan/{scan_id}/status`
+Whether the backend still holds a scan: `{"scan_id": "123-abc", "held": false}` (always `200`). The History page uses it
+to mark entries expired after a restart.
+
 ## Remediation
 
 Remediation is deterministic (`backend/app/remediation/`). It runs only for a **decisive FAIL** (parser, confirmed recognizer or documented default) on a **confirmed Cisco IOS / FortiGate** configuration. It is reported `fixed` only after the generated configuration was rescanned and verified. No request field carries command text, and AI output is never used.
@@ -44,11 +53,14 @@ Every remediation response (`RemediationResponse`) has:
 | Field | Meaning |
 |---|---|
 | `status` | `fixed` · `needs_input` · `manual_review` · `verification_failed` · `no_recipe` · `vendor_unverified` · `provisional` · `not_failing` |
-| `reason`, `explanation`, `warnings` | Why this status; what the recipe changes; operational warnings |
+| `reason`, `explanation`, `warnings` | Why this status; what the recipe changes (empty for `manual_review`: nothing was generated); operational warnings |
 | `scopes`, `evidence` | Failing scopes and the cited configuration lines (before state) |
 | `required_inputs`, `missing_inputs` | Operator values the recipe uses / still needs |
 | `diff` | The proposed deterministic change (unified diff) |
-| `fixed_config` | Generated configuration (after state); also returned when verification failed, for review |
+| `fixed_config` | Generated configuration (after state), for review; also returned when verification failed |
+
+`evidence`, `diff` and `fixed_config` are **redacted** (the configuration's secrets and the `ntp_key` input become
+`<SECRET:…>`). Only `POST /api/download-fixed` returns the real, deployable configuration.
 | `checks` | Rescan checks: `vendor`, `parse_coverage`, `target`, `no_regression` |
 | `control_status_before` / `_after`, `before` / `after` | Control status and posture, coverage, critical-unassessed, parse coverage before and after |
 
@@ -56,7 +68,9 @@ Inputs (all optional, validated, `422` when invalid): `syslog_server` and `ntp_s
 
 ### `POST /api/remediate`
 Remediate one control on one device.
-* **Request JSON:** `{"scan_id": "123-abc", "rule_id": "LOG-001", "device_hostname": "CORP-RTR-01", "config_index": null, "inputs": {"syslog_server": "10.20.0.5"}}`
+* **Request JSON:** `{"scan_id": "123-abc", "rule_id": "LOG-001", "device_hostname": "CORP-RTR-01", "config_index": 0, "inputs": {"syslog_server": "10.20.0.5"}}`
+* `config_index` selects the uploaded configuration (the UI always sends the finding's `config_index`); the hostname
+  must match it. Without `config_index`, a hostname shared by several uploads is refused with `409`.
 * **Response JSON:** `RemediationResponse`, e.g. `{"status": "fixed", "diff": "…\n+logging host 10.20.0.5\n end", "checks": [{"name": "target", "passed": true, "detail": "LOG-001 now passes: Logs are forwarded to 10.20.0.5"}, …], …}`. Without the input: `{"status": "needs_input", "missing_inputs": ["syslog_server"], "fixed_config": null, …}`. Unknown or unverified vendor: `{"status": "vendor_unverified", …}`.
 
 ### `POST /api/remediation/plan`
@@ -68,6 +82,8 @@ Remediate every failing control of every device, in catalog order, verifying eac
 Download the configuration(s) with every verified fix applied (unverified changes are never included).
 * **Request JSON:** `{"scan_id": "123-abc", "inputs": {}}`
 * **Response:** one `.cfg` (text/plain) or a `.zip` of `<hostname>_fixed.cfg`. `409` when no configuration has a confirmed vendor; `400` when nothing was verified.
+* The UI sends exactly the inputs the displayed plan was generated with, and disables the download while the input
+  fields differ from them, so a downloaded file always matches a reviewed plan.
 
 ## Assistant (AI)
 

@@ -7,7 +7,7 @@ export const REMEDIATION_GROUPS = {
   needs_input: { label: 'Proposed', badge: 'medium', hint: 'A deterministic change is ready once you provide the values below' },
   manual_review: { label: 'Requires human review', badge: 'high', hint: 'No known-safe automatic change' },
   verification_failed: { label: 'Requires human review', badge: 'high', hint: 'Generated, but the rescan did not confirm it' },
-  provisional: { label: 'Requires human review', badge: 'high', hint: 'Heuristic / AI verdict: confirm it in Training first' },
+  provisional: { label: 'Requires human review', badge: 'high', hint: 'Heuristic / AI verdict: confirm it on the Review & Recognizers page first' },
   no_recipe: { label: 'Unable to remediate', badge: 'neutral', hint: 'No deterministic strategy for this control on this vendor' },
   vendor_unverified: { label: 'Unverified vendor', badge: 'critical', hint: 'Vendor commands are blocked for unknown / unverified vendors' },
   not_failing: { label: 'Nothing to fix', badge: 'neutral', hint: 'The control has no decisive FAIL' },

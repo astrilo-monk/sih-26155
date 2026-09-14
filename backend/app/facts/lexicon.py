@@ -48,6 +48,9 @@ TIME_SYNC = frozenset({"ntp", "sntp", "time-sync", "timesync", "chrony"})
 AUTHENTICATED = frozenset({"authenticate", "authenticated", "authentication", "auth"})
 
 AAA_SERVERS = frozenset({"radius", "tacacs", "tacacs+", "radius-server", "tacacs-server"})
+
+# Keywords that name the device: ``hostname X``, ``system-name X``, ``set system host-name X``
+HOSTNAME = frozenset({"hostname", "host-name", "system-name", "sysname"})
 CENTRAL = frozenset({"centralized", "central", "aaa"})
 
 IPSEC = frozenset({"ipsec", "ike", "ikev1", "ikev2", "isakmp", "esp", "transform-set", "proposal", "phase1",

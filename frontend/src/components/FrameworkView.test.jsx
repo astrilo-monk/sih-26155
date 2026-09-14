@@ -36,6 +36,10 @@ it('shows requirement statuses, provisional AI proposals and switches frameworks
   expect(screen.getByText(/decisive \(parser\)/)).toBeTruthy();
   expect(screen.getByText('transport input telnet ssh', { exact: false })).toBeTruthy();
 
+  const groups = [...screen.getByLabelText('Framework').querySelectorAll('optgroup')].map((g) => g.label);
+  expect(groups).toEqual(['NIST SP 800-53', 'CIS']);
+  expect(screen.getByRole('option', { name: 'Cisco IOS XE 17.x Benchmark v2.2.1 (Level 1) · 1 requirement' })).toBeTruthy();
+
   fireEvent.change(screen.getByLabelText('Framework'), { target: { value: '1' } });
   expect(screen.getByText('1.2.2')).toBeTruthy();
   expect(screen.getByText('100% of requirements decided')).toBeTruthy();

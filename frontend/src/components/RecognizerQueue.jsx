@@ -21,7 +21,9 @@ const mutedStyle = { fontSize: '0.75rem', color: 'var(--text-tertiary)' };
 
 const lineKey = (item, line) => `${item.config_index}-${item.control_id}-${line.line_number}`;
 
-export default function RecognizerQueue({ scanId, onScanUpdated }) {
+// onChanged: a recognizer was saved or a line rejected (the parent refreshes its mappings and counts)
+// onItemsLoaded: number of controls awaiting confirmation; onScanExpired: the backend no longer holds the scan
+export default function RecognizerQueue({ scanId, onScanUpdated, onChanged, onItemsLoaded, onScanExpired }) {
   const [items, setItems] = useState([]);
   const [draft, setDraft] = useState(null); // { key, request, response }
   const [busy, setBusy] = useState(false);
@@ -30,9 +32,12 @@ export default function RecognizerQueue({ scanId, onScanUpdated }) {
 
   const load = useCallback(async () => {
     try {
-      setItems((await apiClient.getProvisionalResults(scanId)).items);
+      const loaded = (await apiClient.getProvisionalResults(scanId)).items;
+      setItems(loaded);
+      onItemsLoaded?.(loaded.length);
     } catch (err) {
-      setError(err.message);
+      if (err.status === 404) onScanExpired?.(scanId);
+      else setError(err.message);
     }
   }, [scanId]);
 
@@ -71,6 +76,7 @@ export default function RecognizerQueue({ scanId, onScanUpdated }) {
       setDraft(null);
       setMessage(`Recognizer #${res.mapping.id} saved; ${res.replay.length} result(s) changed. Later scans decide this line without AI.`);
       await load();
+      await onChanged?.();
     });
 
   const reject = (item, line) =>
@@ -83,6 +89,7 @@ export default function RecognizerQueue({ scanId, onScanUpdated }) {
       onScanUpdated?.(scan);
       setMessage(`Line ${line.line_number} rejected; heuristics and AI will ignore it.`);
       await load();
+      await onChanged?.();
     });
 
   const edit = (field) => (e) => {

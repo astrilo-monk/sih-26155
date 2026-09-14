@@ -21,6 +21,7 @@ SQLite database.
 | Parsers, pipeline, ACLs | `test_pipeline.py`, `test_cisco_acl.py` |
 | Adaptive layer and legacy interpreter, learned mappings, review API | `test_adaptive.py`, `test_adaptive_generic.py`, `test_adaptive_api_integration.py`, `test_phase3_adaptive_mapper.py`, `test_phase3_e2e.py`, `test_phase4_review_api.py`, `test_phase5_learned_mappings.py` |
 | Settings, Groq key rotation | `test_config_loading.py`, `test_ai_client_key_rotation.py` |
+| Browser UI audit regressions — no secret in API responses, `config_index` identity, generic hostnames, manual-review consistency, CIS banner mapping, scan status | `test_ui_audit_regressions.py` |
 
 Two live Groq tests in `test_adaptive_generic.py` are skipped unless `NETAUDIT_LIVE_AI=1` and a key are set.
 
@@ -28,10 +29,15 @@ Two live Groq tests in `test_adaptive_generic.py` are skipped unless `NETAUDIT_L
 
 | Area | Tests |
 |---|---|
-| Review queue and learned mappings | `components/AdaptiveTraining.test.jsx` |
+| Review queue, learned mappings, counters refreshed after a recognizer is saved, expired scan | `components/AdaptiveTraining.test.jsx` |
 | Recognizer confirmation | `components/RecognizerQueue.test.jsx` |
-| Remediation statuses, inputs, download | `components/RemediationQueue.test.jsx` |
+| Remediation statuses, inputs, download only of the reviewed plan, one plan request per scan | `components/RemediationQueue.test.jsx` |
 | Framework view | `components/FrameworkView.test.jsx` |
+| Posture never shown as a full assessment without full coverage | `components/ScoreOverview.test.jsx` |
+| Devices by `config_index`, risk from decisive findings only | `components/DeviceInfo.test.jsx` |
+| Remediation targets the finding's own upload | `components/FindingDetail.test.jsx` |
+| Expired history entries | `components/HistoryView.test.jsx` |
+| Empty states without a scan | `App.test.jsx` |
 | Summary-only history | `utils/history.test.js` |
 | Mapping form validation | `utils/adaptiveValidation.test.js` |
 
@@ -39,10 +45,10 @@ Two live Groq tests in `test_adaptive_generic.py` are skipped unless `NETAUDIT_L
 
 ```powershell
 cd backend
-venv\Scripts\python -m pytest tests -q     # 834 passed, 2 skipped
+venv\Scripts\python -m pytest tests -q     # 853 passed, 2 skipped
 
 cd ..\frontend
-npm test                                    # 19 passed
+npm test                                    # 34 passed
 npm run build
 ```
 

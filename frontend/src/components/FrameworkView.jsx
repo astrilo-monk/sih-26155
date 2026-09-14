@@ -32,10 +32,17 @@ export default function FrameworkView({ frameworks = [] }) {
       </div>
 
       <div className="filter-bar">
+        {/* Each benchmark version and level is its own view: a requirement is listed only under the exact version it is mapped to */}
         <select className="filter-input" aria-label="Framework" value={selected}
                 onChange={(e) => { setSelected(Number(e.target.value)); setOpen(null); }}>
-          {frameworks.map((f, i) => (
-            <option key={`${f.framework}-${f.version}`} value={i}>{f.framework} · {f.version}</option>
+          {[...new Set(frameworks.map((f) => f.framework))].map((name) => (
+            <optgroup key={name} label={name === 'NIST_800_53' ? 'NIST SP 800-53' : name}>
+              {frameworks.map((f, i) => f.framework === name && (
+                <option key={`${f.framework}-${f.version}`} value={i}>
+                  {f.version} · {f.requirements.length} requirement{f.requirements.length === 1 ? '' : 's'}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
         {Object.entries(view.counts).filter(([, n]) => n > 0).map(([status, n]) => (
