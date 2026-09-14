@@ -57,3 +57,7 @@ htmlcov/
 
 # Graphify
 graphify-out/
+
+
+.playwright-mcp/
+CLAUDE.md

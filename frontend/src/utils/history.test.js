@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, expect, it, vi } from 'vitest';
-import { getHistoryStorageKey, getScanHistory, saveScanToHistory } from './history';
+import { getHistoryStorageKey, getScanHistory, markRemediated, saveScanToHistory } from './history';
 
 // Some Node / jsdom combinations expose a partial localStorage: use a plain in-memory one
 const store = new Map();
@@ -31,6 +31,13 @@ it('stores a summary only, never evidence or configuration lines', () => {
   expect(getScanHistory()).toEqual([expect.objectContaining({
     id: 'scan-1', hostnames: ['R1'], posture: 42, coverage: 90, findingsCount: 1,
   })]);
+});
+
+it('records a verified download as a flag only', () => {
+  saveScanToHistory(SCAN);
+  markRemediated('scan-1');
+  expect(getScanHistory()[0].remediated).toBe(true);
+  expect(localStorage.getItem(getHistoryStorageKey())).not.toContain('FakeSecret1');
 });
 
 it('strips full results saved by older versions', () => {

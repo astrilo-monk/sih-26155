@@ -1,19 +1,64 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
 
-vi.mock('./api/client', () => ({ apiClient: { isScanHeld: vi.fn().mockResolvedValue(true) } }));
+vi.mock('./api/client', () => ({
+  apiClient: {
+    isScanHeld: vi.fn().mockResolvedValue(true),
+    getScan: vi.fn(),
+    listLearnedMappings: vi.fn().mockResolvedValue([]),
+  },
+}));
 
+import { apiClient } from './api/client';
 import App from './App';
 
-afterEach(cleanup);
+const store = new Map();
+vi.stubGlobal('localStorage', {
+  getItem: (k) => (store.has(k) ? store.get(k) : null),
+  setItem: (k, v) => store.set(k, String(v)),
+  removeItem: (k) => store.delete(k),
+  clear: () => store.clear(),
+});
 
-it('explains every scan view when no scan is loaded instead of rendering a blank page', () => {
+const go = (hash) => {
+  window.location.hash = hash;
+  window.dispatchEvent(new HashChangeEvent('hashchange'));
+};
+
+beforeEach(() => {
+  store.clear();
+  window.location.hash = '';
+});
+
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
+
+it('opens on the public homepage, states support honestly, and Try now enters the application', async () => {
+  const { container } = render(<App />);
+  expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/the line that proves it/);
+  expect(screen.getAllByRole('link', { name: 'Try now' })[0].getAttribute('href')).toBe('#/app');
+  expect(container.textContent).toContain('ISO/IEC 27001, CIS Controls v8 and DISA STIG are not mapped today.');
+  expect(container.textContent).not.toMatch(/(works with|supports) every vendor|100% accurate|fully autonomous|understands every/i);
+
+  go('#/app');
+  expect(await screen.findByText('Upload a network device configuration')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Run audit' }).disabled).toBe(true);
+});
+
+it('reports an audit the backend no longer holds as expired instead of showing stale results', async () => {
+  apiClient.getScan.mockRejectedValue(Object.assign(new Error('Scan not found'), { status: 404 }));
+  go('#/app/scan/gone-1/findings');
   render(<App />);
-  for (const label of ['Overview', 'Devices', 'Findings', 'Frameworks', 'Remediation', 'Review & Recognizers']) {
-    fireEvent.click(screen.getByRole('button', { name: label }));
-    expect(screen.getByText('No scan loaded. Upload a configuration to begin.')).toBeTruthy();
-  }
-  fireEvent.click(screen.getByText('Upload a configuration'));
-  expect(screen.getByText('Upload Network Configurations')).toBeTruthy();
+  expect(await screen.findByText('This audit is no longer held by the backend.')).toBeTruthy();
+  expect(apiClient.getScan).toHaveBeenCalledWith('gone-1');
+});
+
+it('shows the recognizers page with an honest empty state', async () => {
+  go('#/app/recognizers');
+  render(<App />);
+  expect(await screen.findByText('No recognizers yet')).toBeTruthy();
+  expect(apiClient.listLearnedMappings).toHaveBeenCalledWith(true);
 });

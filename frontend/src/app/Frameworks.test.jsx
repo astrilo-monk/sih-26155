@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import FrameworkView from './FrameworkView';
+import Frameworks from './Frameworks';
 
 const control = (extra) => ({
   control_id: 'MGMT-001', title: 'Telnet', config_index: 0, device_hostname: 'R1', status: 'fail', assurance: 'parser',
@@ -24,11 +24,12 @@ const FRAMEWORKS = [
 
 afterEach(cleanup);
 
-it('shows requirement statuses, provisional AI proposals and switches frameworks', () => {
-  render(<FrameworkView frameworks={FRAMEWORKS} />);
+it('shows requirement statuses, provisional AI proposals, unmapped frameworks and switches views', () => {
+  render(<Frameworks frameworks={FRAMEWORKS} />);
   expect(screen.getByText('50% of requirements decided')).toBeTruthy();
   expect(screen.getByText('Provisional')).toBeTruthy();
   expect(screen.getByText(/not a compliance certification/)).toBeTruthy();
+  expect(screen.getByText(/ISO\/IEC 27001, CIS Controls v8 and DISA STIG are not mapped/)).toBeTruthy();
 
   fireEvent.click(screen.getByText('SC-45'));
   expect(screen.getByText(/AI proposes PASS — awaiting confirmation/)).toBeTruthy();

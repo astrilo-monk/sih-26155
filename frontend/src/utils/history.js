@@ -55,6 +55,16 @@ export function markScansExpired(ids) {
   }
 }
 
+// A verified fixed configuration was downloaded for this scan (a flag only — no configuration content)
+export function markRemediated(id) {
+  try {
+    const updated = getScanHistory().map((e) => (e.id === id ? { ...e, remediated: true } : e));
+    localStorage.setItem(getHistoryStorageKey(), JSON.stringify(updated));
+  } catch (err) {
+    console.warn("Failed to update scan history:", err);
+  }
+}
+
 export function clearScanHistory() {
   localStorage.removeItem(getHistoryStorageKey());
 }

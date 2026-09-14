@@ -6,7 +6,7 @@ vi.mock('../api/client', () => ({ apiClient: { isScanHeld: vi.fn() } }));
 
 import { apiClient } from '../api/client';
 import { getHistoryStorageKey } from '../utils/history';
-import HistoryView from './HistoryView';
+import History from './History';
 
 const store = new Map();
 vi.stubGlobal('localStorage', {
@@ -16,13 +16,14 @@ vi.stubGlobal('localStorage', {
   clear: () => store.clear(),
 });
 
-const entry = (id, hostname) => ({
-  id, timestamp: '2026-09-14T08:00:00Z', hostnames: [hostname], vendors: ['cisco_ios'], posture: 40, coverage: 80, findingsCount: 2,
+const entry = (id, hostname, extra = {}) => ({
+  id, timestamp: '2026-09-14T08:00:00Z', hostnames: [hostname], vendors: ['cisco_ios'], posture: 40, coverage: 80, findingsCount: 2, ...extra,
 });
 
 beforeEach(() => {
   store.clear();
-  localStorage.setItem(getHistoryStorageKey(), JSON.stringify([entry('live', 'R1'), entry('gone', 'R2')]));
+  window.location.hash = '#/app/history';
+  localStorage.setItem(getHistoryStorageKey(), JSON.stringify([entry('live', 'R1', { remediated: true }), entry('gone', 'R2')]));
 });
 
 afterEach(() => {
@@ -32,23 +33,23 @@ afterEach(() => {
 
 it('marks scans the backend no longer holds as expired and never reopens them', async () => {
   apiClient.isScanHeld.mockImplementation(async (id) => id === 'live');
-  const onSelect = vi.fn().mockResolvedValue(undefined);
   const onExpired = vi.fn();
-  render(<HistoryView onSelectHistoryEntry={onSelect} onScansExpired={onExpired} />);
+  render(<History onScansExpired={onExpired} />);
 
   expect(await screen.findByText('Expired')).toBeTruthy();
   expect(onExpired).toHaveBeenCalledWith(['gone']);
   expect(JSON.parse(localStorage.getItem(getHistoryStorageKey())).find((e) => e.id === 'gone').expired).toBe(true);
+  expect(screen.getByText('Fixed file downloaded')).toBeTruthy();
 
   fireEvent.click(screen.getByText('R2'));
-  expect(onSelect).not.toHaveBeenCalled();
+  expect(window.location.hash).toBe('#/app/history');
   fireEvent.click(screen.getByText('R1'));
-  await waitFor(() => expect(onSelect).toHaveBeenCalledWith('live'));
+  await waitFor(() => expect(window.location.hash).toBe('#/app/scan/live/summary'));
 });
 
 it('does not claim scans are available when the backend cannot be reached', async () => {
   apiClient.isScanHeld.mockRejectedValue(new Error('Failed to fetch'));
-  render(<HistoryView onSelectHistoryEntry={vi.fn()} />);
+  render(<History />);
   expect(await screen.findByText(/backend could not be reached/)).toBeTruthy();
   expect(screen.queryByText('Available')).toBeNull();
 });
