@@ -91,7 +91,7 @@ export default function History({ onScansExpired }) {
       ) : (
         <ul className="history-list">
           <li className="history-row history-header" aria-hidden="true">
-            <span>Configurations</span><span>Audited</span><span>Posture</span><span>Coverage</span><span>Findings</span><span>Status</span>
+            <span>Configurations</span><span>Audited</span><span>Posture</span><span>Coverage</span><span>Problems</span><span>Status</span>
           </li>
           {history.map((entry, i) => {
             const [label, tone, title] = availability(entry);
@@ -106,7 +106,7 @@ export default function History({ onScansExpired }) {
                   <span className="hr-cell"><span className="hr-k">Audited</span>{new Date(entry.timestamp).toLocaleString()}</span>
                   <span className="hr-cell"><span className="hr-k">Posture</span><span className="mono tnum">{entry.posture ?? '—'}</span></span>
                   <span className="hr-cell"><span className="hr-k">Coverage</span><span className="mono tnum">{entry.coverage ?? 0}%</span></span>
-                  <span className="hr-cell"><span className="hr-k">Findings</span><span className="mono tnum">{entry.findingsCount}</span>{entry.remediated && <span className="tag">Fixed file downloaded</span>}</span>
+                  <span className="hr-cell"><span className="hr-k">Problems</span><span className="mono tnum">{entry.problemsCount ?? entry.findingsCount}</span>{entry.remediated && <span className="tag">Fixed file downloaded</span>}</span>
                   <span className="hr-cell"><span className={`tag ${tone}`}>{label}</span></span>
                 </button>
               </li>

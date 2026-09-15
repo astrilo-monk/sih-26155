@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { apiClient } from '../api/client';
 import { Evidence, Severity, StatusMark } from '../components/ui/Evidence';
-import { ASSURANCE, deviceLabels, isDecisive, isProvisional, SEVERITY_RANK, vendorState } from '../lib/domain';
+import { ASSURANCE, deviceLabels, isDecisive, isProvisional, resultState, SEVERITY_RANK, STATE, vendorState } from '../lib/domain';
 import { navigate } from '../lib/hooks';
 import { RemediationDetail } from './Remediation';
 
@@ -81,11 +81,11 @@ function FindingDetail({ row, scan, label, onBack }) {
         <h2 className="fd-title" id={`fd-${row.key}`}>{rowTitle(r)}</h2>
         {r.status === 'fail' && r.question && <p className="fd-question">{r.question}</p>}
         <div className="fd-verdict">
-          <StatusMark status={r.status} size="lg" />
+          <StatusMark state={resultState(r)} size="lg" />
           {assurance
             ? <span className={`tag ${assurance.decisive ? 'tag-decisive' : 'tag-provisional'}`}>{assurance.label}</span>
             : <span className="tag">No validated evidence</span>}
-          {r.proposed_status && <span className="tag tag-provisional">AI proposes {r.proposed_status.toUpperCase()} · awaiting confirmation</span>}
+          {r.proposed_status && <span className="tag tag-provisional">Suggested: {r.proposed_status === 'pass' ? 'passes' : 'fails'} · {STATE.needs_review.label}</span>}
         </div>
         <dl className="kv fd-kv">
           <dt>Configuration</dt><dd className="mono">{label}</dd>
@@ -97,7 +97,7 @@ function FindingDetail({ row, scan, label, onBack }) {
       {provisional && (
         <div className="notice notice-warn">
           <span className="notice-mark">?</span>
-          <strong>Human review required — not counted</strong>
+          <strong>{STATE.needs_review.label} — not counted</strong>
           <span>
             This reading comes from {r.assurance === 'heuristic' ? 'a lexicon heuristic' : 'a verified AI proposal'} on a configuration
             without a confirmed vendor. It changes nothing — posture, coverage, severity counts, remediation — until a person confirms it.
@@ -151,7 +151,7 @@ function FindingDetail({ row, scan, label, onBack }) {
         {r.status !== 'fail' ? (
           <p className="muted">Nothing to remediate: this control is not failing.</p>
         ) : provisional ? (
-          <p className="muted">Blocked. Provisional findings never trigger remediation — confirm the reading first.</p>
+          <p className="muted">Not yet. A reading that needs review never triggers a fix — confirm what the line means first.</p>
         ) : vs.key !== 'confirmed' ? (
           <p className="muted">Vendor-specific remediation is unavailable until the vendor is confirmed. Follow the recommendation above.</p>
         ) : remediation ? (
@@ -236,14 +236,14 @@ export default function Findings({ scan }) {
                   <li key={row.key}>
                     <button type="button" className={`finding-item ${isSel ? 'is-selected' : ''}`} aria-current={isSel ? 'true' : undefined}
                             onClick={() => { setSelectedKey(row.key); setPane('detail'); }}>
-                      <StatusMark status={r.status} size="compact" />
+                      <StatusMark state={resultState(r)} size="compact" />
                       <span className="fi-main">
                         <span className="fi-top"><span className="fi-id mono">{r.control_id}</span><Severity level={r.severity} /></span>
                         <span className="fi-title">{rowTitle(r)}</span>
                         <span className="fi-meta">
                           {labels.length > 1 && <span className="mono">{labels[r.config_index]}</span>}
                           {r.scope && <span className="mono">{r.scope}</span>}
-                          {(isProvisional(r) || r.proposed_status) && <span className="tag tag-provisional">{r.status === 'fail' ? 'Suspected · not counted' : 'Provisional'}</span>}
+                          {(isProvisional(r) || r.proposed_status) && <span className="tag tag-provisional">{STATE.needs_review.label} · not counted</span>}
                         </span>
                       </span>
                     </button>

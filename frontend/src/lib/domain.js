@@ -7,31 +7,21 @@ export const isProvisional = (r) => PROVISIONAL_ASSURANCE.has(r?.assurance);
 // A PASS/FAIL backed by parser, confirmed-recognizer or documented-default evidence
 export const isDecisive = (r) => ['pass', 'fail'].includes(r?.status) && !!r.assurance && !isProvisional(r);
 
-// Status is never communicated by colour alone: every status has a mark and a word
-export const STATUS = {
-  fail: { label: 'Fail', mark: '×', tone: 'fail' },
-  pass: { label: 'Pass', mark: '✓', tone: 'pass' },
-  unknown: { label: 'Unknown', mark: '?', tone: 'unknown' },
-  not_configured: { label: 'Not configured', mark: '∅', tone: 'nc' },
-  partial: { label: 'Partial', mark: '◐', tone: 'partial' },
-  n_a: { label: 'Not applicable', mark: '–', tone: 'na' },
-};
-export const statusMeta = (s) => STATUS[s] || { label: s || '—', mark: '·', tone: 'na' };
-
+// How a result was detected, in plain words (shown under "Detection method", never as the primary status)
 export const ASSURANCE = {
-  parser: { label: 'Parser evidence', decisive: true },
-  confirmed: { label: 'Human-confirmed recognizer', decisive: true },
-  default: { label: 'Documented platform default', decisive: true },
-  heuristic: { label: 'Heuristic reading — provisional', decisive: false },
-  ai_verified: { label: 'AI proposal, citation verified — provisional', decisive: false },
+  parser: { label: 'Read directly by a dedicated parser', technical: 'parser', decisive: true },
+  confirmed: { label: 'Recognized from a meaning someone taught NetAuditAI', technical: 'confirmed recognizer', decisive: true },
+  default: { label: 'Documented platform default', technical: 'default', decisive: true },
+  heuristic: { label: 'A best guess from the wording — needs review', technical: 'heuristic', decisive: false },
+  ai_verified: { label: 'An AI suggestion whose quoted line was checked — needs review', technical: 'ai_verified', decisive: false },
 };
+
+// A framework requirement or a bare control status (no assurance to consider) → state
+const STATUS_STATE = { pass: 'pass', fail: 'problem', unknown: 'unknown', not_configured: 'not_configured', partial: 'partial', n_a: 'not_applicable' };
+export const statusState = (status) => STATUS_STATE[status] || 'unknown';
 
 export const SEVERITIES = ['critical', 'high', 'medium', 'low'];
 export const SEVERITY_RANK = { critical: 0, high: 1, medium: 2, low: 3 };
-
-// Suspected (heuristic / AI) findings are listed but never counted as decided severities
-export const decisiveSeverityCounts = (findings = []) =>
-  Object.fromEntries(SEVERITIES.map((s) => [s, findings.filter((f) => f.severity === s && !isProvisional(f)).length]));
 
 // Posture is PASS / (PASS + FAIL) over the controls that could be decided; coverage says how many could.
 // A posture is never presented as a whole-device verdict unless every applicable control was decided.
@@ -115,19 +105,129 @@ export function vendorState(ident) {
     note: 'Controls are still evaluated through generic structure analysis. Vendor-specific remediation is unavailable until a vendor is confirmed.' };
 }
 
-// Remediation outcomes, in the words an operator acts on
-export const REMEDIATION = {
-  fixed: { label: 'Verified', group: 'Verified', tone: 'pass', hint: 'Generated deterministically and verified by a full rescan' },
-  needs_input: { label: 'Needs input', group: 'Needs input', tone: 'medium', hint: 'A deterministic change is ready once you provide the values it needs' },
-  manual_review: { label: 'Requires review', group: 'Requires review', tone: 'high', hint: 'No known-safe automatic change exists for this finding' },
-  verification_failed: { label: 'Verification failed', group: 'Requires review', tone: 'fail', hint: 'A change was generated, but the rescan did not confirm it — never included in a download' },
-  provisional: { label: 'Blocked · provisional', group: 'Blocked', tone: 'unknown', hint: 'Heuristic / AI verdict: confirm it under Needs your input first' },
-  no_recipe: { label: 'No recipe', group: 'No recipe', tone: 'na', hint: 'No deterministic strategy for this control on this platform' },
-  vendor_unverified: { label: 'Blocked · vendor unconfirmed', group: 'Blocked', tone: 'unknown', hint: 'Vendor commands are never generated for unknown or unverified vendors' },
-  not_failing: { label: 'Nothing to fix', group: null, tone: 'na', hint: 'The control has no decisive failure' },
+// ── The one user-facing state model ──────────────────────────────────────────────────────────────────────────
+// Every view shows these states and nothing else. Backend statuses (control status, assurance, remediation status)
+// are mapped here only, so no component interprets them on its own. The technical state stays on the objects.
+//
+//   pass / not_configured / not_applicable / unknown   — how a control was decided (unknown = not enough information)
+//   needs_review                                      — a heuristic / AI reading waiting for a person; never counted
+//   problem                                           — a decisive failure whose fix options are not known yet
+//   can_fix / needs_input / manual / cannot_fix       — a decisive failure, by what can be done about it
+//   fixed / verification_failed                        — after a fix was generated and rescanned
+export const STATE = {
+  pass: { label: 'Passed', tone: 'pass', mark: '✓' },
+  problem: { label: 'Problem', tone: 'fail', mark: '×' },
+  can_fix: { label: 'Can fix automatically', tone: 'fix', mark: '↻', group: 'can_fix',
+    hint: 'NetAuditAI can fix this safely.' },
+  needs_input: { label: 'Needs your input', tone: 'input', mark: '?', group: 'needs_input',
+    hint: 'We know the problem. We need one or two values from you to fix it.' },
+  manual: { label: 'Manual action required', tone: 'manual', mark: '!', group: 'manual',
+    hint: 'We won’t change this automatically because doing so could affect how the network behaves.' },
+  cannot_fix: { label: 'Can’t fix automatically', tone: 'manual', mark: '–', group: 'manual',
+    hint: 'NetAuditAI has no safe automatic fix for this.' },
+  verification_failed: { label: 'Verification failed', tone: 'fail', mark: '!', group: 'manual',
+    hint: 'A fix was generated, but the rescan did not confirm it. It is never included in a download.' },
+  fixed: { label: 'Fixed', tone: 'pass', mark: '✓',
+    hint: 'Fixed and verified by a full rescan.' },
+  needs_review: { label: 'Needs review', tone: 'review', mark: '?',
+    hint: 'NetAuditAI isn’t sure what a line means. It is not counted until you confirm it.' },
+  unknown: { label: 'Not enough information', tone: 'unknown', mark: '?',
+    hint: 'Nothing in the configuration could decide this check.' },
+  not_configured: { label: 'Not configured', tone: 'nc', mark: '∅',
+    hint: 'No line sets this. Absence is never treated as a pass.' },
+  not_applicable: { label: 'Not applicable', tone: 'na', mark: '–' },
+  partial: { label: 'Partly met', tone: 'partial', mark: '◐' },
 };
-export const REMEDIATION_GROUPS = ['Verified', 'Needs input', 'Requires review', 'No recipe', 'Blocked'];
-export const remediationMeta = (s) => REMEDIATION[s] || { label: s, group: null, tone: 'na', hint: '' };
+export const stateMeta = (s) => STATE[s] || STATE.unknown;
+
+// What can be done about a decisive failure, from the backend's remediation status
+const REMEDIATION_STATE = {
+  fixed: 'can_fix', // the plan generated this fix and a full rescan verified it: it is ready to apply
+  needs_input: 'needs_input',
+  manual_review: 'manual',
+  verification_failed: 'verification_failed',
+  no_recipe: 'cannot_fix',
+  vendor_unverified: 'cannot_fix',
+  provisional: 'needs_review',
+};
+export const remediationState = (status) => REMEDIATION_STATE[status] || null;
+
+// Plain reasons for the two outcomes the backend states only as a status
+export const CANNOT_FIX_REASON = {
+  no_recipe: 'NetAuditAI has no proven automatic fix for this setting on this platform yet.',
+  vendor_unverified: 'NetAuditAI couldn’t confirm which vendor this device is, so it never generates vendor commands for it.',
+};
+
+// One control result → its state. `remediation` is the backend remediation item for this control, when known;
+// `applied` is true once a fix for it was generated and verified in this session.
+export function resultState(r, { remediation, applied } = {}) {
+  if (isProvisional(r) || r?.proposed_status) return 'needs_review';
+  switch (r?.status) {
+    case 'pass': return 'pass';
+    case 'not_configured': return 'not_configured';
+    case 'n_a': return 'not_applicable';
+    case 'fail': {
+      if (applied) return 'fixed';
+      return remediationState(remediation?.status) || 'problem';
+    }
+    default: return 'unknown';
+  }
+}
+
+const problemKey = (configIndex, controlId) => `${configIndex ?? 0}-${controlId}`;
+
+// Decisive failures, one per control per configuration (a control failing in several scopes is one problem with
+// several pieces of evidence), each with its finding text and remediation item when the plan is known.
+export function problems(scan, plan) {
+  const items = new Map((plan?.devices || []).flatMap((d) => d.remediations)
+    .map((item) => [problemKey(item.config_index, item.rule_id), item]));
+  const byKey = new Map();
+  for (const r of scan?.results || []) {
+    if (!(r.status === 'fail' && isDecisive(r))) continue;
+    const key = problemKey(r.config_index, r.control_id);
+    if (!byKey.has(key)) {
+      const finding = (scan.findings || []).find((f) => f.rule_id === r.control_id && (f.config_index ?? 0) === (r.config_index ?? 0)) || null;
+      byKey.set(key, { key, configIndex: r.config_index ?? 0, controlId: r.control_id, title: r.title,
+        severity: r.severity, results: [], finding, remediation: items.get(key) || null });
+    }
+    byKey.get(key).results.push(r);
+  }
+  return [...byKey.values()].sort((a, b) => (SEVERITY_RANK[a.severity] ?? 9) - (SEVERITY_RANK[b.severity] ?? 9)
+    || a.controlId.localeCompare(b.controlId) || a.configIndex - b.configIndex);
+}
+
+// Controls awaiting a person: heuristic / AI verdicts (one per control per config) plus legacy review lines.
+// A decisive failure that needs a manual fix is NOT human review.
+export function reviewCount(scan) {
+  const provisional = new Set((scan?.results || [])
+    .filter((r) => isProvisional(r) || r.proposed_status)
+    .map((r) => problemKey(r.config_index, r.control_id))).size;
+  const pending = (scan?.adaptive_configs || []).reduce((sum, c) => sum + (c.pending_review || 0), 0);
+  return provisional + pending;
+}
+
+// Every count a page shows, from one place. Remediation groups are null until the plan is known.
+// `applied` is a Set of problem keys fixed in this session.
+export function auditCounts(scan, plan, applied = new Set()) {
+  const list = problems(scan, plan);
+  const states = list.map((p) => resultState(p.results[0], { remediation: p.remediation, applied: applied.has(p.key) }));
+  const count = (pred) => states.filter(pred).length;
+  const results = scan?.results || [];
+  const undecided = (status) => new Set(results.filter((r) => r.status === status && !isProvisional(r) && !r.proposed_status)
+    .map((r) => problemKey(r.config_index, r.control_id))).size;
+  return {
+    problems: list.length,
+    severity: Object.fromEntries(SEVERITIES.map((s) => [s, list.filter((p) => p.severity === s).length])),
+    canFix: plan ? count((s) => s === 'can_fix') : null,
+    needsInput: plan ? count((s) => s === 'needs_input') : null,
+    manual: plan ? count((s) => STATE[s]?.group === 'manual') : null,
+    fixed: count((s) => s === 'fixed'),
+    review: reviewCount(scan),
+    unknown: undecided('unknown'),
+    notConfigured: undecided('not_configured'),
+    passed: new Set(results.filter((r) => r.status === 'pass' && isDecisive(r)).map((r) => problemKey(r.config_index, r.control_id))).size,
+  };
+}
 
 const filled = (values) => Object.fromEntries(Object.entries(values || {}).filter(([, v]) => v !== '' && v != null));
 

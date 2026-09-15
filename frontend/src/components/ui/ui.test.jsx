@@ -31,7 +31,7 @@ it('the diff shows added and removed counts with real line numbers', () => {
 });
 
 it('status is never colour-only and evidence keeps its line numbers', () => {
-  render(<><StatusMark status="not_configured" /><Evidence lineNumbers={[71]} lines={['  71: remote-console protocol telnet']} /></>);
+  render(<><StatusMark state="not_configured" /><Evidence lineNumbers={[71]} lines={['  71: remote-console protocol telnet']} /></>);
   expect(screen.getByText('∅')).toBeTruthy();
   expect(screen.getByText('Not configured')).toBeTruthy();
   expect(screen.getByText('71', { selector: '.ln' })).toBeTruthy();

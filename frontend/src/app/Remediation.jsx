@@ -3,7 +3,10 @@ import { apiClient } from '../api/client';
 import FileDiff from '../components/ui/FileDiff';
 import { Evidence } from '../components/ui/Evidence';
 import Count from '../components/ui/Count';
-import { deviceLabels, remediationMeta, REMEDIATION_GROUPS, sameInputs, vendorName } from '../lib/domain';
+import { CANNOT_FIX_REASON, deviceLabels, remediationState, sameInputs, stateMeta, vendorName } from '../lib/domain';
+
+const GROUPS = [['can_fix', 'Can fix automatically'], ['needs_input', 'Needs your input'], ['manual', 'Needs manual action']];
+const itemMeta = (status) => stateMeta(remediationState(status) || 'not_applicable');
 import { markRemediated } from '../utils/history';
 
 const CHECK_NAMES = {
@@ -67,13 +70,13 @@ export function Checks({ checks }) {
 
 // Current state → proposed deterministic change → verification → rescan
 export function RemediationDetail({ remediation: r, onNeedsInput }) {
-  const meta = remediationMeta(r.status);
+  const meta = itemMeta(r.status);
   const cited = r.evidence?.line_numbers?.length > 0;
   return (
     <div className="rem-detail">
       <p className="rem-status">
         <span className={`tag rem-tag tone-${meta.tone}`} title={meta.hint}>{meta.label}</span>
-        <span>{r.reason}</span>
+        <span>{CANNOT_FIX_REASON[r.status] || r.reason}</span>
       </p>
       {r.explanation && (
         <p className="rem-explain"><span className="eyebrow">Deterministic recipe</span>{r.explanation}</p>
@@ -97,6 +100,12 @@ export function RemediationDetail({ remediation: r, onNeedsInput }) {
         <li className="rem-step">
           <h4 className="rem-step-head"><span className="sec-no">B</span> Proposed deterministic change</h4>
           {r.diff ? <FileDiff diff={r.diff} file={r.device_hostname} caption={r.rule_id} />
+            : r.status === 'manual_review' ? (
+              <p className="small">
+                <strong>Why no deterministic change was generated: </strong>{r.reason}.{' '}
+                <span className="muted">The finding itself is decisive; apply the fix on the device with the operator decisions it needs.</span>
+              </p>
+            )
             : <p className="small muted">{r.status === 'needs_input' ? 'Generated once the required values are provided.' : 'No change was generated.'}</p>}
         </li>
         {r.checks?.length > 0 && (
@@ -166,7 +175,7 @@ export default function Remediation({ scan, planKey, onScanExpired }) {
   const items = devices.flatMap((d) => d.remediations);
   const needed = [...new Set(items.flatMap((r) => (r.status === 'needs_input' ? r.missing_inputs : [])))];
   const shownInputs = (plan?.inputs || []).filter((i) => needed.includes(i.name) || inputs[i.name] || planInputs[i.name]);
-  const counts = REMEDIATION_GROUPS.map((group) => [group, items.filter((r) => remediationMeta(r.status).group === group).length]);
+  const counts = GROUPS.map(([group, label]) => [label, items.filter((r) => itemMeta(r.status).group === group).length]);
   const anyFixed = devices.some((d) => d.fixed_config);
   const changed = !sameInputs(inputs, planInputs);
 
@@ -289,7 +298,7 @@ export default function Remediation({ scan, planKey, onScanExpired }) {
             <ul className="rem-items" aria-label="Remediation items">
               {items.map((r) => {
                 const k = `${r.config_index}-${r.rule_id}`;
-                const meta = remediationMeta(r.status);
+                const meta = itemMeta(r.status);
                 const isOpen = open === k;
                 return (
                   <Fragment key={k}>

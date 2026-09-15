@@ -52,11 +52,11 @@ it("remediates the finding's own upload, not the first config sharing its hostna
   expect(screen.getByText('BRANCH-FGT-02 (#2)', { selector: '.kv dd' })).toBeTruthy();
   expect(screen.getByText('set allowaccess ping https ssh http telnet', { exact: false })).toBeTruthy();
   expect(screen.getByText('Credentials are sniffable')).toBeTruthy();
-  expect(screen.getByText('Parser evidence')).toBeTruthy();
+  expect(screen.getByText('Read directly by a dedicated parser')).toBeTruthy();
 
   fireEvent.click(screen.getByRole('button', { name: 'Generate deterministic fix' }));
   await waitFor(() => expect(apiClient.getRemediation).toHaveBeenCalledWith('scan-1', 'MGMT-001', 'BRANCH-FGT-02', 1));
-  expect(await screen.findByText('Verified')).toBeTruthy();
+  expect(await screen.findByText('Can fix automatically')).toBeTruthy();
   expect(screen.getByText('set allowaccess ping https ssh', { selector: '.diff-row.add code' })).toBeTruthy();
 });
 
@@ -68,10 +68,27 @@ it('never offers remediation for a provisional finding and says it is not counte
     findings: [{ ...SCAN.findings[0], assurance: 'heuristic' }],
   };
   render(<Findings scan={scan} />);
-  expect(screen.getByText('Human review required — not counted')).toBeTruthy();
-  expect(screen.getByText('Suspected · not counted')).toBeTruthy();
+  expect(screen.getByText('Needs review — not counted')).toBeTruthy();
+  expect(screen.getByText('Needs review · not counted')).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Generate deterministic fix' })).toBeNull();
-  expect(screen.getByText(/Provisional findings never trigger remediation/)).toBeTruthy();
+  expect(screen.getByText(/never triggers a fix/)).toBeTruthy();
+});
+
+it('a decisive failure without a safe automated fix shows manual remediation, not human review', async () => {
+  apiClient.getRemediation.mockResolvedValue({
+    rule_id: 'BOUNDARY-001', title: 'Overly permissive rule', device_hostname: 'BRANCH-FGT-02', vendor: 'fortinet', config_index: 1,
+    status: 'manual_review', reason: 'Replacing an any-to-any permit needs the intended sources, destinations and services',
+    explanation: '', warnings: [], scopes: [], evidence: { line_numbers: [], lines: [], scope_path: [] },
+    diff: '', checks: [], required_inputs: [], missing_inputs: [], before: null, after: null,
+  });
+  const scan = { ...SCAN, results: [result({ control_id: 'BOUNDARY-001', title: 'Overly permissive rule' })], findings: [] };
+  const { container } = render(<Findings scan={scan} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Generate deterministic fix' }));
+
+  expect(await screen.findByText('Manual action required')).toBeTruthy();
+  expect(screen.getByText('Why no deterministic change was generated:')).toBeTruthy();
+  expect(container.textContent).not.toMatch(/human review required|requires review|suspected|provisional/i);
+  expect(screen.queryByRole('button', { name: /Needs your input/ })).toBeNull();
 });
 
 it('shows absence as Not configured, never as a pass', () => {

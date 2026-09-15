@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import FileDiff from '../components/ui/FileDiff';
 import { Severity, StatusMark } from '../components/ui/Evidence';
-import { assessment } from '../lib/domain';
+import { assessment, statusState } from '../lib/domain';
 import { motionAllowed, prefersReducedMotion, useInView, useReveal, useScrollProgress, useSequence } from '../lib/hooks';
 import '../styles/home.css';
 
@@ -141,7 +141,7 @@ function EvidenceChain() {
         </li>
         <li className={`chain-step chain-verdict ${stageClass(on, 3)}`}>
           <div className="chain-label"><span className="sec-no">04</span> Result</div>
-          <div className="chain-row"><StatusMark status="fail" size="lg" /><span className="tag tag-decisive">Parser evidence · line 14</span></div>
+          <div className="chain-row"><StatusMark state="problem" size="lg" /><span className="tag tag-decisive">Parser evidence · line 14</span></div>
         </li>
         <li className={`chain-step ${stageClass(on, 4)}`}>
           <div className="chain-label"><span className="sec-no">05</span> Deterministic fix</div>
@@ -149,7 +149,7 @@ function EvidenceChain() {
         </li>
         <li className={`chain-step chain-verdict ${stageClass(on, 5)}`}>
           <div className="chain-label"><span className="sec-no">06</span> Rescan</div>
-          <div className="chain-row"><StatusMark status="pass" size="lg" /><span className="chain-note">MGMT-001 now passes</span></div>
+          <div className="chain-row"><StatusMark state="pass" size="lg" /><span className="chain-note">MGMT-001 now passes</span></div>
           <ul className="chain-checks" aria-label="Verification checks">
             {RESCAN_CHECKS.map(([name], i) => (
               <li key={name} style={{ '--c': i }}>
@@ -236,7 +236,7 @@ function LearningLoop() {
         <li className={`learn-step ${stageClass(on, 4)}`}>
           <span className="learn-no mono">E</span>
           <h3>Future scan recognized</h3>
-          <div className="chain-row"><StatusMark status="fail" /><span className="tag tag-decisive">Human-confirmed recognizer</span></div>
+          <div className="chain-row"><StatusMark state="problem" /><span className="tag tag-decisive">Human-confirmed recognizer</span></div>
           <p>A new scan of the same file decides MGMT-001 from the saved recognizer — no heuristic, no AI. It persists in SQLite across scans and restarts.</p>
         </li>
       </ol>
@@ -366,7 +366,7 @@ export default function Home() {
                   <span className="specimen-src small muted">From a real scan of {SAMPLE}</span>
                 </header>
                 <h3 className="specimen-title">Weak or Default SNMP Community Strings</h3>
-                <div className="chain-row"><StatusMark status="fail" size="lg" /><span className="tag tag-decisive">Parser evidence</span></div>
+                <div className="chain-row"><StatusMark state="problem" size="lg" /><span className="tag tag-decisive">Parser evidence</span></div>
                 <dl className="kv specimen-kv">
                   <dt>Device</dt><dd><span className="mono">DMZ-EDGE-10</span> · Cisco IOS, confirmed</dd>
                   <dt>Scope</dt><dd className="mono">snmp community #2</dd>
@@ -406,7 +406,7 @@ export default function Home() {
             </SectionHead>
             <div className="status-grid reveal">
               {STATUSES.map(([s, text]) => (
-                <div key={s} className="status-card"><StatusMark status={s} size="lg" /><p>{text}</p></div>
+                <div key={s} className="status-card"><StatusMark state={statusState(s)} size="lg" /><p>{text}</p></div>
               ))}
             </div>
             <div className="posture-pair reveal">

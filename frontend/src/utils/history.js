@@ -6,7 +6,7 @@ export function getHistoryStorageKey() {
   return "netauditai_scan_history";
 }
 
-const PROVISIONAL = new Set(["heuristic", "ai_verified"]);
+import { problems } from "../lib/domain";
 
 function summarize(scanResult) {
   return {
@@ -16,7 +16,8 @@ function summarize(scanResult) {
     vendors: (scanResult.devices || []).map((d) => d.vendor),
     posture: scanResult.posture ?? null,
     coverage: scanResult.coverage ?? 0,
-    findingsCount: (scanResult.findings || []).filter((f) => !PROVISIONAL.has(f.assurance)).length,
+    // the same count the results page shows: decisive failures, one per control per configuration
+    problemsCount: problems(scanResult).length,
   };
 }
 

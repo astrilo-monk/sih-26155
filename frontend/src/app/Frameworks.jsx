@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { Evidence, StatusMark } from '../components/ui/Evidence';
-import { statusMeta } from '../lib/domain';
+import { STATE, stateMeta, statusState } from '../lib/domain';
 
 const FRAMEWORK_NAMES = { NIST_800_53: 'NIST SP 800-53', CIS: 'CIS' };
 const COUNT_ORDER = ['fail', 'partial', 'unknown', 'not_configured', 'pass', 'n_a'];
 
-const decisiveness = (c) => (c.decisive ? `decisive (${c.assurance})`
-  : c.proposed_status ? `AI proposes ${c.proposed_status.toUpperCase()} — awaiting confirmation`
-    : c.assurance ? `provisional (${c.assurance})` : 'undecided');
+const decisiveness = (c) => (c.decisive ? 'Decided from evidence'
+  : c.proposed_status || c.assurance ? `${STATE.needs_review.label} — not counted` : STATE.unknown.label);
 
 export default function Frameworks({ frameworks = [] }) {
   // NIST maps every control; CIS views exist only for confirmed vendors and cover fewer requirements
@@ -55,7 +54,7 @@ export default function Frameworks({ frameworks = [] }) {
           </div>
           <ul className="fw-counts">
             {COUNT_ORDER.filter((s) => view.counts[s] > 0).map((s) => (
-              <li key={s}><StatusMark status={s}>{`${statusMeta(s).label} ${view.counts[s]}`}</StatusMark></li>
+              <li key={s}><StatusMark state={statusState(s)}>{`${stateMeta(statusState(s)).label} ${view.counts[s]}`}</StatusMark></li>
             ))}
           </ul>
         </div>
@@ -68,13 +67,13 @@ export default function Frameworks({ frameworks = [] }) {
           return (
             <li key={req.requirement_id} className={`req ${isOpen ? 'is-open' : ''}`}>
               <button type="button" className="req-row" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : req.requirement_id)}>
-                <StatusMark status={req.status} />
+                <StatusMark state={statusState(req.status)} />
                 <span className="req-main">
                   <span className="req-id mono">{req.requirement_id}</span>
                   <span className="req-title">{req.title}</span>
                 </span>
                 <span className="req-side">
-                  {req.provisional && <span className="tag tag-provisional" title="A heuristic or AI verdict is involved">Provisional</span>}
+                  {req.provisional && <span className="tag tag-provisional" title="A reading NetAuditAI isn’t sure about is involved; it is not counted">Needs review</span>}
                   <span className="req-controls mono">{controls.join(', ')}</span>
                 </span>
               </button>
@@ -83,7 +82,7 @@ export default function Frameworks({ frameworks = [] }) {
                   {req.controls.map((c) => (
                     <div key={`${c.config_index}-${c.control_id}`} className="fw-control">
                       <p className="fw-control-head">
-                        <StatusMark status={c.status} />
+                        <StatusMark state={statusState(c.status)} />
                         <span className="mono">{c.control_id}</span>
                         <span>{c.title}</span>
                         <span className="muted">· {c.device_hostname}</span>

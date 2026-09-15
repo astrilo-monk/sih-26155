@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
-import Results, { PostureSummary, reviewCount } from './Results';
+import Results, { PostureSummary } from './Results';
+import { reviewCount } from '../lib/domain';
 
 afterEach(cleanup);
 
@@ -48,6 +49,21 @@ const SCAN = {
   adaptive_configs: [{ config_index: 0, ai_available: true, ai_calls: 1, ai_cache_hits: 0, provisional_reasons: ['Vendor could not be identified'] }],
   frameworks: [],
 };
+
+it('review count: provisional readings need human review; decisive failures blocked from automation do not', () => {
+  const decisiveFail = (control_id) => ({ config_index: 0, control_id, status: 'fail', assurance: 'parser', severity: 'critical' });
+  const scan = {
+    results: [decisiveFail('MGMT-005'), decisiveFail('MGMT-008'), decisiveFail('BOUNDARY-001')],
+    adaptive_configs: [],
+  };
+  expect(reviewCount(scan)).toBe(0);
+
+  const withReviewable = {
+    ...scan,
+    results: [...scan.results, { config_index: 0, control_id: 'MGMT-003', status: 'unknown', assurance: 'ai_verified', proposed_status: 'pass' }],
+  };
+  expect(reviewCount(withReviewable)).toBe(1);
+});
 
 it('keeps provisional material out of decisive counts on an unknown-vendor summary', () => {
   const { container } = render(<Results scan={SCAN} tab="summary" revision={1} />);

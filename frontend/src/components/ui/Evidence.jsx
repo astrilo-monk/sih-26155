@@ -1,4 +1,4 @@
-import { stripLineNo, statusMeta } from '../../lib/domain';
+import { stripLineNo, stateMeta } from '../../lib/domain';
 
 // Cited configuration lines with their real line numbers. Only lines the backend returned are shown (it never
 // sends the raw configuration, and every quote is already redacted); context rows are shown only when the
@@ -35,8 +35,9 @@ export function Evidence({ lineNumbers = [], lines = [], scopePath = [], before 
   );
 }
 
-export function StatusMark({ status, children, size }) {
-  const m = statusMeta(status);
+// `state` is a key of the one state model (lib/domain STATE): components never pass raw backend statuses
+export function StatusMark({ state, children, size }) {
+  const m = stateMeta(state);
   return (
     <span className={`status status-${m.tone} ${size || ''}`}>
       <span className="status-glyph" aria-hidden="true">{m.mark}</span>

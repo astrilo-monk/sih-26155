@@ -60,12 +60,43 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-it('separates verified, needs input, requires review, no recipe and blocked; inputs regenerate the plan', async () => {
+it('a decisive finding with no safe automated change is manual remediation, never semantic human review', async () => {
+  const blocked = {
+    ...PLAN,
+    devices: [{
+      ...PLAN.devices[0],
+      remediations: [
+        item('MGMT-005', 'manual_review', { reason: 'A weak password must be replaced with a new secret on the device' }),
+        item('MGMT-008', 'manual_review', { reason: 'No local account with a strong secret exists: enabling AAA with local login could lock administrators out' }),
+        item('BOUNDARY-001', 'manual_review', { reason: 'Replacing an any-to-any permit needs the intended sources, destinations and services' }),
+      ],
+    }],
+  };
+  apiClient.getRemediationPlan.mockResolvedValue(blocked);
+  const { container } = render(<Remediation scan={SCAN} />);
+
+  expect(await screen.findByLabelText('Needs manual action: 3')).toBeTruthy();
+  expect(screen.getByLabelText('Needs your input: 0')).toBeTruthy();
+  expect(screen.getAllByText('Manual action required')).toHaveLength(3);
+  expect(container.textContent).not.toMatch(/requires review|needs review/i);
+
+  // the detail explains why automation is unavailable, from the backend's reason
+  fireEvent.click(screen.getByText('MGMT-008 title'));
+  expect(screen.getByText('Why no deterministic change was generated:')).toBeTruthy();
+  expect(screen.getAllByText(/enabling AAA with local login could lock administrators out/).length).toBeGreaterThan(0);
+  fireEvent.click(screen.getByText('BOUNDARY-001 title'));
+  expect(screen.getAllByText(/intended sources, destinations and services/).length).toBeGreaterThan(0);
+  fireEvent.click(screen.getByText('MGMT-005 title'));
+  expect(screen.getAllByText(/replaced with a new secret/).length).toBeGreaterThan(0);
+  expect(screen.queryByRole('button', { name: /review/i })).toBeNull();
+});
+
+it('groups can fix, needs input and manual action (manual, no recipe, vendor unconfirmed); inputs regenerate the plan', async () => {
   apiClient.getRemediationPlan.mockResolvedValue(PLAN);
   render(<Remediation scan={SCAN} />);
 
-  expect(await screen.findByLabelText('Verified: 1')).toBeTruthy();
-  for (const label of ['Needs input: 1', 'Requires review: 1', 'No recipe: 1', 'Blocked: 1']) {
+  expect(await screen.findByLabelText('Can fix automatically: 1')).toBeTruthy();
+  for (const label of ['Needs your input: 1', 'Needs manual action: 3']) {
     expect(screen.getByLabelText(label)).toBeTruthy();
   }
   expect(apiClient.getRemediationPlan).toHaveBeenCalledWith('scan-1', {});
@@ -110,7 +141,7 @@ it('downloads only the reviewed plan: changed values are never silently used', a
 it('generates the plan once per scan state, even when StrictMode runs effects twice', async () => {
   apiClient.getRemediationPlan.mockResolvedValue(PLAN);
   render(<StrictMode><Remediation scan={SCAN} planKey="scan-1:1" /></StrictMode>);
-  expect(await screen.findByLabelText('Verified: 1')).toBeTruthy();
+  expect(await screen.findByLabelText('Can fix automatically: 1')).toBeTruthy();
   expect(apiClient.getRemediationPlan).toHaveBeenCalledTimes(1);
 });
 

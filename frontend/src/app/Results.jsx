@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import Tabs from '../components/ui/Tabs';
 import { Severity } from '../components/ui/Evidence';
 import {
-  assessment, decisiveSeverityCounts, deviceLabels, deviceRows, isDecisive, isProvisional, SEVERITIES, vendorState,
+  assessment, auditCounts, deviceLabels, deviceRows, isDecisive, isProvisional, SEVERITIES, STATE, vendorState,
 } from '../lib/domain';
 import { navigate, useEntered } from '../lib/hooks';
 import Count from '../components/ui/Count';
@@ -12,15 +12,6 @@ import Remediation from './Remediation';
 import Frameworks from './Frameworks';
 
 export const RESULT_TABS = ['summary', 'findings', 'review', 'remediation', 'frameworks'];
-
-// Controls awaiting a person: heuristic / AI verdicts (one per control per config) plus legacy review lines
-export function reviewCount(scan) {
-  const provisional = new Set((scan.results || [])
-    .filter((r) => isProvisional(r) || r.proposed_status)
-    .map((r) => `${r.config_index}-${r.control_id}`)).size;
-  const pending = (scan.adaptive_configs || []).reduce((sum, c) => sum + (c.pending_review || 0), 0);
-  return provisional + pending;
-}
 
 export function PostureSummary({ posture, coverage = 0, bounds, criticalUnassessed = [] }) {
   const a = assessment(posture, coverage, criticalUnassessed);
@@ -57,24 +48,25 @@ export function PostureSummary({ posture, coverage = 0, bounds, criticalUnassess
 function Summary({ scan, onOpenTab }) {
   const labels = deviceLabels(scan.devices);
   const rows = deviceRows(scan);
-  const counts = decisiveSeverityCounts(scan.findings);
+  const all = auditCounts(scan);
+  const counts = all.severity;
   const entered = useEntered();
-  const totalDecisive = SEVERITIES.reduce((s, k) => s + counts[k], 0);
+  const totalDecisive = all.problems;
   const suspected = (scan.findings || []).filter(isProvisional).length;
   const results = scan.results || [];
-  const outcome = (pred) => results.filter(pred).length;
+  // one per control per configuration, the same unit every count in the app uses
   const outcomes = [
-    ['fail', 'Fail — decisive', outcome((r) => r.status === 'fail' && isDecisive(r))],
-    ['pass', 'Pass — decisive', outcome((r) => r.status === 'pass' && isDecisive(r))],
-    ['unknown', 'Provisional — awaiting review', outcome((r) => isProvisional(r) || r.proposed_status)],
-    ['unknown', 'Unknown', outcome((r) => r.status === 'unknown' && !isProvisional(r) && !r.proposed_status)],
-    ['nc', 'Not configured', outcome((r) => r.status === 'not_configured')],
+    ['fail', STATE.problem.label, all.problems],
+    ['pass', STATE.pass.label, all.passed],
+    ['review', STATE.needs_review.label, all.review],
+    ['unknown', STATE.unknown.label, all.unknown],
+    ['nc', STATE.not_configured.label, all.notConfigured],
   ];
   const adaptive = scan.adaptive_configs || [];
   const reasons = [...new Set(adaptive.flatMap((c) => c.provisional_reasons || []))];
   const aiUnavailable = adaptive.reduce((s, c) => s + (c.ai_unavailable_lines || 0), 0);
   const generic = rows.filter((d) => d.identification?.status !== 'confirmed').length;
-  const pending = reviewCount(scan);
+  const pending = all.review;
 
   return (
     <div className="summary">
@@ -202,8 +194,7 @@ export default function Results({ scan, tab, revision, onScanUpdated, onScanExpi
 
   const labels = deviceLabels(scan.devices);
   const idents = scan.vendor_identification || [];
-  const decisiveFindings = (scan.findings || []).filter((f) => !isProvisional(f)).length;
-  const pending = reviewCount(scan);
+  const { problems: decisiveFindings, review: pending } = auditCounts(scan);
   const openTab = (id) => navigate(`/app/scan/${scan.scan_id}/${id}`);
   const title = labels.length === 1
     ? (labels[0] === 'unknown' ? 'Hostname not stated' : labels[0])

@@ -18,7 +18,11 @@ const SCAN = {
     { rule_id: 'MGMT-005', assurance: 'parser', evidence_lines: ['  15: enable password 7 0822455D0A16'] },
     { rule_id: 'MGMT-001', assurance: 'heuristic', evidence_lines: ['  70: remote-console protocol telnet'] },
   ],
-  results: [{ evidence: { lines: ['username admin password 0 FakeSecret1'] } }],
+  results: [
+    { config_index: 0, control_id: 'MGMT-005', status: 'fail', assurance: 'parser', evidence: { lines: ['username admin password 0 FakeSecret1'] } },
+    { config_index: 0, control_id: 'MGMT-005', status: 'fail', assurance: 'parser', scope: 'second instance' },
+    { config_index: 0, control_id: 'MGMT-001', status: 'fail', assurance: 'heuristic' },
+  ],
 };
 
 beforeEach(() => localStorage.clear());
@@ -29,7 +33,7 @@ it('stores a summary only, never evidence or configuration lines', () => {
   expect(raw).not.toContain('0822455D0A16');
   expect(raw).not.toContain('FakeSecret1');
   expect(getScanHistory()).toEqual([expect.objectContaining({
-    id: 'scan-1', hostnames: ['R1'], posture: 42, coverage: 90, findingsCount: 1,
+    id: 'scan-1', hostnames: ['R1'], posture: 42, coverage: 90, problemsCount: 1,
   })]);
 });
 

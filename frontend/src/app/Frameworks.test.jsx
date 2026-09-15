@@ -24,17 +24,17 @@ const FRAMEWORKS = [
 
 afterEach(cleanup);
 
-it('shows requirement statuses, provisional AI proposals, unmapped frameworks and switches views', () => {
+it('shows requirement statuses, readings that need review, unmapped frameworks and switches views', () => {
   render(<Frameworks frameworks={FRAMEWORKS} />);
   expect(screen.getByText('50% of requirements decided')).toBeTruthy();
-  expect(screen.getByText('Provisional')).toBeTruthy();
+  expect(screen.getByText('Needs review')).toBeTruthy();
   expect(screen.getByText(/not a compliance certification/)).toBeTruthy();
   expect(screen.getByText(/ISO\/IEC 27001, CIS Controls v8 and DISA STIG are not mapped/)).toBeTruthy();
 
   fireEvent.click(screen.getByText('SC-45'));
-  expect(screen.getByText(/AI proposes PASS — awaiting confirmation/)).toBeTruthy();
+  expect(screen.getByText('Needs review — not counted')).toBeTruthy();
   fireEvent.click(screen.getByText('AC-17(2)'));
-  expect(screen.getByText(/decisive \(parser\)/)).toBeTruthy();
+  expect(screen.getByText('Decided from evidence')).toBeTruthy();
   expect(screen.getByText('transport input telnet ssh', { exact: false })).toBeTruthy();
 
   const groups = [...screen.getByLabelText('Framework').querySelectorAll('optgroup')].map((g) => g.label);
