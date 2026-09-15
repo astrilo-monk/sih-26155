@@ -174,47 +174,120 @@ export function resultState(r, { remediation, applied } = {}) {
   }
 }
 
-const problemKey = (configIndex, controlId) => `${configIndex ?? 0}-${controlId}`;
+export const itemKey = (configIndex, controlId) => `${configIndex ?? 0}-${controlId}`;
 
-// Decisive failures, one per control per configuration (a control failing in several scopes is one problem with
-// several pieces of evidence), each with its finding text and remediation item when the plan is known.
-export function problems(scan, plan) {
-  const items = new Map((plan?.devices || []).flatMap((d) => d.remediations)
-    .map((item) => [problemKey(item.config_index, item.rule_id), item]));
+// Which of a control's results speaks for it: a decisive failure first, then a reading waiting for review, then
+// undecided, absent, passed
+const PRESSING = (r) => (r.status === 'fail' && isDecisive(r) ? 0 : isProvisional(r) || r.proposed_status ? 1
+  : r.status === 'unknown' ? 2 : r.status === 'not_configured' ? 3 : r.status === 'pass' ? 4 : 5);
+
+// One check per control per configuration: the unit every count and list uses. A control decided in several
+// scopes keeps all its results (one piece of evidence each), its finding text and its remediation item.
+export function checkItems(scan, plan) {
+  const remediations = new Map((plan?.devices || []).flatMap((d) => d.remediations)
+    .map((item) => [itemKey(item.config_index, item.rule_id), item]));
   const byKey = new Map();
   for (const r of scan?.results || []) {
-    if (!(r.status === 'fail' && isDecisive(r))) continue;
-    const key = problemKey(r.config_index, r.control_id);
+    const key = itemKey(r.config_index, r.control_id);
     if (!byKey.has(key)) {
-      const finding = (scan.findings || []).find((f) => f.rule_id === r.control_id && (f.config_index ?? 0) === (r.config_index ?? 0)) || null;
-      byKey.set(key, { key, configIndex: r.config_index ?? 0, controlId: r.control_id, title: r.title,
-        severity: r.severity, results: [], finding, remediation: items.get(key) || null });
+      byKey.set(key, {
+        key, configIndex: r.config_index ?? 0, controlId: r.control_id, title: r.title, question: r.question,
+        category: r.category, results: [], remediation: remediations.get(key) || null,
+        finding: (scan.findings || []).find((f) => f.rule_id === r.control_id && (f.config_index ?? 0) === (r.config_index ?? 0)) || null,
+      });
     }
     byKey.get(key).results.push(r);
   }
-  return [...byKey.values()].sort((a, b) => (SEVERITY_RANK[a.severity] ?? 9) - (SEVERITY_RANK[b.severity] ?? 9)
+  return [...byKey.values()].map((item) => {
+    const primary = [...item.results].sort((x, y) => PRESSING(x) - PRESSING(y))[0];
+    const weighed = item.results.filter((r) => PRESSING(r) === PRESSING(primary));
+    const severity = weighed.map((r) => r.severity).sort((x, y) => (SEVERITY_RANK[x] ?? 9) - (SEVERITY_RANK[y] ?? 9))[0];
+    return { ...item, primary, severity };
+  }).sort((a, b) => PRESSING(a.primary) - PRESSING(b.primary)
+    || (SEVERITY_RANK[a.severity] ?? 9) - (SEVERITY_RANK[b.severity] ?? 9)
     || a.controlId.localeCompare(b.controlId) || a.configIndex - b.configIndex);
 }
 
-// Controls awaiting a person: heuristic / AI verdicts (one per control per config) plus legacy review lines.
-// A decisive failure that needs a manual fix is NOT human review.
+export const isProblem = (item) => item.results.some((r) => r.status === 'fail' && isDecisive(r));
+// `applied`: Set of item keys whose fix was applied and verified in this session
+export const itemState = (item, applied) =>
+  resultState(item.primary, { remediation: item.remediation, applied: !!applied?.has(item.key) });
+
+// Decisive failures only — what "problems found" means everywhere
+export const problems = (scan, plan) => checkItems(scan, plan).filter(isProblem);
+
+// ── Plain language for a security fact ─────────────────────────────────────────────────────────────────────────
+// What a line means, in words a person can confirm. Built only from the predicate, subject and value the backend
+// read — never from the raw line — so the sentence says exactly what would be learned.
+const PROTOCOLS = { telnet: 'Telnet', http: 'HTTP', https: 'HTTPS', ssh: 'SSH', cdp: 'CDP', lldp: 'LLDP' };
+const onOff = (v, on, off) => (v === true ? on : v === false ? off : null);
+const list = (v) => (Array.isArray(v) ? v.join(', ') : typeof v === 'string' ? v : null);
+const STORAGE = { plaintext: 'plain text', type7: 'weak reversible encryption (type 7)', type5: 'an MD5 hash (type 5)',
+  type8: 'a PBKDF2 hash (type 8)', type9_scrypt: 'a strong scrypt hash (type 9)', type9: 'a strong scrypt hash (type 9)' };
+
+export const MEANING = {
+  'mgmt.remote_access.protocol_enabled': { topic: 'Remote access', say: (s, v) => onOff(v, `turns on ${PROTOCOLS[s] || s} remote access`, `turns off ${PROTOCOLS[s] || s} remote access`) },
+  'mgmt.remote_access.source_restricted': { topic: 'Access control', say: (s, v) => onOff(v, 'limits which addresses can manage the device', 'lets any address manage the device') },
+  'mgmt.ssh.version': { topic: 'Remote access', say: (s, v) => (v != null ? `sets the SSH version to ${v}` : null) },
+  'mgmt.session.idle_timeout': { topic: 'Remote access', say: (s, v) => (v != null ? `sets an idle session timeout (${v})` : null) }, // the reading carries no unit: none is claimed
+  'auth.central_aaa.enabled': { topic: 'Authentication', say: (s, v) => onOff(v, 'turns on central authentication (AAA)', 'turns off central authentication (AAA)') },
+  'auth.password.storage': { topic: 'Authentication', say: (s, v) => (v ? `stores the ${s ? `${s.replace(/^user /, 'user ')} ` : ''}password as ${STORAGE[v] || v}` : null) },
+  'auth.password.encryption_service': { topic: 'Authentication', say: (s, v) => onOff(v, 'turns on password encryption', 'turns off password encryption') },
+  'snmp.community': { topic: 'Monitoring (SNMP)', say: () => 'configures an SNMP community' },
+  'log.remote.destination': { topic: 'Logging', say: (s, v) => (list(v) ? `sends logs to ${list(v)}` : 'configures remote logging') },
+  'time.ntp.server': { topic: 'Time (NTP)', say: (s, v) => (list(v) ? `uses NTP server ${list(v)}` : 'configures an NTP server') },
+  'time.ntp.authenticated': { topic: 'Time (NTP)', say: (s, v) => onOff(v, 'turns on NTP authentication', 'turns off NTP authentication') },
+  'banner.login.present': { topic: 'Login banner', say: (s, v) => onOff(v, 'shows a login banner', 'removes the login banner') },
+  'boundary.source_routing.enabled': { topic: 'Traffic rules', say: (s, v) => onOff(v, 'allows IP source routing', 'blocks IP source routing') },
+  'boundary.discovery_protocol.enabled': { topic: 'Device discovery', say: (s, v) => onOff(v, `turns on ${PROTOCOLS[s] || s} device discovery`, `turns off ${PROTOCOLS[s] || s} device discovery`) },
+  'boundary.policy.permit_any': { topic: 'Traffic rules', say: (s, v) => onOff(v, 'allows all traffic (any source to any destination)', 'does not allow all traffic') },
+  'crypto.ipsec.proposal': { topic: 'VPN encryption', say: () => 'sets VPN encryption settings' },
+};
+
+// "This line turns on Telnet remote access." — or null when the reading can't be put into words
+export const sayFact = ({ predicate, subject, value } = {}) => MEANING[predicate]?.say(subject, value) || null;
+export function describeFact(fact) {
+  const said = sayFact(fact);
+  return said ? `This line ${said}.` : null;
+}
+export const factTopic = (predicate) => MEANING[predicate]?.topic || 'Other setting';
+
+// The backend's recognizer safety gates, in plain English. The original message stays available under
+// Advanced details; nothing here decides whether saving is allowed — the backend does.
+const GATE_WORDS = [
+  [/secret/i, 'This line contains a secret, such as a password or key. NetAuditAI never stores secrets, so it can’t learn from this line.'],
+  [/does not match its example line/i, 'The pattern no longer matches the configuration line, so NetAuditAI couldn’t verify what it would learn.'],
+  [/contradicts the line/i, 'That meaning contradicts what the line itself says, so it can’t be saved.'],
+  [/polarity must be stated|no true \/ false value|cannot say whether a setting is on or off|true \/ false value table/i, 'The line doesn’t clearly say whether this setting is on or off, so NetAuditAI can’t learn it safely.'],
+  [/states no unit/i, 'The line gives a time without a unit (minutes, seconds or hours), so the value can’t be verified.'],
+  [/must be JSON|no usable value|read from an/i, 'This line contains a value type NetAuditAI can’t verify safely.'],
+  [/at least \d+ keywords/i, 'The pattern is too general: it could match unrelated lines.'],
+  [/cannot answer/i, 'NetAuditAI can’t learn this kind of setting from a line yet.'],
+  [/conflict|already/i, 'NetAuditAI already knows a different meaning for lines like this one.'],
+];
+export const explainGate = (message = '') =>
+  (GATE_WORDS.find(([re]) => re.test(message))?.[1]) || 'NetAuditAI couldn’t verify what this line means, so it wasn’t saved.';
+
+// Controls awaiting a person, from the scan alone: heuristic / AI verdicts (one per control per config) plus legacy
+// review lines. A decisive failure that needs a manual fix is NOT human review.
 export function reviewCount(scan) {
   const provisional = new Set((scan?.results || [])
     .filter((r) => isProvisional(r) || r.proposed_status)
-    .map((r) => problemKey(r.config_index, r.control_id))).size;
+    .map((r) => itemKey(r.config_index, r.control_id))).size;
   const pending = (scan?.adaptive_configs || []).reduce((sum, c) => sum + (c.pending_review || 0), 0);
   return provisional + pending;
 }
 
-// Every count a page shows, from one place. Remediation groups are null until the plan is known.
-// `applied` is a Set of problem keys fixed in this session.
-export function auditCounts(scan, plan, applied = new Set()) {
-  const list = problems(scan, plan);
-  const states = list.map((p) => resultState(p.results[0], { remediation: p.remediation, applied: applied.has(p.key) }));
+// Every count a page shows, from one place.
+// plan: the backend remediation plan (fix groups are null until it is known)
+// applied: Set of item keys fixed this session
+// queue: { provisional, legacyPending } from the backend — once loaded, review counts the lines actually waiting
+export function auditCounts(scan, plan, applied = new Set(), queue = null) {
+  const items = checkItems(scan, plan);
+  const list = items.filter(isProblem);
+  const states = list.map((p) => itemState(p, applied));
   const count = (pred) => states.filter(pred).length;
-  const results = scan?.results || [];
-  const undecided = (status) => new Set(results.filter((r) => r.status === status && !isProvisional(r) && !r.proposed_status)
-    .map((r) => problemKey(r.config_index, r.control_id))).size;
+  const others = (state) => items.filter((i) => !isProblem(i) && itemState(i) === state).length;
   return {
     problems: list.length,
     severity: Object.fromEntries(SEVERITIES.map((s) => [s, list.filter((p) => p.severity === s).length])),
@@ -222,11 +295,57 @@ export function auditCounts(scan, plan, applied = new Set()) {
     needsInput: plan ? count((s) => s === 'needs_input') : null,
     manual: plan ? count((s) => STATE[s]?.group === 'manual') : null,
     fixed: count((s) => s === 'fixed'),
-    review: reviewCount(scan),
-    unknown: undecided('unknown'),
-    notConfigured: undecided('not_configured'),
-    passed: new Set(results.filter((r) => r.status === 'pass' && isDecisive(r)).map((r) => problemKey(r.config_index, r.control_id))).size,
+    review: queue ? queue.provisional.length + (queue.legacyPending || 0) : reviewCount(scan),
+    unknown: others('unknown'),
+    notConfigured: others('not_configured'),
+    passed: others('pass'),
   };
+}
+
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+// "What am I supposed to do now?" — one answer for the whole audit, in priority order
+export function nextStep(c, { planLoading = false, planError = null } = {}) {
+  if (c.canFix > 0) {
+    return { tone: 'fix', to: 'fix', action: 'Fix them', title: `We can fix ${plural(c.canFix, 'problem')} automatically`,
+      body: 'Each fix changes only the failing setting and is checked by rescanning the corrected configuration.' };
+  }
+  if (c.needsInput > 0) {
+    return { tone: 'input', to: 'fix', action: 'Answer', title: c.needsInput === 1 ? 'We need one answer from you' : `We need ${c.needsInput} answers from you`,
+      body: 'Tell us a value, such as a server address, and NetAuditAI generates and verifies the fix.' };
+  }
+  if (c.review > 0) {
+    return { tone: 'review', to: 'teach', action: 'Teach NetAuditAI', title: 'NetAuditAI needs your help with lines it doesn’t recognize',
+      body: `${plural(c.review, 'question')} ${c.review === 1 ? 'is' : 'are'} waiting for your answer. Nothing is counted until you confirm what a line means.` };
+  }
+  if (c.manual > 0) {
+    return { tone: 'manual', to: 'fix', action: 'See what to change', title: 'We can’t safely change the rest automatically',
+      body: `${plural(c.manual, 'problem')} ${c.manual === 1 ? 'needs' : 'need'} a change made by you. We show exactly what to change.` };
+  }
+  if (c.problems > 0 && c.canFix == null) {
+    return planError
+      ? { tone: 'manual', to: null, title: 'We couldn’t work out which problems can be fixed', body: planError }
+      : { tone: 'info', to: null, busy: planLoading, title: 'Working out what can be fixed…', body: 'NetAuditAI generates each fix and rescans to check it.' };
+  }
+  if (c.fixed > 0) {
+    return { tone: 'pass', to: 'fix', action: 'Download', title: 'You’re done.',
+      body: 'Every problem is fixed in your corrected configuration. Download it from Fix.' };
+  }
+  return { tone: 'pass', to: null, title: 'You’re done.', body: 'Nothing needs your attention.' };
+}
+
+// Command text the backend quotes in a remediation reason or recommendation ('no ip http server'). Shown for a
+// person to apply on the device — never generated here. A quoted redaction placeholder is not a command, and
+// neither is a single quoted word: "Change user 'admin'" or "Remove 'telnet' from allowaccess" name things.
+export function quotedCommands(...texts) {
+  const seen = new Set();
+  for (const text of texts) {
+    for (const m of (text || '').matchAll(/'([^']{3,})'/g)) {
+      const command = m[1].trim();
+      if (/\s/.test(command) && !/^<SECRET:[^>]*>$/.test(command)) seen.add(command);
+    }
+  }
+  return [...seen];
 }
 
 const filled = (values) => Object.fromEntries(Object.entries(values || {}).filter(([, v]) => v !== '' && v != null));

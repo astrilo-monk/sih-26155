@@ -44,7 +44,7 @@ it('marks scans the backend no longer holds as expired and never reopens them', 
   fireEvent.click(screen.getByText('R2'));
   expect(window.location.hash).toBe('#/app/history');
   fireEvent.click(screen.getByText('R1'));
-  await waitFor(() => expect(window.location.hash).toBe('#/app/scan/live/summary'));
+  await waitFor(() => expect(window.location.hash).toBe('#/app/scan/live'));
 });
 
 it('does not claim scans are available when the backend cannot be reached', async () => {

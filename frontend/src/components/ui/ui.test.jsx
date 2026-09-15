@@ -1,27 +1,10 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import Tabs from './Tabs';
+import { afterEach, expect, it } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
 import FileDiff from './FileDiff';
 import { Evidence, StatusMark } from './Evidence';
 
 afterEach(cleanup);
-
-const TABS = [{ id: 'a', label: 'Summary' }, { id: 'b', label: 'Findings', count: 3 }, { id: 'c', label: 'Frameworks' }];
-
-it('tabs follow the ARIA tablist keyboard model', () => {
-  const onChange = vi.fn();
-  render(<Tabs tabs={TABS} active="a" onChange={onChange} idBase="t" />);
-  const first = screen.getByRole('tab', { name: 'Summary' });
-  expect(first.getAttribute('aria-selected')).toBe('true');
-  expect(screen.getByRole('tab', { name: /Findings/ }).tabIndex).toBe(-1);
-  fireEvent.keyDown(first, { key: 'ArrowRight' });
-  expect(onChange).toHaveBeenLastCalledWith('b');
-  fireEvent.keyDown(first, { key: 'ArrowLeft' });
-  expect(onChange).toHaveBeenLastCalledWith('c');
-  fireEvent.keyDown(first, { key: 'End' });
-  expect(onChange).toHaveBeenLastCalledWith('c');
-});
 
 it('the diff shows added and removed counts with real line numbers', () => {
   const { container } = render(<FileDiff diff={'@@ -14,1 +14,1 @@\n- transport input telnet ssh\n+ transport input ssh'} file="R1" />);

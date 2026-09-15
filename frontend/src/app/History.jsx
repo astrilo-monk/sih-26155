@@ -38,7 +38,7 @@ export default function History({ onScansExpired }) {
 
   const open = (entry) => {
     if (entry.expired) return;
-    navigate(`/app/scan/${entry.id}/summary`);
+    navigate(`/app/scan/${entry.id}`);
   };
 
   const availability = (entry) => {

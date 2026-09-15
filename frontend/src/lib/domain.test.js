@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import {
-  assessment, auditCounts, deviceLabels, deviceRows, parseUnifiedDiff, problems, resultState, sameInputs, STATE,
+  assessment, auditCounts, describeFact, deviceLabels, explainGate, nextStep, quotedCommands, deviceRows, parseUnifiedDiff, problems, resultState, sameInputs, STATE,
   stripLineNo, vendorState,
 } from './domain';
 
@@ -82,6 +82,24 @@ it('strips a line-number prefix only when it is the cited number', () => {
   expect(stripLineNo('10: not the cited line', 70)).toBe('10: not the cited line');
 });
 
+it('asks the next step in priority order and says when there is nothing to do', () => {
+  const base = { problems: 0, canFix: 0, needsInput: 0, manual: 0, fixed: 0, review: 0 };
+  expect(nextStep({ ...base, problems: 3, canFix: 1, needsInput: 1, manual: 1, review: 2 })).toMatchObject({ to: 'fix', title: 'We can fix 1 problem automatically' });
+  expect(nextStep({ ...base, problems: 1, needsInput: 1 })).toMatchObject({ to: 'fix', title: 'We need one answer from you' });
+  expect(nextStep({ ...base, review: 2 })).toMatchObject({ to: 'teach' });
+  expect(nextStep({ ...base, problems: 1, manual: 1 }).title).toMatch(/can’t safely change/);
+  expect(nextStep({ ...base, problems: 2, canFix: null, needsInput: null, manual: null }, { planLoading: true }).title).toMatch(/Working out/);
+  expect(nextStep(base)).toMatchObject({ title: 'You’re done.', body: 'Nothing needs your attention.', to: null });
+});
+
+it('lists quoted backend commands, never a redaction placeholder', () => {
+  expect(quotedCommands("Replace it ('enable algorithm-type scrypt secret …', 'username … algorithm-type scrypt secret …')", "SNMP community '<SECRET:redacted>' uses 'no ip http server'"))
+    .toEqual(['enable algorithm-type scrypt secret …', 'username … algorithm-type scrypt secret …', 'no ip http server']);
+  // a quoted name is not a command (real backend recommendation text)
+  expect(quotedCommands("Change user 'admin' to use 'username admin algorithm-type scrypt secret <password>'.", "Remove 'telnet' from allowaccess"))
+    .toEqual(['username admin algorithm-type scrypt secret <password>']);
+});
+
 it('maps every backend state to one user-facing state, never conflating pass, fail and provisional', () => {
   const r = (status, assurance, extra = {}) => ({ config_index: 0, control_id: 'MGMT-001', status, assurance, ...extra });
   expect(resultState(r('pass', 'parser'))).toBe('pass');
@@ -116,6 +134,8 @@ it('counts problems once per control per configuration and keeps review, remedia
   };
   const before = auditCounts(scan);
   expect(before).toMatchObject({ problems: 3, review: 1, unknown: 1, passed: 1, canFix: null, needsInput: null, manual: null });
+  // once the backend queue is loaded, review is what is actually waiting (here: two lines, one of an undecided check)
+  expect(auditCounts(scan, null, new Set(), { provisional: [{}, {}], legacyPending: 1 }).review).toBe(3);
   expect(before.severity).toEqual({ critical: 1, high: 1, medium: 1, low: 0 });
 
   const plan = { devices: [{ remediations: [
@@ -129,4 +149,31 @@ it('counts problems once per control per configuration and keeps review, remedia
   expect(after.canFix + after.needsInput + after.manual).toBe(after.problems);
   expect(auditCounts(scan, plan, new Set(['0-MGMT-001']))).toMatchObject({ canFix: 0, fixed: 1 });
   expect(problems(scan, plan)[0]).toMatchObject({ controlId: 'MGMT-001', results: [expect.anything(), expect.anything()] });
+});
+
+it('puts a reading into plain words built only from what the backend read', () => {
+  expect(describeFact({ predicate: 'mgmt.remote_access.protocol_enabled', subject: 'telnet', value: true }))
+    .toBe('This line turns on Telnet remote access.');
+  expect(describeFact({ predicate: 'time.ntp.server', value: ['10.0.0.1'] })).toBe('This line uses NTP server 10.0.0.1.');
+  // a timeout read without its unit is stated without one
+  expect(describeFact({ predicate: 'mgmt.session.idle_timeout', value: 600 })).toBe('This line sets an idle session timeout (600).');
+  // a value the sentence cannot state is not guessed
+  expect(describeFact({ predicate: 'mgmt.remote_access.protocol_enabled', subject: 'telnet', value: null })).toBeNull();
+  expect(describeFact({ predicate: 'made.up', value: true })).toBeNull();
+});
+
+it('explains safety-gate failures in plain English without internal terms', () => {
+  const messages = [
+    'This line holds a secret value: a recognizer would store it, so it cannot be drafted from this line',
+    'The template does not match its example line',
+    'The value true contradicts the line, which says disabled',
+    'The value must be JSON (true, false, a number, or an enum table)',
+    'something entirely new',
+  ];
+  for (const m of messages) {
+    const said = explainGate(m);
+    expect(said).not.toMatch(/recognizer|template|slot|JSON|enum|polarity|predicate/i);
+    expect(said.length).toBeGreaterThan(20);
+  }
+  expect(explainGate(messages[0])).toMatch(/secret/);
 });

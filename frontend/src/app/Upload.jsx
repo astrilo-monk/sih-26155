@@ -134,7 +134,7 @@ export default function Upload({ onScan, scanning, error, currentScan }) {
             <span className="small muted">{hint}</span>
           </div>
           {currentScan && (
-            <p className="small muted">Or <a href={`#/app/scan/${currentScan.scan_id}/summary`}>return to the current audit</a>.</p>
+            <p className="small muted">Or <a href={`#/app/scan/${currentScan.scan_id}`}>return to the current audit</a>.</p>
           )}
         </div>
 

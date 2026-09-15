@@ -1,255 +1,223 @@
-import { useEffect, useState } from 'react';
-import Tabs from '../components/ui/Tabs';
-import { Severity } from '../components/ui/Evidence';
-import {
-  assessment, auditCounts, deviceLabels, deviceRows, isDecisive, isProvisional, SEVERITIES, STATE, vendorState,
-} from '../lib/domain';
-import { navigate, useEntered } from '../lib/hooks';
+import { Severity, StatusMark } from '../components/ui/Evidence';
 import Count from '../components/ui/Count';
-import Findings from './Findings';
-import Review from './Review';
-import Remediation from './Remediation';
-import Frameworks from './Frameworks';
+import {
+  assessment, auditCounts, checkItems, deviceLabels, isProblem, itemState, nextStep, SEVERITIES, sayFact, stateMeta,
+  stripLineNo, vendorName,
+} from '../lib/domain';
+import { useEntered } from '../lib/hooks';
 
-export const RESULT_TABS = ['summary', 'findings', 'review', 'remediation', 'frameworks'];
+// The row's action word: what clicking it lets you do
+const ACTION = {
+  can_fix: 'Fix', needs_input: 'Answer', manual: 'How to fix', cannot_fix: 'Details',
+  verification_failed: 'Details', fixed: 'Fixed', problem: 'View',
+};
 
 export function PostureSummary({ posture, coverage = 0, bounds, criticalUnassessed = [] }) {
   const a = assessment(posture, coverage, criticalUnassessed);
   const entered = useEntered();
+  // "out of 100" reads as a whole-device grade: only when enough of the device was checked
+  const outOf = posture != null && a.scope !== 'Limited assessment';
   return (
-    <section className={`posture-card tone-${a.tone}`} aria-labelledby="posture-title">
-      <h2 id="posture-title" className="visually-hidden">Posture and coverage</h2>
-      <div className="metric">
-        <span className="metric-label">Posture</span>
-        <span className="metric-value tnum">{posture == null ? '—' : <Count value={posture} />}</span>
-        <span className="metric-note">Severity-weighted share of decided controls that pass</span>
+    <section className={`posture tone-${a.tone}`} aria-labelledby="posture-title">
+      <div className="posture-main">
+        <h2 className="posture-k" id="posture-title">Security posture</h2>
+        <p className="posture-value tnum">
+          {posture == null ? '—' : <Count value={posture} />}
+          {outOf && <span className="posture-of">/100</span>}
+        </p>
+        <p className="posture-label">{a.label}</p>
       </div>
-      <div className="metric">
-        <span className="metric-label">Coverage</span>
-        <span className="metric-value tnum"><Count value={coverage} /><small>%</small></span>
-        <div className="coverage-bar" role="img" aria-label={`${coverage}% of applicable controls decided`}>
-          <span style={{ width: entered ? `${coverage}%` : 0 }} />
+      <div className="posture-side">
+        <p className="posture-desc">{a.desc}</p>
+        <div className="coverage">
+          <div className="coverage-top"><span>Checked</span><span className="tnum">{coverage}%</span></div>
+          <div className="coverage-bar" role="img" aria-label={`${coverage}% of applicable checks decided`}>
+            <span style={{ width: entered ? `${coverage}%` : 0 }} />
+          </div>
+          <p className="small muted">How much of this device NetAuditAI could decide from evidence.</p>
         </div>
-        <span className="metric-note">Applicable controls decided from validated evidence</span>
-      </div>
-      <div className="assessment">
-        <span className="metric-label">Assessment</span>
-        <span className="assessment-label">{a.label}</span>
-        <p className="assessment-desc">{a.desc}</p>
-        <p className="assessment-line mono">Posture {posture ?? '—'} · Coverage {coverage}% · {a.scope}</p>
+        <p className="assessment-line mono small muted">Posture {posture ?? '—'} · Coverage {coverage}% · {a.scope}</p>
         {bounds && posture != null && coverage < 100 && (
-          <p className="small muted">Range {bounds[0]}–{bounds[1]}: the posture if every undecided control failed, or passed.</p>
+          <p className="small muted">If every undecided check failed or passed, the posture would be {bounds[0]}–{bounds[1]}.</p>
         )}
       </div>
     </section>
   );
 }
 
-function Summary({ scan, onOpenTab }) {
+function ProblemRow({ item, state, label, onOpen }) {
+  const r = item.results.find((x) => x.status === 'fail') || item.primary;
+  // the most specific cited line: evidence opens with its block header ("line vty 0 4"), the setting comes last
+  const lines = r.evidence?.lines || [];
+  const numbers = r.evidence?.line_numbers || [];
+  const line = lines[lines.length - 1];
+  const lineNo = numbers[lines.length - 1];
+  const meta = stateMeta(state);
+  return (
+    <li className="problem-li">
+      <button type="button" className={`problem sev-edge-${item.severity}`} onClick={() => onOpen(item)}>
+        <span className={`sev-dot sev-${item.severity}`} aria-hidden="true" />
+        <span className="problem-main">
+          <span className="problem-title">{item.title}</span>
+          <span className="problem-meta">
+            {label && <span className="mono">{label}</span>}
+            <Severity level={item.severity} />
+            <StatusMark state={state} size="compact" />
+          </span>
+          {line && <code className="problem-line">{stripLineNo(line, lineNo)}</code>}
+        </span>
+        <span className={`problem-action tone-${meta.tone}`}>{ACTION[state] || 'View'}</span>
+      </button>
+    </li>
+  );
+}
+
+function deviceLine(ident) {
+  if (ident?.status === 'confirmed') return `${vendorName(ident.detected_vendor)} — read by a dedicated parser`;
+  if (ident?.status === 'unverified') return `Looks like ${vendorName(ident.detected_vendor)}, but not confirmed — checked with generic analysis`;
+  return 'Unfamiliar device — checked with generic analysis';
+}
+
+export default function Results({ scan, audit, onOpen, onTeach, go }) {
   const labels = deviceLabels(scan.devices);
-  const rows = deviceRows(scan);
-  const all = auditCounts(scan);
-  const counts = all.severity;
-  const entered = useEntered();
-  const totalDecisive = all.problems;
-  const suspected = (scan.findings || []).filter(isProvisional).length;
-  const results = scan.results || [];
-  // one per control per configuration, the same unit every count in the app uses
-  const outcomes = [
-    ['fail', STATE.problem.label, all.problems],
-    ['pass', STATE.pass.label, all.passed],
-    ['review', STATE.needs_review.label, all.review],
-    ['unknown', STATE.unknown.label, all.unknown],
-    ['nc', STATE.not_configured.label, all.notConfigured],
-  ];
-  const adaptive = scan.adaptive_configs || [];
-  const reasons = [...new Set(adaptive.flatMap((c) => c.provisional_reasons || []))];
-  const aiUnavailable = adaptive.reduce((s, c) => s + (c.ai_unavailable_lines || 0), 0);
-  const generic = rows.filter((d) => d.identification?.status !== 'confirmed').length;
-  const pending = all.review;
+  const counts = auditCounts(scan, audit.plan, audit.applied, audit.queue);
+  const items = checkItems(scan, audit.plan);
+  const list = items.filter(isProblem);
+  const step = nextStep(counts, { planLoading: audit.planLoading, planError: audit.planError });
+  const undecided = items.filter((i) => !isProblem(i) && ['unknown', 'not_configured'].includes(itemState(i)));
+  const critical = (scan.critical_unassessed || []).map((id) => items.find((i) => i.controlId === id)?.title || id);
+  const idents = scan.vendor_identification || [];
+  const unfamiliar = scan.devices.some((_, i) => idents.find((v) => v.config_index === i)?.status !== 'confirmed');
+  const questions = audit.queue?.provisional || [];
+  const multi = labels.length > 1;
+  const title = multi ? `${labels.length} configurations` : labels[0] === 'unknown' ? 'Unnamed device' : labels[0];
 
   return (
-    <div className="summary">
-      {(generic > 0 || aiUnavailable > 0) && (
+    <div className="wrap overview enter">
+      <header className="ov-head">
+        <div>
+          <p className="eyebrow">Scan results · {new Date(scan.timestamp).toLocaleString()}</p>
+          <h1 className="page-title">{title}</h1>
+          <ul className="ov-devices">
+            {scan.devices.map((d, i) => (
+              <li key={i}>{multi && <span className="mono">{labels[i]}: </span>}{deviceLine(idents.find((v) => v.config_index === i))}</li>
+            ))}
+          </ul>
+        </div>
+        <a className="btn btn-sm" href="#/app">New scan</a>
+      </header>
+
+      <div className="status-grid">
+        <PostureSummary posture={scan.posture} coverage={scan.coverage} bounds={scan.posture_bounds} criticalUnassessed={scan.critical_unassessed || []} />
+        <section className="sev-panel" aria-label="Problems by severity">
+          <p className="sev-total"><span className="tnum"><Count value={counts.problems} /></span> problem{counts.problems === 1 ? '' : 's'} found</p>
+          <ul className="sev-grid">
+            {SEVERITIES.map((s) => (
+              <li key={s} className={`sev-cell sev-${s} ${counts.severity[s] ? '' : 'is-zero'}`}>
+                <span className="sev-count tnum"><Count value={counts.severity[s]} /></span>
+                <span className="sev-name">{s}</span>
+              </li>
+            ))}
+          </ul>
+          {/* live region stays mounted; its list renders only when there is something to say */}
+          <div aria-live="polite">
+            {(() => {
+              const mix = audit.plan ? [
+                ['fix', counts.canFix, 'can be fixed automatically'],
+                ['input', counts.needsInput, 'need your input'],
+                ['manual', counts.manual, 'need manual action'],
+                ['pass', counts.fixed, 'fixed'],
+              ].filter(([, n]) => n > 0) : [];
+              if (mix.length > 0) {
+                return (
+                  <ul className="fixmix">
+                    {mix.map(([tone, n, words]) => <li key={tone} className={`tone-${tone}`}><b className="tnum">{n}</b> {words}</li>)}
+                  </ul>
+                );
+              }
+              if (!audit.plan && audit.planLoading) return <p className="fixmix muted">Checking which problems can be fixed…</p>;
+              if (!audit.plan && audit.planError) return <p className="fixmix text-fail">Fix options unavailable: {audit.planError}</p>;
+              return null;
+            })()}
+          </div>
+        </section>
+      </div>
+
+      {critical.length > 0 && (
+        <div className="notice notice-warn">
+          <span className="notice-mark">!</span>
+          <strong>We couldn’t check {critical.length === 1 ? 'a critical setting' : `${critical.length} critical settings`}: {critical.join(', ')}.</strong>
+          <span>Don’t treat this device as secure on {critical.length === 1 ? 'this point' : 'these points'} until it is checked.</span>
+        </div>
+      )}
+
+      {unfamiliar && (
         <div className="notice notice-info">
           <span className="notice-mark">i</span>
-          <strong>
-            {generic > 0 ? `${generic === rows.length && rows.length === 1 ? 'This configuration has' : `${generic} configuration(s) have`} no confirmed vendor and took the generic analysis path.` : 'Some lines could not be interpreted.'}
-          </strong>
-          <span>
-            {generic > 0 && 'Heuristic and AI readings there are provisional: they do not change posture, coverage, severity counts or remediation until confirmed. '}
-            {aiUnavailable > 0 && `AI interpretation was unavailable for ${aiUnavailable} line(s). `}
-          </span>
-          {pending > 0 && (
-            <button type="button" className="btn btn-sm notice-action" onClick={() => onOpenTab('review')}>
-              Review {pending} reading{pending === 1 ? '' : 's'}
-            </button>
-          )}
+          <strong>NetAuditAI has no dedicated reader for {multi ? 'some of these devices' : 'this device'}.</strong>
+          <span>It checked what it could. Lines it isn’t sure about aren’t counted until you confirm them, and it never generates vendor commands for an unconfirmed vendor.</span>
         </div>
       )}
 
-      <PostureSummary posture={scan.posture} coverage={scan.coverage} bounds={scan.posture_bounds}
-                      criticalUnassessed={scan.critical_unassessed || []} />
+      <section className={`next-step tone-${step.tone}`} aria-labelledby="next-title" aria-busy={step.busy || undefined}>
+        <p className="next-k">What to do now</p>
+        <h2 className="next-title" id="next-title">{step.title}</h2>
+        <p className="next-body">{step.body}</p>
+        {step.to && <button type="button" className="btn btn-primary" onClick={() => go(step.to)}>{step.action}</button>}
+      </section>
 
-      {(scan.critical_unassessed || []).length > 0 && (
-        <div className="notice notice-danger">
-          <span className="notice-mark">!</span>
-          <strong>Critical control(s) not assessed: {scan.critical_unassessed.join(', ')}</strong>
-          <span>No decisive evidence exists for {scan.critical_unassessed.length === 1 ? 'this control' : 'these controls'}, so the configuration cannot be called secure on these points.</span>
-        </div>
-      )}
-
-      <div className="summary-grid">
-        <section className="panel" aria-labelledby="sev-title">
-          <header className="panel-head">
-            <h2 className="panel-title" id="sev-title"><span className="sec-no">01</span> Decisive findings</h2>
-            <p className="small muted">
-              Suspected findings from heuristic or AI readings are not counted{suspected ? ` — ${suspected} listed under Findings` : ''}.
-            </p>
-          </header>
-          <div className="sev-grid">
-            {SEVERITIES.map((s) => (
-              <div key={s} className={`sev-cell ${counts[s] ? '' : 'is-zero'}`}>
-                <span className="sev-count tnum"><Count value={counts[s]} /></span>
-                <Severity level={s} />
-              </div>
+      <section className="attention" aria-labelledby="attention-title">
+        <h2 className="section-title" id="attention-title">Needs your attention</h2>
+        {list.length === 0 && questions.length === 0 ? (
+          <div className="empty-state tone-pass">
+            <p className="empty-mark" aria-hidden="true">✓</p>
+            <p className="empty-title">Nothing needs your attention.</p>
+            <p>{counts.passed > 0 ? `${counts.passed} check${counts.passed === 1 ? '' : 's'} passed. ` : ''}No problem was found in what NetAuditAI could check.</p>
+          </div>
+        ) : (
+          <ul className="problem-list">
+            {list.map((item) => (
+              <ProblemRow key={item.key} item={item} state={itemState(item, audit.applied)} label={multi ? labels[item.configIndex] : null} onOpen={onOpen} />
             ))}
-          </div>
-          <div className="sev-bar" role="img" aria-label={`${totalDecisive} decisive findings`}>
-            {totalDecisive === 0 ? <span className="sev-seg is-empty" style={{ width: '100%' }} />
-              : SEVERITIES.filter((s) => counts[s]).map((s) => (
-                <span key={s} className={`sev-seg sev-${s}`} style={{ width: entered ? `${(counts[s] / totalDecisive) * 100}%` : 0 }} />
-              ))}
-          </div>
-          {totalDecisive > 0 && <button type="button" className="btn-link small" onClick={() => onOpenTab('findings')}>Inspect findings and evidence</button>}
-        </section>
+            {questions.map((q) => {
+              // lines that read differently disagree: never pick one of them as "probably" true
+              const readings = new Set(q.lines.map((l) => sayFact(l)));
+              const said = readings.size === 1 ? [...readings][0] : null;
+              const summary = readings.size > 1 ? ': these lines disagree' : said ? `: probably ${said}` : '';
+              return (
+                <li key={`${q.config_index}-${q.control_id}`} className="problem-li">
+                  <button type="button" className="problem is-question" onClick={() => onTeach(`${q.config_index}-${q.control_id}`)}>
+                    <span className="sev-dot sev-review" aria-hidden="true" />
+                    <span className="problem-main">
+                      <span className="problem-title">Unfamiliar configuration{summary}</span>
+                      <span className="problem-meta">{multi && <span className="mono">{labels[q.config_index]}</span>}<StatusMark state="needs_review" size="compact" /></span>
+                      {q.lines[0] && <code className="problem-line">{q.lines[0].text}</code>}
+                    </span>
+                    <span className="problem-action tone-review">Teach</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
-        <section className="panel" aria-labelledby="outcome-title">
-          <header className="panel-head">
-            <h2 className="panel-title" id="outcome-title"><span className="sec-no">02</span> Control results</h2>
-            <p className="small muted">{results.length} results: every control against every configuration.</p>
-          </header>
-          <ul className="outcomes">
-            {outcomes.map(([tone, label, n]) => (
-              <li key={label} className={`outcome tone-${tone}`}>
-                <span className="outcome-n tnum"><Count value={n} /></span>
-                <span>{label}</span>
+      {undecided.length > 0 && (
+        <section className="undecided" aria-labelledby="undecided-title">
+          <h2 className="section-title" id="undecided-title">Checks we couldn’t decide <span className="count-pill tnum">{undecided.length}</span></h2>
+          <p className="small muted">Not enough information in the configuration. These are never counted as passed or failed.</p>
+          <ul className="check-list">
+            {undecided.map((item) => (
+              <li key={item.key}>
+                <button type="button" className="check-row" onClick={() => onOpen(item)}>
+                  <StatusMark state={itemState(item)} size="compact" />
+                  <span className="check-row-main"><span className="check-row-title">{item.title}</span>{multi && <span className="small muted">{labels[item.configIndex]}</span>}</span>
+                </button>
               </li>
             ))}
           </ul>
         </section>
-      </div>
-
-      <section className="panel" aria-labelledby="devices-title">
-        <header className="panel-head">
-          <h2 className="panel-title" id="devices-title"><span className="sec-no">03</span> Configurations and analysis path</h2>
-        </header>
-        <ul className="device-list">
-          {rows.map((d) => {
-            const vs = vendorState(d.identification);
-            const own = results.filter((r) => r.config_index === d.index);
-            const decided = new Set(own.filter(isDecisive).map((r) => r.control_id)).size;
-            const controls = new Set(own.map((r) => r.control_id)).size;
-            const ai = adaptive.find((c) => c.config_index === d.index);
-            return (
-              <li key={d.index} className="device">
-                <div className="device-head">
-                  <span className="device-no mono">#{d.index + 1}</span>
-                  <span className="device-name mono">{labels[d.index]}</span>
-                  <span className={`tag ${vs.key === 'confirmed' ? 'tag-decisive' : vs.key === 'unverified' ? 'tag-provisional' : 'tag-accent'}`}>{vs.label}</span>
-                  <span className={`risk risk-${d.risk.replace(' ', '-').toLowerCase()}`}>
-                    {d.risk === 'NOT ASSESSED' ? 'Not assessed' : `${d.risk.toLowerCase()} risk`}
-                  </span>
-                </div>
-                <ol className="trail" aria-label={`Analysis path for ${labels[d.index]}`}>
-                  <li><span className="trail-k">Platform</span><span>{vs.path}{vs.key === 'confirmed' && d.identification?.parse_coverage != null ? ` · ${Math.round(d.identification.parse_coverage * 100)}% grammar coverage` : ''}</span></li>
-                  <li><span className="trail-k">Controls</span><span>{controls} run · {decided} decided</span></li>
-                  <li><span className="trail-k">AI escalation</span><span>{vs.key === 'confirmed' ? 'Not used' : ai?.ai_available ? `${ai.ai_calls || 0} call(s) · ${ai.ai_cache_hits || 0} cached` : 'Off or unavailable'}</span></li>
-                  <li><span className="trail-k">Findings</span><span>{d.decisive} decisive{d.suspected ? ` · ${d.suspected} suspected` : ''}</span></li>
-                  <li><span className="trail-k">Remediation</span><span>{vs.key === 'confirmed' ? 'Deterministic recipes available' : 'Vendor-specific remediation unavailable'}</span></li>
-                </ol>
-                {vs.key !== 'confirmed' && <p className="small muted device-note">{vs.note}</p>}
-              </li>
-            );
-          })}
-        </ul>
-      </section>
-
-      {reasons.length > 0 && (
-        <details className="disclosure">
-          <summary>Why results are provisional or not assessed</summary>
-          <ul>{reasons.map((r) => <li key={r}>{r}</li>)}</ul>
-        </details>
       )}
-    </div>
-  );
-}
-
-export default function Results({ scan, tab, revision, onScanUpdated, onScanExpired }) {
-  // Panels stay mounted once opened, so a generated remediation plan or a finding selection survives tab switches
-  const [visited, setVisited] = useState(() => new Set([tab]));
-  useEffect(() => {
-    setVisited((v) => (v.has(tab) ? v : new Set(v).add(tab)));
-  }, [tab]);
-
-  const labels = deviceLabels(scan.devices);
-  const idents = scan.vendor_identification || [];
-  const { problems: decisiveFindings, review: pending } = auditCounts(scan);
-  const openTab = (id) => navigate(`/app/scan/${scan.scan_id}/${id}`);
-  const title = labels.length === 1
-    ? (labels[0] === 'unknown' ? 'Hostname not stated' : labels[0])
-    : `${labels.length} configurations`;
-
-  const tabs = [
-    { id: 'summary', label: 'Summary' },
-    { id: 'findings', label: 'Findings', count: decisiveFindings },
-    { id: 'review', label: 'Needs your input', count: pending, attention: pending > 0 },
-    { id: 'remediation', label: 'Remediation' },
-    { id: 'frameworks', label: 'Frameworks' },
-  ];
-
-  const panel = (id, node) => (visited.has(id) || id === tab) && (
-    <div key={id} hidden={id !== tab} className="report-panel">{node}</div>
-  );
-
-  return (
-    <div className="report">
-      <header className="wrap report-head enter">
-        <p className="eyebrow report-meta">
-          Audit report · <span className="mono">{scan.scan_id.slice(0, 8)}</span> · {new Date(scan.timestamp).toLocaleString()}
-        </p>
-        <div className="report-title-row">
-          <h1 className="display report-title">{title}</h1>
-          <a className="btn btn-sm" href="#/app">New audit</a>
-        </div>
-        <ul className="report-devices">
-          {scan.devices.map((d, i) => {
-            const vs = vendorState(idents.find((v) => v.config_index === i));
-            return (
-              <li key={i}>
-                {labels.length > 1 && <span className="mono">{labels[i]}</span>}
-                <span className={`vendor-dot vd-${vs.key}`} aria-hidden="true" />
-                <span>{vs.label}</span>
-                <span className="muted">· {vs.path}</span>
-              </li>
-            );
-          })}
-        </ul>
-      </header>
-
-      <div className="report-tabs">
-        <div className="wrap">
-          <Tabs tabs={tabs} active={tab} onChange={openTab} idBase="report" label="Audit report sections" />
-        </div>
-      </div>
-
-      <div className="wrap report-body" id="report-panel" role="tabpanel" aria-labelledby={`report-tab-${tab}`}>
-        {panel('summary', <Summary scan={scan} onOpenTab={openTab} />)}
-        {panel('findings', <Findings scan={scan} />)}
-        {panel('review', <Review scan={scan} onScanUpdated={onScanUpdated} onScanExpired={onScanExpired} />)}
-        {panel('remediation', <Remediation scan={scan} planKey={`${scan.scan_id}:${revision}`} onScanExpired={onScanExpired} />)}
-        {panel('frameworks', <Frameworks key={`fw-${revision}`} frameworks={scan.frameworks || []} />)}
-      </div>
     </div>
   );
 }

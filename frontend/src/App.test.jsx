@@ -52,13 +52,13 @@ it('reports an audit the backend no longer holds as expired instead of showing s
   apiClient.getScan.mockRejectedValue(Object.assign(new Error('Scan not found'), { status: 404 }));
   go('#/app/scan/gone-1/findings');
   render(<App />);
-  expect(await screen.findByText('This audit is no longer held by the backend.')).toBeTruthy();
+  expect(await screen.findByText('This scan is no longer available.')).toBeTruthy();
   expect(apiClient.getScan).toHaveBeenCalledWith('gone-1');
 });
 
-it('shows the recognizers page with an honest empty state', async () => {
+it('shows what NetAuditAI has learned, with an honest empty state (old recognizer links still work)', async () => {
   go('#/app/recognizers');
   render(<App />);
-  expect(await screen.findByText('No recognizers yet')).toBeTruthy();
+  expect(await screen.findByText('NetAuditAI hasn’t learned anything yet')).toBeTruthy();
   expect(apiClient.listLearnedMappings).toHaveBeenCalledWith(true);
 });
