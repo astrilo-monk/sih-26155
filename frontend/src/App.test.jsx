@@ -44,8 +44,8 @@ it('opens on the public homepage, states support honestly, and Try now enters th
   expect(container.textContent).not.toMatch(/(works with|supports) every vendor|100% accurate|fully autonomous|understands every/i);
 
   go('#/app');
-  expect(await screen.findByText('Upload a network device configuration')).toBeTruthy();
-  expect(screen.getByRole('button', { name: 'Run audit' }).disabled).toBe(true);
+  expect(await screen.findByText('Upload a device configuration')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Start scan' }).disabled).toBe(true);
 });
 
 it('reports an audit the backend no longer holds as expired instead of showing stale results', async () => {

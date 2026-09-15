@@ -73,7 +73,7 @@ export default function Frameworks({ frameworks = [] }) {
                   <span className="req-title">{req.title}</span>
                 </span>
                 <span className="req-side">
-                  {req.provisional && <span className="tag tag-provisional" title="A reading NetAuditAI isn’t sure about is involved; it is not counted">Needs review</span>}
+                  {req.provisional && <span className="tag tag-review" title="A reading NetAuditAI isn’t sure about is involved; it is not counted">Needs review</span>}
                   <span className="req-controls mono">{controls.join(', ')}</span>
                 </span>
               </button>
@@ -86,7 +86,7 @@ export default function Frameworks({ frameworks = [] }) {
                         <span className="mono">{c.control_id}</span>
                         <span>{c.title}</span>
                         <span className="muted">· {c.device_hostname}</span>
-                        <span className={`tag ${c.decisive ? 'tag-decisive' : 'tag-provisional'}`}>{decisiveness(c)}</span>
+                        <span className={`tag ${c.decisive ? 'tag-pass' : 'tag-review'}`}>{decisiveness(c)}</span>
                       </p>
                       <p className="small muted">{c.reason}</p>
                       <Evidence lineNumbers={c.evidence.line_numbers} lines={c.evidence.lines} scopePath={c.evidence.scope_path} />

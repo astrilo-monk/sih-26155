@@ -42,10 +42,10 @@ export default function History({ onScansExpired }) {
   };
 
   const availability = (entry) => {
-    if (entry.expired) return ['Expired', 'tag-blocked', 'No longer held by the backend: upload the configuration again'];
-    if (unreachable) return ['Unchecked', 'tag-provisional', 'The backend could not be reached'];
+    if (entry.expired) return ['Expired', 'tag-muted', 'No longer held by the backend: upload the configuration again'];
+    if (unreachable) return ['Unchecked', 'tag-review', 'The backend could not be reached'];
     if (!checked) return ['Checking…', '', ''];
-    return ['Available', 'tag-decisive', 'Open this audit'];
+    return ['Available', 'tag-pass', 'Open this scan'];
   };
 
   return (
@@ -53,10 +53,10 @@ export default function History({ onScansExpired }) {
       <header className="page-head page-head-row">
         <div>
           <p className="eyebrow">History</p>
-          <h1 className="display page-title">Previous audits</h1>
+          <h1 className="display page-title">Past scans</h1>
           <p className="lede">
             Summaries are kept in this browser — hostnames, posture, coverage and counts, never configuration lines or
-            evidence. Full results stay on the backend only until it restarts; expired audits must be uploaded again.
+            evidence. Full results stay on the backend only until it restarts; expired scans must be uploaded again.
           </p>
         </div>
         {history.length > 0 && (
@@ -78,20 +78,20 @@ export default function History({ onScansExpired }) {
         <div className="notice notice-warn" role="status">
           <span className="notice-mark">!</span>
           <strong>The backend could not be reached.</strong>
-          <span>It is unknown which audits it still holds.</span>
+          <span>It is unknown which scans it still holds.</span>
         </div>
       )}
 
       {history.length === 0 ? (
         <div className="empty">
-          <p className="empty-title">No audits yet</p>
-          <p>Audits you run in this browser appear here.</p>
-          <a className="btn btn-accent" href="#/app">Start an audit</a>
+          <p className="empty-title">No scans yet</p>
+          <p>Scans you run in this browser appear here.</p>
+          <a className="btn btn-accent" href="#/app">Start a scan</a>
         </div>
       ) : (
         <ul className="history-list">
           <li className="history-row history-header" aria-hidden="true">
-            <span>Configurations</span><span>Audited</span><span>Posture</span><span>Coverage</span><span>Problems</span><span>Status</span>
+            <span>Configurations</span><span>Scanned</span><span>Posture</span><span>Coverage</span><span>Problems</span><span>Status</span>
           </li>
           {history.map((entry, i) => {
             const [label, tone, title] = availability(entry);
@@ -103,7 +103,7 @@ export default function History({ onScansExpired }) {
                     <span className="mono hr-hosts">{(entry.hostnames || []).join(', ') || '—'}</span>
                     <span className="small muted">{(entry.vendors || []).map(vendorName).join(', ') || 'Unknown'}</span>
                   </span>
-                  <span className="hr-cell"><span className="hr-k">Audited</span>{new Date(entry.timestamp).toLocaleString()}</span>
+                  <span className="hr-cell"><span className="hr-k">Scanned</span>{new Date(entry.timestamp).toLocaleString()}</span>
                   <span className="hr-cell"><span className="hr-k">Posture</span><span className="mono tnum">{entry.posture ?? '—'}</span></span>
                   <span className="hr-cell"><span className="hr-k">Coverage</span><span className="mono tnum">{entry.coverage ?? 0}%</span></span>
                   <span className="hr-cell"><span className="hr-k">Problems</span><span className="mono tnum">{entry.problemsCount ?? entry.findingsCount}</span>{entry.remediated && <span className="tag">Fixed file downloaded</span>}</span>

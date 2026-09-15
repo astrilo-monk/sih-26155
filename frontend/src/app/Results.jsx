@@ -45,16 +45,18 @@ export function PostureSummary({ posture, coverage = 0, bounds, criticalUnassess
   );
 }
 
-function ProblemRow({ item, state, label, onOpen }) {
+function ProblemRow({ item, state, label, onOpen, index }) {
   const r = item.results.find((x) => x.status === 'fail') || item.primary;
-  // the most specific cited line: evidence opens with its block header ("line vty 0 4"), the setting comes last
+  // a multi-line citation is the whole block ("line vty 0 4" and everything under it); nothing in it marks which
+  // line decided the control, so quote a line only when the evidence is that one line, and otherwise name the block
   const lines = r.evidence?.lines || [];
   const numbers = r.evidence?.line_numbers || [];
-  const line = lines[lines.length - 1];
-  const lineNo = numbers[lines.length - 1];
+  const line = lines.length === 1 ? lines[0] : null;
+  const lineNo = numbers[0];
+  const block = lines.length > 1 ? (r.evidence.scope_path?.join(' › ') || lines[0].trim()) : null;
   const meta = stateMeta(state);
   return (
-    <li className="problem-li">
+    <li className="problem-li" style={{ '--i': index }}>
       <button type="button" className={`problem sev-edge-${item.severity}`} onClick={() => onOpen(item)}>
         <span className={`sev-dot sev-${item.severity}`} aria-hidden="true" />
         <span className="problem-main">
@@ -65,6 +67,7 @@ function ProblemRow({ item, state, label, onOpen }) {
             <StatusMark state={state} size="compact" />
           </span>
           {line && <code className="problem-line">{stripLineNo(line, lineNo)}</code>}
+          {block && <span className="problem-where mono">in <code>{block}</code> · {lines.length} lines cited</span>}
         </span>
         <span className={`problem-action tone-${meta.tone}`}>{ACTION[state] || 'View'}</span>
       </button>
@@ -176,16 +179,16 @@ export default function Results({ scan, audit, onOpen, onTeach, go }) {
           </div>
         ) : (
           <ul className="problem-list">
-            {list.map((item) => (
-              <ProblemRow key={item.key} item={item} state={itemState(item, audit.applied)} label={multi ? labels[item.configIndex] : null} onOpen={onOpen} />
+            {list.map((item, i) => (
+              <ProblemRow key={item.key} index={i} item={item} state={itemState(item, audit.applied)} label={multi ? labels[item.configIndex] : null} onOpen={onOpen} />
             ))}
-            {questions.map((q) => {
+            {questions.map((q, qi) => {
               // lines that read differently disagree: never pick one of them as "probably" true
               const readings = new Set(q.lines.map((l) => sayFact(l)));
               const said = readings.size === 1 ? [...readings][0] : null;
               const summary = readings.size > 1 ? ': these lines disagree' : said ? `: probably ${said}` : '';
               return (
-                <li key={`${q.config_index}-${q.control_id}`} className="problem-li">
+                <li key={`${q.config_index}-${q.control_id}`} className="problem-li" style={{ '--i': list.length + qi }}>
                   <button type="button" className="problem is-question" onClick={() => onTeach(`${q.config_index}-${q.control_id}`)}>
                     <span className="sev-dot sev-review" aria-hidden="true" />
                     <span className="problem-main">

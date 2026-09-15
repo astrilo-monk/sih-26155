@@ -21,9 +21,9 @@ function Scanning({ files }) {
   }, []);
   return (
     <section className="wrap scanning enter" aria-live="polite" aria-busy="true">
-      <p className="eyebrow">Audit in progress</p>
+      <p className="eyebrow">Scan in progress</p>
       <h1 className="display page-title">
-        Auditing {files.length === 1 ? <span className="mono scanning-file">{files[0].name}</span> : `${files.length} configurations`}
+        Scanning {files.length === 1 ? <span className="mono scanning-file">{files[0].name}</span> : `${files.length} configurations`}
       </h1>
       <div className="scan-bar" aria-hidden="true"><span /></div>
       <ol className="stages">
@@ -35,8 +35,8 @@ function Scanning({ files }) {
         ))}
       </ol>
       <p className="small muted">
-        The backend runs the whole audit in one request and does not report progress, so no percentage is shown —
-        these are the stages it performs. Elapsed <span className="mono tnum">{seconds}s</span>.
+        The scan runs in a single request and reports no progress, so no percentage is shown — these are the
+        stages it performs. Elapsed <span className="mono tnum">{seconds}s</span>.
       </p>
     </section>
   );
@@ -57,21 +57,22 @@ export default function Upload({ onScan, scanning, error, currentScan }) {
   const empty = files.some((f) => f.size === 0);
   const hint = !files.length ? 'Select at least one configuration.'
     : tooLarge ? 'Remove files over 2 MB — the backend refuses them.'
-      : empty ? 'Remove empty files — there is nothing to audit in them.'
-        : `${files.length} configuration${files.length > 1 ? 's' : ''} will be audited together.`;
+      : empty ? 'Remove empty files — there is nothing to scan in them.'
+        : `${files.length} configuration${files.length > 1 ? 's' : ''} will be scanned together.`;
 
   return (
     <div className="wrap upload-page enter">
       <header className="page-head">
-        <p className="eyebrow">New audit</p>
-        <h1 className="display page-title">Upload a network device configuration</h1>
-        <p className="lede">NetAuditAI checks it against every security control and shows the configuration lines behind each result.</p>
+        <p className="eyebrow">New scan</p>
+        <h1 className="display page-title">Upload a device configuration</h1>
+        <p className="lede">NetAuditAI checks it against every security control and shows you the configuration line behind each result.</p>
       </header>
 
-      <ol className="steps-inline" aria-label="How an audit works">
+      <ol className="steps-inline" aria-label="How a scan works">
         <li className="is-current"><span className="mono">01</span> Upload</li>
         <li><span className="mono">02</span> Scan</li>
-        <li><span className="mono">03</span> Inspect results</li>
+        <li><span className="mono">03</span> Understand</li>
+        <li><span className="mono">04</span> Fix</li>
       </ol>
 
       <div className="upload-grid">
@@ -79,7 +80,7 @@ export default function Upload({ onScan, scanning, error, currentScan }) {
           {error && (
             <div className="notice notice-danger" role="alert">
               <span className="notice-mark">×</span>
-              <strong>The audit could not run.</strong>
+              <strong>The scan could not run.</strong>
               <span>{error}</span>
             </div>
           )}
@@ -129,12 +130,12 @@ export default function Upload({ onScan, scanning, error, currentScan }) {
           <div className="upload-actions">
             <button type="button" className="btn btn-accent btn-lg" disabled={!files.length || tooLarge || empty}
                     onClick={() => onScan(files)}>
-              Run audit
+              Start scan
             </button>
             <span className="small muted">{hint}</span>
           </div>
           {currentScan && (
-            <p className="small muted">Or <a href={`#/app/scan/${currentScan.scan_id}`}>return to the current audit</a>.</p>
+            <p className="small muted">Or <a href={`#/app/scan/${currentScan.scan_id}`}>return to the current scan</a>.</p>
           )}
         </div>
 

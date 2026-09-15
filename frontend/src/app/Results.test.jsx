@@ -132,3 +132,18 @@ it('a clean configuration says so plainly', () => {
   expect(screen.getByText('Nothing needs your attention.', { selector: '.next-body' })).toBeTruthy();
   expect(screen.getByText('Nothing needs your attention.', { selector: '.empty-title' })).toBeTruthy();
 });
+
+it('a block citation names the block instead of quoting an arbitrary line inside it', () => {
+  const block = {
+    ...CISCO,
+    results: [{
+      config_index: 0, control_id: 'MGMT-006', title: 'Session timeout', status: 'fail', assurance: 'parser', severity: 'medium',
+      evidence: { line_numbers: [11, 12, 13], lines: ['line vty 0 4', ' transport input telnet ssh', ' exec-timeout 0 0'] },
+    }],
+  };
+  const { container } = render(<Results scan={block} audit={audit({ plan: { devices: [] }, queue: { provisional: [], legacyPending: 0 } })} onOpen={() => {}} go={() => {}} onTeach={() => {}} />);
+  expect(screen.getByText('line vty 0 4')).toBeTruthy();
+  expect(container.textContent).toContain('3 lines cited');
+  // the last line of the block is not the line that decided this control
+  expect(container.querySelector('.problem-line')).toBeNull();
+});

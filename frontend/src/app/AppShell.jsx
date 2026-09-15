@@ -15,7 +15,6 @@ import History from './History';
 import Learned from './Learned';
 import FindingDrawer from './FindingDrawer';
 import '../styles/app.css';
-import '../styles/workflow.css';
 
 export const SCAN_VIEWS = ['overview', 'fix', 'teach', 'checks', 'devices', 'frameworks'];
 // Links from earlier versions keep working
@@ -150,7 +149,8 @@ export default function AppShell({ path }) {
 
   const SUBNAV = [
     ['overview', 'Overview'],
-    ['fix', 'Fix', counts && (counts.canFix ?? 0) + (counts.needsInput ?? 0)],
+    // every problem still open, so the badge cannot contradict the problem count on Results
+    ['fix', 'Fix', counts && counts.problems - counts.fixed],
     ['teach', 'Teach', counts?.review],
     ['checks', 'All checks'],
     ['devices', 'Devices'],

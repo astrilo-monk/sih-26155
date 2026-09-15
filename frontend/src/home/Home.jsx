@@ -141,7 +141,7 @@ function EvidenceChain() {
         </li>
         <li className={`chain-step chain-verdict ${stageClass(on, 3)}`}>
           <div className="chain-label"><span className="sec-no">04</span> Result</div>
-          <div className="chain-row"><StatusMark state="problem" size="lg" /><span className="tag tag-decisive">Parser evidence · line 14</span></div>
+          <div className="chain-row"><StatusMark state="problem" size="lg" /><span className="tag tag-pass">Parser evidence · line 14</span></div>
         </li>
         <li className={`chain-step ${stageClass(on, 4)}`}>
           <div className="chain-label"><span className="sec-no">05</span> Deterministic fix</div>
@@ -213,7 +213,7 @@ function LearningLoop() {
           <span className="learn-no mono">B</span>
           <h3>Provisional reading</h3>
           <p className="fact mono"><span className="fact-pred">mgmt.remote_access.protocol_enabled</span><span className="fact-subj"> · telnet</span> <span className="fact-eq">=</span> <span className="fact-val">true</span></p>
-          <p className="small"><span className="tag tag-provisional">Suspected fail · not counted</span></p>
+          <p className="small"><span className="tag tag-review">Suspected fail · not counted</span></p>
         </li>
         <li className={`learn-step ${stageClass(on, 2)}`}>
           <span className="learn-no mono">C</span>
@@ -236,7 +236,7 @@ function LearningLoop() {
         <li className={`learn-step ${stageClass(on, 4)}`}>
           <span className="learn-no mono">E</span>
           <h3>Future scan recognized</h3>
-          <div className="chain-row"><StatusMark state="problem" /><span className="tag tag-decisive">Human-confirmed recognizer</span></div>
+          <div className="chain-row"><StatusMark state="problem" /><span className="tag tag-pass">Human-confirmed recognizer</span></div>
           <p>A new scan of the same file decides MGMT-001 from the saved recognizer — no heuristic, no AI. It persists in SQLite across scans and restarts.</p>
         </li>
       </ol>
@@ -290,14 +290,14 @@ export default function Home() {
             <div className="hero-copy enter">
               <p className="eyebrow">Network configuration audit</p>
               <h1 className="display hero-title">
-                Know what’s wrong with a network configuration — <em>and the line that proves it.</em>
+                Know exactly what’s wrong with a network configuration — <em>and the line that proves it.</em>
               </h1>
               <p className="lede">
                 NetAuditAI evaluates device configurations against security controls and cites the configuration
                 evidence behind every authoritative finding. When syntax is unfamiliar, it says so — and asks you.
               </p>
               <div className="hero-actions">
-                <a className="btn btn-accent btn-lg" href="#/app">Try now</a>
+                <a className="btn btn-accent btn-lg" href="#/app">Start a scan</a>
                 <button type="button" className="btn btn-lg" onClick={() => go('how')}>See how it works</button>
               </div>
               <p className="hero-fine small">
@@ -331,7 +331,7 @@ export default function Home() {
                       <tr key={d.platform}>
                         <th scope="row">{d.platform}</th>
                         <td><code className="inline-code">{d.line}</code><span className="dialect-src mono">{d.source}</span></td>
-                        <td><span className={`tag ${d.path === 'Dedicated parser' ? 'tag-decisive' : 'tag-accent'}`}>{d.path}</span></td>
+                        <td><span className={`tag ${d.path === 'Dedicated parser' ? 'tag-pass' : 'tag-info'}`}>{d.path}</span></td>
                       </tr>
                     ))}
                   </tbody>
@@ -366,7 +366,7 @@ export default function Home() {
                   <span className="specimen-src small muted">From a real scan of {SAMPLE}</span>
                 </header>
                 <h3 className="specimen-title">Weak or Default SNMP Community Strings</h3>
-                <div className="chain-row"><StatusMark state="problem" size="lg" /><span className="tag tag-decisive">Parser evidence</span></div>
+                <div className="chain-row"><StatusMark state="problem" size="lg" /><span className="tag tag-pass">Parser evidence</span></div>
                 <dl className="kv specimen-kv">
                   <dt>Device</dt><dd><span className="mono">DMZ-EDGE-10</span> · Cisco IOS, confirmed</dd>
                   <dt>Scope</dt><dd className="mono">snmp community #2</dd>
@@ -385,7 +385,7 @@ export default function Home() {
                 <ul>
                   {ASSURANCE_LADDER.map(([name, text, decisive]) => (
                     <li key={name} className={decisive ? 'decisive' : 'provisional'}>
-                      <span className={`tag ${decisive ? 'tag-decisive' : 'tag-provisional'}`}>{decisive ? 'Decisive' : 'Provisional'}</span>
+                      <span className={`tag ${decisive ? 'tag-pass' : 'tag-review'}`}>{decisive ? 'Decisive' : 'Provisional'}</span>
                       <strong>{name}</strong>
                       <span className="muted">{text}</span>
                     </li>
@@ -483,17 +483,17 @@ export default function Home() {
             </SectionHead>
             <div className="fw-grid reveal">
               <article className="fw-card">
-                <span className="tag tag-decisive">Mapped</span>
+                <span className="tag tag-pass">Mapped</span>
                 <h3>NIST SP 800-53 Rev. 5</h3>
                 <p>Release 5.2.0. Every configuration, including those on the generic analysis path.</p>
               </article>
               <article className="fw-card">
-                <span className="tag tag-decisive">Mapped · confirmed vendors</span>
+                <span className="tag tag-pass">Mapped · confirmed vendors</span>
                 <h3>CIS Benchmarks</h3>
                 <p>Cisco IOS XE 17.x v2.1.0 and v2.2.1, FortiGate 7.4.x v1.0.1 — only where the requirement is auditable from device configuration.</p>
               </article>
               <article className="fw-card fw-card-none">
-                <span className="tag tag-blocked">Not mapped</span>
+                <span className="tag tag-muted">Not mapped</span>
                 <h3>Not claimed</h3>
                 <p>ISO/IEC 27001, CIS Controls v8 and DISA STIG are not mapped today.</p>
               </article>
@@ -527,8 +527,8 @@ export default function Home() {
         <section className="cta">
           <div className="wrap cta-inner reveal">
             <h2 className="display">Audit a configuration.</h2>
-            <p className="lede">Upload an exported device configuration and inspect the evidence behind every result.</p>
-            <a className="btn btn-accent btn-lg" href="#/app">Start an audit</a>
+            <p className="lede">Upload a device configuration and see what is wrong, what can be fixed and what needs you.</p>
+            <a className="btn btn-accent btn-lg" href="#/app">Start a scan</a>
           </div>
         </section>
       </main>
