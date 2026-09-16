@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import {
-  assessment, auditCounts, describeFact, deviceLabels, explainGate, nextStep, quotedCommands, deviceRows, parseUnifiedDiff, problems, resultState, sameInputs, STATE,
+  assessment, auditCounts, deviceLabels, explainGate, nextStep, quotedCommands, parseUnifiedDiff, problems, resultState, sayFact, STATE,
   stripLineNo, vendorState,
 } from './domain';
 
@@ -29,15 +29,7 @@ const SCAN = {
   ],
 };
 
-it('keeps devices with the same hostname apart and never derives risk from suspected findings', () => {
-  const rows = deviceRows(SCAN);
-  expect(rows.map((r) => [r.decisive, r.suspected, r.risk])).toEqual([
-    [0, 2, 'NOT ASSESSED'],
-    [0, 1, 'NOT ASSESSED'],
-    [0, 0, 'LOW'],
-    [1, 0, 'HIGH'],
-  ]);
-  expect(rows.map((r) => r.analysis)).toEqual(['Generic analysis', 'Generic analysis', 'Dedicated parser', 'Dedicated parser']);
+it('keeps devices with the same hostname apart', () => {
   expect(deviceLabels(SCAN.devices)).toEqual(['unknown (#1)', 'unknown (#2)', 'BRANCH-FGT-02 (#3)', 'BRANCH-FGT-02 (#4)']);
 });
 
@@ -58,12 +50,6 @@ it('distinguishes confirmed, unverified and unknown vendors', () => {
   expect(vendorState({ status: 'confirmed', detected_vendor: 'cisco_ios' })).toMatchObject({ key: 'confirmed', label: 'Cisco IOS · confirmed' });
   expect(vendorState({ status: 'unverified', detected_vendor: 'fortinet' }).label).toBe('Resembles FortiGate · unverified');
   expect(vendorState(undefined)).toMatchObject({ key: 'unknown', path: 'Generic analysis path' });
-});
-
-it('compares remediation inputs ignoring empty fields', () => {
-  expect(sameInputs({ syslog_server: '10.0.0.1', ntp_server: '' }, { syslog_server: '10.0.0.1' })).toBe(true);
-  expect(sameInputs({ syslog_server: '10.0.0.2' }, { syslog_server: '10.0.0.1' })).toBe(false);
-  expect(sameInputs({}, { syslog_server: '10.0.0.1' })).toBe(false);
 });
 
 it('reads real line numbers from a unified diff', () => {
@@ -152,14 +138,14 @@ it('counts problems once per control per configuration and keeps review, remedia
 });
 
 it('puts a reading into plain words built only from what the backend read', () => {
-  expect(describeFact({ predicate: 'mgmt.remote_access.protocol_enabled', subject: 'telnet', value: true }))
-    .toBe('This line turns on Telnet remote access.');
-  expect(describeFact({ predicate: 'time.ntp.server', value: ['10.0.0.1'] })).toBe('This line uses NTP server 10.0.0.1.');
+  expect(sayFact({ predicate: 'mgmt.remote_access.protocol_enabled', subject: 'telnet', value: true }))
+    .toBe('turns on Telnet remote access');
+  expect(sayFact({ predicate: 'time.ntp.server', value: ['10.0.0.1'] })).toBe('uses NTP server 10.0.0.1');
   // a timeout read without its unit is stated without one
-  expect(describeFact({ predicate: 'mgmt.session.idle_timeout', value: 600 })).toBe('This line sets an idle session timeout (600).');
+  expect(sayFact({ predicate: 'mgmt.session.idle_timeout', value: 600 })).toBe('sets an idle session timeout (600)');
   // a value the sentence cannot state is not guessed
-  expect(describeFact({ predicate: 'mgmt.remote_access.protocol_enabled', subject: 'telnet', value: null })).toBeNull();
-  expect(describeFact({ predicate: 'made.up', value: true })).toBeNull();
+  expect(sayFact({ predicate: 'mgmt.remote_access.protocol_enabled', subject: 'telnet', value: null })).toBeNull();
+  expect(sayFact({ predicate: 'made.up', value: true })).toBeNull();
 });
 
 it('explains safety-gate failures in plain English without internal terms', () => {

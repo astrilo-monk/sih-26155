@@ -59,34 +59,6 @@ export function deviceLabels(devices = []) {
 }
 
 // Risk comes from decisive findings only; suspected findings are counted apart
-export function deviceRows(scan) {
-  const findings = scan?.findings || [];
-  const results = scan?.results || [];
-  return (scan?.devices || []).map((device, index) => {
-    const ident = (scan.vendor_identification || []).find((v) => v.config_index === index);
-    const own = findings.filter((f) => (f.config_index ?? 0) === index);
-    const decisive = own.filter((f) => !isProvisional(f));
-    const assessed = results.some((r) => r.config_index === index && isDecisive(r));
-    let risk = 'NOT ASSESSED';
-    if (assessed) {
-      risk = 'LOW';
-      for (const [severity, label] of [['critical', 'CRITICAL'], ['high', 'HIGH'], ['medium', 'MEDIUM']]) {
-        if (decisive.some((f) => f.severity === severity)) { risk = label; break; }
-      }
-    }
-    return {
-      index,
-      hostname: device.hostname,
-      vendor: device.vendor,
-      decisive: decisive.length,
-      suspected: own.length - decisive.length,
-      risk,
-      identification: ident,
-      analysis: ident?.status === 'confirmed' ? 'Dedicated parser'
-        : ident?.status === 'unverified' ? 'Generic analysis (vendor unverified)' : 'Generic analysis',
-    };
-  });
-}
 
 const VENDOR_NAMES = { cisco_ios: 'Cisco IOS', fortinet: 'FortiGate', unknown: 'Unknown' };
 export const vendorName = (v) => VENDOR_NAMES[v] || (v ? v.replace(/_/g, ' ') : 'Unknown');
@@ -226,31 +198,26 @@ const STORAGE = { plaintext: 'plain text', type7: 'weak reversible encryption (t
   type8: 'a PBKDF2 hash (type 8)', type9_scrypt: 'a strong scrypt hash (type 9)', type9: 'a strong scrypt hash (type 9)' };
 
 export const MEANING = {
-  'mgmt.remote_access.protocol_enabled': { topic: 'Remote access', say: (s, v) => onOff(v, `turns on ${PROTOCOLS[s] || s} remote access`, `turns off ${PROTOCOLS[s] || s} remote access`) },
-  'mgmt.remote_access.source_restricted': { topic: 'Access control', say: (s, v) => onOff(v, 'limits which addresses can manage the device', 'lets any address manage the device') },
-  'mgmt.ssh.version': { topic: 'Remote access', say: (s, v) => (v != null ? `sets the SSH version to ${v}` : null) },
-  'mgmt.session.idle_timeout': { topic: 'Remote access', say: (s, v) => (v != null ? `sets an idle session timeout (${v})` : null) }, // the reading carries no unit: none is claimed
-  'auth.central_aaa.enabled': { topic: 'Authentication', say: (s, v) => onOff(v, 'turns on central authentication (AAA)', 'turns off central authentication (AAA)') },
-  'auth.password.storage': { topic: 'Authentication', say: (s, v) => (v ? `stores the ${s ? `${s.replace(/^user /, 'user ')} ` : ''}password as ${STORAGE[v] || v}` : null) },
-  'auth.password.encryption_service': { topic: 'Authentication', say: (s, v) => onOff(v, 'turns on password encryption', 'turns off password encryption') },
-  'snmp.community': { topic: 'Monitoring (SNMP)', say: () => 'configures an SNMP community' },
-  'log.remote.destination': { topic: 'Logging', say: (s, v) => (list(v) ? `sends logs to ${list(v)}` : 'configures remote logging') },
-  'time.ntp.server': { topic: 'Time (NTP)', say: (s, v) => (list(v) ? `uses NTP server ${list(v)}` : 'configures an NTP server') },
-  'time.ntp.authenticated': { topic: 'Time (NTP)', say: (s, v) => onOff(v, 'turns on NTP authentication', 'turns off NTP authentication') },
-  'banner.login.present': { topic: 'Login banner', say: (s, v) => onOff(v, 'shows a login banner', 'removes the login banner') },
-  'boundary.source_routing.enabled': { topic: 'Traffic rules', say: (s, v) => onOff(v, 'allows IP source routing', 'blocks IP source routing') },
-  'boundary.discovery_protocol.enabled': { topic: 'Device discovery', say: (s, v) => onOff(v, `turns on ${PROTOCOLS[s] || s} device discovery`, `turns off ${PROTOCOLS[s] || s} device discovery`) },
-  'boundary.policy.permit_any': { topic: 'Traffic rules', say: (s, v) => onOff(v, 'allows all traffic (any source to any destination)', 'does not allow all traffic') },
-  'crypto.ipsec.proposal': { topic: 'VPN encryption', say: () => 'sets VPN encryption settings' },
+  'mgmt.remote_access.protocol_enabled': { say: (s, v) => onOff(v, `turns on ${PROTOCOLS[s] || s} remote access`, `turns off ${PROTOCOLS[s] || s} remote access`) },
+  'mgmt.remote_access.source_restricted': { say: (s, v) => onOff(v, 'limits which addresses can manage the device', 'lets any address manage the device') },
+  'mgmt.ssh.version': { say: (s, v) => (v != null ? `sets the SSH version to ${v}` : null) },
+  'mgmt.session.idle_timeout': { say: (s, v) => (v != null ? `sets an idle session timeout (${v})` : null) }, // the reading carries no unit: none is claimed
+  'auth.central_aaa.enabled': { say: (s, v) => onOff(v, 'turns on central authentication (AAA)', 'turns off central authentication (AAA)') },
+  'auth.password.storage': { say: (s, v) => (v ? `stores the ${s ? `${s.replace(/^user /, 'user ')} ` : ''}password as ${STORAGE[v] || v}` : null) },
+  'auth.password.encryption_service': { say: (s, v) => onOff(v, 'turns on password encryption', 'turns off password encryption') },
+  'snmp.community': { say: () => 'configures an SNMP community' },
+  'log.remote.destination': { say: (s, v) => (list(v) ? `sends logs to ${list(v)}` : 'configures remote logging') },
+  'time.ntp.server': { say: (s, v) => (list(v) ? `uses NTP server ${list(v)}` : 'configures an NTP server') },
+  'time.ntp.authenticated': { say: (s, v) => onOff(v, 'turns on NTP authentication', 'turns off NTP authentication') },
+  'banner.login.present': { say: (s, v) => onOff(v, 'shows a login banner', 'removes the login banner') },
+  'boundary.source_routing.enabled': { say: (s, v) => onOff(v, 'allows IP source routing', 'blocks IP source routing') },
+  'boundary.discovery_protocol.enabled': { say: (s, v) => onOff(v, `turns on ${PROTOCOLS[s] || s} device discovery`, `turns off ${PROTOCOLS[s] || s} device discovery`) },
+  'boundary.policy.permit_any': { say: (s, v) => onOff(v, 'allows all traffic (any source to any destination)', 'does not allow all traffic') },
+  'crypto.ipsec.proposal': { say: () => 'sets VPN encryption settings' },
 };
 
 // "This line turns on Telnet remote access." — or null when the reading can't be put into words
 export const sayFact = ({ predicate, subject, value } = {}) => MEANING[predicate]?.say(subject, value) || null;
-export function describeFact(fact) {
-  const said = sayFact(fact);
-  return said ? `This line ${said}.` : null;
-}
-export const factTopic = (predicate) => MEANING[predicate]?.topic || 'Other setting';
 
 // The backend's recognizer safety gates, in plain English. The original message stays available under
 // Advanced details; nothing here decides whether saving is allowed — the backend does.
@@ -346,15 +313,6 @@ export function quotedCommands(...texts) {
     }
   }
   return [...seen];
-}
-
-const filled = (values) => Object.fromEntries(Object.entries(values || {}).filter(([, v]) => v !== '' && v != null));
-
-// True when two remediation input sets are the same once empty fields are ignored
-export function sameInputs(a, b) {
-  const x = filled(a);
-  const y = filled(b);
-  return Object.keys(x).length === Object.keys(y).length && Object.keys(x).every((k) => x[k] === y[k]);
 }
 
 // Evidence lines can arrive as "  70: text"; the gutter already shows 70
