@@ -16,7 +16,7 @@ Start from an empty recognizer database for a clean replay (`ADAPTIVE_DB_PATH` p
    *critical not assessed: MGMT-005* — the FortiGate parser does not read password storage, and the tool says so.
 6. **Upload `sample/unknown.cfg`.** Analysis Path: *unknown*, generic tokenizer, remediation blocked. Posture "—",
    coverage 0. Provisional results: *Suspected FAIL* Telnet on lines 70–71 with evidence, never scored.
-7. **Review & Recognizers.** Confirm line 71 for MGMT-001: drafted template `remote-console protocol {enum:protocol}`,
+7. **Teach.** Confirm line 71 for MGMT-001: drafted template `remote-console protocol {enum:protocol}`,
    gates, replay diff. Save: MGMT-001 becomes a decisive *confirmed* FAIL, coverage rises, zero AI calls.
 8. **Restart the backend and upload `sample/unknown.cfg` again.** The recognizer is reused from SQLite: still decisive,
    still no AI. Upload `sample/paloalto.cfg`: generic analysis, provisional results, no invented parser, no remediation.

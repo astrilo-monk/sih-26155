@@ -42,7 +42,8 @@ plan.md                       phase-by-phase implementation record
 
 ## Frontend workflow
 
-New Scan → loading steps → **Overview** (posture, coverage, critical not assessed, analysis path per device,
-provisional results, findings) → **Devices** → **Findings** (evidence, mappings, remediation drawer) →
-**Frameworks** → **Remediation** (plan, inputs, diffs, checks, verified download) → **Review & Recognizers**
-(provisional lines, drafts, replay, stored recognizers; legacy review queue) → **History** (browser summaries).
+Scan (upload) → **Results** overview (posture, coverage, critical not assessed, what to do now, problems with
+evidence) → **Fix** (fix automatically, needs your input, manual action, cannot safely fix; verified download) →
+**Teach** (plain-language questions about unfamiliar lines; drafts, gates and replay under Advanced details) →
+**All checks**, **Devices**, **Frameworks** → **Learned** (stored recognizers; legacy review queue) →
+**History** (browser summaries).

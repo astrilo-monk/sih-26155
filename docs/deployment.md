@@ -18,5 +18,5 @@ If we were to take this to production:
 1. Containerize backend and frontend using Docker.
 2. Add a database such as PostgreSQL for persistent scan storage.
 3. Deploy to a managed service like AWS Fargate or Google Cloud Run.
-4. Implement proper user authentication and RBAC, including on the Review & Recognizers (`/api/adaptive/*`) endpoints, so companies can isolate their scan data.
+4. Implement proper user authentication and RBAC, including on the adaptive (`/api/adaptive/*`) endpoints, so companies can isolate their scan data.
 5. Restrict CORS, which is currently open to all origins.

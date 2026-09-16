@@ -29,15 +29,17 @@ Two live Groq tests in `test_adaptive_generic.py` are skipped unless `NETAUDIT_L
 
 | Area | Tests |
 |---|---|
-| Review queue, learned mappings, counters refreshed after a recognizer is saved, expired scan | `components/AdaptiveTraining.test.jsx` |
-| Recognizer confirmation | `components/RecognizerQueue.test.jsx` |
-| Remediation statuses, inputs, download only of the reviewed plan, one plan request per scan | `components/RemediationQueue.test.jsx` |
-| Framework view | `components/FrameworkView.test.jsx` |
-| Posture never shown as a full assessment without full coverage | `components/ScoreOverview.test.jsx` |
-| Devices by `config_index`, risk from decisive findings only | `components/DeviceInfo.test.jsx` |
-| Remediation targets the finding's own upload | `components/FindingDetail.test.jsx` |
-| Expired history entries | `components/HistoryView.test.jsx` |
-| Empty states without a scan | `App.test.jsx` |
+| Backend state to user-facing state, counts, next step, plain-language readings, safety-gate wording | `lib/domain.test.js` |
+| Results overview: posture never overstated, honest counts, questions, undecided checks | `app/Results.test.jsx` |
+| Fix: the four remediation classes, inputs, verified fix, download of verified changes only | `app/Fix.test.jsx` |
+| Teach: plain meaning questions, safety-gate failures in plain English, saved recognizer | `app/Teach.test.jsx` |
+| Finding drawer: evidence, assurance, no invented commands | `app/FindingDrawer.test.jsx` |
+| Framework view | `app/Frameworks.test.jsx` |
+| Expired history entries | `app/History.test.jsx` |
+| Legacy review queue | `app/LegacyInterpretations.test.jsx` |
+| Homepage claims, entering the application, expired scan | `App.test.jsx` |
+| Shared hooks (reveal, sequence, reduced motion) | `lib/hooks.test.jsx` |
+| Evidence and status primitives | `components/ui/ui.test.jsx` |
 | Summary-only history | `utils/history.test.js` |
 | Mapping form validation | `utils/adaptiveValidation.test.js` |
 
@@ -48,7 +50,7 @@ cd backend
 venv\Scripts\python -m pytest tests -q     # 853 passed, 2 skipped
 
 cd ..\frontend
-npm test                                    # 34 passed
+npm test                                    # 66 passed
 npm run build
 ```
 

@@ -57,7 +57,7 @@ flowchart TD
     Controls -->|UNKNOWN / NOT_CONFIGURED, unknown vendor| Judge[AI judge]
     Judge --> Verify[Deterministic citation verifier]
     Verify -->|AI_VERIFIED, provisional| Controls
-    Controls --> Review[Review & Recognizers UI]
+    Controls --> Review[Teach UI]
     Review -->|admin confirms| DB[(SQLite)]
     DB --> Recognizers
     Controls -->|decisive FAIL, confirmed vendor| Remediation[Deterministic recipes]
@@ -186,7 +186,7 @@ completes.
 
 ## 8. Human-in-the-loop: recognizers
 
-1. The scan lists provisional results (heuristic lines and verified AI proposals) in **Review & Recognizers**.
+1. The scan lists provisional results (heuristic lines and verified AI proposals) on the **Teach** page.
 2. The administrator confirms a line; the backend drafts a recognizer: a typed-slot template
    (`{int}`, `{ip}`, `{duration[:unit]}`, `{enum:name}`, `{polarity}`, `{any}`; never raw regex), predicate,
    subject, optional scope template, dialect fingerprint and value table.
