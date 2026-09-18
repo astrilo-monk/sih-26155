@@ -52,5 +52,5 @@ plan.md                       phase-by-phase implementation record
 Scan (upload) → **Results** overview (posture, coverage, critical not assessed, what to do now, problems with
 evidence) → **Fix** (fix automatically, needs your input, manual action, cannot safely fix; verified download) →
 **Teach** (plain-language questions about unfamiliar lines; drafts, gates and replay under Advanced details) →
-**All checks**, **Devices**, **Frameworks** → **Learned** (stored recognizers; legacy review queue) →
+**All checks**, **Devices**, **Frameworks** → **Learned** (shipped and taught recognizers; legacy review queue) →
 **History** (browser summaries).

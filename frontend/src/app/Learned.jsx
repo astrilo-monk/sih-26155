@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { apiClient } from '../api/client';
 import { sayFact } from '../lib/domain';
 
-const FILTERS = [['active', 'In use'], ['inactive', 'Stopped'], ['all', 'All']];
+const FILTERS = [['active', 'In use'], ['taught', 'Taught here'], ['shipped', 'Shipped'], ['inactive', 'Stopped'], ['all', 'All']];
+const isSeed = (m) => m.source === 'seed';
 const fmtDate = (s) => (s ? new Date(s).toLocaleString() : '—');
 
 // A stored value, when it is a plain constant the sentence can state (enum tables are left to Advanced details)
@@ -31,6 +32,7 @@ function Advanced({ m }) {
           <dt>Dialect</dt><dd>{keywords.length ? <span className="mono small">{keywords.join(' ')}</span> : 'Any dialect'}</dd>
           <dt>Vendor</dt><dd>{m.vendor || 'Any'}</dd>
           {m.negatives?.length > 0 && <><dt>Never matches</dt><dd className="mono">{m.negatives.join(' · ')}</dd></>}
+          <dt>Where it came from</dt><dd>{isSeed(m) ? 'Shipped with NetAuditAI (reviewed seed knowledge)' : 'Taught on this deployment'}</dd>
           <dt>Confirmed by a person</dt><dd>{m.confirmed ? 'Yes' : 'No'}</dd>
         </dl>
       )}
@@ -38,8 +40,9 @@ function Advanced({ m }) {
   );
 }
 
-// What NetAuditAI has learned. Every entry exists because a person confirmed what a line means; it was checked
-// before saving, is stored persistently, and is reused on every later scan. Stopping one keeps it for the record.
+// What NetAuditAI knows. Entries are either shipped seed knowledge — recognizers reviewed and released with the
+// product — or lines someone taught here. Both were checked before saving, are stored persistently, and are reused
+// on every later scan. Stopping one keeps it for the record.
 export default function Learned() {
   const [items, setItems] = useState(null);
   const [error, setError] = useState(null);
@@ -73,17 +76,22 @@ export default function Learned() {
   };
 
   const all = items || [];
-  const inFilter = (id) => (m) => id === 'all' || (id === 'active' ? m.active : !m.active);
+  const inFilter = (id) => (m) => {
+    if (id === 'all') return true;
+    if (id === 'active') return m.active;
+    if (id === 'inactive') return !m.active;
+    return m.active && (id === 'shipped' ? isSeed(m) : !isSeed(m));
+  };
   const shown = all.filter(inFilter(filter));
 
   return (
     <div className="wrap learned enter">
       <header className="page-head">
         <p className="eyebrow">Learned</p>
-        <h1 className="page-title">What NetAuditAI has learned</h1>
+        <h1 className="page-title">What NetAuditAI knows</h1>
         <p className="lede">
-          Each item is a configuration line someone taught NetAuditAI. It was checked before it was saved, and every future
-          scan uses it — even after a restart.
+          Each item is a configuration line NetAuditAI can read decisively. Some ship with the product; the rest were taught
+          here. Either way it was checked before it was saved, and every future scan uses it — even after a restart.
         </p>
       </header>
 
@@ -122,7 +130,8 @@ export default function Learned() {
                   <code className="learned-line">{m.example_line || m.command_pattern}</code>
                   <p className="learned-meaning">{said ? `Lines like this ${said}.` : `Used to check: ${m.concept}`}</p>
                   <p className="small muted">
-                    {said && `Used to check: ${m.concept} · `}{m.active ? 'In use' : 'Stopped'} · learned {fmtDate(m.created_at)}
+                    {said && `Used to check: ${m.concept} · `}{m.active ? 'In use' : 'Stopped'} ·{' '}
+                    {isSeed(m) ? `shipped with NetAuditAI${m.vendor ? ` · ${m.vendor} syntax` : ''}` : `taught here ${fmtDate(m.created_at)}`}
                   </p>
                 </div>
                 {m.active && (

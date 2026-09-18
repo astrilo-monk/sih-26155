@@ -2,7 +2,9 @@
 
 Backend tests use `pytest`; frontend tests use Vitest with Testing Library. No test needs a network or an API key:
 the AI judge transport is patched in every test (`backend/tests/conftest.py`), and each test gets its own temporary
-SQLite database.
+SQLite database. That database is empty by default — **including of the shipped seed recognizers** — so the rest of
+the suite keeps proving what the generic engine works out on its own. Tests about seed knowledge ask for the
+production default with the `seeded_adaptive_db` fixture.
 
 ## Backend (`backend/tests/`)
 
@@ -20,6 +22,7 @@ SQLite database.
 | Phase 9 — framework views, recognizer persistence across a restart, secret-free stores | `test_phase9_frameworks_persistence.py` |
 | Candidate remediation for unconfirmed vendors: eligibility, validation, simulation on a copy, verified / rejected / unverified, human confirmation, AI answer shape and prompt redaction, no vendor branch | `test_candidate_remediation.py` |
 | Generic engine on hierarchical, terminator-separated dialects | `test_generic_hierarchical.py` |
+| Shipped seed knowledge: loading on a fresh database, idempotence, never overwriting what was taught, generalization across five dialects, no accidental or secret matches, unchanged Cisco / FortiGate and unknown-vendor behaviour, the fresh-deployment demo and teaching on top of it | `test_seed_knowledge.py`, fixtures in `tests/fixtures/seed_dialects/` |
 | Parsers, pipeline, ACLs | `test_pipeline.py`, `test_cisco_acl.py` |
 | Adaptive layer and legacy interpreter, learned mappings, review API | `test_adaptive.py`, `test_adaptive_generic.py`, `test_adaptive_api_integration.py`, `test_phase3_adaptive_mapper.py`, `test_phase3_e2e.py`, `test_phase4_review_api.py`, `test_phase5_learned_mappings.py` |
 | Settings, Groq key rotation | `test_config_loading.py`, `test_ai_client_key_rotation.py` |

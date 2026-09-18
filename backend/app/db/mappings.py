@@ -67,8 +67,11 @@ EDITABLE_FIELDS = frozenset({
 _COLUMNS = (
     "concept", "normalized_field", "vendor", "command_pattern", "extraction_method", "expected_value_type",
     "constant_value", "confidence", "confirmed", "active", "example_line", "predicate", "subject",
-    "scope_template", "dialect_fingerprint", "negatives",
+    "scope_template", "dialect_fingerprint", "negatives", "source",
 )
+
+SOURCE_RUNTIME = "runtime"
+SOURCE_SEED = "seed"
 
 
 class MappingValidationError(ValueError):
@@ -118,6 +121,8 @@ class LearnedMapping:
     dialect_fingerprint: Optional[str] = None
     # Normalized lines the recognizer must never match
     negatives: list[str] = field(default_factory=list)
+    # "runtime" = learned from an administrator, "seed" = shipped knowledge (app.facts.seed)
+    source: str = SOURCE_RUNTIME
 
 
 def _now() -> str:
@@ -146,6 +151,7 @@ def _row_to_mapping(row) -> LearnedMapping:
         scope_template=row["scope_template"],
         dialect_fingerprint=row["dialect_fingerprint"],
         negatives=json.loads(row["negatives"] or "[]"),
+        source=row["source"] or SOURCE_RUNTIME,
     )
 
 

@@ -1,7 +1,8 @@
 # Demo Script (SIH)
 
 Uses files in the repository. Run with AI off (no Groq key) unless step 9 is shown; check the Groq quota first if it is.
-Start from an empty recognizer database for a clean replay (`ADAPTIVE_DB_PATH` pointing at a new file).
+Start from an empty recognizer database for a clean replay (`ADAPTIVE_DB_PATH` pointing at a new file). A new file
+is not empty for long: the shipped seed recognizers load into it on first use, which is what steps 6a and 8 show.
 
 1. **Problem.** Multi-vendor configurations are audited by hand; a tool that guesses is worse than none.
 2. **Upload `backend/tests/fixtures/cisco_vulnerable.cfg`.** The **Results** overview names the device
@@ -20,10 +21,14 @@ Start from an empty recognizer database for a clean replay (`ADAPTIVE_DB_PATH` p
 7. **Teach.** The page asks in plain language what an unfamiliar line means. Confirm line 71 for MGMT-001: drafted template `remote-console protocol {enum:protocol}`,
    gates, replay diff. Save: MGMT-001 becomes a decisive *confirmed* FAIL, coverage rises, zero AI calls.
 8. **Restart the backend and upload `sample/unknown.cfg` again.** The recognizer is reused from SQLite (see **Learned**): still decisive,
-   still no AI. Upload `sample/paloalto.cfg`: generic analysis, provisional results, no invented parser, no remediation.
-9. **Upload `sample/juniper.cfg` and teach its `telnet;` line** (same Teach flow as step 7; the drafted template is
-   `telnet` scoped to `services`). MGMT-001 becomes a decisive *confirmed* FAIL on a device whose vendor is still
-   honestly `unknown`.
+   still no AI. Upload `sample/paloalto.cfg`: still generic analysis and no invented parser, but Telnet, HTTP
+   management and the syslog servers are already decisive — that is shipped seed knowledge, not learning. Open
+   **Learned** and switch between *Shipped* and *Taught here*.
+9. **Upload `backend/tests/fixtures/seed_dialects/huawei.conf`** — a dialect nobody taught this deployment. Five
+   controls are answered decisively out of the box (Telnet, HTTP management, session timeout, remote syslog, NTP),
+   coverage is above 0, and every one cites a real line. The login banner stays `NOT_CONFIGURED` rather than being
+   guessed. Now **teach** the SSH-version line under **Teach**: the taught recognizer and the shipped ones are used
+   side by side on the rescan. See [seed-knowledge.md](seed-knowledge.md).
 10. **Fix, for the unconfirmed vendor.** The problem is **"Needs administrator input"**, not a dead end. Press
     *Generate candidate fix* (AI on) or *Enter command manually* and type `delete system services telnet;`. The
     candidate is labelled **AI-generated candidate · Not checked yet** and NetAuditAI has changed nothing.

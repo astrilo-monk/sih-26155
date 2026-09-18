@@ -3,6 +3,10 @@ Shared pytest fixtures.
 
 Every test gets its own empty learned-mapping database so tests never read
 or pollute the real ``backend/data/adaptive.db``.
+
+"Empty" includes the shipped seed recognizers (``app.facts.seed``): a test that asserts what the
+generic engine works out on its own must not have seed knowledge answering for it. Tests about seed
+knowledge ask for it with the ``seeded_adaptive_db`` fixture, which is the production default.
 """
 
 import sys
@@ -17,9 +21,23 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 def isolated_adaptive_db(tmp_path, monkeypatch):
     import app.config as app_config
 
+    from app.db import database
+
     db_path = tmp_path / "adaptive.db"
     monkeypatch.setattr(app_config.settings, "adaptive_db_path", db_path)
-    return db_path
+    # marking the path as already seeded is what keeps the shipped recognizers out
+    monkeypatch.setattr(database, "_SEEDED", {db_path})
+    yield db_path
+
+
+@pytest.fixture
+def seeded_adaptive_db(isolated_adaptive_db, monkeypatch):
+    """The isolated database as a fresh deployment sees it: shipped seed recognizers loaded."""
+    from app.db import database
+
+    monkeypatch.setattr(database, "_SEEDED", set())
+    database.init_db(isolated_adaptive_db)
+    return isolated_adaptive_db
 
 
 @pytest.fixture(autouse=True)

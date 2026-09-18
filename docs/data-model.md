@@ -36,7 +36,8 @@ A `Finding` (`app/models/findings.py`) is the view of a FAIL result used by the 
 ## `LearnedMapping` — `app/db/mappings.py`
 Row of SQLite `learned_mappings`. A **recognizer** has `extraction_method = "recognizer"`, `command_pattern`
 (typed-slot template), `predicate`, `subject`, `scope_template`, `dialect_fingerprint`, `negatives`,
-`constant_value` (JSON value or enum table), `example_line`, `confirmed`, `active`. Learned field mappings (legacy
+`constant_value` (JSON value or enum table), `example_line`, `confirmed`, `active`, and `source`
+(`seed` = shipped knowledge from `backend/data/seed_recognizers.json`, `runtime` = taught on this deployment). Learned field mappings (legacy
 review queue) use `normalized_field` instead of a predicate.
 
 ## Remediation — `app/remediation/engine.py`

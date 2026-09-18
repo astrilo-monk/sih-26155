@@ -423,6 +423,8 @@ class LearnedMappingSchema(BaseModel):
     scope_template: Optional[str] = None
     dialect_fingerprint: Optional[str] = None
     negatives: list[str] = []
+    # "seed" = shipped knowledge, "runtime" = confirmed by an administrator on this deployment
+    source: str = "runtime"
 
 
 # ── Recognizers (Phase 6) ────────────────────────────────────────────────────

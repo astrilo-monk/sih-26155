@@ -175,7 +175,8 @@ scan = client.post("/api/scan", files=[("files", ("unknown.cfg", text, "text/pla
 r = next(r for r in scan["results"] if r["control_id"] == "MGMT-001")
 print(json.dumps({"status": r["status"], "assurance": r["assurance"], "lines": r["evidence"]["line_numbers"],
                   "ai_calls": scan["adaptive"]["ai_calls"], "coverage": scan["coverage"],
-                  "recognizers": len(client.get("/api/adaptive/mappings").json())}))
+                  "recognizers": len([m for m in client.get("/api/adaptive/mappings").json()
+                                      if m["source"] == "runtime"])}))
 """
 
 
@@ -194,6 +195,7 @@ def test_confirmed_recognizer_survives_restart_and_is_reused_by_a_new_scan(tmp_p
     first = _backend_process(_SAVE, db)
     assert first == {"status": 200, "before": "heuristic"}
 
+    # a real backend process, so the shipped seed recognizers are loaded too: count only what was learned here
     second = _backend_process(_RESCAN, db)  # new process, empty scan store
     assert second == {"status": "fail", "assurance": "confirmed", "lines": [70, 71], "ai_calls": 0,
                       "coverage": second["coverage"], "recognizers": 1}

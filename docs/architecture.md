@@ -144,7 +144,7 @@ Sources and assurance:
 | Source | Assurance | Decisive |
 |---|---|---|
 | Confirmed vendor parser (`from_normalized.py`) | `parser` | yes |
-| Administrator-confirmed recognizer or learned mapping | `confirmed` | yes |
+| Recognizer (shipped seed or administrator-confirmed) or learned mapping | `confirmed` | yes |
 | Documented default of a confirmed vendor | `default` | yes |
 | Lexicon heuristic | `heuristic` | no |
 | AI judge proposal that passed verification | `ai_verified` | no |
@@ -212,6 +212,16 @@ completes.
 
 ## 8. Human-in-the-loop: recognizers
 
+A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships 23 reviewed recognizers for
+five dialects that have no dedicated parser (Junos, PAN-OS, Arista EOS, Huawei VRP, RouterOS);
+`app/facts/seed.py` loads them into SQLite the first time a process opens the database. They pass the same gates
+listed below, are decisive in the same way, and are marked `source = "seed"` so shipped knowledge and what this
+deployment was taught stay distinguishable. Loading is idempotent and never overwrites or revives a row an
+administrator changed or stopped. This is shipped knowledge, not training: nothing is inferred or written back.
+See [seed-knowledge.md](seed-knowledge.md).
+
+Everything below is how an administrator adds to it.
+
 1. The scan lists provisional results (heuristic lines and verified AI proposals) on the **Teach** page.
 2. The administrator confirms a line; the backend drafts a recognizer: a typed-slot template
    (`{int}`, `{ip}`, `{duration[:unit]}`, `{enum:name}`, `{polarity}`, `{any}`; never raw regex), predicate,
@@ -238,7 +248,7 @@ administrator; AI output never becomes a recognizer by itself.
 
 | Store | Contents | Survives restart | Secrets |
 |---|---|---|---|
-| SQLite `learned_mappings` | Recognizers and learned field mappings | Yes | Refused at save |
+| SQLite `learned_mappings` | Recognizers (shipped `seed` and taught `runtime`) and learned field mappings | Yes | Refused at save |
 | SQLite `rejected_lines` | Rejected lines (redacted text, key from the redacted line) | Yes | Redacted |
 | SQLite `ai_judge_cache` | Verified AI answers keyed by a hash of the redacted prompt | Yes | Prompts were redacted |
 | Backend memory (`_scan_store`) | Scan results, parsed configurations | No | — |
@@ -246,7 +256,8 @@ administrator; AI output never becomes a recognizer by itself.
 
 The database path is `ADAPTIVE_DB_PATH` (default `backend/data/adaptive.db`); migrations are tracked with
 `PRAGMA user_version`. Uploaded files are never written to disk. `tests/test_phase9_frameworks_persistence.py`
-saves a recognizer in one Python process and proves a second process reuses it.
+saves a recognizer in one Python process and proves a second process reuses it;
+`tests/test_seed_knowledge.py` proves the same for shipped seed knowledge alongside it.
 
 ## 10. Remediation
 

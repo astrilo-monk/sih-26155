@@ -65,7 +65,17 @@ MIGRATIONS: list[str] = [
         created_at  TEXT NOT NULL
     );
     """,
+    # v4 — provenance of a mapping: 'seed' = shipped knowledge (backend/data/seed_recognizers.json),
+    # 'runtime' = learned from an administrator. Seeding never touches a runtime row.
+    """
+    ALTER TABLE learned_mappings ADD COLUMN source TEXT NOT NULL DEFAULT 'runtime';
+    """,
 ]
+
+
+# Databases this process has already offered the shipped seed knowledge to (loading is idempotent
+# anyway; this keeps it off the per-connection path).
+_SEEDED: set[Path] = set()
 
 
 def resolve_db_path(db_path: Path | str | None = None) -> Path:
@@ -87,6 +97,13 @@ def init_db(db_path: Path | str | None = None) -> Path:
         conn.commit()
     finally:
         conn.close()
+
+    if path not in _SEEDED:
+        # Marked before loading: the loader opens its own connection and lands back here.
+        _SEEDED.add(path)
+        from app.facts.seed import load_seed_recognizers
+
+        load_seed_recognizers(path)
     return path
 
 

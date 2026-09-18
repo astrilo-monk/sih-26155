@@ -1,0 +1,201 @@
+{
+  "_README": [
+    "Shipped seed knowledge: recognizers NetAuditAI ships with, so a fresh deployment already reads",
+    "common security settings in unfamiliar vendor syntax before an administrator teaches anything.",
+    "Each entry is loaded through the same gates as an administrator-confirmed recognizer",
+    "(app.facts.recognizers.validate_recognizer) and stored in SQLite with source='seed'.",
+    "These dialects have NO dedicated parser and stay unconfirmed/generic: 'vendor' is a label only.",
+    "Adding one: see docs/seed-knowledge.md. Never put a secret, a hostname or an address in a template."
+  ],
+  "recognizers": [
+    {
+      "concept": "Telnet service",
+      "vendor": "Juniper Junos",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "telnet",
+      "command_pattern": "telnet",
+      "scope_template": "services",
+      "constant_value": "true",
+      "example_line": "telnet;"
+    },
+    {
+      "concept": "HTTP management",
+      "vendor": "Juniper Junos",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "http",
+      "command_pattern": "http",
+      "scope_template": "web-management",
+      "constant_value": "true",
+      "example_line": "http;"
+    },
+    {
+      "concept": "SSH protocol version",
+      "vendor": "Juniper Junos",
+      "predicate": "mgmt.ssh.version",
+      "command_pattern": "protocol-version {int}",
+      "scope_template": "ssh",
+      "example_line": "protocol-version v2;"
+    },
+    {
+      "concept": "NTP server",
+      "vendor": "Juniper Junos",
+      "predicate": "time.ntp.server",
+      "command_pattern": "server {ip}",
+      "scope_template": "ntp",
+      "example_line": "server 192.0.2.10;"
+    },
+    {
+      "concept": "Remote syslog destination",
+      "vendor": "Juniper Junos",
+      "predicate": "log.remote.destination",
+      "command_pattern": "host {ip}",
+      "scope_template": "syslog",
+      "example_line": "host 192.0.2.20;"
+    },
+    {
+      "concept": "Session idle timeout",
+      "vendor": "Juniper Junos",
+      "predicate": "mgmt.session.idle_timeout",
+      "command_pattern": "idle-timeout {duration:min}",
+      "scope_template": "class {any}",
+      "example_line": "idle-timeout 10;"
+    },
+    {
+      "concept": "LLDP discovery protocol",
+      "vendor": "Juniper Junos",
+      "predicate": "boundary.discovery_protocol.enabled",
+      "subject": "lldp",
+      "command_pattern": "lldp",
+      "scope_template": "protocols",
+      "constant_value": "true",
+      "example_line": "lldp {"
+    },
+    {
+      "concept": "Telnet service",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "telnet",
+      "command_pattern": "set deviceconfig system service disable-telnet {enum:disabled}",
+      "constant_value": "{\"no\": true, \"false\": true, \"yes\": false, \"true\": false}",
+      "example_line": "set deviceconfig system service disable-telnet no"
+    },
+    {
+      "concept": "HTTP management",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "http",
+      "command_pattern": "set deviceconfig system service disable-http {enum:disabled}",
+      "constant_value": "{\"no\": true, \"false\": true, \"yes\": false, \"true\": false}",
+      "example_line": "set deviceconfig system service disable-http no"
+    },
+    {
+      "concept": "Session idle timeout",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "mgmt.session.idle_timeout",
+      "command_pattern": "set deviceconfig setting management idle-timeout {duration:min}",
+      "example_line": "set deviceconfig setting management idle-timeout 30"
+    },
+    {
+      "concept": "Remote syslog destination",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "log.remote.destination",
+      "command_pattern": "set deviceconfig system syslog-server {ip}",
+      "example_line": "set deviceconfig system syslog-server 192.0.2.20"
+    },
+    {
+      "concept": "Session idle timeout",
+      "vendor": "Arista EOS",
+      "predicate": "mgmt.session.idle_timeout",
+      "command_pattern": "idle-timeout {duration:min}",
+      "scope_template": "management ssh",
+      "example_line": "idle-timeout 15"
+    },
+    {
+      "concept": "Remote syslog destination",
+      "vendor": "Arista EOS",
+      "predicate": "log.remote.destination",
+      "command_pattern": "logging host {ip}",
+      "example_line": "logging host 192.0.2.20"
+    },
+    {
+      "concept": "NTP server",
+      "vendor": "Arista EOS",
+      "predicate": "time.ntp.server",
+      "command_pattern": "ntp server {ip}",
+      "example_line": "ntp server 192.0.2.10"
+    },
+    {
+      "concept": "Telnet service",
+      "vendor": "Huawei VRP",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "telnet",
+      "command_pattern": "telnet server {polarity}",
+      "example_line": "telnet server enable"
+    },
+    {
+      "concept": "HTTP management",
+      "vendor": "Huawei VRP",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "http",
+      "command_pattern": "http server {polarity}",
+      "example_line": "http server enable"
+    },
+    {
+      "concept": "Remote syslog destination",
+      "vendor": "Huawei VRP",
+      "predicate": "log.remote.destination",
+      "command_pattern": "info-center loghost {ip}",
+      "example_line": "info-center loghost 192.0.2.20"
+    },
+    {
+      "concept": "NTP server",
+      "vendor": "Huawei VRP",
+      "predicate": "time.ntp.server",
+      "command_pattern": "ntp-service unicast-server {ip}",
+      "example_line": "ntp-service unicast-server 192.0.2.10"
+    },
+    {
+      "concept": "NTP authentication",
+      "vendor": "Huawei VRP",
+      "predicate": "time.ntp.authenticated",
+      "command_pattern": "ntp-service authentication {polarity}",
+      "example_line": "ntp-service authentication enable"
+    },
+    {
+      "concept": "Session idle timeout",
+      "vendor": "Huawei VRP",
+      "predicate": "mgmt.session.idle_timeout",
+      "command_pattern": "idle-timeout {duration:min} {any}",
+      "scope_template": "user-interface vty {any} {any}",
+      "example_line": "idle-timeout 10 0"
+    },
+    {
+      "concept": "Telnet service",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "telnet",
+      "command_pattern": "set telnet disabled {enum:disabled}",
+      "scope_template": "{any} service",
+      "constant_value": "{\"no\": true, \"false\": true, \"yes\": false, \"true\": false}",
+      "example_line": "set telnet disabled=yes"
+    },
+    {
+      "concept": "HTTP management",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "http",
+      "command_pattern": "set www disabled {enum:disabled}",
+      "scope_template": "{any} service",
+      "constant_value": "{\"no\": true, \"false\": true, \"yes\": false, \"true\": false}",
+      "example_line": "set www disabled=yes"
+    },
+    {
+      "concept": "NTP server",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "time.ntp.server",
+      "command_pattern": "set primary-ntp {ip}",
+      "scope_template": "{any} ntp client",
+      "example_line": "set primary-ntp=192.0.2.10"
+    }
+  ]
+}

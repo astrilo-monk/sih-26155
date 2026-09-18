@@ -135,7 +135,10 @@ def compile_pattern(pattern: str, extraction_method: str) -> re.Pattern[str]:
         else:
             parts.append(re.escape(tok))
     terminator = f"[{re.escape(TERMINATORS)}]?"
-    return re.compile(r"^\s*" + r"\s+".join(p + terminator for p in parts) + r"\s*$", re.IGNORECASE)
+    # ``=`` separates a token from its value in key=value dialects (RouterOS ``disabled=yes``), exactly as
+    # the tokenizer splits it; a trailing ``{`` is a block opener, punctuation like the terminator.
+    return re.compile(r"^\s*" + r"[\s=]+".join(p + terminator for p in parts) + r"(?:\s*\{)?\s*$",
+                      re.IGNORECASE)
 
 
 def match_pattern(pattern: str, extraction_method: str, raw_line: str) -> tuple[bool, Optional[str]]:

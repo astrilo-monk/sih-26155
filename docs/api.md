@@ -147,7 +147,7 @@ Ask a question about a scan.
 
 ## Adaptive Training
 
-These endpoints back the Teach and Learned pages. **They have no authentication yet.** A mapping or recognizer whose text holds a secret (password, key, community string) is refused with `422`; rejected lines are stored redacted.
+These endpoints back the Teach and Learned pages. **They have no authentication yet.** A stored recognizer carries `source`: `seed` for knowledge shipped in `backend/data/seed_recognizers.json`, `runtime` for what this deployment was taught ([seed-knowledge.md](seed-knowledge.md)). A mapping or recognizer whose text holds a secret (password, key, community string) is refused with `422`; rejected lines are stored redacted.
 
 ### `GET /api/adaptive/scans/{scan_id}/provisional`
 Undecided or provisional control results of unknown-vendor configs, with the heuristic lines and verified AI proposal lines an administrator can confirm.
