@@ -46,12 +46,12 @@ a unit for durations, a template that matches its example line, and no secret in
 
 ## What is covered
 
-23 recognizers over five dialects that have **no dedicated parser** and stay generic/unconfirmed. The `vendor`
+25 recognizers over five dialects that have **no dedicated parser** and stay generic/unconfirmed. The `vendor`
 field is a label for readability, never a claim of parser support and never used to select a code path.
 
 | Dialect | Concepts read |
 |---|---|
-| Juniper Junos | Telnet, HTTP management, SSH version, session idle timeout, remote syslog, NTP server, LLDP |
+| Juniper Junos | Telnet, HTTP management, SSH version, session idle timeout, remote syslog, NTP server, LLDP, RADIUS / TACACS+ servers |
 | Palo Alto PAN-OS | Telnet, HTTP management, session idle timeout, remote syslog |
 | Arista EOS | session idle timeout, remote syslog, NTP server |
 | Huawei VRP | Telnet, HTTP management, remote syslog, NTP server, NTP authentication, session idle timeout |
