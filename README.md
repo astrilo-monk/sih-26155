@@ -6,13 +6,16 @@ Configuration security auditor for network devices, built for Smart India Hackat
 NetAuditAI answers 15 security questions (**controls**) about every uploaded configuration, cites the
 configuration lines behind every answer, keeps what it could decide separate from what it could not, and
 fixes confirmed Cisco / FortiGate findings with deterministic changes that are verified by a rescan.
+Where the vendor cannot be confirmed it does not invent commands: an administrator (or, on request, the
+AI) proposes one, NetAuditAI checks it against the uploaded configuration, and a person confirms it.
 AI is optional: it only proposes answers for controls the deterministic engine left undecided, and a
-human confirms them before they count.
+human confirms them before they count. NetAuditAI never connects to a network device.
 
 ## Status
 
-Working hackathon prototype. All phases of [plan.md](plan.md) (0–9) are implemented. Backend: 834 tests
-passed, 2 live-AI tests skipped. Frontend: 19 tests passed, production build OK.
+Working hackathon prototype. All phases of [plan.md](plan.md) (0–9) are implemented, plus candidate
+remediation for unconfirmed vendors. Backend: 924 tests passed, 2 live-AI tests skipped. Frontend:
+70 tests passed, production build OK.
 
 ## Pipeline
 
@@ -35,11 +38,14 @@ AI judge: budgeted, redacted, cached (optional) ..................... app/ai/jud
   ↓
 Deterministic citation verification → AI_VERIFIED proposal (never scored)
   ↓
-Human confirmation ("Review & Recognizers") → recognizer saved in SQLite
+Human confirmation (the "Teach" page) → recognizer saved in SQLite
   ↓
 Future scans: the recognizer answers decisively, with no AI call
-  ↓ decisive FAIL on a confirmed vendor
-Deterministic remediation → re-parse → re-verify .................... app/remediation/
+  ↓ decisive FAIL on a confirmed vendor        ↓ decisive FAIL on an unconfirmed vendor
+Deterministic remediation ................    Candidate command (typed, or AI-proposed on request)
+  → re-parse → re-verify .. app/remediation/     → validated → simulated on a copy of the file
+                                                 → every control re-evaluated .. app/remediation/candidates.py
+                                                 → administrator confirms (never executed anywhere)
 ```
 
 Details: [docs/architecture.md](docs/architecture.md).
@@ -50,10 +56,19 @@ Details: [docs/architecture.md](docs/architecture.md).
 |---|---|---|---|
 | Cisco IOS / IOS-XE (common patterns) | Dedicated parser, confirmed by grammar coverage | Decisive (parser facts; no Cisco defaults are assumed) | Deterministic, verified |
 | Fortinet FortiGate (FortiOS with a `config firewall` / `config vpn` section) | Dedicated parser, confirmed by grammar coverage | Decisive; password storage and AAA are not read by the parser (UNKNOWN) | Deterministic, verified |
-| Look-alikes (Arista EOS, NX-OS, IOS-XR, ASA, Dell OS10, Brocade, FortiSwitch) and mixed configs | Reported **unverified**, then the generic path | Provisional unless a recognizer is confirmed | Blocked |
-| Palo Alto, Juniper and every other vendor | **No dedicated parser.** Generic tokenizer, lexicon heuristics, confirmed recognizers, optional AI judge | Provisional; decisive only through confirmed recognizers | Blocked |
+| Look-alikes (Arista EOS, NX-OS, IOS-XR, ASA, Dell OS10, Brocade, FortiSwitch) and mixed configs | Reported **unverified**, then the generic path | Provisional unless a recognizer is confirmed | No generated commands; candidate remediation once a finding is decisive |
+| Palo Alto, Juniper and every other vendor | **No dedicated parser.** Generic tokenizer, lexicon heuristics, confirmed recognizers, optional AI judge | Provisional; decisive only through confirmed recognizers | No generated commands; candidate remediation once a finding is decisive |
 
 The vendor is decided deterministically. An AI vendor guess is reported as evidence only and never selects a parser, defaults or remediation.
+
+**Candidate remediation** (unconfirmed vendors, once a finding is decisive) is a proposal, not a fix. The
+administrator types the command, or asks the AI for one; NetAuditAI validates it, removes the cited
+statements from an **in-memory copy** of the configuration, re-reads that copy with the generic engine and
+re-evaluates every control. A verified candidate means *the finding is gone from this configuration file*
+(typically `FAIL → NOT_CONFIGURED` — absence is never a PASS). It does not mean the command is safe to run
+on the device, and it changes no posture, coverage, finding or download until the device itself is changed
+and scanned again. NetAuditAI performs detection, candidate remediation, verification and human
+confirmation; it does **not** execute commands on physical devices.
 
 ## Reading the results
 
@@ -100,10 +115,10 @@ Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `fr
 
 ```bash
 cd backend
-venv\Scripts\python -m pytest tests -q     # 834 passed, 2 skipped (live AI, needs NETAUDIT_LIVE_AI=1)
+venv\Scripts\python -m pytest tests -q     # 924 passed, 2 skipped (live AI, needs NETAUDIT_LIVE_AI=1)
 
 cd frontend
-npm test                                    # 19 passed
+npm test                                    # 70 passed
 npm run build
 ```
 
@@ -129,10 +144,11 @@ A line holding a secret (password, key, community string) is never stored as a m
 - Unknown vendors rely on lexicon heuristics and confirmed recognizers; heuristics can misread a dialect until an administrator confirms or rejects the line.
 - Redaction is pattern-based: a secret behind an unlisted keyword could still reach the AI.
 - The AI judge escalates only unknown / unverified vendors; UNKNOWN controls of confirmed vendors are not sent to AI.
-- Scan results live in memory; recognizer replay only checks scans held by the running backend.
+- Scan results live in memory; recognizer replay only checks scans held by the running backend. A candidate remediation lives in its scan only and is never persisted as knowledge.
+- A candidate can only be verified when it explicitly removes or switches off the lines the finding cites; anything else is kept for review as unverified.
 - Framework views cover NIST SP 800-53 Rev. 5 and verified CIS items only (no ISO 27001, DISA SRG or CIS Controls v8 mappings).
 - `/api/assistant/status` reports AI available whenever a key is configured, even if the quota is used up.
-- Text configurations only; no live device connections.
+- Text configurations only. No live device connections: no command, generated or proposed, is ever executed on a device.
 
 ## Documentation
 
@@ -140,7 +156,7 @@ A line holding a secret (password, key, community string) is never stored as a m
 |---|---|
 | [docs/architecture.md](docs/architecture.md) | Pipeline, vendors, facts, controls, scoring, AI, recognizers, persistence, remediation, frameworks |
 | [docs/security-model.md](docs/security-model.md) | Trust boundaries and safety guarantees |
-| [docs/ai-design.md](docs/ai-design.md) | AI judge, verification, cache, legacy interpreter |
+| [docs/ai-design.md](docs/ai-design.md) | AI judge, remediation candidates, verification, cache, legacy interpreter |
 | [docs/api.md](docs/api.md) | Endpoints and response fields |
 | [docs/detection-rules.md](docs/detection-rules.md) | The 15 controls, per-vendor facts and remediation |
 | [docs/data-model.md](docs/data-model.md) | Core objects |
