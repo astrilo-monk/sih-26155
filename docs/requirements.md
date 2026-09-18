@@ -11,7 +11,7 @@ What the hackathon build needs, and where it stands.
 - [x] Posture and coverage scoring
 - [x] Optional AI (Groq) for explanations and for proposals on undecided controls
 - [x] Deterministic, verified remediation for confirmed vendors
-- [x] React dashboard: upload, results, findings, frameworks, remediation, review & recognizers, history
+- [x] React dashboard: scan, Results, Fix, Teach, All checks, Devices, Frameworks, Learned, History
 
 ## Stretch
 - [x] Human-in-the-loop learning that persists (recognizers)

@@ -27,10 +27,17 @@ backend/
     models/                   NormalizedConfig, findings, results, field catalog
   tests/                      pytest suite, fixtures, Phase 0 snapshots
 frontend/src/
-  App.jsx, api/client.js      workflow and API client
-  components/                 overview, analysis path, findings, frameworks, remediation, review & recognizers, history
+  App.jsx, home/Home.jsx      landing page and hash routing
+  app/AppShell.jsx            navigation, scan loading, shared drawer
+  app/                        Upload, Results, Fix, Teach, Checks, Devices, Frameworks, Learned,
+                              History, FindingDrawer, LegacyInterpretations
+  lib/domain.js               the one backend-state → user-facing-state mapping (states, counts, next step)
+  lib/useAudit.js             scan-scoped remediation plan, review queue and the inputs a download may use
+  api/client.js               API client
+  components/ui/              drawer, evidence, diff and count primitives
+  styles/, index.css          dark SOC visual system
   utils/                      history (summaries only), form validation
-sample/                       Cisco, FortiGate, unknown-vendor and Palo Alto sample configs
+sample/                       Cisco, FortiGate, unknown-vendor, Palo Alto and Juniper sample configs
 docs/                         documentation
 plan.md                       phase-by-phase implementation record
 ```

@@ -30,7 +30,7 @@ weaknesses. NetAuditAI:
 | How does it learn? | `backend/app/facts/recognizers.py`, `backend/app/db/` |
 | How are fixes made? | `backend/app/remediation/recipes.py`, `engine.py` |
 | Framework views? | `backend/app/controls/frameworks.py` |
-| UI? | `frontend/src/components/` |
+| UI? | `frontend/src/app/` (pages), `frontend/src/lib/domain.js` (backend state → user-facing state) |
 
 ## 3. Likely questions
 

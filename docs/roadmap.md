@@ -12,7 +12,7 @@ The implementation record is [plan.md](../plan.md). Summary:
 - [x] Administrator-confirmed recognizers persisted in SQLite and reused across restarts
 - [x] AI judge: budgeted, cached, citations verified, proposals never scored
 - [x] Deterministic, vendor-aware remediation verified by rescan
-- [x] Framework views and the demo UI (analysis path, frameworks, remediation, review & recognizers, history)
+- [x] Framework views and the demo UI (Results, Fix, Teach, All checks, Devices, Frameworks, Learned, History)
 
 ## Not implemented (possible next steps)
 - [ ] Authentication and roles for review, recognizer and remediation endpoints
