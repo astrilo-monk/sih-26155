@@ -89,6 +89,7 @@ UNRELATED = frozenset({
 })
 
 PERMIT = frozenset({"permit", "allow", "accept"})
+DENY = frozenset({"deny", "discard", "drop", "reject", "block"})
 # A rule naming any of these is narrower than "all traffic"
 NARROWING = frozenset({"tcp", "udp", "icmp", "sctp", "gre", "esp", "eq", "range", "host", "port", "dst-port",
                        "src-port", "application", "service"})

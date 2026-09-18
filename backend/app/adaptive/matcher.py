@@ -14,6 +14,10 @@ Template grammar (whitespace-separated tokens):
 * ``{value}``     — captures one token; the extracted value
 * ``{any}``       — matches one token that is ignored
 
+A statement terminator (``;``) is punctuation, not part of a token: it is dropped
+from template tokens and stays optional in the line, so ``server {ip};``,
+``server {ip}`` and ``server 192.0.2.1`` all describe the same statement.
+
 Recognizer templates (Phase 6) use typed slots instead of ``{value}``, at most one per template:
 ``{int}``, ``{ip}``, ``{duration}`` / ``{duration:<unit>}``, ``{enum:<name>}``, ``{polarity}``.
 
@@ -43,13 +47,17 @@ EXTRACTION_RECOGNIZER = "recognizer"
 EXTRACTION_METHODS = frozenset({EXTRACTION_TEMPLATE_CAPTURE, EXTRACTION_CONSTANT, EXTRACTION_RECOGNIZER})
 
 SLOT_PATTERNS = {
-    "int": r"\d+",
+    # a version may be written with a version prefix (``v2``); the fact reads it the same way
+    "int": r"(?:[Vv]|[Vv]er|[Vv]ersion)?\d+",
     "ip": r"[0-9A-Fa-f.:]+(?:/\d{1,3})?",
     "duration": r"\d+(?:\.\d+)?[A-Za-z]*",
     "enum": r"[A-Za-z][\w.+-]*",
     "polarity": r"(?:enabled?|disabled?|on|off|true|false|yes|no)",
 }
 _SLOT = re.compile(r"^\{(int|ip|duration|enum|polarity)(?::([A-Za-z][\w-]*))?\}$")
+
+# Statement terminators: punctuation in every dialect that uses them, never part of a token
+TERMINATORS = ";"
 
 MAX_PATTERN_LENGTH = 256
 MAX_PATTERN_TOKENS = 32
@@ -68,6 +76,12 @@ def normalize_line(raw_line: str) -> str:
     return " ".join(raw_line.split()).lower()
 
 
+def strip_terminator(token: str) -> str:
+    """A token without its trailing statement terminator (``{ip};`` → ``{ip}``)."""
+    stripped = token.rstrip(TERMINATORS)
+    return stripped or token
+
+
 def _strip_quotes(token: str) -> str:
     if len(token) >= 2 and token[0] == token[-1] and token[0] in "\"'":
         return token[1:-1]
@@ -83,7 +97,7 @@ def validate_pattern(pattern: str, extraction_method: str) -> list[str]:
     if len(pattern) > MAX_PATTERN_LENGTH:
         raise PatternError(f"Command pattern exceeds {MAX_PATTERN_LENGTH} characters")
 
-    tokens = pattern.split()
+    tokens = [strip_terminator(t) for t in pattern.split()]
     if len(tokens) > MAX_PATTERN_TOKENS:
         raise PatternError(f"Command pattern exceeds {MAX_PATTERN_TOKENS} tokens")
 
@@ -120,7 +134,8 @@ def compile_pattern(pattern: str, extraction_method: str) -> re.Pattern[str]:
             parts.append(r"\S+")
         else:
             parts.append(re.escape(tok))
-    return re.compile(r"^\s*" + r"\s+".join(parts) + r"\s*$", re.IGNORECASE)
+    terminator = f"[{re.escape(TERMINATORS)}]?"
+    return re.compile(r"^\s*" + r"\s+".join(p + terminator for p in parts) + r"\s*$", re.IGNORECASE)
 
 
 def match_pattern(pattern: str, extraction_method: str, raw_line: str) -> tuple[bool, Optional[str]]:

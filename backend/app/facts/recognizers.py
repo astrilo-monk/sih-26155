@@ -25,9 +25,10 @@ from typing import Any, Iterable, Optional
 
 from app.adaptive.matcher import (
     EXTRACTION_RECOGNIZER, PatternError, compile_pattern, match_recognizer, normalize_line, recognizer_slot,
+    strip_terminator,
 )
 from app.facts import lexicon as L
-from app.facts.heuristics import _Candidate, _polarity, combine, heuristic_candidates, state_lines
+from app.facts.heuristics import _Candidate, _polarity, _version, combine, heuristic_candidates, state_lines
 from app.facts.predicates import (
     CENTRAL_AAA, DISCOVERY_PROTOCOL, IDLE_TIMEOUT, LOG_REMOTE_DESTINATION, LOGIN_BANNER, NTP_AUTHENTICATED,
     NTP_SERVER, PASSWORD_ENCRYPTION_SERVICE, PASSWORD_STORAGE, PERMIT_ANY, PROTOCOL_ENABLED, SOURCE_RESTRICTED,
@@ -49,6 +50,9 @@ SLOT_PREDICATES = {
 }
 RECOGNIZER_PREDICATES = BOOL_PREDICATES | frozenset(SLOT_PREDICATES)
 STOPWORDS = POSITIVE | NEGATIVE | NEGATORS | {"set", "config", "edit", "next", "end", "exit", "state", "status"}
+# A recognizer must be this specific. A hierarchical dialect keeps the nouns in the block header
+# (``ntp { server 1.2.3.4; }``), so the scope template counts too — but never on its own: the
+# statement itself must still carry a keyword, or the recognizer would answer any line in the block.
 MIN_KEYWORDS = 2
 FINGERPRINT_OVERLAP = 0.5
 _DURATION = re.compile(r"^(\d+(?:\.\d+)?)([a-z]*)$")
@@ -57,6 +61,11 @@ _WORD = re.compile(r"^[a-z][\w.+-]*$")
 
 class RecognizerError(ValueError):
     """A recognizer failed a safety gate."""
+
+
+def _keywords(pattern: str) -> list[str]:
+    """Literal words of a template: no slots, no punctuation, no stopwords."""
+    return [t for t in map(strip_terminator, pattern.split()) if "{" not in t and t.lower() not in STOPWORDS]
 
 
 # ── values ──────────────────────────────────────────────────────────────────
@@ -73,7 +82,8 @@ def recognizer_value(recognizer, slot: tuple) -> Any:
     if kind == "enum":
         return constant.get(word, constant.get("*")) if isinstance(constant, dict) else word
     if kind == "int":
-        return int(word)
+        number = _version(word)
+        return None if number is None else int(number)
     if kind == "ip":
         return [word] if IP.match(word) else None
     number, unit = _DURATION.match(word).groups()
@@ -93,10 +103,11 @@ def validate_recognizer(r) -> None:
     except PatternError as e:
         raise RecognizerError(str(e)) from e
 
-    keywords = [t for t in r.command_pattern.split() if "{" not in t and t.lower() not in STOPWORDS]
-    if len(keywords) < MIN_KEYWORDS:
-        raise RecognizerError(f"The template needs at least {MIN_KEYWORDS} keywords besides stopwords "
-                              f"(found: {', '.join(keywords) or 'none'})")
+    keywords = _keywords(r.command_pattern)
+    scoped = keywords + _keywords(r.scope_template or "")
+    if not keywords or len(scoped) < MIN_KEYWORDS:
+        raise RecognizerError(f"The template needs at least {MIN_KEYWORDS} keywords besides stopwords, counting "
+                              f"its scope (found: {', '.join(scoped) or 'none'})")
     try:
         constant = json.loads(r.constant_value) if r.constant_value else None
     except ValueError as e:
@@ -113,10 +124,11 @@ def validate_recognizer(r) -> None:
         if kind is None:
             statement = tokenize_line(r.example_line)
             polarity = statement.polarity if statement else None
-            if polarity is None:
+            if polarity is None and not _declares_presence(r, statement, value):
                 raise RecognizerError("Polarity must be stated: a literal such as 'disabled', a {polarity} slot, "
-                                      "or an {enum:name} slot with a true / false value table")
-            if value is not polarity:
+                                      "an {enum:name} slot with a true / false value table, or a scoped bare "
+                                      "statement that switches its feature on by existing")
+            if polarity is not None and value is not polarity:
                 raise RecognizerError(f"The value {json.dumps(value)} contradicts the line, which says "
                                       f"{'enabled' if polarity else 'disabled'}")
         elif kind == "enum":
@@ -133,6 +145,15 @@ def validate_recognizer(r) -> None:
             raise RecognizerError(f"This setting is read from an {{{expected}}} slot")
         if value is None:
             raise RecognizerError("The example line gives no usable value")
+
+
+def _declares_presence(r, statement, value) -> bool:
+    """A bare statement inside a named block switches its feature on by existing (``services { telnet; }``).
+
+    Only ever True, only with a scope: without one the template would answer the same word anywhere in
+    the configuration. Absence of the line still matches nothing, so it can never produce a value."""
+    return (bool(r.scope_template) and value is True and statement is not None
+            and len(statement.key_tokens) == 1 and not statement.values)
 
 
 # ── matching ────────────────────────────────────────────────────────────────
@@ -238,7 +259,9 @@ def draft_recognizer(raw_lines: list[str], needs: Iterable[str], line_number: in
 
 
 def _draft_template(s: Statement, c: _Candidate) -> tuple[str, Any]:
-    tokens = s.text.split()
+    # Template tokens are the statement's words: block punctuation and statement terminators are not part
+    # of any token, so a drafted value slot lines up with the value the candidate was read from.
+    tokens = [t for t in map(strip_terminator, s.text.split()) if t not in ("{", "}")]
     words = [t.strip("\"'").lower() for t in tokens]
 
     def slot(index: int, kind: str) -> str:
@@ -250,7 +273,8 @@ def _draft_template(s: Statement, c: _Candidate) -> tuple[str, Any]:
         if polar and (words[polar[-1]] in POSITIVE) == c.value:
             return slot(polar[-1], "polarity"), None
         names = L.MGMT_PROTOCOLS.get(c.subject, {c.subject}) if c.subject else set()
-        if (index := next((i for i, w in enumerate(words) if w in names), None)) is not None:
+        # a one-word statement is the feature itself, not a selector: it stays literal, scoped by its block
+        if len(words) > 1 and (index := next((i for i, w in enumerate(words) if w in names), None)) is not None:
             # a selector: naming another protocol means this one is off
             return slot(index, "enum"), {words[index]: c.value, "*": not c.value}
         if len(words) > 1 and _WORD.match(words[-1]):
@@ -258,9 +282,15 @@ def _draft_template(s: Statement, c: _Candidate) -> tuple[str, Any]:
         return " ".join(tokens), c.value
 
     kind = SLOT_PREDICATES[c.predicate]
-    wanted = {"int": str.isdigit, "ip": IP.match, "duration": _DURATION.match, "enum": _WORD.match}[kind]
-    index = next((i for i in reversed(range(1, len(words))) if wanted(words[i])), None)
-    return (" ".join(tokens), c.value) if index is None else (slot(index, kind), None)
+    # what counts as a value here is what the fact was read from, so the slot lands on the same token
+    wanted = {"int": _version, "ip": IP.match, "duration": _DURATION.match, "enum": _WORD.match}[kind]
+    index = next((i for i in reversed(range(1, len(words))) if wanted(words[i]) is not None), None)
+    if index is None:
+        return " ".join(tokens), c.value
+    # a duration whose line states no unit carries the unit the fact was read with, so the draft validates
+    if kind == "duration" and c.unit and not _DURATION.match(words[index]).group(2):
+        return " ".join([*tokens[:index], f"{{duration:{c.unit}}}", *tokens[index + 1:]]), None
+    return slot(index, kind), None
 
 
 def _draft_scope(s: Statement) -> Optional[str]:

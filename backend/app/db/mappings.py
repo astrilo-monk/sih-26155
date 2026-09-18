@@ -17,8 +17,8 @@ Safety rules enforced here:
 * only an administrator can confirm, update or disable a confirmed mapping
 * saving a mapping whose pattern (and scope) is identical to an active confirmed mapping
   raises ``MappingConflictError`` instead of silently overwriting it
-* recognizers pass the gates of ``validate_recognizer``: two keywords besides stopwords,
-  stated polarity, a unit for durations, a value that matches the example line
+* recognizers pass the gates of ``validate_recognizer``: two keywords besides stopwords, counting
+  the scope template, stated polarity, a unit for durations, a value that matches the example line
 """
 
 from __future__ import annotations

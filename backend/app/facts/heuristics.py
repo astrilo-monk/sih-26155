@@ -28,6 +28,9 @@ _ENCRYPTION = re.compile(r"^(esp-)?(aes|3des|des)(\d|-|$)")
 _HASH = re.compile(r"(sha|md5)(\d|-|$)")
 _DH = re.compile(r"^(dh-?)?group(\d+)$")
 _NUMBER = re.compile(r"^(\d+(?:\.\d+)?)([a-z]*)$")
+# A version may be written with a version prefix (``v2``, ``ver2``, ``version2``). Only a fact that
+# asks for a version reads a token this way — elsewhere a letter still means the token is not a number.
+_VERSION = re.compile(r"^(?:v|ver|version)?(\d+(?:\.\d+)?)$")
 
 
 @dataclass
@@ -107,6 +110,11 @@ def _number(value: str) -> Optional[tuple[float, str]]:
     return (float(match.group(1)), match.group(2)) if match else None
 
 
+def _version(value: str) -> Optional[float]:
+    match = _VERSION.match(value)
+    return float(match.group(1)) if match else None
+
+
 def _polarity(s: Statement, statements: list[Statement]) -> tuple[Optional[bool], list[int]]:
     """Polarity of the line, else of its block's state line(s)."""
     if s.polarity is not None:
@@ -134,8 +142,30 @@ def _protocols(statements) -> Iterator[_Candidate]:
             if not (server or set(ctx[:index]) & L.REMOTE_ACCESS):
                 continue
             polarity, lines = _polarity(s, statements)
+            if _declares_feature(s, ctx, index, statements):
+                polarity, lines = True, [s.line]
             if polarity is not None:
                 yield _Candidate(PROTOCOL_ENABLED, polarity, lines, subject=subject)
+
+
+def _declares_feature(s: Statement, ctx: list[str], index: int, statements: list[Statement]) -> bool:
+    """Some dialects switch a feature on by naming it alone inside the block that lists features:
+
+        services { telnet; }
+
+    Only a bare statement counts — its single keyword is the feature name, it carries no value and
+    states no polarity, and its enclosing block already identified it as a management service. An
+    explicit ``no telnet`` / ``telnet disabled`` states its own polarity and never reaches this.
+    Absence of the line states nothing.
+
+    A declaration is as strong as a state line, so a block switched off wins over it, but the
+    negation of this same feature does not: both are stated, the fact is undetermined, and the
+    control reports UNKNOWN instead of trusting whichever came last."""
+    if s.polarity is not None or s.values or len(s.key_tokens) != 1 or index != len(ctx) - 1:
+        return False
+    negated = any(o is not s and o.polarity is False and o.key_tokens == s.key_tokens
+                  and (o.scope_path, o.block) == (s.scope_path, s.block) for o in statements)
+    return negated or _polarity(s, statements)[0] is None
 
 
 def _source_restriction(statements) -> Iterator[_Candidate]:
@@ -160,9 +190,10 @@ def _ssh_version(statements) -> Iterator[_Candidate]:
     for s in statements:
         if s.polarity is False or not (_has(_context(s), L.SSH) and _has(s.key_tokens, L.VERSION)):
             continue
-        number = next((n for v in s.values if (n := _number(v)) and not n[1]), None)
-        if number:
-            yield _Candidate(SSH_VERSION, int(number[0]) if number[0].is_integer() else number[0], [s.line])
+        # values hold plain numbers; a version written as ``v2`` stays a keyword token
+        number = next((n for v in s.values + s.key_tokens if (n := _version(v)) is not None), None)
+        if number is not None:
+            yield _Candidate(SSH_VERSION, int(number) if number.is_integer() else number, [s.line])
 
 
 def _idle_timeout(statements) -> Iterator[_Candidate]:
@@ -302,12 +333,39 @@ def _banner(statements) -> Iterator[_Candidate]:
             yield _Candidate(LOGIN_BANNER, s.polarity, [s.line])
 
 
+def _wildcards(s: Statement) -> int:
+    return sum(t in L.UNRESTRICTED for t in s.key_tokens) + sum(v in L.ANY_ADDRESS for v in s.values)
+
+
 def _permit_any(statements) -> Iterator[_Candidate]:
     for s in statements:
-        tokens = set(s.key_tokens)
-        wildcards = sum(t in L.UNRESTRICTED for t in s.key_tokens) + sum(v in L.ANY_ADDRESS for v in s.values)
-        if s.polarity is not False and tokens & L.PERMIT and wildcards >= 2 and not tokens & L.NARROWING:
-            yield _Candidate(PERMIT_ANY, True, [s.line], scope=" ".join(s.scope_path) or f"rule at line {s.line}")
+        if s.polarity is False or not set(s.key_tokens) & L.PERMIT:
+            continue
+        if _wildcards(s) >= 2:
+            if not set(s.key_tokens) & L.NARROWING:
+                yield _Candidate(PERMIT_ANY, True, [s.line], scope=" ".join(s.scope_path) or f"rule at line {s.line}")
+        elif len(s.key_tokens) <= 2 and not s.values:
+            yield from _composed_permit_any(s, statements)
+
+
+def _composed_permit_any(action: Statement, statements: list[Statement]) -> Iterator[_Candidate]:
+    """A rule whose action and selectors are separate statements (``source-address any; … permit;``).
+
+    The rule is the action's own block or its parent — a selector further out than that belongs to
+    something else, not to this rule. Within that, the first block wide enough to state both wildcards
+    wins, a block holding a second action is never entered (two rules are never merged), and a
+    narrowing selector anywhere in the rule means it is not "all traffic". Purely structural: no
+    dialect supplies the block names."""
+    for depth in range(len(action.scope_path), max(len(action.scope_path) - 2, 0), -1):
+        members = [s for s in statements if s.scope_path[:depth] == action.scope_path[:depth]]
+        if len([s for s in members if set(s.key_tokens) & (L.PERMIT | L.DENY)]) > 1:
+            return
+        if sum(_wildcards(s) for s in members) >= 2:
+            if any(set(s.key_tokens) & L.NARROWING for s in members):
+                return
+            lines = sorted({s.line for s in members if _wildcards(s)} | {action.line})
+            yield _Candidate(PERMIT_ANY, True, lines, scope=" ".join(action.scope_path[:depth]))
+            return
 
 
 _EXTRACTORS = (
