@@ -11,10 +11,14 @@ What the hackathon build needs, and where it stands.
 - [x] Posture and coverage scoring
 - [x] Optional AI (Groq) for explanations and for proposals on undecided controls
 - [x] Deterministic, verified remediation for confirmed vendors
+- [x] Derived, verified remediation for unconfirmed vendors — the change worked out from the configuration
+      itself, simulated on a copy (only where a removal can honestly resolve the control)
+- [x] A resolution queue for UNKNOWN / NOT_CONFIGURED controls: teach a line, rescan, updated posture
 - [x] React dashboard: scan, Results, Fix, Teach, All checks, Devices, Frameworks, Learned, History
 
 ## Stretch
 - [x] Human-in-the-loop learning that persists (recognizers)
 - [x] Backend AI assistant endpoints (no chat view yet)
 - [ ] A third dedicated parser — deliberately not built; other vendors use the generic path
-- [ ] PDF reports, historical scan comparison
+- [x] Per-device PDF compliance report (`POST /api/report`)
+- [ ] Historical scan comparison

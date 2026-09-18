@@ -20,5 +20,5 @@ The implementation record is [plan.md](../plan.md). Summary:
 - [ ] Verified mappings for ISO/IEC 27001:2022, DISA SRGs, CIS Controls v8
 - [ ] AI escalation for UNKNOWN controls of confirmed vendors (decide, or drop the legacy interpreter)
 - [ ] Remove the deprecated `score` once no script depends on it
-- [ ] Assistant chat view in the frontend; PDF reports
+- [ ] Assistant chat view in the frontend
 - [ ] `/api/assistant/status` that reflects an exhausted quota

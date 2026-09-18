@@ -48,14 +48,33 @@ outcomes of every failing control of one configuration and the combined verified
 
 ## `Candidate` — `app/remediation/candidates.py`
 A proposed remediation for one control of one configuration whose vendor is **not** confirmed:
-`config_index`, `control_id`, `source` (`manual` | `ai`), `command` (text, never executed), `explanation`,
+`config_index`, `control_id`, `source` (`derived` — worked out from the configuration itself | `manual` | `ai`),
+`command` (text, never executed), `explanation`,
 `confidence`, `assumptions`, `status` (`draft` | `verified` | `unverified` | `rejected` | `confirmed`), `reason`,
 the cited `evidence`, `control_status_before` / `_after`, `checks` (`target`, `no_regression`, `generic_path`),
-the simulated `diff`, `created_at` and `confirmed_at`. Candidates live in the scan's in-memory entry
+the simulated `diff`, `created_at` and `confirmed_at`, and — only while `verified` (or `confirmed` after
+verifying) — `verified_config`: the edited **copy** the candidate was verified against, byte-for-byte the text the
+generic engine re-analysed. Any other status clears it. Candidates live in the scan's in-memory entry
 (`_scan_store[scan_id]["candidates"]`) for that scan only: they are never persisted, never applied to the stored
-configuration and never part of a download.
+configuration, and never part of the confirmed-vendor `/download-fixed` output. `verified_config` leaves the
+backend only through `POST /api/remediation/candidate/download`, as a *verified corrected copy of the uploaded
+configuration* — the API schema exposes a `download_available` flag, never the text.
 
 ## Scan response — `ScanResultResponse` in `app/api/schemas.py`
 `scan_id`, `devices`, `vendor_identification[]`, `results[]` (every control × config), `findings[]`, `posture`,
-`coverage`, `posture_bounds`, `critical_unassessed`, `frameworks[]`, `adaptive` / `adaptive_configs[]` (AI calls,
+`coverage`, `posture_bounds`, `critical_unassessed`, `assessed_count` / `unresolved_count` (applicable controls
+decided from decisive evidence, and the ones left undecided), `unreadable_configs[]` (uploads holding no security
+configuration at all — reported, never scored), `frameworks[]`, `adaptive` / `adaptive_configs[]` (AI calls,
 cache hits, provisional reasons, vendor evidence), severity counts and the deprecated `score`.
+
+## Resolution queue — `UnresolvedQueueResponse` in `app/api/schemas.py`
+The undecided side of coverage, built from the same `control_outcomes`: `assessed_count`, `unresolved_count` and
+`items[]`, each with the control, its `status` (`unknown` | `not_configured`), why it could not be decided, the
+evidence it did cite, the `needs` predicates, `suggested_lines[]` (lines of this configuration that mention the
+setting, with a heuristic's reading where there is one) and `action` (`teach`, or `blocked` with a reason).
+Listing a control never changes it. `app/facts/teaching.py` turns an administrator's answer about one line into the
+asserted candidate `draft_recognizer` validates — the same recognizer and the same gates as any other.
+
+## Report document model — `app/reporting/report.py`
+The per-device compliance report as a list of blocks (`h1`/`h2`/`h3`/`p`/`note`, `table`, `mono`), rendered to PDF
+by `render_pdf`. Built from the redacted `ScanResultResponse` plus the remediation plan; nothing is evaluated there.

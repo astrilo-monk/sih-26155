@@ -212,7 +212,7 @@ completes.
 
 ## 8. Human-in-the-loop: recognizers
 
-A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships 23 reviewed recognizers for
+A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships 25 reviewed recognizers for
 five dialects that have no dedicated parser (Junos, PAN-OS, Arista EOS, Huawei VRP, RouterOS);
 `app/facts/seed.py` loads them into SQLite the first time a process opens the database. They pass the same gates
 listed below, are decisive in the same way, and are marked `source = "seed"` so shipped knowledge and what this
@@ -222,8 +222,20 @@ See [seed-knowledge.md](seed-knowledge.md).
 
 Everything below is how an administrator adds to it.
 
-1. The scan lists provisional results (heuristic lines and verified AI proposals) on the **Teach** page.
-2. The administrator confirms a line; the backend drafts a recognizer: a typed-slot template
+An UNKNOWN or NOT_CONFIGURED control is not the end of the assessment: it is the reason to ask. The **resolution
+queue** (`GET /api/adaptive/scans/{id}/unresolved`) lists every applicable control coverage left out, built from the
+same `control_outcomes` the posture is counted from, so what the queue calls unresolved is exactly what coverage
+excluded. Each item carries why the engine could not decide, the evidence it did cite, the lines of this
+configuration that mention the setting — and, when nothing does, the administrator picks any line of the file
+(`…/configs/{i}/lines`, read-only) and states what it means (`…/meanings`). The answer becomes an asserted
+candidate and goes through the drafting and gates below unchanged; a line that does not state the value cannot
+teach it. Saving re-evaluates the same configuration: the control decides from CONFIRMED evidence, posture and
+coverage are recalculated by the unchanged scoring engine, and the queue shrinks — or the control stays undecided
+and nothing is counted. The uploaded configuration is only ever read, and no file is uploaded again.
+
+1. The scan lists provisional results (heuristic lines and verified AI proposals) and the resolution queue on the
+   **Teach** page.
+2. The administrator confirms a line, or states what a line means; the backend drafts a recognizer: a typed-slot template
    (`{int}`, `{ip}`, `{duration[:unit]}`, `{enum:name}`, `{polarity}`, `{any}`; never raw regex), predicate,
    subject, optional scope template, dialect fingerprint and value table.
 3. Gates (`app/facts/recognizers.validate_recognizer`, `app/db/mappings.validate_mapping`): at least two keywords
@@ -298,13 +310,41 @@ configuration and the proposed text are read with the same generic tokenizer for
   derived (prose, a command about something else, or one that also does something uncheckable); then `confirmed`
   once an administrator accepts it. Absence is still NOT_CONFIGURED, never PASS, so a verified candidate typically
   reads `FAIL → NOT_CONFIGURED`.
-* A candidate changes nothing else: not the stored configuration, the control results, findings, posture, coverage
-  or the download. It lives in the scan's memory for that scan only and is never persisted as knowledge —
+* The verified copy is retained: a `verified` candidate keeps the edited copy it was verified against
+  (`Candidate.verified_config`), so an administrator can download it from
+  `POST /api/remediation/candidate/download` — a *verified corrected copy of the uploaded configuration*, one per
+  candidate, never combined. Every other status clears it, so a draft, an unverified, a rejected or a
+  re-checked-and-failed candidate has nothing to hand out. Confirming a candidate that only ever reached
+  `unverified` still gives no file.
+* A candidate changes nothing else: not the stored configuration, the control results, findings, posture or
+  coverage, and not the confirmed-vendor `/download-fixed` output. It lives in the scan's memory for that scan only
+  and is never persisted as knowledge —
   recognizers answer "what does this line mean?", which is a different question from "what command changes it".
 
-NetAuditAI performs detection → candidate remediation → verification against the configuration file → human
-confirmation. It does **not** execute commands on physical devices, and a verified candidate never claims it is safe
-to run on one.
+Two different things produce a file, and they are kept apart:
+
+| | Confirmed vendor | Unconfirmed vendor |
+|---|---|---|
+| Change comes from | A fixed recipe in `recipes.py` | The change NetAuditAI derives from the configuration itself, or command text a person typed / the AI proposed |
+| Verified by | Full rescan as the confirmed vendor | Simulation on a copy, re-read by the generic engine |
+| Download | `POST /api/download-fixed` — the corrected configuration | `POST /api/remediation/candidate/download` — a *verified corrected copy of the uploaded configuration* |
+| Claim | This change is deterministic for this vendor | This text removes the finding from **this file**; it is not known to be correct or safe for the device |
+
+**Derived candidates.** `candidates.derive` is what makes the unconfirmed path self-serving: it takes the lines a
+decisive FAIL cites, removes them from a copy and runs the same verification, so a configuration in a dialect nobody
+taught still gets a change NetAuditAI worked out itself. The text is built from the configuration's own words — its
+block path, then the statement's keywords — so no vendor grammar is claimed and none is needed; what is verified is
+the effect on the *file*, and whether the wording is also the device's CLI syntax is the administrator's call.
+
+Two limits keep it honest. It only derives for controls a removal can resolve (`DERIVABLE_KINDS`: prohibitions and
+relational controls). A control that requires a setting, or holds one to a threshold, is refused — deleting an idle
+timeout would make the check stop failing while leaving the device worse, so that change stays with the person who
+owns the command. And a block opener is never removed on its own, whatever the dialect, since removing it would
+orphan its contents.
+
+Neither is ever applied to a device. NetAuditAI performs detection → candidate remediation → verification against
+the configuration file → human confirmation. It does **not** execute commands on physical devices, and a verified
+candidate never claims it is safe to run on one.
 
 ## 11. Framework views
 
@@ -321,7 +361,25 @@ UNKNOWN. Provisional verdicts mark a requirement `provisional` and never make it
 of applicable requirements decided. ISO/IEC 27001, DISA SRGs and CIS Controls v8 are **not mapped**: no mapping was
 verified.
 
-## 12. Legacy and deprecated parts
+## 12. Reporting
+
+`app/reporting/report.py` builds the per-device compliance report, and `POST /api/report` returns it as PDF (one
+device → a PDF, several → a zip of one PDF per device). It is built in two steps: `report_blocks` produces a plain
+document model — headings, paragraphs, tables, monospace blocks — and `render_pdf` lays that out with ReportLab.
+The tests read the model, so what the report says is asserted without parsing PDF streams.
+
+Its input is the same redacted `ScanResultResponse` the browser gets plus the remediation plan, so the report and
+the application can never disagree, and the redaction that protects the API protects the report with it. Nothing is
+evaluated, scored or remediated in this layer.
+
+Two rules follow the rest of the product:
+
+* it reports only what the configuration states. A configuration file carries no serial number or hardware
+  inventory, so the report says so instead of inventing one;
+* provisional readings are labelled provisional and never presented as compliance, and no vendor command appears
+  for a vendor that was not confirmed.
+
+## 13. Legacy and deprecated parts
 
 * `score` / `calculate_score` — deprecated penalty score, still returned for existing scripts.
 * `adaptive_ai_for_known_vendors` (default off) — the line-by-line interpreter, `FIELD_REGISTRY` AI vocabulary and

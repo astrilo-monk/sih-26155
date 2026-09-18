@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+
+vi.mock('../api/client', () => ({ apiClient: { downloadReport: vi.fn() } }));
+
+import { apiClient } from '../api/client';
 import Results, { PostureSummary } from './Results';
 import { reviewCount } from '../lib/domain';
 
@@ -62,6 +66,17 @@ const QUEUE = {
     { config_index: 0, control_id: 'MGMT-006', lines: [{ line_number: 38, text: 'operator inactivity-lock 600', predicate: 'mgmt.session.idle_timeout', value: 600 }] },
   ],
   legacyPending: 0,
+  // The resolution queue: exactly the applicable checks coverage left out
+  unresolved: [
+    { config_index: 0, control_id: 'MGMT-003', title: 'Unrestricted management', question: 'Is management access restricted to known sources?',
+      severity: 'critical', category: 'management', status: 'unknown', action: 'teach',
+      reason: 'AI proposes PASS, awaiting confirmation', evidence_lines: [], evidence: [],
+      suggested_lines: [{ line_number: 67, text: 'management-plane source-restriction enabled', scope_path: [], predicate: 'mgmt.remote_access.source_restricted', subject: null, value: true }] },
+    { config_index: 0, control_id: 'MGMT-005', title: 'Weak passwords', question: 'Are passwords stored irreversibly?',
+      severity: 'critical', category: 'authentication', status: 'not_configured', action: 'teach',
+      reason: 'No relevant setting was found in this configuration', evidence_lines: [], evidence: [], suggested_lines: [] },
+  ],
+  assessedCount: 1,
 };
 
 it('review count: provisional readings need human review; decisive failures blocked from automation do not', () => {
@@ -86,12 +101,40 @@ it('an unfamiliar device: nothing provisional is counted, the real queue drives 
   expect(screen.getByText('Unfamiliar configuration: these lines disagree')).toBeTruthy();
   // no empty fix list while the plan is unknown
   expect(container.querySelector('ul.fixmix')).toBeNull();
-  expect(screen.getByRole('region', { name: /Checks we couldn’t decide/ }).textContent).toContain('Weak passwords');
+  // the undecided checks are their own actionable queue, never counted as passed or failed
+  const queue = screen.getByRole('region', { name: /2 checks need your input to complete this assessment/ });
+  expect(queue.textContent).toContain('Weak passwords');
+  expect(queue.textContent).toContain('Nothing here mentions this setting');
+  expect(queue.textContent).toContain('1 line in this configuration may answer it');
+  fireEvent.click(screen.getByText('Weak passwords'));
+  expect(onTeach).toHaveBeenCalledWith('0-MGMT-005');
+  onTeach.mockClear();
 
   fireEvent.click(screen.getByRole('button', { name: 'Teach NetAuditAI' }));
   expect(go).toHaveBeenCalledWith('teach');
   fireEvent.click(screen.getByText('Unfamiliar configuration: probably turns on Telnet remote access'));
   expect(onTeach).toHaveBeenCalledWith('0-MGMT-001');
+});
+
+it('a file that holds no configuration is reported, not scored, and asks for nothing else', () => {
+  const prose = { ...UNKNOWN, posture: null, coverage: 0, assessed_count: 0, unresolved_count: 15,
+    findings: [], results: [], unreadable_configs: [0], critical_unassessed: [] };
+  const { container } = render(<Results scan={prose} audit={audit({ queue: QUEUE })} onOpen={() => {}} go={() => {}} onTeach={() => {}} />);
+  expect(screen.getByText(/doesn’t contain enough recognizable configuration to assess/)).toBeTruthy();
+  expect(screen.getAllByText(/Not assessed/).length).toBeGreaterThan(0);
+  // no score, and no queue of checks to work through: the only next step is a different file
+  expect(container.textContent).not.toMatch(/What to do now|need your input to complete/);
+});
+
+it('offers the compliance report for the scan, and says so when it cannot be generated', async () => {
+  apiClient.downloadReport.mockResolvedValueOnce();
+  render(<Results scan={UNKNOWN} audit={audit({ queue: QUEUE })} onOpen={() => {}} go={() => {}} onTeach={() => {}} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Download PDF report' }));
+  await waitFor(() => expect(apiClient.downloadReport).toHaveBeenCalledWith('scan-1234567'));
+
+  apiClient.downloadReport.mockRejectedValueOnce(new Error('nope'));
+  fireEvent.click(screen.getByRole('button', { name: 'Download PDF report' }));
+  expect(await screen.findByText('The report couldn’t be generated.')).toBeTruthy();
 });
 
 const CISCO = {

@@ -64,8 +64,15 @@ from app.api.schemas import (
     RecognizerDraftSchema,
     RecognizerSaveResponse,
     RejectInterpretationRequest,
+    ConfigLineSchema,
+    ConfigTextResponse,
+    MeaningOptionSchema,
+    MeaningOptionsResponse,
     RejectProvisionalRequest,
     ReplayChangeSchema,
+    TeachLineSchema,
+    UnresolvedControlSchema,
+    UnresolvedQueueResponse,
     ReviewActionResponse,
     ReviewItemSchema,
     ReviewQueueResponse,
@@ -82,8 +89,11 @@ from app.db.mappings import (
     MappingValidationError,
     validate_mapping,
 )
+from app.analysis.scoring import control_outcomes
 from app.facts.heuristics import _Candidate
 from app.facts.recognizers import draft_recognizer, provisional_lines
+from app.facts.teaching import asserted_candidate, meanings, suggested_lines, teachable_predicates
+from app.structure.tokenizer import tokenize
 from app.models.normalized import AIFieldMapping, NormalizedConfig, Vendor
 from app.models.results import DECISIVE_ASSURANCE, ControlResult, Status
 
@@ -433,9 +443,20 @@ def _draft(scan_id: str, body: RecognizerDraftRequest) -> tuple[LearnedMapping, 
     entry = _get_entry(scan_id)
     config = _unknown_config(entry, body.config_index)
     control = _control(body.control_id)
+    asserted = None
+    if body.predicate is not None:
+        # The administrator says what this line means. It is a proposal like any other: the gates below
+        # still have to find that meaning on the line itself.
+        try:
+            asserted = asserted_candidate(config.raw_lines, control, body.line_number,
+                                          body.predicate, body.asserted_value, body.subject)
+        except LookupError as e:
+            raise HTTPException(404, str(e))
+        except ValueError as e:
+            raise HTTPException(422, str(e))
     try:
         fields = draft_recognizer(config.raw_lines, control.needs, body.line_number,
-                                  _ai_candidates(config, control.control_id))
+                                  _ai_candidates(config, control.control_id), asserted=asserted)
     except LookupError as e:
         raise HTTPException(404, str(e))
     redactor = config_redactor([config])
@@ -540,6 +561,123 @@ async def reject_provisional_line(scan_id: str, body: RejectProvisionalRequest):
                                    reason=body.reason or "Heuristic rejected by administrator")
     reanalyze_scan(scan_id)
     return build_scan_response(scan_id)
+
+
+
+# -- Endpoints: the resolution queue (undecided controls) ---------------------
+
+def _teach_line_schema(config: NormalizedConfig, redactor: Redactor, line_number: int,
+                       candidate: Optional[_Candidate], paths: dict) -> TeachLineSchema:
+    scope = list(paths.get(line_number, ()))
+    value = candidate.value if candidate else None
+    return TeachLineSchema(
+        line_number=line_number,
+        text=redact_lines(redactor, [config.raw_lines[line_number - 1].strip()], scope)[0],
+        scope_path=redact_lines(redactor, scope),
+        predicate=candidate.predicate if candidate else None,
+        subject=candidate.subject if candidate else None,
+        value=display_scrub(redactor, value) if isinstance(value, str) else value,
+    )
+
+
+@router.get("/scans/{scan_id}/unresolved", response_model=UnresolvedQueueResponse)
+async def list_unresolved_controls(scan_id: str):
+    """Every applicable control the scan could not decide, and what would let it decide.
+
+    This is the queue side of posture and coverage: a control is listed here exactly when coverage
+    left it out. Listing one never changes it -- it stays UNKNOWN or NOT_CONFIGURED until confirmed
+    evidence decides it.
+    """
+    entry = _get_entry(scan_id)
+    device_results = [_device_results(entry.get("result"), entry["configs"], i)
+                      for i in range(len(entry["configs"]))]
+    outcomes = control_outcomes(device_results)
+    items = []
+    for index, config in enumerate(entry["configs"]):
+        redactor = config_redactor([config])
+        paths = {s.line: s.scope_path for s in tokenize(config.raw_lines)}
+        known_vendor = config.device.vendor != Vendor.UNKNOWN
+        by_control = {}
+        for result in device_results[index]:
+            by_control.setdefault(result.control_id, result)
+        for control_id, result in by_control.items():
+            if outcomes.get((index, control_id)) != "undecided":
+                continue
+            control = CONTROLS[control_id]
+            lines = [] if known_vendor else suggested_lines(config.raw_lines, control,
+                                                            _ai_candidates(config, control_id))
+            blocked = None
+            if known_vendor:
+                blocked = (f"The {config.device.vendor.value} parser reads this configuration; recognizers are "
+                           "for configurations no confirmed parser reads")
+            elif not teachable_predicates(control):
+                blocked = ("NetAuditAI cannot yet be taught the setting this check reads "
+                           f"({', '.join(control.needs)})")
+            items.append(UnresolvedControlSchema(
+                config_index=index,
+                hostname=config.device.hostname,
+                control_id=control_id,
+                title=control.title,
+                question=control.question,
+                severity=control.severity.value,
+                category=control.category,
+                status=result.status.value,
+                reason=display_scrub(redactor, result.reason),
+                evidence_lines=list(result.evidence.line_numbers),
+                evidence=redact_lines(redactor, result.evidence.text, result.evidence.scope_path),
+                action="blocked" if blocked else "teach",
+                needs=list(control.needs),
+                suggested_lines=[_teach_line_schema(config, redactor, n, c, paths) for n, c in lines],
+                blocked_reason=blocked,
+            ))
+    return UnresolvedQueueResponse(
+        scan_id=scan_id,
+        assessed_count=sum(1 for o in outcomes.values() if o in ("pass", "fail")),
+        unresolved_count=sum(1 for o in outcomes.values() if o == "undecided"),
+        items=items,
+    )
+
+
+@router.get("/scans/{scan_id}/configs/{config_index}/lines", response_model=ConfigTextResponse)
+async def list_config_lines(scan_id: str, config_index: int):
+    """The uploaded configuration, redacted for display.
+
+    It is only ever read: teaching cites a line of it, and nothing in this API writes it back.
+    """
+    entry = _get_entry(scan_id)
+    try:
+        config: NormalizedConfig = entry["configs"][config_index]
+    except IndexError:
+        raise HTTPException(404, "Config not found in this scan")
+    redactor = config_redactor([config])
+    statements = {s.line: s.scope_path for s in tokenize(config.raw_lines)}
+    return ConfigTextResponse(
+        config_index=config_index,
+        hostname=config.device.hostname,
+        vendor=config.device.vendor.value,
+        lines=[ConfigLineSchema(
+            line_number=n,
+            text=redact_lines(redactor, [text], statements.get(n, ()))[0],
+            teachable=n in statements,
+        ) for n, text in enumerate(config.raw_lines, 1)],
+    )
+
+
+@router.get("/scans/{scan_id}/meanings", response_model=MeaningOptionsResponse)
+async def list_meaning_options(scan_id: str, control_id: str, line_number: int, config_index: int = 0):
+    """What an administrator may say one line means for one control."""
+    entry = _get_entry(scan_id)
+    config = _unknown_config(entry, config_index)
+    control = _control(control_id)
+    if not 1 <= line_number <= len(config.raw_lines):
+        raise HTTPException(404, f"Line {line_number} is not in this configuration")
+    redactor = config_redactor([config])
+    return MeaningOptionsResponse(
+        control_id=control_id,
+        line_number=line_number,
+        text=redact_lines(redactor, [config.raw_lines[line_number - 1].strip()])[0],
+        options=[MeaningOptionSchema(**o) for o in meanings(config.raw_lines, control, line_number)],
+    )
 
 
 # ── Endpoints: learned mappings ───────────────────────────────────────────────

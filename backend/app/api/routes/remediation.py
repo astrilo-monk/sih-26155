@@ -10,13 +10,16 @@ For an **unconfirmed** vendor there is no recipe and no trusted grammar, so
 ``/remediation/candidate*`` offers the reviewed alternative: command text an
 administrator typed or the AI proposed, validated and (where a deterministic effect
 can be derived) simulated on a copy of the configuration, and confirmed by a human.
-A candidate never becomes a fix, never changes the stored scan and is never executed:
-see ``app.remediation.candidates``.
+A candidate never becomes a fix, never changes the stored scan and is never executed.
+A verified one can be downloaded as a corrected *copy* of the uploaded configuration,
+from its own endpoint: ``/download-fixed`` stays confirmed-vendor only.
+See ``app.remediation.candidates``.
 """
 
 from __future__ import annotations
 
 import io
+import re
 import zipfile
 from typing import Optional
 
@@ -213,7 +216,9 @@ async def remediation_plan(req: RemediationPlanRequest):
 # -- candidate remediation (unconfirmed vendors) ------------------------------
 # A candidate is command text from outside the engine (typed by an administrator, or proposed by the
 # AI). It is validated, simulated on a copy where a deterministic effect can be derived, and confirmed
-# by a human. It never changes the stored scan, never enters a download and is never executed.
+# by a human. It never changes the stored scan and is never executed. Once verified, the edited copy it
+# was verified against can be downloaded from /remediation/candidate/download - a corrected copy of the
+# uploaded file, never a device configuration and never part of /download-fixed.
 
 def _candidates(stored: dict) -> dict[str, cand.Candidate]:
     """This scan's candidates, keyed by config_index-control. Per scan only: nothing is persisted."""
@@ -266,6 +271,7 @@ def _candidate_schema(stored: dict, item: cand.Candidate) -> RemediationCandidat
         control_status_after=item.control_status_after,
         checks=_checks(item.checks),
         diff="\n".join(redact_lines(redactor, item.diff.split("\n"))) if item.diff else "",
+        download_available=cand.downloadable(item),
         created_at=item.created_at,
         confirmed_at=item.confirmed_at,
     )
@@ -294,6 +300,29 @@ async def propose_candidate_manually(req: RemediationCandidateRequest):
                                   cand.SOURCE_MANUAL, req.command or "")
     except cand.CandidateError as e:
         raise HTTPException(422, str(e))
+    return _record(stored, item)
+
+
+@router.post("/remediation/candidate/derive", response_model=RemediationCandidateSchema)
+async def derive_candidate(req: RemediationCandidateRequest):
+    """NetAuditAI's own candidate, derived from the configuration and verified before it is offered.
+
+    No vendor grammar and no AI: the change is the lines the decisive failure cites, removed from the
+    block they sit in, checked by re-reading the edited copy. A control whose fix would be to *add* a
+    setting has nothing to derive and says so; the uploaded configuration is never edited.
+    """
+    stored = _stored(req.scan_id)
+    index = _candidate_target(stored, req)
+    original = stored["configs"][index].raw_config
+    item = cand.derive(original, index, req.rule_id)
+    assert stored["configs"][index].raw_config == original
+    if item is None:
+        raise HTTPException(
+            422,
+            f"NetAuditAI cannot derive a change for {req.rule_id} from this configuration: it can only remove "
+            "settings the finding cites, and this one needs a setting to be added or changed in syntax it does "
+            "not know. Enter the command for this device yourself, or let AI propose one.",
+        )
     return _record(stored, item)
 
 
@@ -360,6 +389,42 @@ async def reject_candidate(req: RemediationCandidateRequest):
     item = _existing(stored, req)
     cand.reject(item, req.reason or "")
     return _candidate_schema(stored, item)
+
+
+def _safe_name(*parts: str) -> str:
+    """A filename built only from characters we choose: no path, no quotes, no header injection."""
+    cleaned = [re.sub(r"[^A-Za-z0-9._-]+", "-", part).strip("-.") or "device" for part in parts]
+    return "_".join(cleaned)[:120]
+
+
+@router.post("/remediation/candidate/download")
+async def download_candidate_config(req: RemediationCandidateRequest):
+    """
+    The verified corrected **copy** of the uploaded configuration for one candidate.
+
+    This is not a device configuration NetAuditAI generated, and nothing has been applied anywhere: it
+    is the uploaded text with the candidate's simulated change, exactly as it was re-analysed when the
+    candidate verified. Only a VERIFIED candidate (or one confirmed after verifying) has that text at
+    all - a draft, an unverified, a rejected or a re-checked-and-failed candidate has none, and is
+    refused here. The stored scan, its configuration and its results are not touched.
+    """
+    stored = _stored(req.scan_id)
+    item = _existing(stored, req)
+    if not cand.downloadable(item):
+        raise HTTPException(409, f"This candidate is '{item.status.value}': there is no verified corrected copy to "
+                                 "download. A copy exists only after NetAuditAI verified the command against this "
+                                 "configuration.")
+    hostname = stored["configs"][item.config_index].device.hostname or "device"
+    return Response(
+        content=item.verified_config, media_type="text/plain",
+        headers={
+            "Content-Disposition":
+                f'attachment; filename="{_safe_name(hostname, item.control_id)}_verified_copy.cfg"',
+            # stated on the response itself, not written into the file: the file must stay byte-identical
+            # to the text that was verified
+            "X-NetAuditAI-Note": "Verified corrected copy of the uploaded configuration; not applied to any device",
+        },
+    )
 
 
 @router.post("/download-fixed")

@@ -29,7 +29,13 @@ is not empty for long: the shipped seed recognizers load into it on first use, w
    coverage is above 0, and every one cites a real line. The login banner stays `NOT_CONFIGURED` rather than being
    guessed. Now **teach** the SSH-version line under **Teach**: the taught recognizer and the shipped ones are used
    side by side on the rescan. See [seed-knowledge.md](seed-knowledge.md).
-10. **Fix, for the unconfirmed vendor.** The problem is **"Needs administrator input"**, not a dead end. Press
+10. **Fix, for the unconfirmed vendor — one click.** Press **Fix it for me**. NetAuditAI derives the change from
+    the configuration itself (`delete system services telnet`, built from the file's own block path), applies it to a
+    **copy**, re-reads the copy with the generic engine and shows `target`, `no_regression` and `generic_path` all
+    passing — no AI, no vendor grammar, nothing taught. Then point at what it refuses: **Fix it for me** never appears
+    for a check that needs a setting *added*, and it will not delete an idle timeout to make a threshold check stop
+    failing. Those stay with the person who owns the command.
+11. **Fix, the other two ways.** The problem is **"Needs administrator input"**, not a dead end. Press
     *Generate candidate fix* (AI on) or *Enter command manually* and type `delete system services telnet;`. The
     candidate is labelled **AI-generated candidate · Not checked yet** and NetAuditAI has changed nothing.
     Press *Verify candidate*: it is applied to a **copy** of the uploaded file, the copy is re-read by the generic
@@ -37,12 +43,22 @@ is not empty for long: the shipped seed recognizers load into it on first use, w
     passing. Press *Confirm*. Point out what the page says and does not say:
     * "Verified against this configuration" — the command removes the finding from the uploaded **file**;
     * it does **not** say the command is safe to run on the device, and it does not say the device was changed;
-    * posture, coverage and the findings do not move, and the download still refuses (`409`): the problem is still
-      a problem until the device is changed and scanned again.
-11. **(Optional, AI on.)** The judge is asked only about undecided controls, with a redacted excerpt; a verified answer
+    * posture, coverage and the findings do not move: the problem is still a problem until the device is changed
+      and scanned again, and *Download corrected configuration* still refuses (`409`) — NetAuditAI writes no device
+      configuration for a vendor it could not confirm.
+    Then press **Download verified corrected copy**. That file is the configuration you uploaded with this one
+    change, exactly as it was re-analysed — the page says so: *"Verified against a copy of your uploaded
+    configuration. This file has not been applied to a device."* Before verifying, that button does not exist.
+12. **(Optional, AI on.)** The judge is asked only about undecided controls, with a redacted excerpt; a verified answer
     appears as "AI proposes …, awaiting confirmation" and changes neither posture nor coverage.
-12. **Close.** Architecture: parser or tokenizer → facts → controls → posture + coverage → AI only for what is
+13. **Download the PDF report** (*Download PDF report*, on Results). One PDF per device: device identification,
+    posture and coverage, every control with the assurance behind it and the lines it cites, the framework view,
+    the remediation paths, and the checks still needing input. Two things to point at: the passwords and SNMP
+    community strings are redacted in the report exactly as in the browser, and the identification section states
+    plainly that serial numbers and hardware inventory are not in a configuration file rather than inventing them.
+14. **Close.** Architecture: parser or tokenizer → facts → controls → posture + coverage → AI only for what is
     unresolved → human confirmation → recognizer → future scans; remediation only where it can be verified.
+
 
 NetAuditAI does five separable things, and only the first four:
 

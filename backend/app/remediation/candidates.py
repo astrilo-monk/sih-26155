@@ -18,6 +18,10 @@ text is a **candidate**, never a fix:
         when no deterministic effect can be derived from the text at all
       → administrator confirmation (CONFIRMED)
 
+A VERIFIED candidate keeps the edited copy it was verified against (``verified_config``) so the
+administrator can download it: a *verified corrected copy of the uploaded configuration*, not a device
+configuration NetAuditAI generated and not something applied anywhere. Every other status clears it.
+
 Nothing here touches the stored scan, its configuration text, its results, posture or coverage, and
 no command is executed anywhere: NetAuditAI never connects to a device. "Verified" means the text
 removes the finding from this configuration *file* — not that it is safe to run on the device.
@@ -32,6 +36,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Iterable, Optional
 
+from app.adaptive.context import structural_paths
+from app.controls.catalog import CONTROLS, ControlKind
 from app.models.results import DECISIVE_ASSURANCE, Status
 from app.remediation.engine import Analysis, Check, _join, analyze_generic_text, no_regression
 from app.structure.tokenizer import Statement, tokenize
@@ -41,6 +47,14 @@ MAX_COMMAND_LINES = 20
 
 SOURCE_MANUAL = "manual"
 SOURCE_AI = "ai"
+SOURCE_DERIVED = "derived"
+
+# Controls a removal can honestly resolve: the configuration states something that must not be there.
+# A control that REQUIRES a setting (remote logging, AAA, a banner) or holds one to a THRESHOLD (an idle
+# timeout, a crypto proposal) is never derived from — deleting the line would leave the setting unset,
+# which reads as "not configured" but is not an improvement. Those stay with the person who owns the
+# command: typed by an administrator, or proposed by the AI, and confirmed by a human either way.
+DERIVABLE_KINDS = frozenset({ControlKind.PROHIBITION, ControlKind.RELATIONAL})
 
 
 class CandidateStatus(str, Enum):
@@ -73,6 +87,10 @@ class Candidate:
     control_status_after: Optional[str] = None
     checks: list[Check] = field(default_factory=list)
     diff: str = ""
+    # The edited COPY of the uploaded configuration, kept only while this candidate is VERIFIED or
+    # CONFIRMED-after-verification. It is scan memory only: never persisted, never the stored config,
+    # never applied to a device. Any other status clears it, so nothing unverified can be handed out.
+    verified_config: Optional[str] = None
     created_at: str = ""
     confirmed_at: Optional[str] = None
 
@@ -125,6 +143,63 @@ def _covers(command: list[Statement], target: Statement) -> bool:
     """
     needed = {t.lower() for t in target.key_tokens} | {w for segment in target.scope_path for w in _words(segment)}
     return any(s.polarity is False and needed <= _addressed(s) for s in command)
+
+
+def _ordered_words(segment: str) -> list[str]:
+    """The words of a block-path segment, in the order the configuration writes them."""
+    seen = []
+    for raw in re.split(r"\s+", segment.lower()):
+        word = raw.strip("{}();\"'")
+        if word and word not in ("set", "config", "edit") and word not in seen:
+            seen.append(word)
+    return seen
+
+
+def block_openers(raw_lines: list[str]) -> set[int]:
+    """Lines that open a block, by number.
+
+    Removing one of these alone would leave its block's contents (and its closer) orphaned, so a
+    derived change never touches them — whatever the dialect, since the depth comes from the same
+    structural reading the tokenizer uses (braces, ``config``/``edit``, indentation).
+    """
+    paths = structural_paths(raw_lines)
+    openers = set()
+    for index, line in enumerate(raw_lines):
+        if not line.strip():
+            continue
+        following = next((k for k in range(index + 1, len(raw_lines)) if raw_lines[k].strip()), None)
+        if following is not None and len(paths[following]) > len(paths[index]):
+            openers.add(index + 1)
+    return openers
+
+
+def derived_command(text: str, evidence: Iterable[int]) -> Optional[str]:
+    """The change NetAuditAI can state itself: remove exactly the lines this finding cites.
+
+    Built from the configuration's own words — the cited statement's keywords inside the block path
+    it sits in — so it needs no vendor grammar and claims none. It is the *change to this file*, and
+    ``verify`` proves it by re-reading the edited copy; whether this text is also the device's CLI
+    syntax is for the administrator to say.
+
+    None when the change cannot be stated safely: no cited line, a line the file does not hold as a
+    statement, or a block opener, which cannot be removed on its own without orphaning its contents.
+    """
+    raw_lines = text.splitlines()
+    statements = {s.line: s for s in tokenize(raw_lines)}
+    openers = block_openers(raw_lines)
+    commands: list[str] = []
+    for number in dict.fromkeys(evidence):
+        statement = statements.get(number)
+        if statement is None or number in openers or not statement.key_tokens:
+            return None
+        words = [w for segment in statement.scope_path for w in _ordered_words(segment)]
+        words += [t.lower() for t in statement.key_tokens if t.lower() not in words]
+        command = "delete " + " ".join(dict.fromkeys(words))
+        if command not in commands:
+            commands.append(command)
+    if not commands or len(commands) > MAX_COMMAND_LINES:
+        return None
+    return "\n".join(commands)
 
 
 def removed_lines(text: str, command: str, evidence: Iterable[int]) -> Optional[list[int]]:
@@ -181,12 +256,42 @@ def new_candidate(text: str, config_index: int, control_id: str, source: str, co
     )
 
 
+def derive(text: str, config_index: int, control_id: str) -> Optional[Candidate]:
+    """NetAuditAI's own candidate for one decisive failure, verified before it is offered.
+
+        decisive FAIL → the lines it cites → remove exactly those from a copy → re-read the copy
+        → the finding is gone and nothing else got worse → a candidate an administrator can confirm
+
+    Returns None when there is nothing to derive — no decisive failure, a control a removal could not
+    honestly resolve (see ``DERIVABLE_KINDS``), or a change that cannot be stated safely — and a
+    REJECTED candidate when the simulation does not hold — an honest answer
+    either way, and never an unverified one. Nothing about the scan changes.
+    """
+    control = CONTROLS.get(control_id)
+    if control is None or control.kind not in DERIVABLE_KINDS:
+        return None
+    evidence = failing_evidence(analyze_generic_text(text), control_id)
+    if not evidence:
+        return None
+    command = derived_command(text, (n for n, _ in evidence))
+    if command is None:
+        return None
+    candidate = new_candidate(
+        text, config_index, control_id, SOURCE_DERIVED, command,
+        explanation=("NetAuditAI derived this from the configuration itself: the lines this finding cites, "
+                     "removed from the block they sit in. It is a change to this configuration file — check "
+                     "that the wording matches your device's command syntax before you use it."),
+    )
+    return verify(candidate, text)
+
+
 def verify(candidate: Candidate, text: str) -> Candidate:
     """Simulate the candidate on a copy of ``text`` and re-read it with the generic engine."""
     before = analyze_generic_text(text)
     candidate.control_status_before = _status_text(before, candidate.control_id)
     candidate.evidence = failing_evidence(before, candidate.control_id)
     candidate.checks, candidate.diff, candidate.control_status_after = [], "", None
+    candidate.verified_config = None  # a re-check starts with nothing downloadable
 
     lines = removed_lines(text, candidate.command, (n for n, _ in candidate.evidence))
     if lines is None:
@@ -222,12 +327,23 @@ def verify(candidate: Candidate, text: str) -> Candidate:
         candidate.reason = "The candidate did not hold up: " + "; ".join(failed)
         return candidate
     candidate.status = CandidateStatus.VERIFIED
+    candidate.verified_config = after_text
     candidate.reason = (
         f"Verified against the uploaded configuration: {candidate.control_id} "
         f"{candidate.control_status_before} → {candidate.control_status_after} on a copy of it. This does not "
         "establish that the command is safe to run on the physical device."
     )
     return candidate
+
+
+def downloadable(candidate: Candidate) -> bool:
+    """Whether a verified corrected copy may be handed out for this candidate.
+
+    Only a candidate the simulation verified (or one an administrator confirmed *after* it verified)
+    has ``verified_config`` at all: a draft, an unverified or a rejected candidate never does.
+    """
+    return (candidate.status in (CandidateStatus.VERIFIED, CandidateStatus.CONFIRMED)
+            and bool(candidate.verified_config))
 
 
 def confirm(candidate: Candidate) -> Candidate:
@@ -248,5 +364,6 @@ def confirm(candidate: Candidate) -> Candidate:
 def reject(candidate: Candidate, reason: str = "") -> Candidate:
     candidate.status = CandidateStatus.REJECTED
     candidate.confirmed_at = None
+    candidate.verified_config = None
     candidate.reason = reason.strip() or "Rejected by an administrator. Nothing was changed."
     return candidate

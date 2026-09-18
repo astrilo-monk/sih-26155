@@ -38,7 +38,10 @@ from app.remediation.engine import analyze_generic_text
 TESTS = pathlib.Path(__file__).parent
 FIXTURES = TESTS / "fixtures"
 SAMPLES = TESTS.parent.parent / "sample"
-JUNIPER = (SAMPLES / "juniper.cfg").read_text()
+# The Junos configuration these tests are pinned to lives in tests/fixtures/: sample/ is the user's
+# playground and its files change, while every number asserted here is a reading of one exact file.
+JUNIPER_CFG = TESTS / "fixtures" / "juniper_edge.cfg"
+JUNIPER = JUNIPER_CFG.read_text()
 
 # A second, heuristic-only Telnet statement: removing the confirmed one does not resolve the finding
 TWO_TELNETS = """system {
@@ -137,7 +140,7 @@ def test_a_negating_command_is_simulated_on_a_copy_and_leaves_the_original_untou
     assert all(c.passed for c in item.checks)
     assert "-        telnet;" in item.diff
     # the configuration the scan holds is byte-identical: the simulation ran on a copy
-    assert original == JUNIPER == (SAMPLES / "juniper.cfg").read_text()
+    assert original == JUNIPER == JUNIPER_CFG.read_text()
     assert cand.apply_to_copy(original, [3]) != original and original == JUNIPER
 
 
@@ -434,3 +437,208 @@ def test_the_candidate_engine_names_no_vendor():
     for vendor in ("juniper", "junos", "palo", "panos", "mikrotik", "arista", "huawei", "fortigate", "fortinet",
                    "cisco", "ios"):
         assert not re.search(rf"\b{vendor}\b", source, re.I), vendor
+
+
+
+# ── the verified corrected copy ─────────────────────────────────────────────
+# A verified candidate keeps the edited COPY it was verified against, so an administrator can download
+# it. It is the uploaded file with that one simulated change — never a device configuration NetAuditAI
+# generated, never something applied anywhere, and never reachable from any other candidate state.
+
+def _download(client: TestClient, body: dict):
+    return client.post("/api/remediation/candidate/download", json=body)
+
+
+def test_verification_retains_exactly_the_text_it_verified_and_nothing_else_does():
+    _teach(JUNIPER, _line_of(JUNIPER, "telnet;"))
+    item = cand.new_candidate(JUNIPER, 0, "MGMT-001", cand.SOURCE_MANUAL, "delete system services telnet;")
+    assert item.verified_config is None and not cand.downloadable(item)  # a draft has nothing
+
+    cand.verify(item, JUNIPER)
+    assert item.status == cand.CandidateStatus.VERIFIED and cand.downloadable(item)
+    # exactly the simulated result: the uploaded text minus the cited line, nothing else touched
+    expected = cand.apply_to_copy(JUNIPER, [_line_of(JUNIPER, "telnet;")])
+    assert item.verified_config == expected
+    assert not any(line.strip() == "telnet;" for line in item.verified_config.splitlines())
+    assert "host-name JUNIPER-EDGE-01;" in item.verified_config and "ftp;" in item.verified_config
+    # and re-reading that copy is what the checks were made of
+    assert analyze_generic_text(item.verified_config).control("MGMT-001")[0].status.value == "not_configured"
+    # the uploaded configuration is untouched on disk and in memory
+    assert JUNIPER == JUNIPER_CFG.read_text()
+
+    # confirmation keeps it; rejection takes it away
+    cand.confirm(item)
+    assert cand.downloadable(item) and item.verified_config == expected
+    cand.reject(item)
+    assert item.verified_config is None and not cand.downloadable(item)
+
+
+def test_a_candidate_that_fails_or_cannot_be_checked_retains_no_downloadable_copy():
+    _teach(TWO_TELNETS, 3)
+    rejected = cand.new_candidate(TWO_TELNETS, 0, "MGMT-001", cand.SOURCE_MANUAL, "delete system services telnet;")
+    cand.verify(rejected, TWO_TELNETS)
+    assert rejected.status == cand.CandidateStatus.REJECTED
+    assert rejected.verified_config is None and not cand.downloadable(rejected)
+
+    # the same taught statement decides JUNIPER's Telnet line too
+    unverified = cand.new_candidate(JUNIPER, 0, "MGMT-001", cand.SOURCE_MANUAL, "please turn off telnet")
+    cand.verify(unverified, JUNIPER)
+    assert unverified.status == cand.CandidateStatus.UNVERIFIED and not cand.downloadable(unverified)
+    # confirming a command NetAuditAI could not check still gives nothing to download
+    cand.confirm(unverified)
+    assert unverified.status == cand.CandidateStatus.CONFIRMED and not cand.downloadable(unverified)
+
+
+def test_re_verifying_against_a_configuration_it_no_longer_fits_drops_the_copy():
+    """The copy never outlives the check that produced it."""
+    _teach(JUNIPER, _line_of(JUNIPER, "telnet;"))
+    item = cand.new_candidate(JUNIPER, 0, "MGMT-001", cand.SOURCE_MANUAL, "delete system services telnet;")
+    cand.verify(item, JUNIPER)
+    assert cand.downloadable(item)
+
+    # the same recognizer decides both Telnet statements of TWO_TELNETS, so the command no longer suffices
+    cand.verify(item, TWO_TELNETS)
+    assert item.status == cand.CandidateStatus.REJECTED and item.verified_config is None
+
+
+def test_api_only_a_verified_candidate_can_be_downloaded():
+    client = TestClient(app)
+    scan, body = _taught_juniper_scan(client)
+    telnet_line = _line_of(JUNIPER, "telnet;")
+
+    # no candidate at all
+    assert _download(client, body).status_code == 404
+
+    draft = client.post("/api/remediation/candidate", json={**body, "command": "delete system services telnet;"}).json()
+    assert draft["download_available"] is False
+    refused = _download(client, body)
+    assert refused.status_code == 409 and "no verified corrected copy" in refused.json()["detail"]
+
+    verified = client.post("/api/remediation/candidate/verify", json=body).json()
+    assert verified["status"] == "verified" and verified["download_available"] is True
+    # the browser is told a file exists; the configuration text itself is not in the JSON
+    assert "verified_config" not in verified
+
+    response = _download(client, body)
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+    assert response.headers["content-disposition"] == \
+        'attachment; filename="JUNIPER-EDGE-01_MGMT-001_verified_copy.cfg"'
+    assert "not applied to any device" in response.headers["x-netauditai-note"]
+
+    downloaded = response.text
+    assert downloaded == cand.apply_to_copy(JUNIPER, [telnet_line])
+    assert not any(line.strip() == "telnet;" for line in downloaded.splitlines())
+    assert "ftp;" in downloaded and "host-name JUNIPER-EDGE-01;" in downloaded
+
+    # confirming keeps it downloadable and byte-identical
+    client.post("/api/remediation/candidate/confirm", json=body)
+    assert _download(client, body).text == downloaded
+
+    # and downloading changed nothing: not the stored file, not the results, not the posture
+    assert get_scan_store()[scan["scan_id"]]["configs"][0].raw_config == JUNIPER
+    assert JUNIPER == JUNIPER_CFG.read_text()
+    after = client.get(f"/api/scan/{scan['scan_id']}").json()
+    for field in ("posture", "coverage", "critical_unassessed", "total_findings"):
+        assert after[field] == scan[field]
+    assert [(r["control_id"], r["status"]) for r in after["results"]] == \
+           [(r["control_id"], r["status"]) for r in scan["results"]]
+    # /download-fixed is still confirmed-vendor only: the candidate copy never leaks into it
+    assert client.post("/api/download-fixed", json={"scan_id": scan["scan_id"]}).status_code == 409
+
+
+def test_api_a_rejected_candidate_cannot_be_downloaded():
+    client = TestClient(app)
+    scan, body = _taught_juniper_scan(client)
+    client.post("/api/remediation/candidate", json={**body, "command": "delete system services telnet;"})
+    client.post("/api/remediation/candidate/verify", json=body)
+    assert _download(client, body).status_code == 200
+
+    client.post("/api/remediation/candidate/reject", json=body)
+    refused = _download(client, body)
+    assert refused.status_code == 409 and "'rejected'" in refused.json()["detail"]
+
+
+def test_api_an_ai_candidate_is_downloadable_only_after_deterministic_verification():
+    client = TestClient(app)
+    scan, body = _taught_juniper_scan(client)
+    with patch.object(ai_rem, "request_structured", return_value=_ai_answer("delete system services telnet;")), \
+         patch("app.api.routes.remediation.is_available", return_value=True):
+        generated = client.post("/api/remediation/candidate/generate", json=body).json()
+    assert generated["source"] == "ai" and generated["download_available"] is False
+    assert _download(client, body).status_code == 409
+
+    verified = client.post("/api/remediation/candidate/verify", json=body).json()
+    assert verified["download_available"] is True
+    assert _download(client, body).text == cand.apply_to_copy(JUNIPER, [_line_of(JUNIPER, "telnet;")])
+
+
+def test_api_each_candidate_gets_its_own_copy_and_they_are_never_combined():
+    """One verified corrected copy per candidate: MGMT-002's copy still contains MGMT-001's problem."""
+    client = TestClient(app)
+    scan, telnet = _taught_juniper_scan(client)
+    client.post("/api/remediation/candidate", json={**telnet, "command": "delete system services telnet;"})
+    client.post("/api/remediation/candidate/verify", json=telnet)
+
+    http = {**telnet, "rule_id": "MGMT-002"}
+    draft = client.post("/api/remediation/candidate",
+                        json={**http, "command": "delete system services web-management http;"})
+    assert draft.status_code == 200, draft.text
+    verified = client.post("/api/remediation/candidate/verify", json=http).json()
+    assert verified["status"] == "verified" and verified["download_available"] is True
+
+    telnet_copy = _download(client, telnet).text
+    http_copy = _download(client, http).text
+    assert telnet_copy == cand.apply_to_copy(JUNIPER, [_line_of(JUNIPER, "telnet;")])
+    assert http_copy == cand.apply_to_copy(JUNIPER, [_line_of(JUNIPER, "http;")])
+    # neither copy silently carries the other candidate's change
+    assert any(line.strip() == "telnet;" for line in http_copy.splitlines())
+    assert any(line.strip() == "http;" for line in telnet_copy.splitlines())
+    assert _download(client, http).headers["content-disposition"].endswith('MGMT-002_verified_copy.cfg"')
+
+
+def test_api_the_verified_copy_lives_only_in_scan_memory():
+    client = TestClient(app)
+    scan, body = _taught_juniper_scan(client)
+    client.post("/api/remediation/candidate", json={**body, "command": "delete system services telnet;"})
+    client.post("/api/remediation/candidate/verify", json=body)
+    copy = _download(client, body).text
+
+    # never written to the learned-mappings database
+    from app.config import settings
+    assert copy not in settings.adaptive_db_path.read_bytes().decode("utf-8", "replace")
+
+    # and it lives no longer than the scan that produced it
+    get_scan_store().pop(scan["scan_id"])
+    assert _download(client, body).status_code == 404
+
+
+def test_api_a_confirmed_vendor_has_no_candidate_download():
+    """The unconfirmed-vendor path is separate: it cannot be used to reach a confirmed vendor's file."""
+    client = TestClient(app)
+    scan = _scan(client, "cisco.cfg", (FIXTURES / "cisco_vulnerable.cfg").read_text())
+    body = {"scan_id": scan["scan_id"], "rule_id": "MGMT-001", "device_hostname": "CORP-RTR-01", "config_index": 0}
+    response = _download(client, body)
+    assert response.status_code == 409 and "vendor is confirmed" in response.json()["detail"]
+    # the confirmed path still hands out its own, separately generated file
+    assert client.post("/api/download-fixed", json={"scan_id": scan["scan_id"]}).status_code == 200
+
+
+def test_the_verified_copy_is_the_uploaded_file_and_reaches_no_device():
+    """It holds exactly what was uploaded, and nothing in this path can talk to a device."""
+    client = TestClient(app)
+    _teach(SECRETS, _line_of(SECRETS, "telnet;"))
+    scan = _scan(client, "secrets.cfg", SECRETS)
+    body = {"scan_id": scan["scan_id"], "rule_id": "MGMT-001",
+            "device_hostname": scan["devices"][0]["hostname"], "config_index": 0}
+    client.post("/api/remediation/candidate", json={**body, "command": "delete system services telnet;"})
+    verified = client.post("/api/remediation/candidate/verify", json=body).json()
+    assert verified["status"] == "verified"
+    # the JSON the browser gets still carries no secret
+    assert not any(s in verified["reason"] + verified["diff"] for s in ("$9$SuperSecretHash", "TopSecret123"))
+    # the file is the administrator's own upload, minus the failing line: it adds no secret and loses none
+    assert _download(client, body).text == cand.apply_to_copy(SECRETS, [_line_of(SECRETS, "telnet;")])
+
+    routes = pathlib.Path(__file__).parent.parent / "app" / "api" / "routes" / "remediation.py"
+    source = pathlib.Path(cand.__file__).read_text() + routes.read_text()
+    assert not re.search(r"socket|paramiko|telnetlib|netmiko|requests\.|httpx|ssh_client|subprocess", source, re.I)

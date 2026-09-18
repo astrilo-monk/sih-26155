@@ -25,6 +25,10 @@ Upload one or more raw configuration files for analysis.
   * Every configuration quote (evidence lines, reasons, adaptive lines and their context) is redacted with that
     configuration's own secrets, e.g. `username admin password 0 <SECRET:type0>`. Evidence keeps its line numbers.
   * `posture` (null when nothing decided), `coverage`, `posture_bounds`, `critical_unassessed`
+  * `assessed_count`, `unresolved_count`: applicable controls decided from decisive evidence, and the ones left
+    undecided — the resolution queue below lists exactly the latter
+  * `unreadable_configs[]`: indexes of uploaded files holding no security configuration at all (prose, a README).
+    They are reported as unreadable and never scored; an unfamiliar *configuration* is a different thing.
   * `frameworks[]`: the same results by framework version — `coverage`, `counts`, `requirements[]` (`status` pass / fail / partial / unknown / not_configured / n_a, `provisional`, mapped `controls[]` with status, assurance, evidence)
   * `score`: **deprecated** penalty score, kept for existing scripts; do not use for compliance
 * **`adaptive` block:** present when lines went through the adaptive layer. It holds:
@@ -83,13 +87,26 @@ Remediate every failing control of every device, in catalog order, verifying eac
 * **Request JSON:** `{"scan_id": "123-abc", "inputs": {}}`
 * **Response JSON:** `RemediationPlanResponse`: `inputs` (every input spec) and `devices[]`, each with `vendor_status`, `remediations[]`, `candidates[]` (unconfirmed vendors), `fixed_controls`, the combined `checks`, `before` / `after` and `fixed_config` (every verified change; `null` when none).
 
+### `POST /api/remediation/candidate/derive` (unconfirmed vendors)
+The change NetAuditAI works out for itself, already verified when it returns. **Request JSON:** the candidate
+shape (`scan_id`, `rule_id`, `device_hostname`, `config_index`). It takes the lines the decisive FAIL cites,
+removes them from a copy, re-reads the copy with the generic engine and runs the same `target` /
+`no_regression` / `generic_path` checks any candidate faces. No AI and no vendor grammar: the text is built
+from the configuration's own block path and keywords.
+
+`422` when nothing can be derived — the control requires a setting to exist (a removal cannot satisfy it, see
+`DERIVABLE_KINDS`), the cited line opens a block, or the change cannot be stated safely. `409` when the vendor
+is confirmed (it has recipes) or the finding is not a decisive failure. The uploaded configuration is never
+edited and the scan's posture, coverage and results never move; a derived candidate still needs human
+confirmation and is never applied to a device.
+
 ### `POST /api/remediation/candidate*` (unconfirmed vendors)
 
-Five operations on one candidate. A candidate is identified by the finding it is about, so at most one candidate per
+Six operations on one candidate. A candidate is identified by the finding it is about, so at most one candidate per
 (`config_index`, `rule_id`) exists at a time and a new proposal replaces it. Candidates live in the scan's memory
 only — they are never written to the database.
 
-All five take the same body: `{"scan_id": "123-abc", "rule_id": "MGMT-001", "device_hostname": "JUNIPER-EDGE-01", "config_index": 0, "command": "delete system services telnet;", "reason": null}` (`command` is required for
+All six take the same body: `{"scan_id": "123-abc", "rule_id": "MGMT-001", "device_hostname": "JUNIPER-EDGE-01", "config_index": 0, "command": "delete system services telnet;", "reason": null}` (`command` is required for
 `/candidate` and ignored elsewhere; `reason` is used by `/reject`).
 
 | Route | Does |
@@ -99,6 +116,7 @@ All five take the same body: `{"scan_id": "123-abc", "rule_id": "MGMT-001", "dev
 | `POST /api/remediation/candidate/verify` | Simulate it on a copy and re-evaluate every control → `verified` / `rejected` / `unverified` |
 | `POST /api/remediation/candidate/confirm` | An administrator accepts a `verified` or `unverified` candidate → `confirmed` (`409` from any other state: a draft must be checked first) |
 | `POST /api/remediation/candidate/reject` | Discard it → `rejected`; nothing about the scan changes |
+| `POST /api/remediation/candidate/download` | Download the verified corrected **copy** of the uploaded configuration (see below) |
 
 Common refusals: `404` unknown control, unknown device, or no candidate yet; `409` the vendor **is** confirmed (use
 `POST /api/remediate`); `409` the finding is not decided from validated evidence (a heuristic or AI verdict — confirm
@@ -117,17 +135,53 @@ Every response is a `RemediationCandidateSchema`:
 | `control_status_before` / `_after` | The control before and on the simulated copy, e.g. `fail` → `not_configured` (absence is never a PASS) |
 | `checks` | `target`, `no_regression`, `generic_path` — empty when nothing could be simulated |
 | `diff` | The simulated change on the copy (redacted). The uploaded configuration is untouched |
+| `download_available` | Whether `/candidate/download` can hand out the verified corrected copy. The copy itself is never in this JSON |
 | `created_at`, `confirmed_at` | When it was proposed and, if it happened, confirmed |
 
 A device's candidates are also returned with the plan (`devices[].candidates`), so a reload shows the same state.
 **A confirmed candidate is not a fix:** the control still FAILs until the device is changed and scanned again.
 
+#### `POST /api/remediation/candidate/download`
+
+The verified corrected **copy** of the uploaded configuration for one candidate: the uploaded text with that
+candidate's simulated change, byte-for-byte the text that was re-analysed when the candidate verified.
+
+* **Request JSON:** the same body as the other candidate routes (`command` and `reason` are ignored).
+* **Response:** `text/plain`, `Content-Disposition: attachment; filename="<hostname>_<rule_id>_verified_copy.cfg"`
+  (built only from `[A-Za-z0-9._-]`), plus `X-NetAuditAI-Note: Verified corrected copy of the uploaded
+  configuration; not applied to any device`. The file itself carries no added header, so it stays identical to the
+  text that was verified.
+* **Refusals:** `409` for any candidate that is not `verified` (or `confirmed` after verifying) — a draft, an
+  unverified, a rejected or a re-checked-and-failed candidate has no copy at all; `409` when the vendor **is**
+  confirmed (that path is `/api/download-fixed`); `404` unknown scan, control, device, or no candidate yet.
+* One copy per candidate: candidate changes are never combined into one file.
+* This is **not** a device configuration NetAuditAI generated, and nothing was applied anywhere. It is separate
+  from `/api/download-fixed`, which stays confirmed-vendor only.
+
 ### `POST /api/download-fixed`
 Download the configuration(s) with every verified fix applied (unverified changes are never included).
 * **Request JSON:** `{"scan_id": "123-abc", "inputs": {}}`
 * **Response:** one `.cfg` (text/plain) or a `.zip` of `<hostname>_fixed.cfg`. `409` when no configuration has a confirmed vendor; `400` when nothing was verified.
+* Confirmed vendors only, unchanged: an unconfirmed vendor's verified candidate copy is never included here, and is
+  downloaded from `/api/remediation/candidate/download` instead.
 * The UI sends exactly the inputs the displayed plan was generated with, and disables the download while the input
   fields differ from them, so a downloaded file always matches a reviewed plan.
+
+## Reporting
+
+### `POST /api/report`
+The compliance report as PDF. **Request JSON:** `{"scan_id": "123-abc", "config_index": 0, "inputs": {}}` —
+`config_index` omitted reports every device of the scan. One device returns `application/pdf`
+(`<hostname>_compliance_report.pdf`); several return a `.zip` with one PDF per device. `404` for an unknown
+scan or device index.
+
+The report restates the scan; it never re-evaluates anything. Its six sections are device identification,
+assessment summary (posture, coverage, assessed / undecided counts), compliance findings with the assurance
+behind each result and the lines it cites, the framework view, remediation (the deterministic change per
+failing control, or why there is none), and the checks needing administrator input. Serial numbers and
+hardware inventory are **not** reported: a configuration file does not state them. Every quoted line is
+redacted by the same layer that redacts the API, and `tests/test_pdf_report.py` re-checks the rendered PDF
+against the secrets of the configuration it was built from.
 
 ## Assistant (AI)
 
@@ -152,8 +206,31 @@ These endpoints back the Teach and Learned pages. **They have no authentication 
 ### `GET /api/adaptive/scans/{scan_id}/provisional`
 Undecided or provisional control results of unknown-vendor configs, with the heuristic lines and verified AI proposal lines an administrator can confirm.
 
+### `GET /api/adaptive/scans/{scan_id}/unresolved`
+The resolution queue: every applicable control the scan could not decide, i.e. exactly what coverage left out.
+**Response:** `assessed_count`, `unresolved_count` and `items[]` with `control_id`, `title`, `question`, `severity`,
+`status` (`unknown` / `not_configured`), `reason`, the `evidence` it did cite, the `needs` predicates,
+`suggested_lines[]` (lines of this configuration that mention the setting, with a heuristic's reading where there is
+one) and `action`: `teach`, or `blocked` with a `blocked_reason` (a confirmed parser reads this config, or no
+recognizer can express the setting). Listing a control never changes it — it stays undecided until confirmed
+evidence decides it.
+
+### `GET /api/adaptive/scans/{scan_id}/configs/{config_index}/lines`
+The uploaded configuration, redacted for display, so a person can point at any line: `lines[]` with `line_number`,
+`text` and `teachable` (a tokenizer statement a recognizer could come from). Read-only — nothing in this API
+writes the uploaded configuration back.
+
+### `GET /api/adaptive/scans/{scan_id}/meanings?control_id=…&line_number=…&config_index=0`
+What an administrator may say one line means for one control: `options[]` of `{predicate, subject, value}`. A
+true/false setting offers both polarities; a value setting (a version, a timeout, an address) offers only "this line
+states it" — the value is read from the line, never from the person.
+
 ### `POST /api/adaptive/scans/{scan_id}/recognizers/draft`
 Draft a recognizer from a provisional line. **Request JSON:** `{"config_index": 0, "control_id": "MGMT-001", "line_number": 71, "command_pattern": null, "scope_template": null, "value": null, "any_dialect": false, "negatives": []}`. **Response:** the draft, gate `errors` and the `replay` of results it would change on scans held by the backend.
+
+To resolve a control from a line no heuristic read, add the administrator's answer: `"predicate"`, `"asserted_value"`
+and `"subject"` (one of the options above). It is a proposal like any other — `validate_recognizer` still has to find
+that meaning on the line itself, so a line that does not state the value cannot teach it (`422`).
 
 ### `POST /api/adaptive/scans/{scan_id}/recognizers`
 Save the recognizer (same body) to SQLite and return the re-evaluated scan. `422` when a gate fails, `409` on a conflicting recognizer.

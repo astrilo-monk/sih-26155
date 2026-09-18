@@ -1,13 +1,16 @@
 // @vitest-environment jsdom
 import { useState } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 
 vi.mock('../api/client', () => ({
   apiClient: {
     getRemediationPlan: vi.fn(),
     getProvisionalResults: vi.fn(),
     getReviewQueue: vi.fn(),
+    getUnresolvedControls: vi.fn(),
+    getConfigLines: vi.fn(),
+    getMeaningOptions: vi.fn(),
     getNormalizedFields: vi.fn(),
     draftRecognizer: vi.fn(),
     saveRecognizer: vi.fn(),
@@ -23,22 +26,42 @@ const SCAN = {
   scan_id: 'scan-1',
   devices: [{ hostname: 'CORE-GATE-07', vendor: 'unknown' }],
   vendor_identification: [{ config_index: 0, detected_vendor: 'unknown', status: 'unknown' }],
+  posture: 27, coverage: 24, assessed_count: 3, unresolved_count: 2,
   results: [], findings: [], adaptive_configs: [],
 };
-const UPDATED = { ...SCAN, posture: 91 };
+// the re-evaluated scan the backend returns once a meaning is saved: one more check decided
+const UPDATED = {
+  ...SCAN, posture: 40, coverage: 32, assessed_count: 4, unresolved_count: 1,
+  results: [{ config_index: 0, control_id: 'MGMT-001', status: 'fail', assurance: 'confirmed', reason: 'Telnet is allowed for remote management' }],
+};
 
+// The resolution queue: two checks the scan could not decide
 const TELNET = {
-  config_index: 0, control_id: 'MGMT-001', question: 'Is cleartext Telnet disabled for remote management?', status: 'fail', assurance: 'heuristic',
-  reason: 'Telnet is allowed for remote management',
-  lines: [{ line_number: 71, text: 'remote-console protocol telnet', predicate: 'mgmt.remote_access.protocol_enabled', subject: 'telnet', value: true }],
+  config_index: 0, control_id: 'MGMT-001', hostname: 'CORE-GATE-07',
+  title: 'Telnet enabled', question: 'Is cleartext Telnet disabled for remote management?',
+  severity: 'critical', category: 'management', status: 'unknown', action: 'teach',
+  reason: 'No line of this configuration states whether Telnet is allowed',
+  evidence_lines: [], evidence: [], needs: ['mgmt.remote_access.protocol_enabled'],
+  suggested_lines: [{ line_number: 71, text: 'remote-console protocol telnet', scope_path: [], predicate: null, subject: null, value: null }],
 };
 const TIMEOUT = {
-  config_index: 0, control_id: 'MGMT-006', question: 'Do idle management sessions time out?', status: 'unknown', assurance: null,
-  reason: 'The idle timeout of admin sessions is stated without a known unit',
-  lines: [
-    { line_number: 38, text: 'operator inactivity-lock 600', predicate: 'mgmt.session.idle_timeout', subject: null, value: 600 },
-    { line_number: 39, text: 'operator inactivity-lock-console 900', predicate: 'mgmt.session.idle_timeout', subject: null, value: 900 },
+  config_index: 0, control_id: 'MGMT-006', hostname: 'CORE-GATE-07',
+  title: 'Idle sessions', question: 'Do idle management sessions time out?',
+  severity: 'medium', category: 'management', status: 'not_configured', action: 'teach',
+  reason: 'No relevant setting was found in this configuration',
+  evidence_lines: [], evidence: [], needs: ['mgmt.session.idle_timeout'],
+  suggested_lines: [{ line_number: 38, text: 'operator inactivity-lock 600', scope_path: [], predicate: null, subject: null, value: null }],
+};
+const TELNET_MEANINGS = {
+  control_id: 'MGMT-001', line_number: 71, text: 'remote-console protocol telnet',
+  options: [
+    { predicate: 'mgmt.remote_access.protocol_enabled', subject: 'telnet', value: true },
+    { predicate: 'mgmt.remote_access.protocol_enabled', subject: 'telnet', value: false },
   ],
+};
+const TIMEOUT_MEANINGS = {
+  control_id: 'MGMT-006', line_number: 38, text: 'operator inactivity-lock 600',
+  options: [{ predicate: 'mgmt.session.idle_timeout', subject: null, value: null }],
 };
 const DRAFT = {
   draft: {
@@ -47,9 +70,15 @@ const DRAFT = {
     example_line: 'remote-console protocol telnet', negatives: [],
   },
   errors: [], configs_checked: 1,
-  replay: [{ hostname: 'CORE-GATE-07', control_id: 'MGMT-001', before: 'fail (heuristic)', after: 'fail (confirmed)' }],
+  replay: [{ hostname: 'CORE-GATE-07', control_id: 'MGMT-001', before: 'unknown', after: 'fail (confirmed)' }],
 };
-const ASK = { config_index: 0, control_id: 'MGMT-001', line_number: 71 };
+// what the person's answer asks the backend to learn: the line, and the meaning they stated
+const ASK = {
+  config_index: 0, control_id: 'MGMT-001', line_number: 71,
+  predicate: 'mgmt.remote_access.protocol_enabled', asserted_value: true, subject: 'telnet',
+};
+
+const queueOf = (...items) => ({ scan_id: 'scan-1', assessed_count: 3, unresolved_count: items.length, items });
 
 function Harness({ scan0 = SCAN, onUpdated = () => {} }) {
   const [scan, setScan] = useState(scan0);
@@ -65,7 +94,14 @@ beforeEach(() => {
   apiClient.getRemediationPlan.mockResolvedValue({ scan_id: 'scan-1', inputs: [], devices: [] });
   apiClient.getReviewQueue.mockResolvedValue({ items: [] });
   apiClient.getNormalizedFields.mockResolvedValue([]);
-  apiClient.getProvisionalResults.mockResolvedValue({ items: [TELNET, TIMEOUT] });
+  apiClient.getProvisionalResults.mockResolvedValue({ items: [] });
+  apiClient.getUnresolvedControls.mockResolvedValue(queueOf(TELNET, TIMEOUT));
+  apiClient.getConfigLines.mockResolvedValue({
+    config_index: 0, hostname: 'CORE-GATE-07', vendor: 'unknown',
+    lines: [{ line_number: 71, text: 'remote-console protocol telnet', teachable: true }],
+  });
+  apiClient.getMeaningOptions.mockImplementation((_id, { controlId }) =>
+    Promise.resolve(controlId === 'MGMT-001' ? TELNET_MEANINGS : TIMEOUT_MEANINGS));
 });
 
 afterEach(() => {
@@ -73,72 +109,92 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-it('asks what an unfamiliar line does in plain words, learns the answer and moves to the next question', async () => {
-  apiClient.getProvisionalResults.mockResolvedValueOnce({ items: [TELNET, TIMEOUT] }).mockResolvedValue({ items: [TIMEOUT] });
+it('asks what an undecided check needs in plain words, learns the answer and moves to the next check', async () => {
+  apiClient.getUnresolvedControls.mockResolvedValueOnce(queueOf(TELNET, TIMEOUT)).mockResolvedValue(queueOf(TIMEOUT));
   apiClient.draftRecognizer.mockResolvedValue(DRAFT);
   apiClient.saveRecognizer.mockResolvedValue({ mapping: { id: 7, command_pattern: DRAFT.draft.command_pattern }, replay: DRAFT.replay, scan: UPDATED });
   const onUpdated = vi.fn();
   const { container } = render(<Harness onUpdated={onUpdated} />);
 
-  expect(await screen.findByText('We don’t recognize this configuration yet')).toBeTruthy();
-  expect(screen.getByText('Question 1 of 2')).toBeTruthy();
-  expect(screen.getByText('We think this line turns on Telnet remote access.')).toBeTruthy();
+  expect(await screen.findByText('Is cleartext Telnet disabled for remote management?')).toBeTruthy();
+  expect(screen.getByText('Check 1 of 2')).toBeTruthy();
+  expect(screen.getByText('Not enough information')).toBeTruthy();
+  expect(await screen.findByText('It turns on Telnet remote access')).toBeTruthy();
   // no internal machinery in the default view
-  expect(container.textContent).not.toMatch(/recognizer|template|slot|JSON|predicate|provisional|heuristic|safety gate/i);
+  expect(container.textContent).not.toMatch(/recognizer|slot|JSON|predicate|provisional|heuristic|safety gate/i);
   expect(screen.getByRole('button', { name: 'Continue' }).disabled).toBe(true);
 
-  fireEvent.click(screen.getByLabelText('Yes — it turns on Telnet remote access'));
+  fireEvent.click(screen.getByLabelText('It turns on Telnet remote access'));
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
   expect(await screen.findByText('NetAuditAI learned this')).toBeTruthy();
-  expect(screen.getByText('This configuration pattern will be recognized on future scans.')).toBeTruthy();
   expect(apiClient.draftRecognizer).toHaveBeenCalledWith('scan-1', ASK);
   expect(apiClient.saveRecognizer).toHaveBeenCalledWith('scan-1', ASK);
   expect(onUpdated).toHaveBeenCalledWith(UPDATED);
 
-  // the re-evaluated scan refreshes the queue: one question left
-  fireEvent.click(await screen.findByRole('button', { name: 'Continue to next issue' }));
-  expect(await screen.findByText('Question 1 of 1')).toBeTruthy();
-  expect(screen.getByText('We think this line sets an idle session timeout (600).')).toBeTruthy();
+  // the check it could not decide is decided now, and the updated score is the backend's
+  expect(screen.getByText('MGMT-001').closest('p').textContent).toMatch(/is now Failed/);
+  expect(screen.getByText('40').closest('li').textContent).toContain('security posture (was 27)');
+  expect(screen.getByText('32%').closest('li').textContent).toContain('checked (was 24%)');
+  expect(screen.getByText('1').closest('li').textContent).toContain('still need input (was 2)');
+
+  // the re-evaluated scan refreshes the queue: one check left
+  fireEvent.click(await screen.findByRole('button', { name: 'Continue to the next check' }));
+  expect(await screen.findByText('Do idle management sessions time out?')).toBeTruthy();
+  expect(screen.getByText('Check 1 of 1')).toBeTruthy();
+  expect(await screen.findByText('It sets how long an idle session may stay open')).toBeTruthy();
 });
 
-it('explains a failed safety check in plain English, saves nothing, and lets the person try again or cancel', async () => {
+it('a saved meaning that still does not decide the check is never counted', async () => {
+  apiClient.draftRecognizer.mockResolvedValue(DRAFT);
+  apiClient.saveRecognizer.mockResolvedValue({ mapping: { id: 7 }, replay: [], scan: { ...SCAN, results: [] } });
+  render(<Harness />);
+  fireEvent.click(await screen.findByLabelText('It turns on Telnet remote access'));
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  expect(await screen.findByText(/is still undecided/)).toBeTruthy();
+  expect(screen.getByText(/Nothing was counted/)).toBeTruthy();
+});
+
+it('explains a failed safety check in plain English, saves nothing, and lets the person try again', async () => {
   apiClient.draftRecognizer.mockResolvedValue({ ...DRAFT, errors: ['This line holds a secret value: a recognizer would store it, so it cannot be drafted from this line'], replay: [] });
   const { container } = render(<Harness />);
-  fireEvent.click(await screen.findByLabelText('Yes — it turns on Telnet remote access'));
+  fireEvent.click(await screen.findByLabelText('It turns on Telnet remote access'));
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
-  expect(await screen.findByText('NetAuditAI couldn’t safely save this rule.')).toBeTruthy();
+  expect(await screen.findByText('NetAuditAI couldn’t safely save this.')).toBeTruthy();
   expect(screen.getByText(/contains a secret, such as a password or key/)).toBeTruthy();
+  expect(screen.getByText(/never counted as passed or failed/)).toBeTruthy();
   expect(apiClient.saveRecognizer).not.toHaveBeenCalled();
   expect(container.textContent).not.toMatch(/recognizer would store it/);
   fireEvent.click(screen.getByRole('button', { name: 'Advanced details' }));
   expect(screen.getByText(/recognizer would store it/)).toBeTruthy();
 
-  fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-  expect(screen.getByText('We don’t recognize this configuration yet')).toBeTruthy();
-  expect(screen.getByLabelText('Yes — it turns on Telnet remote access').checked).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Try another line' }));
+  expect(await screen.findByText('Is cleartext Telnet disabled for remote management?')).toBeTruthy();
 });
 
 it('treats a refused save the same way: nothing is claimed as learned', async () => {
   apiClient.draftRecognizer.mockResolvedValue(DRAFT);
   apiClient.saveRecognizer.mockRejectedValue(Object.assign(new Error('A recognizer already maps this template'), { status: 409 }));
   render(<Harness />);
-  fireEvent.click(await screen.findByLabelText('Yes — it turns on Telnet remote access'));
+  fireEvent.click(await screen.findByLabelText('It turns on Telnet remote access'));
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-  expect(await screen.findByText('NetAuditAI couldn’t safely save this rule.')).toBeTruthy();
+  expect(await screen.findByText('NetAuditAI couldn’t safely save this.')).toBeTruthy();
   expect(screen.getByText(/already knows a different meaning/)).toBeTruthy();
   expect(screen.queryByText('NetAuditAI learned this')).toBeNull();
 });
 
 it('rejects a misread line and propagates the re-evaluated scan', async () => {
+  const read = { ...TELNET, suggested_lines: [{ ...TELNET.suggested_lines[0], predicate: 'mgmt.remote_access.protocol_enabled', subject: 'telnet', value: true }] };
+  apiClient.getUnresolvedControls.mockResolvedValue(queueOf(read, TIMEOUT));
   apiClient.rejectProvisionalLine.mockResolvedValue(UPDATED);
   const onUpdated = vi.fn();
   render(<Harness onUpdated={onUpdated} />);
+  expect(await screen.findByText(/We think it turns on Telnet remote access/)).toBeTruthy();
   fireEvent.click(await screen.findByLabelText('Something else — NetAuditAI misread this line'));
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
   expect(await screen.findByText('Got it.')).toBeTruthy();
-  expect(apiClient.rejectProvisionalLine).toHaveBeenCalledWith('scan-1', ASK);
+  expect(apiClient.rejectProvisionalLine).toHaveBeenCalledWith('scan-1', { config_index: 0, control_id: 'MGMT-001', line_number: 71 });
   expect(onUpdated).toHaveBeenCalledWith(UPDATED);
   expect(apiClient.saveRecognizer).not.toHaveBeenCalled();
 });
@@ -153,7 +209,7 @@ it('lets an expert edit the rule under Advanced details; the edit goes through t
   expect(template.value).toBe('remote-console protocol {enum:protocol}');
   fireEvent.change(template, { target: { value: 'remote-console protocol {enum:proto}' } });
 
-  fireEvent.click(screen.getByLabelText('Yes — it turns on Telnet remote access'));
+  fireEvent.click(screen.getByLabelText('It turns on Telnet remote access'));
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
   expect(await screen.findByText('NetAuditAI learned this')).toBeTruthy();
   const edited = { ...ASK, command_pattern: 'remote-console protocol {enum:proto}', scope_template: '', value: '{"telnet": true, "*": false}', any_dialect: false };
@@ -161,26 +217,29 @@ it('lets an expert edit the rule under Advanced details; the edit goes through t
   expect(apiClient.saveRecognizer).toHaveBeenCalledWith('scan-1', edited);
 });
 
-it('skips a question without answering it', async () => {
+it('can pick any line of the uploaded configuration instead of the suggested one', async () => {
   render(<Harness />);
-  fireEvent.click(await screen.findByLabelText('I’m not sure — skip for now'));
+  fireEvent.click(await screen.findByRole('button', { name: 'Show the whole configuration' }));
+  expect(await screen.findByRole('list', { name: 'Uploaded configuration' })).toBeTruthy();
+  expect(apiClient.getConfigLines).toHaveBeenCalledWith('scan-1', 0);
+});
+
+it('skips a check without answering it', async () => {
+  render(<Harness />);
+  fireEvent.click(await screen.findByLabelText('I’m not sure — skip this check for now'));
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-  expect(await screen.findByText('We think this line sets an idle session timeout (600).')).toBeTruthy();
-  expect(screen.getByText('Question 1 of 1')).toBeTruthy();
-  fireEvent.click(screen.getByLabelText('I’m not sure — skip for now'));
+  expect(await screen.findByText('Do idle management sessions time out?')).toBeTruthy();
+  expect(screen.getByText('Check 1 of 1')).toBeTruthy();
+  fireEvent.click(await screen.findByLabelText('I’m not sure — skip this check for now'));
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-  // the same check's second line: still one question left, not a new one
-  expect(await screen.findByText('We think this line sets an idle session timeout (900).')).toBeTruthy();
-  expect(screen.getByText('Question 1 of 1')).toBeTruthy();
-  fireEvent.click(screen.getByLabelText('I’m not sure — skip for now'));
-  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-  expect(await screen.findByText('No more questions for now.')).toBeTruthy();
+  expect(await screen.findByText('No more checks for now.')).toBeTruthy();
+  expect(screen.getByText(/Skipped checks stay undecided and uncounted/)).toBeTruthy();
   expect(apiClient.draftRecognizer).not.toHaveBeenCalled();
 });
 
 it('has nothing to teach when a dedicated parser read the configuration', async () => {
-  apiClient.getProvisionalResults.mockResolvedValue({ items: [] });
+  apiClient.getUnresolvedControls.mockResolvedValue(queueOf());
   render(<Harness scan0={{ ...SCAN, vendor_identification: [{ config_index: 0, detected_vendor: 'cisco_ios', status: 'confirmed' }] }} />);
-  expect(await screen.findByText('Nothing needs your answer.')).toBeTruthy();
+  expect(await screen.findByText('Nothing is waiting for your input.')).toBeTruthy();
   expect(screen.getByText(/dedicated Cisco IOS parser/)).toBeTruthy();
 });

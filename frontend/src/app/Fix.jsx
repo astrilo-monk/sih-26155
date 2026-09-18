@@ -95,6 +95,19 @@ export function CandidateFix({ item, audit }) {
       setBusy(null);
     }
   };
+  // Saving the verified copy changes nothing: it is the uploaded configuration with this candidate's
+  // simulated change, exactly as NetAuditAI re-analysed it. The backend refuses an unverified candidate.
+  const saveCopy = async () => {
+    setBusy('download');
+    setError(null);
+    try {
+      await audit.candidateDownload(item);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(null);
+    }
+  };
   const openEditor = () => {
     setCommand(candidate?.command || '');
     setEditing(true);
@@ -136,11 +149,18 @@ export function CandidateFix({ item, audit }) {
         {editing ? editor : (
           <>
             <div className="actions">
-              <button type="button" className="btn btn-primary" onClick={() => step('generate')} disabled={!!busy}>
-                {busy === 'generate' ? 'Asking AI…' : 'Generate candidate fix'}
+              <button type="button" className="btn btn-primary" onClick={() => step('derive')} disabled={!!busy}>
+                {busy === 'derive' ? 'Working it out…' : 'Fix it for me'}
+              </button>
+              <button type="button" className="btn" onClick={() => step('generate')} disabled={!!busy}>
+                {busy === 'generate' ? 'Asking AI…' : 'Ask AI for a command'}
               </button>
               <button type="button" className="btn" onClick={openEditor} disabled={!!busy}>Enter command manually</button>
             </div>
+            <p className="small muted">
+              <strong>Fix it for me</strong> removes exactly the lines this finding cites from a copy of your file and
+              re-checks it. It needs no AI and no vendor grammar — but it can only remove a setting, never add one.
+            </p>
             {errorLine}
           </>
         )}
@@ -172,6 +192,11 @@ export function CandidateFix({ item, audit }) {
       {candidate.checks?.length > 0 && <VerifyList checks={candidate.checks} />}
       {candidate.diff && <FileDiff diff={candidate.diff} file={candidate.device_hostname} caption="Simulated change (on a copy — your file is untouched)" />}
       <p className="small muted">{meta.note}</p>
+      {candidate.download_available && (
+        <p className="small muted">
+          Verified against a copy of your uploaded configuration. This file has not been applied to a device.
+        </p>
+      )}
       {editing ? editor : (
         <>
           <div className="actions">
@@ -190,6 +215,11 @@ export function CandidateFix({ item, audit }) {
             </button>
             {candidate.status !== 'rejected' && candidate.status !== 'confirmed' && (
               <button type="button" className="btn btn-quiet" onClick={() => step('reject')} disabled={!!busy}>Reject</button>
+            )}
+            {candidate.download_available && (
+              <button type="button" className="btn btn-accent" onClick={saveCopy} disabled={!!busy}>
+                {busy === 'download' ? 'Preparing…' : 'Download verified corrected copy'}
+              </button>
             )}
             <CopyButton text={candidate.command} label="Copy command" />
           </div>
@@ -401,6 +431,9 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
   const downloadable = devices.some((d) => d.fixed_config);
   const scored = devices.filter((d) => d.before && d.after && d.fixed_controls.length > 0);
   const unconfirmed = devices.filter((d) => d.vendor_status !== 'confirmed');
+  // A candidate that held up against the uploaded configuration offers a verified corrected *copy* of
+  // that file, per candidate. It is still not a device configuration NetAuditAI generated.
+  const candidateVerified = unconfirmed.some((d) => (d.candidates || []).some((c) => c.download_available));
   const remaining = items.length - fixed.length;
   const shared = { scan, audit, labels, onOpen };
 
@@ -509,7 +542,7 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
             <Group id="fix-can" title="Can fix automatically" items={canFix} {...shared} />
             <Group id="fix-input" title="Needs your input" hint="Answer these and NetAuditAI generates and verifies the fix." items={inState('needs_input')} {...shared} />
             <Group id="fix-candidate" title="Needs administrator input"
-                   hint="NetAuditAI doesn’t write commands for a vendor it couldn’t confirm. Propose one — or let AI draft one — and NetAuditAI checks it against this configuration."
+                   hint="NetAuditAI doesn’t write vendor commands for a vendor it couldn’t confirm. It can work the change out from your own configuration, or you can propose one — either way it is checked against this configuration before you confirm it."
                    items={inState('needs_admin')} {...shared} />
             <Group id="fix-manual" title="Needs manual action" hint="NetAuditAI shows what to change; you make the change on the device."
                    items={inState('manual', 'cannot_fix', 'verification_failed')} {...shared} />
@@ -530,7 +563,7 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
 
       {unconfirmed.length > 0 && (
         <p className="small muted">
-          NetAuditAI never writes vendor commands for {joinWords(unconfirmed.map((d) => labels[d.config_index] ?? d.device_hostname))} by itself: the vendor isn’t confirmed. You can propose a command, or have AI draft one, and NetAuditAI checks it against the uploaded configuration before you confirm it. It never connects to the device.
+          NetAuditAI never writes vendor commands for {joinWords(unconfirmed.map((d) => labels[d.config_index] ?? d.device_hostname))} by itself: the vendor isn’t confirmed. It can derive the change from the configuration you uploaded, and you can propose a command or have AI draft one — each is checked against that configuration before you confirm it. It never connects to the device.
         </p>
       )}
 
@@ -540,7 +573,9 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
           <span className="small">
             {downloadable
               ? `Includes every fix NetAuditAI verified (${verifiedTotal}). Only changes that passed the rescan are included — review before deploying.`
-              : 'Nothing to download yet: no fix has been verified.'}
+              : candidateVerified
+                ? 'No corrected device configuration for an unconfirmed vendor. Each verified candidate offers its own corrected copy of your uploaded file, above — NetAuditAI checked it against that file and has not applied it to a device.'
+                : 'Nothing to download yet: no fix has been verified.'}
           </span>
         </div>
       )}

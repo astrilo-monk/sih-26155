@@ -39,7 +39,12 @@ Unknown-vendor configs are read by recognizers (administrator-confirmed), learne
 
 ## 3. Remediation Candidates (unconfirmed vendors, on request)
 
-A device whose vendor is not confirmed has no deterministic recipe, so the Fix page can ask for a **candidate
+**Not AI: the derived candidate.** The Fix page's *Fix it for me* asks no model anything. `candidates.derive` takes
+the lines the decisive FAIL cites, removes them from a copy and re-reads it with the generic engine; the text it
+shows is built from the configuration's own block path and keywords. It runs with AI switched off, and the AI path
+below is only for what it refuses (a control that needs a setting **added**, or a change it cannot state safely).
+
+A device whose vendor is not confirmed has no deterministic recipe, so the Fix page can also ask for a **candidate
 command** instead of showing a dead end. One request, for one control, only when the administrator presses the
 button:
 
@@ -55,7 +60,8 @@ button:
    administrator typed: deterministic validation, simulation on a copy of the configuration where an effect can be
    derived, and administrator confirmation (see [architecture.md](architecture.md#10-remediation)). It is labelled
    "AI-generated candidate / not verified" until then, changes no control result, no posture and no coverage, and
-   is never executed, applied or downloaded.
+   is never executed or applied. An AI proposal becomes downloadable — as a verified corrected *copy* of the
+   uploaded configuration — only after deterministic verification passes; the AI never produces a file.
 4. **Unavailable** — no key, no quota, a failed call or an unusable answer returns `503` with the reason; the manual
    path stays open. Nothing is invented on the AI's behalf.
 

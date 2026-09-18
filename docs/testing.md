@@ -21,8 +21,12 @@ production default with the `seeded_adaptive_db` fixture.
 | Phase 8 — remediation: recipes, inputs, verification, idempotence, API rescan | `test_remediation_e2e.py`, `test_download_fixed.py` |
 | Phase 9 — framework views, recognizer persistence across a restart, secret-free stores | `test_phase9_frameworks_persistence.py` |
 | Candidate remediation for unconfirmed vendors: eligibility, validation, simulation on a copy, verified / rejected / unverified, human confirmation, AI answer shape and prompt redaction, no vendor branch | `test_candidate_remediation.py` |
+| The verified corrected copy: retained only on verification and exactly equal to the simulated result, cleared by rejection and by a re-check that fails, downloadable only when verified or confirmed-after-verifying, one copy per candidate, correct content type and safe filename, never in SQLite, gone with the scan, `/download-fixed` still confirmed-vendor only, and the original `sample/juniper.cfg` byte-identical throughout | `test_candidate_remediation.py` |
+| Derived remediation: a verified change from the configuration alone on Junos / PAN-OS / RouterOS / Huawei, the words come from the file's own block path, a setting that must exist is never deleted to silence a check, a block opener is never removed alone, a provisional finding cannot be derived from, confirmed vendors keep recipes, the upload and the scan never move | `test_derived_remediation.py` |
 | Generic engine on hierarchical, terminator-separated dialects | `test_generic_hierarchical.py` |
+| Resolution queue: the initial score is unchanged, the queue is exactly what coverage left out, a line can be picked and its meaning stated, an answer the line does not support is refused, teaching persists and the next scan reuses it, the resolved control becomes PASS or FAIL with recalculated posture and coverage, the uploaded configuration is unchanged, prose is reported unreadable and never scored | `test_resolution_queue.py` |
 | Shipped seed knowledge: loading on a fresh database, idempotence, never overwriting what was taught, generalization across five dialects, no accidental or secret matches, unchanged Cisco / FortiGate and unknown-vendor behaviour, the fresh-deployment demo and teaching on top of it | `test_seed_knowledge.py`, fixtures in `tests/fixtures/seed_dialects/` |
+| Compliance report (PDF): a PDF per device and a zip for several, a hostname cannot escape the download name, no secret of the configuration reaches the document or the rendered bytes, serial numbers are not invented, provisional readings are never shown as PASS/FAIL, no vendor commands for an unconfirmed vendor, the deterministic change and its rescan checks for a confirmed one, unmapped frameworks named, undecided checks listed, a prose file reported unreadable | `test_pdf_report.py` |
 | Parsers, pipeline, ACLs | `test_pipeline.py`, `test_cisco_acl.py` |
 | Adaptive layer and legacy interpreter, learned mappings, review API | `test_adaptive.py`, `test_adaptive_generic.py`, `test_adaptive_api_integration.py`, `test_phase3_adaptive_mapper.py`, `test_phase3_e2e.py`, `test_phase4_review_api.py`, `test_phase5_learned_mappings.py` |
 | Settings, Groq key rotation | `test_config_loading.py`, `test_ai_client_key_rotation.py` |
@@ -35,9 +39,10 @@ Two live Groq tests in `test_adaptive_generic.py` are skipped unless `NETAUDIT_L
 | Area | Tests |
 |---|---|
 | Backend state to user-facing state, counts, next step, plain-language readings, safety-gate wording | `lib/domain.test.js` |
-| Results overview: posture never overstated, honest counts, questions, undecided checks | `app/Results.test.jsx` |
-| Fix: the remediation classes, inputs, verified fix, download of verified changes only, and candidate remediation for an unconfirmed vendor (generate, review, verify, reject, confirm) | `app/Fix.test.jsx` |
-| Teach: plain meaning questions, safety-gate failures in plain English, saved recognizer | `app/Teach.test.jsx` |
+| Results overview: posture never overstated, honest counts, questions, the resolution queue of undecided checks, a file holding no configuration, the PDF report download | `app/Results.test.jsx` |
+| Fix: the remediation classes, inputs, verified fix, download of verified changes only, candidate remediation for an unconfirmed vendor (derive, generate, review, verify, reject, confirm) and the refusal when a removal cannot resolve a check | `app/Fix.test.jsx` |
+| The verified corrected copy in the UI: no download without a candidate, none for a draft or a rejected one, the button and its "not applied to a device" warning once verified, the candidate endpoint (not `/download-fixed`) is what it calls, and the confirmed-vendor download is unchanged | `app/Fix.test.jsx` |
+| Teach: the undecided check, choosing a suggested line or any line of the configuration, stating what it means, safety-gate failures in plain English, the saved recognizer and the updated posture / coverage / remaining count, a save that still decides nothing, skipping | `app/Teach.test.jsx` |
 | Finding drawer: evidence, assurance, no invented commands | `app/FindingDrawer.test.jsx` |
 | Framework view | `app/Frameworks.test.jsx` |
 | Expired history entries | `app/History.test.jsx` |
@@ -52,10 +57,10 @@ Two live Groq tests in `test_adaptive_generic.py` are skipped unless `NETAUDIT_L
 
 ```powershell
 cd backend
-venv\Scripts\python -m pytest tests -q     # 924 passed, 2 skipped
+venv\Scripts\python -m pytest tests -q     # 1020 passed, 2 skipped
 
 cd ..\frontend
-npm test                                    # 70 passed
+npm test                                    # 81 passed
 npm run build
 ```
 

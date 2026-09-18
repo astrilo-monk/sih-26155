@@ -244,6 +244,11 @@ class ScanResultResponse(BaseModel):
     results: list[ControlResultSchema] = []
     # The same results regrouped by framework requirement (NIST SP 800-53, CIS for confirmed vendors)
     frameworks: list[FrameworkViewSchema] = []
+    # Uploaded files holding no recognizable configuration at all: they are reported, never scored
+    unreadable_configs: list[int] = []
+    # Controls that decided PASS or FAIL from decisive evidence, and the applicable ones that did not
+    assessed_count: int = 0
+    unresolved_count: int = 0
 
 
 class RemediationRequest(BaseModel):
@@ -347,6 +352,9 @@ class RemediationCandidateSchema(BaseModel):
     checks: list[RemediationCheckSchema] = []
     # The simulated change on a copy of the uploaded configuration (never a device change)
     diff: str = ""
+    # Whether POST /remediation/candidate/download can hand out the verified corrected copy. The copy
+    # itself is never sent in this schema: only the endpoint returns configuration text.
+    download_available: bool = False
     created_at: str = ""
     confirmed_at: Optional[str] = None
 
@@ -453,10 +461,84 @@ class ProvisionalQueueResponse(BaseModel):
     items: list[ProvisionalItemSchema]
 
 
+class TeachLineSchema(BaseModel):
+    """A line an administrator may be asked about for one undecided control."""
+    line_number: int
+    text: str
+    scope_path: list[str] = []
+    # The reading a heuristic (or a verified AI proposal) already has for this line, when there is one
+    predicate: Optional[str] = None
+    subject: Optional[str] = None
+    value: Any = None
+
+
+class MeaningOptionSchema(BaseModel):
+    """Something an administrator may say a line means. A value setting is read from the line, not stated here."""
+    predicate: str
+    subject: Optional[str] = None
+    value: Any = None
+
+
+class UnresolvedControlSchema(BaseModel):
+    config_index: int
+    hostname: str
+    control_id: str
+    title: str
+    question: str
+    severity: str
+    category: str
+    # unknown | not_configured
+    status: str
+    # Why the engine could not decide it
+    reason: str
+    # The configuration it did cite, if any
+    evidence_lines: list[int] = []
+    evidence: list[str] = []
+    # teach = a line can be taught here; blocked = a confirmed vendor parser reads this config
+    action: str
+    needs: list[str] = []
+    suggested_lines: list[TeachLineSchema] = []
+    blocked_reason: Optional[str] = None
+
+
+class UnresolvedQueueResponse(BaseModel):
+    scan_id: str
+    # Applicable controls that decided PASS or FAIL from decisive evidence, and the rest
+    assessed_count: int
+    unresolved_count: int
+    items: list[UnresolvedControlSchema]
+
+
+class ConfigLineSchema(BaseModel):
+    line_number: int
+    text: str
+    # A tokenizer statement a recognizer could be taught from
+    teachable: bool
+
+
+class ConfigTextResponse(BaseModel):
+    config_index: int
+    hostname: str
+    vendor: str
+    lines: list[ConfigLineSchema]
+
+
+class MeaningOptionsResponse(BaseModel):
+    control_id: str
+    line_number: int
+    text: str
+    options: list[MeaningOptionSchema]
+
+
 class RecognizerDraftRequest(BaseModel):
     config_index: int = 0
     control_id: str
     line_number: int
+    # An administrator's answer for a line no heuristic read: what this line says about the control.
+    # The predicate must be one the control needs; the line must still state the value.
+    predicate: Optional[str] = None
+    asserted_value: Optional[Any] = None
+    subject: Optional[str] = None
     # Admin edits of the draft (None keeps the drafted value)
     command_pattern: Optional[str] = None
     scope_template: Optional[str] = None

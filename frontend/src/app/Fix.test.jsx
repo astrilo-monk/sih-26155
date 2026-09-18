@@ -11,6 +11,7 @@ vi.mock('../api/client', () => ({
     getProvisionalResults: vi.fn(),
     getReviewQueue: vi.fn(),
     remediationCandidate: vi.fn(),
+    downloadCandidateConfig: vi.fn(),
   },
 }));
 
@@ -77,6 +78,7 @@ beforeEach(() => {
   apiClient.getProvisionalResults.mockResolvedValue({ items: [] });
   apiClient.getReviewQueue.mockResolvedValue({ items: [] });
   apiClient.downloadFixedConfigs.mockResolvedValue(undefined);
+  apiClient.downloadCandidateConfig.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -223,8 +225,8 @@ const candidate = (status, extra = {}) => ({
   command: 'delete system services telnet;', reason: `${status} reason`,
   explanation: 'Removes the Telnet service from the system services hierarchy.', confidence: 'medium',
   assumptions: ['a curly-brace hierarchical CLI'], evidence: { line_numbers: [32], lines: ['        telnet;'], scope_path: [] },
-  control_status_before: 'fail', control_status_after: null, checks: [], diff: '', created_at: '2026-09-18T13:00:00',
-  confirmed_at: null, ...extra,
+  control_status_before: 'fail', control_status_after: null, checks: [], diff: '', download_available: false,
+  created_at: '2026-09-18T13:00:00', confirmed_at: null, ...extra,
 });
 
 it('offers a candidate fix instead of a dead end when the vendor is not confirmed', async () => {
@@ -243,6 +245,47 @@ it('offers a candidate fix instead of a dead end when the vendor is not confirme
   expect(screen.getByText(/It never connects to the device\./)).toBeTruthy();
 });
 
+it('derives the fix from the configuration itself: no AI, already verified, still needs confirming', async () => {
+  apiClient.getRemediationPlan.mockResolvedValue(unknownPlan());
+  apiClient.remediationCandidate.mockResolvedValueOnce(candidate('verified', {
+    source: 'derived', command: 'delete system services telnet',
+    explanation: 'NetAuditAI derived this from the configuration itself: the lines this finding cites, removed from the block they sit in.',
+    confidence: '', assumptions: [], control_status_after: 'not_configured', download_available: true,
+    diff: '--- before\n+++ after\n@@ -30,3 +30,2 @@\n-        telnet;',
+    checks: [{ name: 'target', passed: true, detail: 'MGMT-001 fail → not_configured on the edited copy' },
+             { name: 'no_regression', passed: true, detail: 'No other control got worse' },
+             { name: 'generic_path', passed: true, detail: 'The edited copy is still read by generic analysis' }],
+    reason: 'Verified against the uploaded configuration: MGMT-001 fail → not_configured on a copy of it. This does not establish that the command is safe to run on the physical device.',
+  }));
+  render(<Harness scan={UNKNOWN_SCAN} />);
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Fix it for me' }));
+  await waitFor(() => expect(apiClient.remediationCandidate).toHaveBeenCalledWith(
+    'derive', 'scan-1', 'MGMT-001', 'JUNIPER-EDGE-01', 0, {}));
+
+  // it is labelled as NetAuditAI's own reading of the file, not an AI guess and not a typed command
+  expect(await screen.findByText('Derived from your configuration')).toBeTruthy();
+  expect(screen.queryByText('AI-generated candidate')).toBeNull();
+  expect(screen.getByText('delete system services telnet')).toBeTruthy();
+  // verified when it arrives, and still nothing applied anywhere
+  expect(screen.getByText(/does not establish that the command is safe to run on the physical device/)).toBeTruthy();
+  expect(screen.getByRole('button', { name: /Confirm/ })).toBeTruthy();
+});
+
+it('says a removal cannot resolve a check that needs a setting', async () => {
+  apiClient.getRemediationPlan.mockResolvedValue(unknownPlan());
+  apiClient.remediationCandidate.mockRejectedValueOnce(Object.assign(
+    new Error('NetAuditAI cannot derive a change for MGMT-001 from this configuration: it can only remove settings the finding cites, and this one needs a setting to be added or changed in syntax it does not know.'),
+    { status: 422 }));
+  render(<Harness scan={UNKNOWN_SCAN} />);
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Fix it for me' }));
+  expect(await screen.findByText(/it can only remove settings the finding cites/)).toBeTruthy();
+  // the other two ways to get a command are still offered
+  expect(screen.getByRole('button', { name: 'Ask AI for a command' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Enter command manually' })).toBeTruthy();
+});
+
 it('generates an AI candidate, labels it unverified, verifies it and confirms it', async () => {
   apiClient.getRemediationPlan.mockResolvedValue(unknownPlan());
   apiClient.remediationCandidate
@@ -259,7 +302,7 @@ it('generates an AI candidate, labels it unverified, verifies it and confirms it
     }));
   render(<Harness scan={UNKNOWN_SCAN} />);
 
-  fireEvent.click(await screen.findByRole('button', { name: 'Generate candidate fix' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Ask AI for a command' }));
   await waitFor(() => expect(apiClient.remediationCandidate)
     .toHaveBeenCalledWith('generate', 'scan-1', 'MGMT-001', 'JUNIPER-EDGE-01', 0, {}));
   expect(await screen.findByText('AI-generated candidate')).toBeTruthy();
@@ -315,7 +358,7 @@ it('explains when no candidate can be generated and keeps the manual path open',
     new Error('AI is not configured, so no candidate can be generated. Enter the command for this device yourself.'));
   render(<Harness scan={UNKNOWN_SCAN} />);
 
-  fireEvent.click(await screen.findByRole('button', { name: 'Generate candidate fix' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Ask AI for a command' }));
   expect(await screen.findByText(/AI is not configured/)).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Enter command manually' })).toBeTruthy();
 });
@@ -328,4 +371,68 @@ it('keeps a candidate the backend already holds when the plan is reloaded', asyn
   expect(screen.getByText(/could not be verified automatically/)).toBeTruthy();
   // a human may still accept a command NetAuditAI could not check, knowingly
   expect(screen.getByRole('button', { name: 'Confirm anyway' })).toBeTruthy();
+});
+
+it('offers the verified corrected copy of a confirmed candidate, and never a device configuration', async () => {
+  apiClient.getRemediationPlan.mockResolvedValue(unknownPlan([candidate('confirmed', {
+    control_status_after: 'not_configured', confirmed_at: '2026-09-18T13:05:00', download_available: true,
+    checks: [{ name: 'target', passed: true, detail: 'MGMT-001 fail → not_configured on the edited copy' }] })]));
+  render(<Harness scan={UNKNOWN_SCAN} />);
+
+  // the copy is per candidate; the page-wide "corrected configuration" is still only for a confirmed vendor
+  const copy = await screen.findByRole('button', { name: 'Download verified corrected copy' });
+  expect(screen.getByRole('button', { name: 'Download corrected configuration' }).disabled).toBe(true);
+  expect(screen.getByText(/No corrected device configuration for an unconfirmed vendor/)).toBeTruthy();
+  expect(screen.queryByText('Nothing to download yet: no fix has been verified.')).toBeNull();
+  // the warning says what the file is and what it is not
+  expect(screen.getByText('Verified against a copy of your uploaded configuration. This file has not been applied to a device.')).toBeTruthy();
+  expect(screen.getByText(/never writes vendor commands for R1|never writes vendor commands for JUNIPER-EDGE-01/)).toBeTruthy();
+
+  fireEvent.click(copy);
+  await waitFor(() => expect(apiClient.downloadCandidateConfig)
+    .toHaveBeenCalledWith('scan-1', 'MGMT-001', 'JUNIPER-EDGE-01', 0));
+  expect(apiClient.downloadFixedConfigs).not.toHaveBeenCalled();
+});
+
+it('offers the verified copy as soon as a candidate verifies, and not a moment earlier', async () => {
+  apiClient.getRemediationPlan.mockResolvedValue(unknownPlan());
+  apiClient.remediationCandidate
+    .mockResolvedValueOnce(candidate('draft', { source: 'manual' }))
+    .mockResolvedValueOnce(candidate('verified', { source: 'manual', control_status_after: 'not_configured',
+      download_available: true,
+      checks: [{ name: 'target', passed: true, detail: 'MGMT-001 fail → not_configured on the edited copy' }] }));
+  render(<Harness scan={UNKNOWN_SCAN} />);
+
+  // no candidate at all
+  expect(await screen.findByText(/No candidate yet/)).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Download verified corrected copy' })).toBeNull();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Enter command manually' }));
+  fireEvent.change(screen.getByLabelText('Command for this device'), { target: { value: 'delete system services telnet;' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Use this command' }));
+  // a draft has been checked against nothing: there is no copy to hand out
+  expect(await screen.findByText('Not checked yet')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Download verified corrected copy' })).toBeNull();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Verify candidate' }));
+  expect(await screen.findByRole('button', { name: 'Download verified corrected copy' })).toBeTruthy();
+});
+
+it('offers no copy for a candidate the checks rejected', async () => {
+  apiClient.getRemediationPlan.mockResolvedValue(unknownPlan([candidate('rejected', {
+    reason: 'The candidate did not hold up: MGMT-001 still fails on the edited copy', control_status_after: 'fail',
+    checks: [{ name: 'target', passed: false, detail: 'MGMT-001 still fails on the edited copy' }] })]));
+  render(<Harness scan={UNKNOWN_SCAN} />);
+
+  expect(await screen.findByText('Rejected')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Download verified corrected copy' })).toBeNull();
+  expect(screen.getByText('Nothing to download yet: no fix has been verified.')).toBeTruthy();
+});
+
+it('still says nothing has been verified when no candidate has been checked', async () => {
+  apiClient.getRemediationPlan.mockResolvedValue(unknownPlan([candidate('draft')]));
+  render(<Harness scan={UNKNOWN_SCAN} />);
+
+  expect(await screen.findByText('Nothing to download yet: no fix has been verified.')).toBeTruthy();
+  expect(screen.queryByText(/No corrected file for an unconfirmed vendor/)).toBeNull();
 });

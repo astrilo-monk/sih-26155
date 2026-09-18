@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes import scan, remediation, assistant, adaptive
+from app.api.routes import scan, remediation, assistant, adaptive, report
 
 app = FastAPI(
     title="NetAuditAI",
@@ -21,6 +21,7 @@ app.include_router(scan.router, prefix="/api", tags=["scan"])
 app.include_router(remediation.router, prefix="/api", tags=["remediation"])
 app.include_router(assistant.router, prefix="/api", tags=["assistant"])
 app.include_router(adaptive.router, prefix="/api", tags=["adaptive"])
+app.include_router(report.router, prefix="/api", tags=["report"])
 
 
 @app.get("/health")

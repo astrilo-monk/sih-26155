@@ -4,6 +4,9 @@ import {
   assessment, auditCounts, checkItems, deviceLabels, isProblem, itemState, nextStep, SEVERITIES, sayFact, stateMeta,
   stripLineNo, vendorName,
 } from '../lib/domain';
+import { useState } from 'react';
+import { apiClient } from '../api/client';
+import UnresolvedList from './Unresolved';
 import { useEntered } from '../lib/hooks';
 
 // The row's action word: what clicking it lets you do
@@ -12,7 +15,29 @@ const ACTION = {
   verification_failed: 'Details', fixed: 'Fixed', problem: 'View',
 };
 
-export function PostureSummary({ posture, coverage = 0, bounds, criticalUnassessed = [] }) {
+// The compliance report: one PDF per device, built by the backend from this same scan
+function ReportButton({ scanId, devices }) {
+  const [state, setState] = useState('idle');
+  const download = async () => {
+    setState('working');
+    try {
+      await apiClient.downloadReport(scanId);
+      setState('idle');
+    } catch {
+      setState('failed');
+    }
+  };
+  return (
+    <div className="report-action">
+      <button type="button" className="btn btn-sm" onClick={download} disabled={state === 'working'}>
+        {state === 'working' ? 'Preparing…' : devices > 1 ? `Download ${devices} PDF reports` : 'Download PDF report'}
+      </button>
+      {state === 'failed' && <span className="small text-fail" role="alert">The report couldn’t be generated.</span>}
+    </div>
+  );
+}
+
+export function PostureSummary({ posture, coverage = 0, bounds, criticalUnassessed = [], assessed = null, unresolved = null }) {
   const a = assessment(posture, coverage, criticalUnassessed);
   const entered = useEntered();
   // "out of 100" reads as a whole-device grade: only when enough of the device was checked
@@ -36,6 +61,12 @@ export function PostureSummary({ posture, coverage = 0, bounds, criticalUnassess
           </div>
           <p className="small muted">How much of this device NetAuditAI could decide from evidence.</p>
         </div>
+        {assessed != null && (
+          <p className="assessment-progress">
+            <span className="tnum">{assessed}</span> check{assessed === 1 ? '' : 's'} assessed
+            {unresolved > 0 && <> · <span className="tnum">{unresolved}</span> need your input</>}
+          </p>
+        )}
         <p className="assessment-line mono small muted">Posture {posture ?? '—'} · Coverage {coverage}% · {a.scope}</p>
         {bounds && posture != null && coverage < 100 && (
           <p className="small muted">If every undecided check failed or passed, the posture would be {bounds[0]}–{bounds[1]}.</p>
@@ -90,6 +121,9 @@ export default function Results({ scan, audit, onOpen, onTeach, go }) {
   const undecided = items.filter((i) => !isProblem(i) && ['unknown', 'not_configured'].includes(itemState(i)));
   const critical = (scan.critical_unassessed || []).map((id) => items.find((i) => i.controlId === id)?.title || id);
   const idents = scan.vendor_identification || [];
+  const unreadable = scan.unreadable_configs || [];
+  // Nothing uploaded holds configuration: there is nothing to work on, only a file to replace
+  const nothingToAssess = unreadable.length > 0 && unreadable.length === scan.devices.length;
   const unfamiliar = scan.devices.some((_, i) => idents.find((v) => v.config_index === i)?.status !== 'confirmed');
   const questions = audit.queue?.provisional || [];
   const multi = labels.length > 1;
@@ -107,11 +141,16 @@ export default function Results({ scan, audit, onOpen, onTeach, go }) {
             ))}
           </ul>
         </div>
-        <a className="btn btn-sm" href="#/app">New scan</a>
+        <div className="ov-actions">
+          <ReportButton scanId={scan.scan_id} devices={scan.devices.length} />
+          <a className="btn btn-sm" href="#/app">New scan</a>
+        </div>
       </header>
 
       <div className="status-grid">
-        <PostureSummary posture={scan.posture} coverage={scan.coverage} bounds={scan.posture_bounds} criticalUnassessed={scan.critical_unassessed || []} />
+        <PostureSummary posture={scan.posture} coverage={scan.coverage} bounds={scan.posture_bounds}
+          criticalUnassessed={scan.critical_unassessed || []}
+          assessed={counts.assessed ?? scan.assessed_count} unresolved={counts.unresolved ?? scan.unresolved_count} />
         <section className="sev-panel" aria-label="Problems by severity">
           <p className="sev-total"><span className="tnum"><Count value={counts.problems} /></span> problem{counts.problems === 1 ? '' : 's'} found</p>
           <ul className="sev-grid">
@@ -154,7 +193,19 @@ export default function Results({ scan, audit, onOpen, onTeach, go }) {
         </div>
       )}
 
-      {unfamiliar && (
+      {unreadable.length > 0 && (
+        <div className="notice notice-warn">
+          <span className="notice-mark">!</span>
+          <strong>
+            {unreadable.length === scan.devices.length
+              ? 'This file doesn’t contain enough recognizable configuration to assess.'
+              : `${unreadable.length} of the uploaded files don’t contain enough recognizable configuration to assess.`}
+          </strong>
+          <span>Nothing in it sets any security option, so NetAuditAI has nothing to check and calculated no score. Upload a device configuration instead.</span>
+        </div>
+      )}
+
+      {unfamiliar && unreadable.length < scan.devices.length && (
         <div className="notice notice-info">
           <span className="notice-mark">i</span>
           <strong>NetAuditAI has no dedicated reader for {multi ? 'some of these devices' : 'this device'}.</strong>
@@ -162,12 +213,14 @@ export default function Results({ scan, audit, onOpen, onTeach, go }) {
         </div>
       )}
 
+      {!nothingToAssess && (
       <section className={`next-step tone-${step.tone}`} aria-labelledby="next-title" aria-busy={step.busy || undefined}>
         <p className="next-k">What to do now</p>
         <h2 className="next-title" id="next-title">{step.title}</h2>
         <p className="next-body">{step.body}</p>
         {step.to && <button type="button" className="btn btn-primary" onClick={() => go(step.to)}>{step.action}</button>}
       </section>
+      )}
 
       <section className="attention" aria-labelledby="attention-title">
         <h2 className="section-title" id="attention-title">Needs your attention</h2>
@@ -205,22 +258,19 @@ export default function Results({ scan, audit, onOpen, onTeach, go }) {
         )}
       </section>
 
-      {undecided.length > 0 && (
-        <section className="undecided" aria-labelledby="undecided-title">
-          <h2 className="section-title" id="undecided-title">Checks we couldn’t decide <span className="count-pill tnum">{undecided.length}</span></h2>
-          <p className="small muted">Not enough information in the configuration. These are never counted as passed or failed.</p>
-          <ul className="check-list">
-            {undecided.map((item) => (
-              <li key={item.key}>
-                <button type="button" className="check-row" onClick={() => onOpen(item)}>
-                  <StatusMark state={itemState(item)} size="compact" />
-                  <span className="check-row-main"><span className="check-row-title">{item.title}</span>{multi && <span className="small muted">{labels[item.configIndex]}</span>}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
+      {!nothingToAssess && (
+      <UnresolvedList
+        items={audit.queue?.unresolved}
+        loading={audit.queue == null && !audit.queueError}
+        error={audit.queueError}
+        onRetry={audit.loadQueue}
+        labels={multi ? labels : null}
+        fallback={undecided}
+        onOpen={onOpen}
+        onTeach={onTeach}
+      />
       )}
+
     </div>
   );
 }

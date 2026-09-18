@@ -240,9 +240,14 @@ def provisional_lines(raw_lines: list[str], needs: Iterable[str],
 
 
 def draft_recognizer(raw_lines: list[str], needs: Iterable[str], line_number: int,
-                     extra: Iterable[_Candidate] = ()) -> dict:
-    """Recognizer fields drafted from a provisional line (the admin reviews them before saving)."""
-    candidate = dict(provisional_lines(raw_lines, needs, extra)).get(line_number)
+                     extra: Iterable[_Candidate] = (), asserted: Optional[_Candidate] = None) -> dict:
+    """Recognizer fields drafted from a line (the admin reviews them before saving).
+
+    The line is one a heuristic or a verified AI proposal read, or — ``asserted`` — any line of the
+    configuration whose meaning an administrator stated. Either way the draft is only a proposal:
+    ``validate_recognizer`` still has to find that meaning on the line itself.
+    """
+    candidate = asserted or dict(provisional_lines(raw_lines, needs, extra)).get(line_number)
     if candidate is None:
         raise LookupError(f"Line {line_number} holds no provisional statement for this control")
     statement = next(s for s in tokenize(raw_lines) if s.line == line_number)

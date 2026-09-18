@@ -21,7 +21,7 @@ from typing import Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from app.parsers.detector import STATUS_UNVERIFIED, VendorIdentification, identify_vendor
 from app.analysis.engine import analyze, analyze_multiple, evaluate_controls
-from app.analysis.scoring import calculate_posture
+from app.analysis.scoring import calculate_posture, control_outcomes
 from app.facts.from_normalized import facts_from_config
 from app.controls.catalog import CONTROLS
 from app.controls.frameworks import framework_views
@@ -49,6 +49,7 @@ from app.ai.redaction import Redactor, placeholder
 from app.facts.heuristics import generic_hostname
 from app.adaptive.interpreter import interpret_lines
 from app.adaptive.mapper import REVIEWABLE_SOURCES, determine_tier
+from app.adaptive.relevance import is_security_relevant
 from app.adaptive.vendor import EVIDENCE_CONFLICTING, EVIDENCE_IDENTIFIED, assess_vendor_evidence
 from app.adaptive.service import AdaptiveService
 from app.ai.client import is_available
@@ -370,6 +371,17 @@ def reanalyze_scan(scan_id: str) -> None:
     entry["timestamp"] = result.timestamp
 
 
+def is_configuration(config: NormalizedConfig) -> bool:
+    """Whether the uploaded file holds device configuration at all.
+
+    A confirmed vendor answers it by itself. Otherwise: no line of the file says anything about any
+    security setting — prose, a README, an empty template. Such a file is reported as unreadable and
+    never scored; an unfamiliar *configuration* is a different thing and is analysed generically.
+    """
+    return (config.device.vendor != Vendor.UNKNOWN
+            or any(is_security_relevant(line) for line in config.raw_lines))
+
+
 def build_scan_response(scan_id: str) -> ScanResultResponse:
     entry = _scan_store[scan_id]
     configs = entry["configs"]
@@ -405,12 +417,16 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
     ]
 
     posture = calculate_posture(device_results)
+    outcomes = control_outcomes(device_results)
     posture_fields = dict(
         posture=posture.posture,
         coverage=posture.coverage,
         posture_bounds=list(posture.bounds) if posture.bounds else None,
         critical_unassessed=posture.critical_unassessed,
         frameworks=[FrameworkViewSchema(**view) for view in views],
+        unreadable_configs=[idx for idx, cfg in enumerate(configs) if not is_configuration(cfg)],
+        assessed_count=sum(1 for o in outcomes.values() if o in ("pass", "fail")),
+        unresolved_count=sum(1 for o in outcomes.values() if o == "undecided"),
     )
 
     if result is None:

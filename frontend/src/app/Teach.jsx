@@ -1,16 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../api/client';
 import { Evidence } from '../components/ui/Evidence';
-import { deviceLabels, explainGate, sayFact, vendorName } from '../lib/domain';
+import { deviceLabels, explainGate, sayFact, sayMeaning, statusState, vendorName } from '../lib/domain';
+import { UnresolvedDetail } from './Unresolved';
 import LegacyInterpretations from './LegacyInterpretations';
 
-// Teach NetAuditAI: a person says what an unfamiliar line means. Underneath, the answer drafts a recognizer, the
-// backend checks its safety gates and replays it, and only then saves it — nothing is counted before that, and
-// nothing here can bypass those checks. The technical draft stays under Advanced details.
+// Teach NetAuditAI: a person shows it which line of their own configuration answers a check it could not
+// decide, and says what that line means. Underneath, the answer drafts a recognizer, the backend checks its
+// safety gates and replays it, and only then saves it — nothing is counted before that, and nothing here can
+// bypass those checks. The uploaded configuration is only ever read. The technical draft stays under Advanced.
 
-const STEPS = ['Unfamiliar line', 'Your answer', 'Checked', 'Learned'];
+const STEPS = ['The check', 'The line', 'Your answer', 'Learned'];
 const fmtValue = (v) => (typeof v === 'string' ? v : JSON.stringify(v));
-const questionKey = (item, line) => `${item.config_index}-${item.control_id}-${line.line_number}`;
+const itemKey = (item) => `${item.config_index}-${item.control_id}`;
+const meaningKey = (m) => `${m.predicate}|${m.subject ?? ''}|${JSON.stringify(m.value ?? null)}`;
 
 function Toggle({ label, children }) {
   const [open, setOpen] = useState(false);
@@ -23,10 +26,9 @@ function Toggle({ label, children }) {
 }
 
 // The rule an answer would save, for expert users: preview it, and optionally edit it before continuing
-function AdvancedDraft({ scanId, q, edits, setEdits }) {
+function AdvancedDraft({ scanId, base, item, line, edits, setEdits }) {
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState(null);
-  const base = { config_index: q.item.config_index, control_id: q.item.control_id, line_number: q.line.line_number };
 
   const load = async (request) => {
     try {
@@ -47,10 +49,10 @@ function AdvancedDraft({ scanId, q, edits, setEdits }) {
   return (
     <div className="advanced">
       <dl className="kv">
-        <dt>Reading</dt>
-        <dd className="mono">{q.line.predicate}{q.line.subject ? ` · ${q.line.subject}` : ''} = {fmtValue(q.line.value)}</dd>
-        <dt>Check</dt><dd><span className="mono">{q.item.control_id}</span> {q.item.question}</dd>
-        <dt>Current result</dt><dd>{q.item.status}{q.item.assurance ? ` (${q.item.assurance})` : ''} — {q.item.reason}</dd>
+        <dt>Check</dt><dd><span className="mono">{item.control_id}</span> {item.question}</dd>
+        <dt>Current result</dt><dd>{item.status} — {item.reason}</dd>
+        <dt>Line</dt><dd className="mono">{line.line_number}: {line.text}</dd>
+        {line.predicate && <><dt>Our reading</dt><dd className="mono">{line.predicate}{line.subject ? ` · ${line.subject}` : ''} = {fmtValue(line.value)}</dd></>}
       </dl>
       {!preview && <button type="button" className="btn btn-sm" onClick={() => load(base)}>Show the rule NetAuditAI would save</button>}
       {error && <p className="field-error" role="alert">{error}</p>}
@@ -91,46 +93,103 @@ function AdvancedDraft({ scanId, q, edits, setEdits }) {
   );
 }
 
+// Pick any line of the uploaded configuration. Only tokenizer statements can be taught from; the rest are
+// shown so the file reads as the file, but cannot be chosen.
+function ConfigPicker({ scanId, configIndex, chosen, onPick }) {
+  const [body, setBody] = useState(null);
+  const [error, setError] = useState(null);
+  const [filter, setFilter] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    apiClient.getConfigLines(scanId, configIndex)
+      .then((result) => { if (active) setBody(result); })
+      .catch((err) => { if (active) setError(err.message); });
+    return () => { active = false; };
+  }, [scanId, configIndex]);
+
+  if (error) return <p className="field-error" role="alert">The configuration couldn’t be loaded: {error}</p>;
+  if (!body) return <p className="muted" aria-busy="true">Loading the configuration…</p>;
+
+  const needle = filter.trim().toLowerCase();
+  const lines = needle ? body.lines.filter((l) => l.text.toLowerCase().includes(needle)) : body.lines;
+
+  return (
+    <div className="config-picker">
+      <label className="field">
+        <span className="field-label">Find a line</span>
+        <input className="input" type="search" value={filter} placeholder="e.g. source-address"
+          aria-label="Find a line" onChange={(e) => setFilter(e.target.value)} />
+      </label>
+      <ol className="config-lines" aria-label="Uploaded configuration">
+        {lines.map((line) => (
+          <li key={line.line_number} className={chosen === line.line_number ? 'is-chosen' : ''}>
+            <button type="button" className="config-line" disabled={!line.teachable}
+              aria-pressed={chosen === line.line_number} onClick={() => onPick(line.line_number)}>
+              <span className="config-n tnum">{line.line_number}</span>
+              <code>{line.text || ' '}</code>
+            </button>
+          </li>
+        ))}
+      </ol>
+      {lines.length === 0 && <p className="muted">No line matches “{filter}”.</p>}
+    </div>
+  );
+}
+
 export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpired }) {
   const scanId = scan.scan_id;
   const labels = deviceLabels(scan.devices);
-  const items = audit.queue?.provisional;
-  const questions = useMemo(() => (items || []).flatMap((item) => item.lines.map((line) => ({ key: questionKey(item, line), item, line }))), [items]);
+  const unresolved = audit.queue?.unresolved;
+  const open = useMemo(() => (unresolved || []).filter((i) => i.action === 'teach'), [unresolved]);
 
   const [skipped, setSkipped] = useState(() => new Set());
   const [focus, setFocus] = useState(focusKey || null);
   const [phase, setPhase] = useState({ kind: 'ask' });
+  const [line, setLine] = useState(null);
   const [choice, setChoice] = useState('');
   const [edits, setEdits] = useState(null);
+  const [options, setOptions] = useState(null);
+  const [optionsError, setOptionsError] = useState(null);
+  const [picking, setPicking] = useState(false);
 
-  const open = questions.filter((q) => !skipped.has(q.key));
-  // Progress counts unfamiliar checks — the unit every other page counts — not the lines inside them
-  const itemOf = (q) => `${q.item.config_index}-${q.item.control_id}`;
-  const openItems = [...new Set(open.map(itemOf))];
-  // Once answered, the question stays on screen (the queue refreshes underneath) until the person continues
-  const current = phase.q || open.find((q) => focus && q.key.startsWith(`${focus}-`)) || open[0] || null;
+  const queue = open.filter((i) => !skipped.has(itemKey(i)));
+  // Once answered, the check stays on screen (the queue refreshes underneath) until the person continues
+  const item = phase.item || queue.find((i) => itemKey(i) === focus) || queue[0] || null;
+  const key = item ? itemKey(item) : null;
   const allConfirmed = (scan.vendor_identification || []).length > 0 && scan.vendor_identification.every((v) => v.status === 'confirmed');
 
-  const resetAnswer = () => {
+  // A new check starts with its best suggested line and no answer
+  useEffect(() => {
+    if (phase.kind !== 'ask') return;
+    setLine(item?.suggested_lines?.[0]?.line_number ?? null);
     setChoice('');
     setEdits(null);
-  };
+    setPicking(!item?.suggested_lines?.length);
+  }, [key, phase.kind]);
+
+  // What this line may mean for this check — the backend decides, from the check's own settings
+  useEffect(() => {
+    if (!item || line == null) {
+      setOptions(null);
+      return undefined;
+    }
+    let active = true;
+    setOptions(null);
+    setOptionsError(null);
+    apiClient.getMeaningOptions(scanId, { controlId: item.control_id, lineNumber: line, configIndex: item.config_index })
+      .then((body) => { if (active) setOptions(body.options); })
+      .catch((err) => { if (active) setOptionsError(err.message); });
+    return () => { active = false; };
+  }, [scanId, key, line]);
+
+  const chosenLine = item?.suggested_lines?.find((l) => l.line_number === line)
+    || (line != null ? { line_number: line, text: '', predicate: null } : null);
+
   const next = () => {
     setFocus(null);
     setPhase({ kind: 'ask' });
-    resetAnswer();
   };
-
-  const say = (q) => sayFact(q.line);
-  const options = current ? [
-    { value: current.key, q: current, text: say(current) ? `Yes — it ${say(current)}` : `Yes — it answers “${current.item.question}”` },
-    ...questions
-      .filter((q) => q.key !== current.key && q.item.config_index === current.item.config_index && q.line.line_number === current.line.line_number)
-      .filter((q, i, all) => say(q) !== say(current) && all.findIndex((x) => say(x) === say(q)) === i)
-      .map((q) => ({ value: q.key, q, text: say(q) ? `It ${say(q)}` : `It answers “${q.item.question}”` })),
-    { value: 'reject', text: 'Something else — NetAuditAI misread this line' },
-    { value: 'skip', text: 'I’m not sure — skip for now' },
-  ] : [];
 
   const scanGone = (err) => {
     if (err.status === 404 && /scan/i.test(err.message)) {
@@ -141,86 +200,92 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
   };
 
   const submit = async () => {
-    const q = current;
     if (choice === 'skip') {
-      setSkipped((s) => new Set(s).add(q.key));
+      setSkipped((s) => new Set(s).add(key));
       next();
       return;
     }
-    setPhase({ kind: 'checking', q });
+    const meaning = (options || []).find((o) => meaningKey(o) === choice);
+    setPhase({ kind: 'checking', item });
     try {
       if (choice === 'reject') {
         const updated = await apiClient.rejectProvisionalLine(scanId, {
-          config_index: q.item.config_index, control_id: q.item.control_id, line_number: q.line.line_number,
+          config_index: item.config_index, control_id: item.control_id, line_number: line,
         });
         onScanUpdated?.(updated);
-        setPhase({ kind: 'rejected', q });
+        setPhase({ kind: 'rejected', item, line: chosenLine });
         return;
       }
-      const target = questions.find((x) => x.key === choice) || q;
       const request = {
-        config_index: target.item.config_index, control_id: target.item.control_id, line_number: target.line.line_number,
-        ...(target.key === q.key && edits ? edits : {}),
+        config_index: item.config_index,
+        control_id: item.control_id,
+        line_number: line,
+        predicate: meaning.predicate,
+        asserted_value: meaning.value,
+        subject: meaning.subject,
+        ...(edits || {}),
       };
       // the backend drafts, runs its safety checks and replays; only a clean draft is saved
       const draft = await apiClient.draftRecognizer(scanId, request);
       if (draft.errors.length > 0) {
-        setPhase({ kind: 'failed', q, message: draft.errors[0] });
+        setPhase({ kind: 'failed', item, line: chosenLine, message: draft.errors[0] });
         return;
       }
       const saved = await apiClient.saveRecognizer(scanId, request);
       onScanUpdated?.(saved.scan);
-      setPhase({ kind: 'learned', q, target, saved });
+      setPhase({ kind: 'learned', item, line: chosenLine, meaning, saved, before: scan });
     } catch (err) {
-      if (!scanGone(err)) setPhase({ kind: 'failed', q, message: err.message });
+      if (!scanGone(err)) setPhase({ kind: 'failed', item, line: chosenLine, message: err.message });
     }
   };
 
-  const stepOn = { ask: choice ? 1 : 0, checking: 2, failed: 1, rejected: 1, learned: 3 }[phase.kind];
-  const moreAfter = phase.q && open.some((x) => !(x.item.config_index === phase.q.item.config_index && x.item.control_id === phase.q.item.control_id));
+  const stepOn = { ask: line == null ? 0 : choice ? 2 : 1, checking: 2, failed: 2, rejected: 2, learned: 3 }[phase.kind];
+  const moreAfter = phase.item && queue.some((i) => itemKey(i) !== itemKey(phase.item));
   const continueButton = (
-    <button type="button" className="btn btn-primary" onClick={next}>{moreAfter ? 'Continue to next issue' : 'Continue'}</button>
+    <button type="button" className="btn btn-primary" onClick={next}>{moreAfter ? 'Continue to the next check' : 'Continue'}</button>
   );
+  const base = item && line != null ? { config_index: item.config_index, control_id: item.control_id, line_number: line } : null;
 
   return (
     <div className="wrap teach enter">
       <header className="page-head">
         <p className="eyebrow">Teach NetAuditAI</p>
-        <h1 className="page-title">Help NetAuditAI understand this configuration</h1>
+        <h1 className="page-title">Finish this assessment</h1>
         <p className="lede">
-          When NetAuditAI meets a line it doesn’t recognize, it asks what the line does. It checks your answer against the
-          line, then remembers it for future scans.
+          NetAuditAI could not decide some checks from this configuration alone. Show it which line answers one and
+          say what that line means. It checks your answer against the line, re-checks the same configuration, and
+          remembers the meaning for future scans. Your file is never changed.
         </p>
       </header>
 
       {audit.queueError && (
         <div className="notice notice-danger" role="alert">
-          <span className="notice-mark">×</span><strong>The questions couldn’t be loaded.</strong><span>{audit.queueError}</span>
+          <span className="notice-mark">×</span><strong>The unresolved checks couldn’t be loaded.</strong><span>{audit.queueError}</span>
           <button type="button" className="btn btn-sm notice-action" onClick={audit.loadQueue}>Try again</button>
         </div>
       )}
 
-      {items == null && !audit.queueError && <p className="muted" aria-busy="true">Loading questions…</p>}
+      {unresolved == null && !audit.queueError && <p className="muted" aria-busy="true">Loading the checks that need you…</p>}
 
-      {items != null && !current && (
+      {unresolved != null && !item && (
         <div className="empty-state tone-pass">
           <p className="empty-mark" aria-hidden="true">✓</p>
-          <h2 className="empty-title">{skipped.size > 0 ? 'No more questions for now.' : 'Nothing needs your answer.'}</h2>
+          <h2 className="empty-title">{skipped.size > 0 ? 'No more checks for now.' : 'Nothing is waiting for your input.'}</h2>
           <p>
             {allConfirmed
-              ? `NetAuditAI read every line of this configuration with its dedicated ${vendorName(scan.vendor_identification[0].detected_vendor)} parser, so there is nothing to teach.`
+              ? `NetAuditAI read this configuration with its dedicated ${vendorName(scan.vendor_identification[0].detected_vendor)} parser, so there is nothing to teach.`
               : skipped.size > 0
-                ? `You skipped ${skipped.size} question${skipped.size === 1 ? '' : 's'}. Skipped lines stay uncounted.`
-                : 'Checks NetAuditAI couldn’t decide stay “Not enough information” — they are never counted as passed.'}
+                ? `You skipped ${skipped.size} check${skipped.size === 1 ? '' : 's'}. Skipped checks stay undecided and uncounted.`
+                : 'Every check NetAuditAI could decide is decided. Anything still undecided is shown on Results with the reason.'}
           </p>
           <div className="actions">
-            {skipped.size > 0 && <button type="button" className="btn" onClick={() => setSkipped(new Set())}>Review skipped questions</button>}
+            {skipped.size > 0 && <button type="button" className="btn" onClick={() => setSkipped(new Set())}>Review skipped checks</button>}
             <a className="btn btn-primary" href={`#/app/scan/${scanId}`}>Back to results</a>
           </div>
         </div>
       )}
 
-      {current && (
+      {item && (
         <article className={`teach-card phase-${phase.kind}`} aria-labelledby="teach-title">
           <ol className="teach-steps" aria-label="Progress">
             {STEPS.map((s, i) => (
@@ -231,84 +296,163 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
           {(phase.kind === 'ask' || phase.kind === 'checking') && (
             <>
               <p className="eyebrow">
-                Question {Math.max(1, openItems.indexOf(itemOf(current)) + 1)} of {Math.max(1, openItems.length)}
-                {labels.length > 1 && ` · ${labels[current.item.config_index]}`}
+                Check {Math.max(1, queue.findIndex((i) => itemKey(i) === key) + 1)} of {Math.max(1, queue.length)}
+                {labels.length > 1 && ` · ${labels[item.config_index]}`}
               </p>
-              <h2 className="teach-title" id="teach-title">We don’t recognize this configuration yet</h2>
-              <p className="muted">NetAuditAI found a line it hasn’t learned. Nothing about it is counted until you answer.</p>
-              <Evidence lineNumbers={[current.line.line_number]} lines={[current.line.text]} />
-              {say(current) && <p className="teach-guess">We think this line {say(current)}.</p>}
+              <h2 className="teach-title" id="teach-title">{item.question}</h2>
+              <p className="teach-status">
+                <span className={`state-chip tone-${statusState(item.status) === 'not_configured' ? 'nc' : 'unknown'}`}>
+                  {item.status === 'not_configured' ? 'Not configured' : 'Not enough information'}
+                </span>
+                {item.reason}
+              </p>
+
               <fieldset className="choices" disabled={phase.kind === 'checking'}>
-                <legend>What does this line do?</legend>
-                {options.map((o) => (
-                  <label key={o.value} className={`choice ${choice === o.value ? 'is-checked' : ''}`}>
-                    <input type="radio" name="teach-choice" value={o.value} checked={choice === o.value} onChange={() => setChoice(o.value)} />
-                    <span>{o.text}</span>
-                  </label>
-                ))}
+                <legend>Which line of your configuration answers this?</legend>
+                {(item.suggested_lines || []).length > 0 && !picking && (
+                  <ul className="teach-lines">
+                    {item.suggested_lines.map((l) => (
+                      <li key={l.line_number}>
+                        <label className={`choice ${line === l.line_number ? 'is-checked' : ''}`}>
+                          <input type="radio" name="teach-line" checked={line === l.line_number}
+                            onChange={() => { setLine(l.line_number); setChoice(''); setEdits(null); }} />
+                          <span>
+                            <code className="mono">{l.line_number}: {l.text}</code>
+                            {l.scope_path?.length > 0 && <span className="small muted"> in {l.scope_path.join(' › ')}</span>}
+                            {sayFact(l) && <span className="teach-guess"> We think it {sayFact(l)}.</span>}
+                          </span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <button type="button" className="btn btn-sm" onClick={() => setPicking((v) => !v)}>
+                  {picking ? 'Back to the suggested lines' : 'Show the whole configuration'}
+                </button>
+                {picking && (
+                  <ConfigPicker scanId={scanId} configIndex={item.config_index} chosen={line}
+                    onPick={(n) => { setLine(n); setChoice(''); setEdits(null); }} />
+                )}
               </fieldset>
-              <p className="small muted">When you continue, NetAuditAI checks that this meaning really matches the line before it saves anything.</p>
+
+              {line != null && (
+                <>
+                  <Evidence lineNumbers={[line]} lines={[chosenLine.text]} title="The line you chose" />
+                  {optionsError && <p className="field-error" role="alert">{optionsError}</p>}
+                  {options == null && !optionsError && <p className="muted" aria-busy="true">Loading what this line could mean…</p>}
+                  {options && (
+                    <fieldset className="choices" disabled={phase.kind === 'checking'}>
+                      <legend>What does this line say about this check?</legend>
+                      {options.map((o) => (
+                        <label key={meaningKey(o)} className={`choice ${choice === meaningKey(o) ? 'is-checked' : ''}`}>
+                          <input type="radio" name="teach-meaning" value={meaningKey(o)}
+                            checked={choice === meaningKey(o)} onChange={() => setChoice(meaningKey(o))} />
+                          <span>It {sayMeaning(o) || `answers “${item.question}”`}</span>
+                        </label>
+                      ))}
+                      {chosenLine.predicate && (
+                        <label className={`choice ${choice === 'reject' ? 'is-checked' : ''}`}>
+                          <input type="radio" name="teach-meaning" value="reject" checked={choice === 'reject'} onChange={() => setChoice('reject')} />
+                          <span>Something else — NetAuditAI misread this line</span>
+                        </label>
+                      )}
+                      <label className={`choice ${choice === 'skip' ? 'is-checked' : ''}`}>
+                        <input type="radio" name="teach-meaning" value="skip" checked={choice === 'skip'} onChange={() => setChoice('skip')} />
+                        <span>I’m not sure — skip this check for now</span>
+                      </label>
+                    </fieldset>
+                  )}
+                </>
+              )}
+
+              <p className="small muted">
+                When you continue, NetAuditAI checks that this meaning really is stated on that line before it saves
+                anything. A line that doesn’t say it can’t teach it.
+              </p>
               <div className="actions">
                 <button type="button" className="btn btn-primary" onClick={submit} disabled={!choice || phase.kind === 'checking'}>
                   {phase.kind === 'checking' ? 'Checking…' : 'Continue'}
                 </button>
               </div>
-              <Toggle label="Advanced details">
-                {() => <AdvancedDraft key={current.key} scanId={scanId} q={current} edits={edits} setEdits={setEdits} />}
-              </Toggle>
+              <Toggle label="Why this check is undecided">{() => <UnresolvedDetail item={item} />}</Toggle>
+              {base && (
+                <Toggle label="Advanced details">
+                  {() => <AdvancedDraft key={`${key}-${line}`} scanId={scanId} base={base} item={item} line={chosenLine} edits={edits} setEdits={setEdits} />}
+                </Toggle>
+              )}
             </>
           )}
 
           {phase.kind === 'failed' && (
             <div className="teach-result is-failed" role="alert">
-              <h2 className="teach-title" id="teach-title">NetAuditAI couldn’t safely save this rule.</h2>
+              <h2 className="teach-title" id="teach-title">NetAuditAI couldn’t safely save this.</h2>
               <p>{explainGate(phase.message)}</p>
-              <Evidence lineNumbers={[current.line.line_number]} lines={[current.line.text]} />
+              <Evidence lineNumbers={[phase.line.line_number]} lines={[phase.line.text]} />
+              <p className="small muted">The check stays undecided. It is never counted as passed or failed.</p>
               <div className="actions">
-                <button type="button" className="btn btn-primary" onClick={() => setPhase({ kind: 'ask' })}>Try again</button>
-                <button type="button" className="btn" onClick={() => { setPhase({ kind: 'ask' }); resetAnswer(); }}>Cancel</button>
+                <button type="button" className="btn btn-primary" onClick={() => setPhase({ kind: 'ask' })}>Try another line</button>
+                {continueButton}
               </div>
               <Toggle label="Advanced details">{() => <p className="small mono">{phase.message}</p>}</Toggle>
             </div>
           )}
 
-          {phase.kind === 'learned' && (
-            <div className="teach-result is-learned" role="status">
-              <p className="learned-mark" aria-hidden="true">✓</p>
-              <h2 className="teach-title" id="teach-title">NetAuditAI learned this</h2>
-              <p>This configuration pattern will be recognized on future scans.</p>
-              <Evidence lineNumbers={[phase.target.line.line_number]} lines={[phase.target.line.text]} />
-              {say(phase.target) && <p>It {say(phase.target)}.</p>}
-              <p className="small muted">
-                {phase.saved.replay.length > 0
-                  ? `It updated ${phase.saved.replay.length} result${phase.saved.replay.length === 1 ? '' : 's'} in the scans NetAuditAI holds.`
-                  : 'No result changed in this scan.'}
-              </p>
-              <div className="actions">{continueButton}</div>
-              <Toggle label="Advanced details">
-                {() => (
-                  <dl className="kv">
-                    <dt>Saved rule</dt><dd className="mono">#{phase.saved.mapping.id}</dd>
-                    {phase.saved.mapping.command_pattern && <><dt>Template</dt><dd className="mono">{phase.saved.mapping.command_pattern}</dd></>}
-                    <dt>Replay</dt>
-                    <dd className="mono">{phase.saved.replay.map((c) => `${c.hostname} · ${c.control_id}: ${c.before} → ${c.after}`).join('; ') || 'no change'}</dd>
-                  </dl>
+          {phase.kind === 'learned' && (() => {
+            const after = phase.saved.scan;
+            const result = (after.results || []).find((r) => r.control_id === phase.item.control_id
+              && (r.config_index ?? 0) === phase.item.config_index);
+            const decided = ['pass', 'fail'].includes(result?.status);
+            return (
+              <div className="teach-result is-learned" role="status">
+                <p className="learned-mark" aria-hidden="true">✓</p>
+                <h2 className="teach-title" id="teach-title">NetAuditAI learned this</h2>
+                <Evidence lineNumbers={[phase.line.line_number]} lines={[phase.line.text]} />
+                <p>It {sayMeaning(phase.meaning) || 'answers this check'}. This pattern will be recognized on future scans.</p>
+                {decided ? (
+                  <>
+                    <p className="teach-decided">
+                      <span className="mono">{phase.item.control_id}</span> is now{' '}
+                      <strong className={`tone-${result.status === 'pass' ? 'pass' : 'fail'}`}>{result.status === 'pass' ? 'Passed' : 'Failed'}</strong>
+                      {' '}— {result.reason}
+                    </p>
+                    <ul className="fixmix">
+                      <li className="tone-pass"><b className="tnum">{after.posture ?? '—'}</b> security posture <span className="muted">(was {phase.before.posture ?? '—'})</span></li>
+                      <li className="tone-pass"><b className="tnum">{after.coverage}%</b> checked <span className="muted">(was {phase.before.coverage}%)</span></li>
+                      <li className="tone-input"><b className="tnum">{after.unresolved_count}</b> still need input <span className="muted">(was {phase.before.unresolved_count})</span></li>
+                    </ul>
+                  </>
+                ) : (
+                  <p className="teach-decided">
+                    <span className="mono">{phase.item.control_id}</span> is still undecided: what this line says isn’t
+                    enough on its own to answer the check. Nothing was counted.
+                  </p>
                 )}
-              </Toggle>
-            </div>
-          )}
+                <div className="actions">{continueButton}</div>
+                <Toggle label="Advanced details">
+                  {() => (
+                    <dl className="kv">
+                      <dt>Saved rule</dt><dd className="mono">#{phase.saved.mapping.id}</dd>
+                      {phase.saved.mapping.command_pattern && <><dt>Template</dt><dd className="mono">{phase.saved.mapping.command_pattern}</dd></>}
+                      <dt>Replay</dt>
+                      <dd className="mono">{phase.saved.replay.map((c) => `${c.hostname} · ${c.control_id}: ${c.before} → ${c.after}`).join('; ') || 'no change'}</dd>
+                    </dl>
+                  )}
+                </Toggle>
+              </div>
+            );
+          })()}
 
           {phase.kind === 'rejected' && (
             <div className="teach-result" role="status">
               <h2 className="teach-title" id="teach-title">Got it.</h2>
-              <p>NetAuditAI will stop guessing about line {current.line.line_number}. It stays uncounted.</p>
+              <p>NetAuditAI will stop guessing about line {phase.line.line_number}. The check stays undecided and uncounted.</p>
               <div className="actions">{continueButton}</div>
             </div>
           )}
         </article>
       )}
 
-      {items != null && (
+      {unresolved != null && (
         <LegacyInterpretations scan={scan} onScanUpdated={onScanUpdated} onScanExpired={onScanExpired} />
       )}
 

@@ -67,11 +67,18 @@ export function useAudit(scan, revision, onScanExpired) {
 
   const loadQueue = useCallback(async () => {
     try {
-      const [provisional, legacy] = await Promise.all([
+      const [provisional, legacy, unresolved] = await Promise.all([
         apiClient.getProvisionalResults(scanId),
         apiClient.getReviewQueue(scanId, false),
+        apiClient.getUnresolvedControls(scanId),
       ]);
-      setQueue({ provisional: provisional.items, legacyPending: legacy.items.filter((i) => i.review_status === 'pending').length });
+      setQueue({
+        provisional: provisional.items,
+        legacyPending: legacy.items.filter((i) => i.review_status === 'pending').length,
+        // Checks the scan could not decide: the same controls coverage left out, with what would decide them
+        unresolved: unresolved.items,
+        assessedCount: unresolved.assessed_count,
+      });
       setQueueError(null);
     } catch (err) {
       if (!expired(err)) setQueueError(err.message);
@@ -128,6 +135,11 @@ export function useAudit(scan, revision, onScanExpired) {
     return res;
   };
 
+  // Save the verified corrected copy of the uploaded configuration for one candidate. The backend is the
+  // gate: it refuses anything it has not verified, so this never saves an unchecked change.
+  const candidateDownload = (item) =>
+    apiClient.downloadCandidateConfig(scanId, item.controlId, item.primary.device_hostname, item.configIndex);
+
   const download = async () => {
     await apiClient.downloadFixedConfigs(scanId, inputs.current);
     markRemediated(scanId);
@@ -135,6 +147,6 @@ export function useAudit(scan, revision, onScanExpired) {
 
   return {
     plan, planLoading, planError, loadPlan, queue, queueError, loadQueue,
-    applied, markApplied, verified, fixOne, answer, download, candidates, candidateStep,
+    applied, markApplied, verified, fixOne, answer, download, candidates, candidateStep, candidateDownload,
   };
 }

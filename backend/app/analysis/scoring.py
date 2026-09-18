@@ -90,6 +90,21 @@ def _control_outcome(results: list[ControlResult]) -> tuple[str, Severity]:
     return "undecided", control.severity
 
 
+def control_outcomes(device_results: list[list[ControlResult]]) -> dict[tuple[int, str], str]:
+    """The outcome posture counted for every (device index, control): pass | fail | undecided | n_a.
+
+    The resolution queue reads this, so what it calls unresolved is exactly what coverage leaves out.
+    """
+    outcomes = {}
+    for index, results in enumerate(device_results):
+        by_control: dict[str, list[ControlResult]] = {}
+        for r in results:
+            by_control.setdefault(r.control_id, []).append(r)
+        for control_id, group in by_control.items():
+            outcomes[(index, control_id)] = _control_outcome(group)[0]
+    return outcomes
+
+
 def _percent(part: int, whole: int) -> int:
     return round(part * 100 / whole)
 

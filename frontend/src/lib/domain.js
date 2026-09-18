@@ -135,7 +135,7 @@ export const CANNOT_FIX_REASON = {
 
 // Why an unconfirmed vendor gets a reviewed candidate instead of a generated fix
 export const NEEDS_ADMIN_REASON =
-  'NetAuditAI found the security problem, but this device’s vendor and command syntax are not confirmed, so it never writes the command itself. You can propose the command or have AI draft one — NetAuditAI then checks it against this configuration, and nothing counts until you confirm it.';
+  'NetAuditAI found the security problem, but this device’s vendor and command syntax are not confirmed, so it never writes a vendor command on its own. It can derive the change from your own configuration — the lines this finding cites, removed from the block they sit in — and check it by re-reading the edited copy. You can also type the command yourself or have AI draft one. Nothing counts until you confirm it, and nothing is ever sent to a device.';
 
 // ── Candidate remediation (unconfirmed vendors) ────────────────────────────────────────────────────────────────
 // Proposed command text — typed by an administrator or drafted by AI. It is never executed and never becomes a
@@ -153,7 +153,8 @@ export const CANDIDATE = {
     note: 'NetAuditAI has not connected to the device and has not changed it. Apply the command yourself, then scan the device configuration again.' },
 };
 export const candidateMeta = (status) => CANDIDATE[status] || CANDIDATE.unverified;
-export const candidateSource = (source) => (source === 'ai' ? 'AI-generated candidate' : 'Command you entered');
+export const candidateSource = (source) => (source === 'ai' ? 'AI-generated candidate'
+  : source === 'derived' ? 'Derived from your configuration' : 'Command you entered');
 
 // One control result → its state. `remediation` is the backend remediation item for this control, when known;
 // `applied` is true once a fix for it was generated and verified in this session.
@@ -244,6 +245,20 @@ export const MEANING = {
 // "This line turns on Telnet remote access." — or null when the reading can't be put into words
 export const sayFact = ({ predicate, subject, value } = {}) => MEANING[predicate]?.say(subject, value) || null;
 
+// A setting whose value is read from the line itself, not stated by the person: what they confirm is only
+// that the line states it. The value NetAuditAI then learns is whatever the line writes.
+const READS = {
+  'mgmt.ssh.version': 'says which SSH version is allowed',
+  'mgmt.session.idle_timeout': 'sets how long an idle session may stay open',
+  'log.remote.destination': 'names the server logs are sent to',
+  'time.ntp.server': 'names the NTP server the clock comes from',
+  'auth.password.storage': 'says how the password is stored',
+};
+
+// One thing a person may say a line means. Value settings have no value to choose, so they read as
+// "this line names the NTP server" — the number or address comes from the line.
+export const sayMeaning = (m = {}) => sayFact(m) || READS[m.predicate] || null;
+
 // The backend's recognizer safety gates, in plain English. The original message stays available under
 // Advanced details; nothing here decides whether saving is allowed — the backend does.
 const GATE_WORDS = [
@@ -288,6 +303,10 @@ export function auditCounts(scan, plan, applied = new Set(), queue = null) {
     manual: plan ? count((s) => STATE[s]?.group === 'manual') : null,
     fixed: count((s) => s === 'fixed'),
     review: queue ? queue.provisional.length + (queue.legacyPending || 0) : reviewCount(scan),
+    // Checks that could not be decided. `resolvable` are the ones a person can still work on here.
+    unresolved: queue?.unresolved ? queue.unresolved.length : (scan?.unresolved_count ?? null),
+    resolvable: queue?.unresolved ? queue.unresolved.filter((i) => i.action === 'teach').length : null,
+    assessed: queue?.unresolved ? queue.assessedCount : (scan?.assessed_count ?? null),
     unknown: others('unknown'),
     notConfigured: others('not_configured'),
     passed: others('pass'),
@@ -309,6 +328,10 @@ export function nextStep(c, { planLoading = false, planError = null } = {}) {
   if (c.review > 0) {
     return { tone: 'review', to: 'teach', action: 'Teach NetAuditAI', title: 'NetAuditAI needs your help with lines it doesn’t recognize',
       body: `${plural(c.review, 'question')} ${c.review === 1 ? 'is' : 'are'} waiting for your answer. Nothing is counted until you confirm what a line means.` };
+  }
+  if (c.resolvable > 0) {
+    return { tone: 'review', to: 'teach', action: 'Resolve them', title: `${plural(c.resolvable, 'check')} need${c.resolvable === 1 ? 's' : ''} your input to finish this assessment`,
+      body: 'NetAuditAI could not decide these from the configuration alone. Show it which line answers each one, and it re-checks the same configuration.' };
   }
   if (c.manual > 0) {
     return { tone: 'manual', to: 'fix', action: 'See what to change', title: 'We can’t safely change the rest automatically',

@@ -31,6 +31,39 @@ async function postJson(path, body) {
   return handleResponse(response);
 }
 
+// Post, then save the response as a file.
+async function saveDownload(path, body) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    cache: 'no-cache',
+  });
+  if (!response.ok) await throwApiError(response);
+
+  const contentType = response.headers.get('Content-Type') || '';
+  const blob = await response.blob();
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const filenameMatch = disposition.match(/filename\*?=(?:UTF-8''|"?)([^";\r\n]+)/i);
+  const filename = filenameMatch
+    ? decodeURIComponent(filenameMatch[1].replace(/^"|"$/g, ''))
+    : contentType.toLowerCase().includes('application/pdf')
+      ? 'NetAuditAI_Compliance_Report.pdf'
+      : contentType.toLowerCase().includes('application/zip')
+        ? 'NetAuditAI_Fixed_Configs.zip'
+        : 'fixed_config.cfg';
+
+  // Keep the response bytes intact so ZIP downloads are never decoded as text.
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export const apiClient = {
   async scanConfigs(files) {
     const formData = new FormData();
@@ -76,9 +109,10 @@ export const apiClient = {
     return postJson('/remediation/plan', { scan_id: scanId, inputs });
   },
 
-  // Candidate remediation for a device whose vendor is not confirmed. `action` is 'propose' (the command an
-  // administrator typed), 'generate' (ask the AI for one), 'verify' (simulate it on a copy of the uploaded
-  // configuration), 'confirm' or 'reject'. Command text is never executed and never sent to a device.
+  // Candidate remediation for a device whose vendor is not confirmed. `action` is 'derive' (the change
+  // NetAuditAI works out from the configuration itself, already verified when it comes back), 'propose' (the
+  // command an administrator typed), 'generate' (ask the AI for one), 'verify' (simulate it on a copy of the
+  // uploaded configuration), 'confirm' or 'reject'. Command text is never executed and never sent to a device.
   remediationCandidate(action, scanId, ruleId, deviceHostname, configIndex, body = {}) {
     return postJson(`/remediation/candidate${action === 'propose' ? '' : `/${action}`}`, {
       scan_id: scanId,
@@ -166,6 +200,26 @@ export const apiClient = {
     return handleResponse(response);
   },
 
+  // Controls the scan could not decide, with the lines a person can teach from
+  async getUnresolvedControls(scanId) {
+    const response = await fetch(`${API_BASE_URL}/adaptive/scans/${scanId}/unresolved`, { cache: 'no-cache' });
+    return handleResponse(response);
+  },
+
+  // The uploaded configuration as it was uploaded, redacted for display. Read-only: teaching cites a
+  // line of it, and nothing in the API writes it back.
+  async getConfigLines(scanId, configIndex) {
+    const response = await fetch(`${API_BASE_URL}/adaptive/scans/${scanId}/configs/${configIndex}/lines`, { cache: 'no-cache' });
+    return handleResponse(response);
+  },
+
+  // What a person may say one line means for one control
+  async getMeaningOptions(scanId, { controlId, lineNumber, configIndex = 0 }) {
+    const query = new URLSearchParams({ control_id: controlId, line_number: lineNumber, config_index: configIndex });
+    const response = await fetch(`${API_BASE_URL}/adaptive/scans/${scanId}/meanings?${query}`, { cache: 'no-cache' });
+    return handleResponse(response);
+  },
+
   draftRecognizer(scanId, body) {
     return postJson(`/adaptive/scans/${scanId}/recognizers/draft`, body);
   },
@@ -194,34 +248,23 @@ export const apiClient = {
     return handleResponse(response);
   },
 
+  // The compliance report as PDF (one device, or every device of the scan as a .zip)
+  async downloadReport(scanId, configIndex = null, inputs = {}) {
+    await saveDownload('/report', { scan_id: scanId, config_index: configIndex, inputs });
+  },
+
   async downloadFixedConfigs(scanId, inputs = {}) {
-    const response = await fetch(`${API_BASE_URL}/download-fixed`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scan_id: scanId, inputs }),
-      cache: 'no-cache',
+    await saveDownload('/download-fixed', { scan_id: scanId, inputs });
+  },
+
+  // The verified corrected COPY of the uploaded configuration for one candidate (unconfirmed vendor).
+  // The backend refuses anything that is not verified, so an unverified candidate can never be saved.
+  async downloadCandidateConfig(scanId, ruleId, deviceHostname, configIndex) {
+    await saveDownload('/remediation/candidate/download', {
+      scan_id: scanId,
+      rule_id: ruleId,
+      device_hostname: deviceHostname,
+      config_index: configIndex,
     });
-
-    if (!response.ok) await throwApiError(response);
-
-    const contentType = response.headers.get('Content-Type') || '';
-    const blob = await response.blob();
-    const disposition = response.headers.get('Content-Disposition') || '';
-    const filenameMatch = disposition.match(/filename\*?=(?:UTF-8''|"?)([^";\r\n]+)/i);
-    const filename = filenameMatch
-      ? decodeURIComponent(filenameMatch[1].replace(/^"|"$/g, ''))
-      : contentType.toLowerCase().includes('application/zip')
-        ? 'NetAuditAI_Fixed_Configs.zip'
-        : 'fixed_config.cfg';
-
-    // Keep the response bytes intact so ZIP downloads are never decoded as text.
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   },
 };
