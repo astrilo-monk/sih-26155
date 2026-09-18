@@ -243,6 +243,15 @@
 .fix-failed { padding: var(--s-4); border: 1px solid var(--fail-line); border-radius: var(--r); background: var(--fail-wash); }
 .fix-input { padding: var(--s-4); border: 1px solid var(--warn-line); border-radius: var(--r); background: linear-gradient(var(--warn-wash), transparent 60%), var(--bg-raised); }
 .fix-manual .fix-lead { color: var(--text); }
+/* Candidate remediation: a proposal under review, never an applied fix */
+.fix-candidate { padding: var(--s-4); border: 1px solid var(--learn-line); border-radius: var(--r); background: var(--learn-wash); }
+.fix-candidate.tone-pass { border-color: var(--pass-line); background: var(--pass-wash); }
+.fix-candidate.tone-fail { border-color: var(--fail-line); background: var(--fail-wash); }
+.fix-candidate .fix-mark-ask { color: var(--learn); background: var(--learn-wash); border-color: var(--learn-line); }
+.candidate-k { font: 500 11px/1.2 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); }
+.candidate-badges { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.candidate-form { display: grid; gap: var(--s-2); }
+.candidate-form textarea.input { min-height: 72px; resize: vertical; }
 .fix-steps { display: grid; gap: 4px; margin: 0; }
 .fix-steps dt { margin-top: var(--s-3); font: 500 11px/1.2 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); }
 .fix-steps dd { margin: 0; color: var(--text-2); }

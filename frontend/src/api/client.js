@@ -76,6 +76,19 @@ export const apiClient = {
     return postJson('/remediation/plan', { scan_id: scanId, inputs });
   },
 
+  // Candidate remediation for a device whose vendor is not confirmed. `action` is 'propose' (the command an
+  // administrator typed), 'generate' (ask the AI for one), 'verify' (simulate it on a copy of the uploaded
+  // configuration), 'confirm' or 'reject'. Command text is never executed and never sent to a device.
+  remediationCandidate(action, scanId, ruleId, deviceHostname, configIndex, body = {}) {
+    return postJson(`/remediation/candidate${action === 'propose' ? '' : `/${action}`}`, {
+      scan_id: scanId,
+      rule_id: ruleId,
+      device_hostname: deviceHostname,
+      config_index: configIndex,
+      ...body,
+    });
+  },
+
   async getExplanation(scanId, ruleId, hostname) {
     const response = await fetch(
       `${API_BASE_URL}/assistant/explain/${scanId}/${ruleId}/${encodeURIComponent(hostname)}`,

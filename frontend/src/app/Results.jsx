@@ -8,7 +8,7 @@ import { useEntered } from '../lib/hooks';
 
 // The row's action word: what clicking it lets you do
 const ACTION = {
-  can_fix: 'Fix', needs_input: 'Answer', manual: 'How to fix', cannot_fix: 'Details',
+  can_fix: 'Fix', needs_input: 'Answer', needs_admin: 'Propose a fix', manual: 'How to fix', cannot_fix: 'Details',
   verification_failed: 'Details', fixed: 'Fixed', problem: 'View',
 };
 

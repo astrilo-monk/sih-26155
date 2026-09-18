@@ -45,6 +45,15 @@ review queue) use `normalized_field` instead of a predicate.
 `inputs` / `missing_inputs`, `diff`, `checks`, `before` / `after` summaries, `fixed_config`. `Plan` holds the
 outcomes of every failing control of one configuration and the combined verified output.
 
+## `Candidate` — `app/remediation/candidates.py`
+A proposed remediation for one control of one configuration whose vendor is **not** confirmed:
+`config_index`, `control_id`, `source` (`manual` | `ai`), `command` (text, never executed), `explanation`,
+`confidence`, `assumptions`, `status` (`draft` | `verified` | `unverified` | `rejected` | `confirmed`), `reason`,
+the cited `evidence`, `control_status_before` / `_after`, `checks` (`target`, `no_regression`, `generic_path`),
+the simulated `diff`, `created_at` and `confirmed_at`. Candidates live in the scan's in-memory entry
+(`_scan_store[scan_id]["candidates"]`) for that scan only: they are never persisted, never applied to the stored
+configuration and never part of a download.
+
 ## Scan response — `ScanResultResponse` in `app/api/schemas.py`
 `scan_id`, `devices`, `vendor_identification[]`, `results[]` (every control × config), `findings[]`, `posture`,
 `coverage`, `posture_bounds`, `critical_unassessed`, `frameworks[]`, `adaptive` / `adaptive_configs[]` (AI calls,

@@ -48,6 +48,11 @@ to mark entries expired after a restart.
 
 Remediation is deterministic (`backend/app/remediation/`). It runs only for a **decisive FAIL** (parser, confirmed recognizer or documented default) on a **confirmed Cisco IOS / FortiGate** configuration. It is reported `fixed` only after the generated configuration was rescanned and verified. No request field carries command text, and AI output is never used.
 
+For a configuration whose vendor is **not** confirmed, `/api/remediation/candidate*` offers reviewed *candidate*
+remediation instead: command text an administrator typed or the AI proposed, validated, simulated on a copy of the
+uploaded configuration where an effect can be derived, and confirmed by a human. A candidate is never executed,
+never applied and never downloaded.
+
 Every remediation response (`RemediationResponse`) has:
 
 | Field | Meaning |
@@ -76,7 +81,46 @@ Remediate one control on one device.
 ### `POST /api/remediation/plan`
 Remediate every failing control of every device, in catalog order, verifying each step.
 * **Request JSON:** `{"scan_id": "123-abc", "inputs": {}}`
-* **Response JSON:** `RemediationPlanResponse`: `inputs` (every input spec) and `devices[]`, each with `vendor_status`, `remediations[]`, `fixed_controls`, the combined `checks`, `before` / `after` and `fixed_config` (every verified change; `null` when none).
+* **Response JSON:** `RemediationPlanResponse`: `inputs` (every input spec) and `devices[]`, each with `vendor_status`, `remediations[]`, `candidates[]` (unconfirmed vendors), `fixed_controls`, the combined `checks`, `before` / `after` and `fixed_config` (every verified change; `null` when none).
+
+### `POST /api/remediation/candidate*` (unconfirmed vendors)
+
+Five operations on one candidate. A candidate is identified by the finding it is about, so at most one candidate per
+(`config_index`, `rule_id`) exists at a time and a new proposal replaces it. Candidates live in the scan's memory
+only — they are never written to the database.
+
+All five take the same body: `{"scan_id": "123-abc", "rule_id": "MGMT-001", "device_hostname": "JUNIPER-EDGE-01", "config_index": 0, "command": "delete system services telnet;", "reason": null}` (`command` is required for
+`/candidate` and ignored elsewhere; `reason` is used by `/reject`).
+
+| Route | Does |
+|---|---|
+| `POST /api/remediation/candidate` | Record the command an administrator typed → `draft` (`422` when the text is empty, over 2000 characters, over 20 lines, or holds control characters) |
+| `POST /api/remediation/candidate/generate` | Ask the AI for one → `draft`, `source: "ai"` (`503` when AI is unavailable or its answer is not exactly the expected shape) |
+| `POST /api/remediation/candidate/verify` | Simulate it on a copy and re-evaluate every control → `verified` / `rejected` / `unverified` |
+| `POST /api/remediation/candidate/confirm` | An administrator accepts a `verified` or `unverified` candidate → `confirmed` (`409` from any other state: a draft must be checked first) |
+| `POST /api/remediation/candidate/reject` | Discard it → `rejected`; nothing about the scan changes |
+
+Common refusals: `404` unknown control, unknown device, or no candidate yet; `409` the vendor **is** confirmed (use
+`POST /api/remediate`); `409` the finding is not decided from validated evidence (a heuristic or AI verdict — confirm
+the reading on the Teach page first).
+
+Every response is a `RemediationCandidateSchema`:
+
+| Field | Meaning |
+|---|---|
+| `source` | `manual` · `ai` |
+| `status` | `draft` · `verified` · `unverified` · `rejected` · `confirmed` |
+| `command` | The proposed text, redacted for display. It is never executed |
+| `reason` | What the state means, in full sentences |
+| `explanation`, `confidence`, `assumptions` | From an AI proposal (`low` / `medium` / `high`); empty for a typed command |
+| `evidence` | The failing lines the candidate has to address (redacted) |
+| `control_status_before` / `_after` | The control before and on the simulated copy, e.g. `fail` → `not_configured` (absence is never a PASS) |
+| `checks` | `target`, `no_regression`, `generic_path` — empty when nothing could be simulated |
+| `diff` | The simulated change on the copy (redacted). The uploaded configuration is untouched |
+| `created_at`, `confirmed_at` | When it was proposed and, if it happened, confirmed |
+
+A device's candidates are also returned with the plan (`devices[].candidates`), so a reload shows the same state.
+**A confirmed candidate is not a fix:** the control still FAILs until the device is changed and scanned again.
 
 ### `POST /api/download-fixed`
 Download the configuration(s) with every verified fix applied (unverified changes are never included).

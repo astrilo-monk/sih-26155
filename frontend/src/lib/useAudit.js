@@ -26,6 +26,8 @@ export function useAudit(scan, revision, onScanExpired) {
   const [queueError, setQueueError] = useState(null);
   const [applied, setApplied] = useState(() => new Set());
   const [verified, setVerified] = useState({});
+  // Candidate remediations (unconfirmed vendors), by item key: proposals awaiting verification or confirmation
+  const [candidates, setCandidates] = useState({});
   // The inputs the displayed plan was generated (and verified) with: the only inputs a fix or download may use
   const inputs = useRef({});
   const loadedFor = useRef(null);
@@ -44,6 +46,8 @@ export function useAudit(scan, revision, onScanExpired) {
     try {
       const next = await apiClient.getRemediationPlan(scanId, values);
       setPlan(next);
+      setCandidates(Object.fromEntries((next.devices || []).flatMap((d) => d.candidates || [])
+        .map((item) => [itemKey(item.config_index, item.rule_id), item])));
       inputs.current = values;
       return next;
     } finally {
@@ -81,6 +85,7 @@ export function useAudit(scan, revision, onScanExpired) {
     setQueue(null);
     setApplied(new Set());
     setVerified({});
+    setCandidates({});
     inputs.current = {};
   }, [scanId]);
 
@@ -114,6 +119,15 @@ export function useAudit(scan, revision, onScanExpired) {
     return res;
   };
 
+  // One step of a candidate's life: propose / generate / verify / confirm / reject. The backend is the authority
+  // on the resulting state; a candidate never changes the scan, its posture or its findings.
+  const candidateStep = async (item, action, body = {}) => {
+    const res = await apiClient.remediationCandidate(action, scanId, item.controlId,
+      item.primary.device_hostname, item.configIndex, body);
+    setCandidates((prev) => ({ ...prev, [item.key]: res }));
+    return res;
+  };
+
   const download = async () => {
     await apiClient.downloadFixedConfigs(scanId, inputs.current);
     markRemediated(scanId);
@@ -121,6 +135,6 @@ export function useAudit(scan, revision, onScanExpired) {
 
   return {
     plan, planLoading, planError, loadPlan, queue, queueError, loadQueue,
-    applied, markApplied, verified, fixOne, answer, download,
+    applied, markApplied, verified, fixOne, answer, download, candidates, candidateStep,
   };
 }

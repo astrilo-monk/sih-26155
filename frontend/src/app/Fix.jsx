@@ -3,7 +3,8 @@ import FileDiff from '../components/ui/FileDiff';
 import Count from '../components/ui/Count';
 import { Severity, StatusMark } from '../components/ui/Evidence';
 import {
-  auditCounts, CANNOT_FIX_REASON, checkItems, isProblem, itemState, quotedCommands, stateMeta, vendorName, vendorState,
+  auditCounts, candidateMeta, candidateSource, CANNOT_FIX_REASON, checkItems, isProblem, itemState,
+  NEEDS_ADMIN_REASON, quotedCommands, stateMeta, vendorName, vendorState,
 } from '../lib/domain';
 
 const CHECK_NAMES = {
@@ -12,6 +13,7 @@ const CHECK_NAMES = {
   target: 'This problem is gone',
   no_regression: 'Nothing else got worse',
   controls: 'Every check re-run',
+  generic_path: 'Still read by generic analysis',
 };
 
 const lowerFirst = (s) => (/^[A-Z][a-z]/.test(s) ? s[0].toLowerCase() + s.slice(1) : s);
@@ -66,6 +68,133 @@ function ChangeDetails({ rem, summary = 'Show the change' }) {
           {rem.checks?.length > 0 && <VerifyList checks={rem.checks} />}
           {rem.explanation && <p className="small muted">{rem.explanation}</p>}
         </div>
+      )}
+    </div>
+  );
+}
+
+// A candidate remediation for a device whose vendor isn't confirmed: text a person proposes (or AI drafts),
+// which NetAuditAI checks against the uploaded configuration and a person confirms. Nothing is ever sent to
+// a device, and no candidate changes what the scan found.
+export function CandidateFix({ item, audit }) {
+  const candidate = audit.candidates?.[item.key] || null;
+  const [editing, setEditing] = useState(false);
+  const [command, setCommand] = useState('');
+  const [busy, setBusy] = useState(null);
+  const [error, setError] = useState(null);
+
+  const step = async (action, body) => {
+    setBusy(action);
+    setError(null);
+    try {
+      await audit.candidateStep(item, action, body);
+      setEditing(false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(null);
+    }
+  };
+  const openEditor = () => {
+    setCommand(candidate?.command || '');
+    setEditing(true);
+    setError(null);
+  };
+  const errorLine = error && <p className="field-error" role="alert">{error}</p>;
+  const meta = candidate ? candidateMeta(candidate.status) : null;
+
+  const editor = (
+    <form
+      className="candidate-form"
+      onSubmit={(e) => { e.preventDefault(); step('propose', { command }); }}
+    >
+      <label className="field">
+        <span className="field-label">Command for this device</span>
+        <textarea
+          className="input mono" rows={3} aria-label="Command for this device" name="candidate-command"
+          value={command} onChange={(e) => setCommand(e.target.value)}
+          placeholder={item.primary?.evidence?.lines?.[0] ? `e.g. the command that removes: ${item.primary.evidence.lines[0].trim()}` : ''}
+        />
+        <span className="field-help">Exactly as you would type it on the device. NetAuditAI never runs it — it checks what it can against this configuration and keeps it for your confirmation.</span>
+      </label>
+      <div className="actions">
+        <button type="submit" className="btn btn-primary" disabled={busy || !command.trim()}>
+          {busy === 'propose' ? 'Checking…' : 'Use this command'}
+        </button>
+        <button type="button" className="btn btn-quiet" onClick={() => setEditing(false)} disabled={!!busy}>Cancel</button>
+      </div>
+      {errorLine}
+    </form>
+  );
+
+  if (!candidate) {
+    return (
+      <div className="fix fix-candidate">
+        <p className="fix-lead"><span className="fix-mark fix-mark-ask" aria-hidden="true">?</span> Needs administrator input</p>
+        <p className="small muted">{NEEDS_ADMIN_REASON}</p>
+        {item.finding?.recommendation && <p><strong>What to change: </strong>{item.finding.recommendation}</p>}
+        {editing ? editor : (
+          <>
+            <div className="actions">
+              <button type="button" className="btn btn-primary" onClick={() => step('generate')} disabled={!!busy}>
+                {busy === 'generate' ? 'Asking AI…' : 'Generate candidate fix'}
+              </button>
+              <button type="button" className="btn" onClick={openEditor} disabled={!!busy}>Enter command manually</button>
+            </div>
+            {errorLine}
+          </>
+        )}
+        <p className="small muted"><strong>Candidate status:</strong> No candidate yet. NetAuditAI never applies a candidate automatically.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`fix fix-candidate tone-${meta.tone}`}>
+      <p className="candidate-k">Candidate remediation</p>
+      <p className="candidate-badges">
+        <span className="tag">{candidateSource(candidate.source)}</span>
+        <span className={`tag tag-${meta.tone}`}>{meta.label}</span>
+        {candidate.confidence && <span className="small muted">AI confidence: {candidate.confidence}</span>}
+      </p>
+      <pre className="cmd"><code>{candidate.command}</code></pre>
+      {candidate.explanation && <p><strong>Why: </strong>{candidate.explanation}</p>}
+      {candidate.assumptions?.length > 0 && (
+        <p className="small muted">Assumes: {candidate.assumptions.join('; ')}</p>
+      )}
+      {candidate.control_status_after && (
+        <p className="small">
+          <span className="mono">{candidate.rule_id}</span>{' '}
+          {candidate.control_status_before} → {candidate.control_status_after} on a copy of your configuration
+        </p>
+      )}
+      <p>{candidate.reason}</p>
+      {candidate.checks?.length > 0 && <VerifyList checks={candidate.checks} />}
+      {candidate.diff && <FileDiff diff={candidate.diff} file={candidate.device_hostname} caption="Simulated change (on a copy — your file is untouched)" />}
+      <p className="small muted">{meta.note}</p>
+      {editing ? editor : (
+        <>
+          <div className="actions">
+            {candidate.status === 'draft' && (
+              <button type="button" className="btn btn-primary" onClick={() => step('verify')} disabled={!!busy}>
+                {busy === 'verify' ? 'Checking…' : 'Verify candidate'}
+              </button>
+            )}
+            {(candidate.status === 'verified' || candidate.status === 'unverified') && (
+              <button type="button" className="btn btn-primary" onClick={() => step('confirm')} disabled={!!busy}>
+                {busy === 'confirm' ? 'Confirming…' : candidate.status === 'verified' ? 'Confirm' : 'Confirm anyway'}
+              </button>
+            )}
+            <button type="button" className="btn" onClick={openEditor} disabled={!!busy}>
+              {candidate.status === 'confirmed' || candidate.status === 'rejected' ? 'Propose another command' : 'Edit'}
+            </button>
+            {candidate.status !== 'rejected' && candidate.status !== 'confirmed' && (
+              <button type="button" className="btn btn-quiet" onClick={() => step('reject')} disabled={!!busy}>Reject</button>
+            )}
+            <CopyButton text={candidate.command} label="Copy command" />
+          </div>
+          {errorLine}
+        </>
       )}
     </div>
   );
@@ -162,6 +291,8 @@ export function FixAction({ item, scan, audit }) {
     );
   }
 
+  if (state === 'needs_admin') return <CandidateFix item={item} audit={audit} />;
+
   if (state === 'manual' || state === 'cannot_fix') {
     // quoted commands are backend text, and only for a confirmed vendor
     const commands = state === 'manual' && vs.key === 'confirmed' ? quotedCommands(rem?.reason, recommendation) : [];
@@ -220,7 +351,7 @@ function FixCard({ item, scan, audit, label, onOpen }) {
   const meta = stateMeta(state);
   // A question is open so it can be answered; a card the person just acted on stays open to show its outcome.
   // Automatic fixes start closed: "Fix all" above covers them without repeating the same sentence six times.
-  const [open, setOpen] = useState(state === 'needs_input' || !!audit.verified[item.key]);
+  const [open, setOpen] = useState(state === 'needs_input' || state === 'needs_admin' || !!audit.verified[item.key]);
   return (
     <li className={`fix-card tone-${meta.tone} sev-edge-${item.severity}`}>
       <div className="fix-card-head">
@@ -377,6 +508,9 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
           <div id="fix-remaining">
             <Group id="fix-can" title="Can fix automatically" items={canFix} {...shared} />
             <Group id="fix-input" title="Needs your input" hint="Answer these and NetAuditAI generates and verifies the fix." items={inState('needs_input')} {...shared} />
+            <Group id="fix-candidate" title="Needs administrator input"
+                   hint="NetAuditAI doesn’t write commands for a vendor it couldn’t confirm. Propose one — or let AI draft one — and NetAuditAI checks it against this configuration."
+                   items={inState('needs_admin')} {...shared} />
             <Group id="fix-manual" title="Needs manual action" hint="NetAuditAI shows what to change; you make the change on the device."
                    items={inState('manual', 'cannot_fix', 'verification_failed')} {...shared} />
             <Group id="fix-pending" title="Still being checked" items={inState('problem')} {...shared} />
@@ -396,7 +530,7 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
 
       {unconfirmed.length > 0 && (
         <p className="small muted">
-          NetAuditAI never generates vendor commands for {joinWords(unconfirmed.map((d) => labels[d.config_index] ?? d.device_hostname))}: the vendor isn’t confirmed.
+          NetAuditAI never writes vendor commands for {joinWords(unconfirmed.map((d) => labels[d.config_index] ?? d.device_hostname))} by itself: the vendor isn’t confirmed. You can propose a command, or have AI draft one, and NetAuditAI checks it against the uploaded configuration before you confirm it. It never connects to the device.
         </p>
       )}
 

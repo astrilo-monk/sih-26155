@@ -308,6 +308,49 @@ class RemediationResponse(BaseModel):
     fixed_config: Optional[str] = None
 
 
+class RemediationCandidateRequest(BaseModel):
+    scan_id: str
+    rule_id: str
+    device_hostname: str
+    # Picks the config when several uploads share a hostname
+    config_index: Optional[int] = None
+    # The command the administrator proposes. Required for a manual candidate, ignored elsewhere:
+    # it is never executed and never written into a configuration NetAuditAI hands out.
+    command: Optional[str] = None
+    # Why an administrator rejected the candidate (reject only)
+    reason: Optional[str] = None
+
+
+class RemediationCandidateSchema(BaseModel):
+    config_index: int
+    rule_id: str
+    title: str
+    device_hostname: str
+    vendor: str
+    # confirmed | unverified | unknown — a candidate exists only for the last two
+    vendor_status: str
+    # manual | ai
+    source: str
+    # draft | verified | unverified | rejected | confirmed
+    status: str
+    command: str
+    reason: str
+    explanation: str = ""
+    # low | medium | high (AI candidates only)
+    confidence: str = ""
+    assumptions: list[str] = []
+    # The failing lines the candidate has to address
+    evidence: EvidenceSchema = EvidenceSchema()
+    control_status_before: Optional[str] = None
+    control_status_after: Optional[str] = None
+    # target | no_regression | generic_path
+    checks: list[RemediationCheckSchema] = []
+    # The simulated change on a copy of the uploaded configuration (never a device change)
+    diff: str = ""
+    created_at: str = ""
+    confirmed_at: Optional[str] = None
+
+
 class RemediationPlanRequest(BaseModel):
     scan_id: str
     inputs: dict[str, str] = {}
@@ -319,6 +362,8 @@ class DeviceRemediationPlanSchema(BaseModel):
     vendor: str
     vendor_status: str
     remediations: list[RemediationResponse]
+    # Candidate remediations proposed for this device in this scan (unconfirmed vendors only)
+    candidates: list[RemediationCandidateSchema] = []
     fixed_controls: list[str] = []
     checks: list[RemediationCheckSchema] = []
     before: Optional[PostureSummarySchema] = None

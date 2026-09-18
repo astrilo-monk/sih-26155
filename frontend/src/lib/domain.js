@@ -85,6 +85,8 @@ export function vendorState(ident) {
 //   needs_review                                      — a heuristic / AI reading waiting for a person; never counted
 //   problem                                           — a decisive failure whose fix options are not known yet
 //   can_fix / needs_input / manual / cannot_fix       — a decisive failure, by what can be done about it
+//   needs_admin                                       — a decisive failure on an unconfirmed vendor: only a
+//                                                       candidate command a person proposes and confirms
 //   fixed / verification_failed                        — after a fix was generated and rescanned
 export const STATE = {
   pass: { label: 'Passed', tone: 'pass', mark: '✓' },
@@ -95,6 +97,8 @@ export const STATE = {
     hint: 'We know the problem. We need one or two values from you to fix it.' },
   manual: { label: 'Manual action required', tone: 'manual', mark: '!', group: 'manual',
     hint: 'We won’t change this automatically because doing so could affect how the network behaves.' },
+  needs_admin: { label: 'Needs administrator input', tone: 'input', mark: '?', group: 'manual',
+    hint: 'NetAuditAI found the problem, but it never invents commands for a vendor it could not confirm. Propose the command, or have AI draft one for you to review.' },
   cannot_fix: { label: 'Can’t fix automatically', tone: 'manual', mark: '–', group: 'manual',
     hint: 'NetAuditAI has no safe automatic fix for this.' },
   verification_failed: { label: 'Verification failed', tone: 'fail', mark: '!', group: 'manual',
@@ -119,16 +123,37 @@ const REMEDIATION_STATE = {
   manual_review: 'manual',
   verification_failed: 'verification_failed',
   no_recipe: 'cannot_fix',
-  vendor_unverified: 'cannot_fix',
+  vendor_unverified: 'needs_admin',
   provisional: 'needs_review',
 };
 export const remediationState = (status) => REMEDIATION_STATE[status] || null;
 
-// Plain reasons for the two outcomes the backend states only as a status
+// Plain reasons for the outcomes the backend states only as a status
 export const CANNOT_FIX_REASON = {
   no_recipe: 'NetAuditAI has no proven automatic fix for this setting on this platform yet.',
-  vendor_unverified: 'NetAuditAI couldn’t confirm which vendor this device is, so it never generates vendor commands for it.',
 };
+
+// Why an unconfirmed vendor gets a reviewed candidate instead of a generated fix
+export const NEEDS_ADMIN_REASON =
+  'NetAuditAI found the security problem, but this device’s vendor and command syntax are not confirmed, so it never writes the command itself. You can propose the command or have AI draft one — NetAuditAI then checks it against this configuration, and nothing counts until you confirm it.';
+
+// ── Candidate remediation (unconfirmed vendors) ────────────────────────────────────────────────────────────────
+// Proposed command text — typed by an administrator or drafted by AI. It is never executed and never becomes a
+// verified fix on its own: the backend validates it, simulates it on a copy of the uploaded configuration where it
+// can, and waits for a person to confirm. "Verified" is always about the configuration file, never the device.
+export const CANDIDATE = {
+  draft: { label: 'Not checked yet', tone: 'review',
+    note: 'NetAuditAI has not checked this against your configuration yet.' },
+  verified: { label: 'Verified against this configuration', tone: 'pass',
+    note: 'This confirms the candidate removes the problem from the uploaded configuration. It does not establish that the command is safe to run on the device.' },
+  unverified: { label: 'Not verified', tone: 'review',
+    note: 'NetAuditAI could not check this one automatically. Review it yourself before you use it.' },
+  rejected: { label: 'Rejected', tone: 'fail', note: 'Nothing was changed.' },
+  confirmed: { label: 'Confirmed by you', tone: 'pass',
+    note: 'NetAuditAI has not connected to the device and has not changed it. Apply the command yourself, then scan the device configuration again.' },
+};
+export const candidateMeta = (status) => CANDIDATE[status] || CANDIDATE.unverified;
+export const candidateSource = (source) => (source === 'ai' ? 'AI-generated candidate' : 'Command you entered');
 
 // One control result → its state. `remediation` is the backend remediation item for this control, when known;
 // `applied` is true once a fix for it was generated and verified in this session.

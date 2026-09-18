@@ -18,6 +18,8 @@ SQLite database.
 | Phase 7 — AI judge: verifier, budget, cache, redaction, authority | `test_phase7_ai_judge.py` |
 | Phase 8 — remediation: recipes, inputs, verification, idempotence, API rescan | `test_remediation_e2e.py`, `test_download_fixed.py` |
 | Phase 9 — framework views, recognizer persistence across a restart, secret-free stores | `test_phase9_frameworks_persistence.py` |
+| Candidate remediation for unconfirmed vendors: eligibility, validation, simulation on a copy, verified / rejected / unverified, human confirmation, AI answer shape and prompt redaction, no vendor branch | `test_candidate_remediation.py` |
+| Generic engine on hierarchical, terminator-separated dialects | `test_generic_hierarchical.py` |
 | Parsers, pipeline, ACLs | `test_pipeline.py`, `test_cisco_acl.py` |
 | Adaptive layer and legacy interpreter, learned mappings, review API | `test_adaptive.py`, `test_adaptive_generic.py`, `test_adaptive_api_integration.py`, `test_phase3_adaptive_mapper.py`, `test_phase3_e2e.py`, `test_phase4_review_api.py`, `test_phase5_learned_mappings.py` |
 | Settings, Groq key rotation | `test_config_loading.py`, `test_ai_client_key_rotation.py` |
@@ -31,7 +33,7 @@ Two live Groq tests in `test_adaptive_generic.py` are skipped unless `NETAUDIT_L
 |---|---|
 | Backend state to user-facing state, counts, next step, plain-language readings, safety-gate wording | `lib/domain.test.js` |
 | Results overview: posture never overstated, honest counts, questions, undecided checks | `app/Results.test.jsx` |
-| Fix: the four remediation classes, inputs, verified fix, download of verified changes only | `app/Fix.test.jsx` |
+| Fix: the remediation classes, inputs, verified fix, download of verified changes only, and candidate remediation for an unconfirmed vendor (generate, review, verify, reject, confirm) | `app/Fix.test.jsx` |
 | Teach: plain meaning questions, safety-gate failures in plain English, saved recognizer | `app/Teach.test.jsx` |
 | Finding drawer: evidence, assurance, no invented commands | `app/FindingDrawer.test.jsx` |
 | Framework view | `app/Frameworks.test.jsx` |
@@ -47,10 +49,10 @@ Two live Groq tests in `test_adaptive_generic.py` are skipped unless `NETAUDIT_L
 
 ```powershell
 cd backend
-venv\Scripts\python -m pytest tests -q     # 853 passed, 2 skipped
+venv\Scripts\python -m pytest tests -q     # 924 passed, 2 skipped
 
 cd ..\frontend
-npm test                                    # 66 passed
+npm test                                    # 70 passed
 npm run build
 ```
 

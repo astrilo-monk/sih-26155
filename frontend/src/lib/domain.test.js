@@ -100,7 +100,7 @@ it('maps every backend state to one user-facing state, never conflating pass, fa
   // a decisive failure, by what can be done about it
   const withFix = (status) => resultState(r('fail', 'parser'), { remediation: { status } });
   expect(['fixed', 'needs_input', 'manual_review', 'verification_failed', 'no_recipe', 'vendor_unverified'].map(withFix))
-    .toEqual(['can_fix', 'needs_input', 'manual', 'verification_failed', 'cannot_fix', 'cannot_fix']);
+    .toEqual(['can_fix', 'needs_input', 'manual', 'verification_failed', 'cannot_fix', 'needs_admin']);
   expect(resultState(r('fail', 'parser'), { remediation: { status: 'fixed' }, applied: true })).toBe('fixed');
   expect(Object.keys(STATE).every((k) => STATE[k].label && STATE[k].mark)).toBe(true);
 });

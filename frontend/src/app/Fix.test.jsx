@@ -10,6 +10,7 @@ vi.mock('../api/client', () => ({
     downloadFixedConfigs: vi.fn(),
     getProvisionalResults: vi.fn(),
     getReviewQueue: vi.fn(),
+    remediationCandidate: vi.fn(),
   },
 }));
 
@@ -193,21 +194,138 @@ it('says a clean configuration is already clean', async () => {
   expect(screen.queryByRole('button', { name: 'Download corrected configuration' })).toBeNull();
 });
 
-it('never shows vendor commands for an unconfirmed vendor', async () => {
-  const unknown = {
-    ...SCAN,
-    vendor_identification: [{ config_index: 0, detected_vendor: 'unknown', status: 'unknown' }],
-    results: [result('BOUNDARY-001', { assurance: 'confirmed' })],
-  };
-  apiClient.getRemediationPlan.mockResolvedValue({
-    scan_id: 'scan-1', inputs: [],
-    devices: [{ config_index: 0, device_hostname: 'R1', vendor: 'unknown', vendor_status: 'unknown', fixed_controls: [], checks: [], before: null, after: null, fixed_config: null,
-      remediations: [item('BOUNDARY-001', 'vendor_unverified')] }],
-  });
-  render(<Harness scan={unknown} />);
-  fireEvent.click(await screen.findByRole('button', { name: 'How to fix' }));
-  expect(screen.getByText(/couldn’t confirm which vendor this device is/)).toBeTruthy();
-  expect(screen.queryByText(/Commands for/)).toBeNull();
-  expect(screen.queryByText('permit tcp 10.0.0.0 0.0.0.255 any eq 443')).toBeNull();
-  expect(screen.getByText(/never generates vendor commands for R1/)).toBeTruthy();
+// ── Candidate remediation for an unconfirmed vendor ──────────────────────────────────────────────────────────
+
+const UNKNOWN_SCAN = {
+  ...SCAN,
+  devices: [{ hostname: 'JUNIPER-EDGE-01', vendor: 'unknown' }],
+  vendor_identification: [{ config_index: 0, detected_vendor: 'unknown', status: 'unknown' }],
+  results: [result('MGMT-001', {
+    assurance: 'confirmed', severity: 'critical', device_hostname: 'JUNIPER-EDGE-01', vendor: 'unknown',
+    title: 'Insecure Management Protocol (Telnet) Enabled', question: 'Is cleartext Telnet disabled for remote management?',
+    evidence: { line_numbers: [32], lines: ['        telnet;'], scope_path: ['system', 'services'] },
+  })],
+  findings: [{ rule_id: 'MGMT-001', config_index: 0, description: 'Telnet is enabled',
+    security_impact: 'Credentials cross the network in cleartext',
+    recommendation: 'Disable Telnet and use SSH for remote management.' }],
+};
+
+const unknownPlan = (candidates = []) => ({
+  scan_id: 'scan-1', inputs: [],
+  devices: [{ config_index: 0, device_hostname: 'JUNIPER-EDGE-01', vendor: 'unknown', vendor_status: 'unknown',
+    fixed_controls: [], checks: [], before: null, after: null, fixed_config: null, candidates,
+    remediations: [item('MGMT-001', 'vendor_unverified', { device_hostname: 'JUNIPER-EDGE-01', vendor: 'unknown' })] }],
+});
+
+const candidate = (status, extra = {}) => ({
+  config_index: 0, rule_id: 'MGMT-001', title: 'Insecure Management Protocol (Telnet) Enabled',
+  device_hostname: 'JUNIPER-EDGE-01', vendor: 'unknown', vendor_status: 'unknown', source: 'ai', status,
+  command: 'delete system services telnet;', reason: `${status} reason`,
+  explanation: 'Removes the Telnet service from the system services hierarchy.', confidence: 'medium',
+  assumptions: ['a curly-brace hierarchical CLI'], evidence: { line_numbers: [32], lines: ['        telnet;'], scope_path: [] },
+  control_status_before: 'fail', control_status_after: null, checks: [], diff: '', created_at: '2026-09-18T13:00:00',
+  confirmed_at: null, ...extra,
+});
+
+it('offers a candidate fix instead of a dead end when the vendor is not confirmed', async () => {
+  apiClient.getRemediationPlan.mockResolvedValue(unknownPlan());
+  render(<Harness scan={UNKNOWN_SCAN} />);
+
+  // the problem is its own group, open, and says what is missing — never "can't fix"
+  expect(await screen.findByRole('region', { name: /Needs administrator input/ })).toBeTruthy();
+  expect(screen.getAllByText('Needs administrator input').length).toBeGreaterThan(0);
+  expect(screen.getByText(/vendor and command syntax are not confirmed/)).toBeTruthy();
+  expect(screen.getByText('Disable Telnet and use SSH for remote management.')).toBeTruthy();
+  expect(screen.getByText(/No candidate yet/)).toBeTruthy();
+  expect(screen.queryByText('We can’t fix this automatically.')).toBeNull();
+  // the page footnote explains the same thing, and never claims a device was touched
+  expect(screen.getByText(/never writes vendor commands for R1|never writes vendor commands for JUNIPER-EDGE-01/)).toBeTruthy();
+  expect(screen.getByText(/It never connects to the device\./)).toBeTruthy();
+});
+
+it('generates an AI candidate, labels it unverified, verifies it and confirms it', async () => {
+  apiClient.getRemediationPlan.mockResolvedValue(unknownPlan());
+  apiClient.remediationCandidate
+    .mockResolvedValueOnce(candidate('draft', { reason: 'Accepted for review. NetAuditAI has not checked it against this configuration yet.' }))
+    .mockResolvedValueOnce(candidate('verified', {
+      reason: 'Verified against the uploaded configuration: MGMT-001 fail → not_configured on a copy of it. This does not establish that the command is safe to run on the physical device.',
+      control_status_after: 'not_configured', diff: '@@ -30,3 +30,2 @@\n-        telnet;\n         ftp;',
+      checks: [{ name: 'target', passed: true, detail: 'MGMT-001 fail → not_configured on the edited copy' },
+        { name: 'no_regression', passed: true, detail: 'No other control got worse' }],
+    }))
+    .mockResolvedValueOnce(candidate('confirmed', {
+      reason: 'Confirmed by an administrator. It was verified against the uploaded configuration; NetAuditAI has not connected to the device and has not changed it.',
+      control_status_after: 'not_configured', confirmed_at: '2026-09-18T13:05:00',
+    }));
+  render(<Harness scan={UNKNOWN_SCAN} />);
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Generate candidate fix' }));
+  await waitFor(() => expect(apiClient.remediationCandidate)
+    .toHaveBeenCalledWith('generate', 'scan-1', 'MGMT-001', 'JUNIPER-EDGE-01', 0, {}));
+  expect(await screen.findByText('AI-generated candidate')).toBeTruthy();
+  expect(screen.getByText('Not checked yet')).toBeTruthy();
+  expect(screen.getByText('delete system services telnet;')).toBeTruthy();
+  expect(screen.getByText(/Removes the Telnet service/)).toBeTruthy();
+  expect(screen.getByText(/Assumes: a curly-brace hierarchical CLI/)).toBeTruthy();
+  // an unchecked candidate can never be confirmed straight away
+  expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Verify candidate' }));
+  expect(await screen.findByText('Verified against this configuration')).toBeTruthy();
+  expect(screen.getByText(/fail → not_configured on a copy of your configuration/)).toBeTruthy();
+  expect(screen.getByText(/does not establish that the command is safe to run on the physical device/)).toBeTruthy();
+  expect(screen.getByText('This problem is gone')).toBeTruthy();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+  expect(await screen.findByText('Confirmed by you')).toBeTruthy();
+  expect(screen.getAllByText(/has not connected to the device/).length).toBeGreaterThan(0);
+  // the scan itself never moves: the problem is still a problem until the device is changed and rescanned
+  expect(screen.queryByText('Fixes verified')).toBeNull();
+  expect(screen.getByRole('region', { name: /Needs administrator input/ })).toBeTruthy();
+});
+
+it('sends a manually entered command as a candidate and shows a rejected one as rejected', async () => {
+  apiClient.getRemediationPlan.mockResolvedValue(unknownPlan());
+  apiClient.remediationCandidate
+    .mockResolvedValueOnce(candidate('draft', { source: 'manual', confidence: '', explanation: '', assumptions: [] }))
+    .mockResolvedValueOnce(candidate('rejected', { source: 'manual', confidence: '', explanation: '', assumptions: [],
+      reason: 'The candidate did not hold up: MGMT-001 still fails on the edited copy',
+      control_status_after: 'fail',
+      checks: [{ name: 'target', passed: false, detail: 'MGMT-001 still fails on the edited copy' }] }));
+  render(<Harness scan={UNKNOWN_SCAN} />);
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Enter command manually' }));
+  const box = screen.getByLabelText('Command for this device');
+  fireEvent.change(box, { target: { value: 'delete system services telnet;' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Use this command' }));
+  await waitFor(() => expect(apiClient.remediationCandidate)
+    .toHaveBeenCalledWith('propose', 'scan-1', 'MGMT-001', 'JUNIPER-EDGE-01', 0, { command: 'delete system services telnet;' }));
+  expect(await screen.findByText('Command you entered')).toBeTruthy();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Verify candidate' }));
+  expect(await screen.findByText('Rejected')).toBeTruthy();
+  expect(screen.getAllByText(/still fails on the edited copy/).length).toBeGreaterThan(0);
+  expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Propose another command' })).toBeTruthy();
+});
+
+it('explains when no candidate can be generated and keeps the manual path open', async () => {
+  apiClient.getRemediationPlan.mockResolvedValue(unknownPlan());
+  apiClient.remediationCandidate.mockRejectedValueOnce(
+    new Error('AI is not configured, so no candidate can be generated. Enter the command for this device yourself.'));
+  render(<Harness scan={UNKNOWN_SCAN} />);
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Generate candidate fix' }));
+  expect(await screen.findByText(/AI is not configured/)).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Enter command manually' })).toBeTruthy();
+});
+
+it('keeps a candidate the backend already holds when the plan is reloaded', async () => {
+  apiClient.getRemediationPlan.mockResolvedValue(unknownPlan([candidate('unverified', {
+    reason: 'Accepted for review, but it could not be verified automatically.' })]));
+  render(<Harness scan={UNKNOWN_SCAN} />);
+  expect(await screen.findByText('Not verified')).toBeTruthy();
+  expect(screen.getByText(/could not be verified automatically/)).toBeTruthy();
+  // a human may still accept a command NetAuditAI could not check, knowingly
+  expect(screen.getByRole('button', { name: 'Confirm anyway' })).toBeTruthy();
 });

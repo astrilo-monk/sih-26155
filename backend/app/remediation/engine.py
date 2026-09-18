@@ -27,14 +27,16 @@ from app.adaptive.service import AdaptiveService
 from app.analysis.scoring import _control_outcome, calculate_posture
 from app.controls.catalog import CONTROLS
 from app.controls.evaluate import evaluate_controls
-from app.models.normalized import NormalizedConfig, Vendor
+from app.facts.heuristics import generic_hostname
+from app.models.normalized import DeviceInfo, NormalizedConfig, Vendor
 from app.models.results import DECISIVE_ASSURANCE, ControlResult, Status
 from app.parsers.detector import VendorIdentification, identify_vendor
 from app.remediation.recipes import INPUTS, RECIPES, Context, ManualReview, NeedsInput, parse_inputs
 
 __all__ = [
-    "RemediationStatus", "Analysis", "Outcome", "Plan", "INPUTS", "parse_inputs",
-    "analyze_text", "remediate_control", "remediate_all", "generate_remediation", "apply_remediation",
+    "RemediationStatus", "Analysis", "Check", "Outcome", "Plan", "INPUTS", "parse_inputs",
+    "analyze_text", "analyze_generic_text", "remediate_control", "remediate_all",
+    "generate_remediation", "apply_remediation",
 ]
 
 
@@ -89,6 +91,24 @@ def analyze_text(text: str) -> Analysis:
     config = identification.config
     capture_unrecognized_lines(config)
     # confirmed learned mappings apply as in a scan; the AI is never consulted here
+    AdaptiveService(ai_available=lambda: False).process(config, use_ai=False, report_unresolved=False)
+    return Analysis(text, identification, config, evaluate_controls(config))
+
+
+def analyze_generic_text(text: str) -> Analysis:
+    """One configuration text read the way an *unknown-vendor* upload is (tokenizer, confirmed
+    recognizers, learned mappings, lexicon heuristics; the AI is never consulted).
+
+    Used to re-read a candidate remediation applied to a copy of an unconfirmed-vendor
+    configuration: no vendor parser, no vendor defaults, absence never evidence.
+    """
+    identification = identify_vendor(text)
+    lines = text.splitlines()
+    config = NormalizedConfig(
+        device=DeviceInfo(vendor=Vendor.UNKNOWN, hostname=generic_hostname(lines) or "unknown"),
+        raw_config=text, raw_lines=lines,
+    )
+    capture_unrecognized_lines(config)
     AdaptiveService(ai_available=lambda: False).process(config, use_ai=False, report_unresolved=False)
     return Analysis(text, identification, config, evaluate_controls(config))
 
@@ -173,6 +193,12 @@ def verify(before: Analysis, after: Analysis, control_id: Optional[str]) -> list
             + "; ".join(dict.fromkeys(r.reason for r in target)),
         ))
 
+    checks.append(no_regression(before, after, control_id))
+    return checks
+
+
+def no_regression(before: Analysis, after: Analysis, control_id: Optional[str]) -> Check:
+    """Every control other than the target: none went from decided-pass to anything else, or got a new FAIL."""
     regressions = []
     for other in CONTROLS:
         if other == control_id:
@@ -184,9 +210,8 @@ def verify(before: Analysis, after: Analysis, control_id: Optional[str]) -> list
         if (old_outcome == "pass" and new_outcome != "pass") or (
                 new_outcome == "fail" and (old_outcome != "fail" or new_fails > old_fails)):
             regressions.append(f"{other} {old_outcome} → {new_outcome}")
-    checks.append(Check("no_regression", not regressions,
-                        "No other control got worse" if not regressions else "Regressed: " + ", ".join(regressions)))
-    return checks
+    return Check("no_regression", not regressions,
+                 "No other control got worse" if not regressions else "Regressed: " + ", ".join(regressions))
 
 
 def remediate_control(text: str, control_id: str, inputs: dict,

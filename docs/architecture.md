@@ -39,6 +39,16 @@ Future Scan Reuse (decisive, no AI)
 Deterministic Remediation (confirmed vendors, decisive FAILs)
       ↓
 Re-parse + Re-verify
+
+   — or, for an unconfirmed vendor —
+
+Candidate Remediation (command text: administrator-typed, or AI-proposed)
+      ↓
+Deterministic Validation + Simulation on a COPY of the configuration
+      ↓
+Re-read with the generic engine + Re-evaluate every control
+      ↓
+Human Confirmation (still never executed on a device)
 ```
 
 ```mermaid
@@ -62,6 +72,10 @@ flowchart TD
     DB --> Recognizers
     Controls -->|decisive FAIL, confirmed vendor| Remediation[Deterministic recipes]
     Remediation --> Rescan[Rescan: vendor, coverage, controls]
+    Controls -->|decisive FAIL, unconfirmed vendor| Candidate[Candidate command: typed or AI-proposed]
+    Candidate --> Simulate[Validate + simulate on a copy]
+    Simulate --> Controls
+    Simulate -->|verified / unverified| Confirm[Administrator confirms]
 ```
 
 ## 2. Vendor detection and parser support
@@ -94,6 +108,7 @@ shown in the UI as "Generic / adaptive analysis". An AI vendor guess is reported
 polarity)`:
 
 * scope from indentation, braces, `config`/`edit`/`next`/`end`, `/section` headers and flat prefix blocks;
+* statement terminators (`;`) are punctuation, in configuration lines and in recognizer templates alike;
 * `set` dropped, `key=value` split, IPs, numbers (with units) and quoted strings as values;
 * polarity from `no` / `unset` / `delete` / `undo`, `enable(d)` / `disable(d)` / `on` / `off` / `yes` / `no`,
   switches such as `disabled=yes`;
@@ -101,7 +116,18 @@ polarity)`:
 
 `app/facts/heuristics.py` reads statements with the synonym lexicon (`app/facts/lexicon.py`, whole tokens only) and
 produces HEURISTIC facts only with a predicate keyword, a typed value and a resolved polarity. Disagreeing
-candidates become one undetermined fact citing all of them (UNKNOWN).
+candidates become one undetermined fact citing all of them (UNKNOWN). Three readings use structure rather than
+the single line, and none of them lets an absent line state anything:
+
+* **presence as polarity** — a bare statement whose single keyword is a management protocol, inside a block that
+  already identifies it as a service (`services { telnet; }`), states that the protocol is on. A block switched
+  off wins over it; a negation of the same feature contradicts it, so the fact is undetermined (UNKNOWN).
+* **version values** — a version fact reads `v2` / `ver2` / `version2` as 2. Elsewhere a token with a letter is
+  still not a number.
+* **rule composition** — when a rule states its selectors and its action in separate statements
+  (`source-address any; … permit;`), the rule is the action's own block or its parent: the first block wide
+  enough to state both wildcards, never one holding a second action, and never one holding a narrowing selector
+  (a protocol, port or application). Evidence cites every line of the rule.
 
 ## 4. SecurityFacts
 
@@ -191,9 +217,14 @@ completes.
    (`{int}`, `{ip}`, `{duration[:unit]}`, `{enum:name}`, `{polarity}`, `{any}`; never raw regex), predicate,
    subject, optional scope template, dialect fingerprint and value table.
 3. Gates (`app/facts/recognizers.validate_recognizer`, `app/db/mappings.validate_mapping`): at least two keywords
-   besides stopwords, stated polarity or a true/false table, a unit for durations, the template must match its
-   example line, no identical active recognizer, dialect overlap unless "any dialect", and **no secret** in any
-   stored text.
+   besides stopwords **counting the scope template** — a hierarchical dialect keeps the nouns in the block header,
+   so `server {ip}` scoped to `ntp` is specific enough while `server {ip}` unscoped is not, and a scope can never
+   carry a recognizer whose own template has no keyword; stated polarity or a true/false table — or, for a scoped
+   bare statement, presence, which can only ever mean "on"; a unit for durations; the template must match its
+   example line; no identical active recognizer (pattern **and** scope, so `server {ip}` under `ntp` and under
+   `syslog` are different recognizers); dialect overlap unless "any dialect"; and **no secret** in any stored text.
+   A drafted recognizer is produced against these same gates: the only field a draft can leave for the
+   administrator is a duration unit the configuration itself never states.
 4. Replay shows which results the recognizer would change on the scans held by the backend.
 5. Save writes it to SQLite `learned_mappings` (confirmed, active). The scan is re-evaluated.
 6. Every later scan — including after a backend restart, in a new process — loads active confirmed recognizers from
@@ -234,6 +265,35 @@ saves a recognizer in one Python process and proves a second process reuses it.
   coverage did not drop, the control PASSes decisively on every scope and no other control regressed; otherwise
   `verification_failed`, with the output kept for review. Before / after posture and coverage come from scoring v2.
 * Idempotent: a fixed configuration has no decisive FAIL, so running again changes nothing.
+
+### Candidate remediation (unconfirmed vendors)
+
+`app/remediation/candidates.py`. An unconfirmed vendor has no recipe and no trusted grammar, so the command text
+comes from outside the engine — typed by the administrator, or proposed by the AI
+(`app/ai/remediation.py`). It is a **candidate**, never a fix, and the engine stays vendor-neutral: the
+configuration and the proposed text are read with the same generic tokenizer for every dialect.
+
+* Eligibility: a **decisive** FAIL (recognizer, parser or documented default) on an **unconfirmed** vendor. A
+  heuristic or AI verdict gets no candidate — confirm the reading on the Teach page first. A confirmed vendor is
+  refused (`409`): it keeps the deterministic path.
+* Validation: shape and size (≤ 2000 characters, ≤ 20 lines, no control characters), then *coverage* — a statement
+  of the command must negate (`delete` / `no` / `unset` / `undo` / a `disable` keyword) the failing statement and
+  name every word of its block path, and every statement of the command must be about one of the cited lines.
+* Simulation: the only effect derivable from unfamiliar text is a negation, so the cited statements are removed from
+  an **in-memory copy**. The copy is re-read by the generic engine (tokenizer, confirmed recognizers, learned
+  mappings, heuristics, no AI) and every control is re-evaluated. The uploaded configuration is never modified.
+* Outcome: `verified` when the targeted control no longer FAILs, no other control got worse and the copy is still
+  read by generic analysis; `rejected` when the simulation does not hold; `unverified` when no effect could be
+  derived (prose, a command about something else, or one that also does something uncheckable); then `confirmed`
+  once an administrator accepts it. Absence is still NOT_CONFIGURED, never PASS, so a verified candidate typically
+  reads `FAIL → NOT_CONFIGURED`.
+* A candidate changes nothing else: not the stored configuration, the control results, findings, posture, coverage
+  or the download. It lives in the scan's memory for that scan only and is never persisted as knowledge —
+  recognizers answer "what does this line mean?", which is a different question from "what command changes it".
+
+NetAuditAI performs detection → candidate remediation → verification against the configuration file → human
+confirmation. It does **not** execute commands on physical devices, and a verified candidate never claims it is safe
+to run on one.
 
 ## 11. Framework views
 

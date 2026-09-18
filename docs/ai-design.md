@@ -6,11 +6,13 @@ This document describes how AI (Groq, model `openai/gpt-oss-120b`) is used in Ne
 
 **AI is NOT used to decide whether a configuration is compliant.** Findings, posture, coverage and remediation come only from the deterministic engine. An AI answer is a proposal that stays UNKNOWN until an administrator confirms it.
 
-AI is used in three places:
+AI is used in four places:
 
 1. **Assistant:** explanations, summaries and chat about findings that already exist.
 2. **AI judge** (`backend/app/ai/judge.py`, unknown vendors): the only AI interpretation path by default.
-3. **Legacy line interpretation** (confirmed Cisco / FortiGate only, `adaptive_ai_for_known_vendors`, off by default): review-queue suggestions, never applied without an administrator.
+3. **Remediation candidates** (`backend/app/ai/remediation.py`, unconfirmed vendors, on request): command *text* for
+   a human to review — never a verdict, never applied.
+4. **Legacy line interpretation** (confirmed Cisco / FortiGate only, `adaptive_ai_for_known_vendors`, off by default): review-queue suggestions, never applied without an administrator.
 
 ## 1. Assistant
 
@@ -35,7 +37,29 @@ Unknown-vendor configs are read by recognizers (administrator-confirmed), learne
 4. **Result**: verified proposals become AI_VERIFIED facts bound to the asking control; no other control reads them. The control reports UNKNOWN, with a proposed PASS / FAIL when the fact decides it. Some facts do not decide it: an NTP server without authentication gives no proposal. Posture, coverage, score, findings and remediation ignore AI facts. An answer with no verified proposal is never cached, and a cached answer is re-verified.
 5. **Training**: verified lines appear in the provisional queue. Confirming one saves a recognizer, which is decisive from then on. Rejecting one drops the line. Hallucinated or unverified citations never reach the queue.
 
-## 3. Legacy Line Interpretation (confirmed vendors, opt-in)
+## 3. Remediation Candidates (unconfirmed vendors, on request)
+
+A device whose vendor is not confirmed has no deterministic recipe, so the Fix page can ask for a **candidate
+command** instead of showing a dead end. One request, for one control, only when the administrator presses the
+button:
+
+1. **Context** — the minimum the question needs: the control id, its question, the vendor-neutral recommendation the
+   deterministic engine already produced, the vendor detection status (and an unverified look-alike, labelled as
+   evidence only), the block path of the failing lines, and the tokenizer scope of those lines (the same excerpt rule
+   the judge uses). The whole configuration is redacted first and the prompt is scrubbed of every known secret;
+   the answer is scrubbed again before it is shown.
+2. **Answer contract** — strict JSON schema: `control_id`, `candidate_command`, `explanation`, `confidence`
+   (low / medium / high), `assumptions`. An answer with a missing field, an extra field, another control's id, a
+   non-text command or an unknown confidence level is **refused**, not repaired.
+3. **No authority** — the answer is command text and nothing else. It enters exactly the same review as a command an
+   administrator typed: deterministic validation, simulation on a copy of the configuration where an effect can be
+   derived, and administrator confirmation (see [architecture.md](architecture.md#10-remediation)). It is labelled
+   "AI-generated candidate / not verified" until then, changes no control result, no posture and no coverage, and
+   is never executed, applied or downloaded.
+4. **Unavailable** — no key, no quota, a failed call or an unusable answer returns `503` with the reason; the manual
+   path stays open. Nothing is invented on the AI's behalf.
+
+## 4. Legacy Line Interpretation (confirmed vendors, opt-in)
 
 The judge never escalates confirmed vendors, so this older path remains for them behind `adaptive_ai_for_known_vendors` (default off). Unknown-vendor configs never use it. Lines a Cisco / FortiGate parser did not recognize go through `backend/app/adaptive/`:
 
@@ -75,9 +99,13 @@ Keys are tried in order: `GROQ_API_KEY`, then `GROQ_API_KEY_1` .. `_4`.
 
 Keys that belong to the same Groq organization share one daily quota, so adding keys from the same account does not increase capacity. Key material is never logged.
 
-## Remediation: Deterministic Recipes
+## Remediation: Deterministic Recipes, and Candidates for Unconfirmed Vendors
 
-**AI does not generate or apply remediation.** Fixes come from deterministic recipes keyed by control and confirmed vendor (`backend/app/remediation/recipes.py`), filled only with validated operator inputs, and are reported fixed only after a full rescan (`backend/app/remediation/engine.py`). AI_VERIFIED proposals and heuristic verdicts never trigger remediation. See [api.md](api.md#remediation).
+**AI does not decide or apply remediation.** Fixes come from deterministic recipes keyed by control and confirmed vendor (`backend/app/remediation/recipes.py`), filled only with validated operator inputs, and are reported fixed only after a full rescan (`backend/app/remediation/engine.py`). AI_VERIFIED proposals and heuristic verdicts never trigger remediation.
+
+For an **unconfirmed** vendor the AI may propose *candidate* command text on request (section 3). A candidate is
+validated and simulated deterministically, confirmed by a human, and never executed — it is a proposal for a person,
+not a fix the system applies. See [api.md](api.md#remediation).
 
 ## Fallback Behavior
 
