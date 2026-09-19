@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Notice } from '../components/ui/primitives';
 
 const MAX_BYTES = 2 * 1024 * 1024;
 
@@ -78,11 +79,10 @@ export default function Upload({ onScan, scanning, error, currentScan }) {
       <div className="upload-grid">
         <div className="upload-main">
           {error && (
-            <div className="notice notice-danger" role="alert">
-              <span className="notice-mark">×</span>
+            <Notice kind="danger" label="Scan failed" role="alert">
               <strong>The scan could not run.</strong>
               <span>{error}</span>
-            </div>
+            </Notice>
           )}
 
           <label

@@ -1,4 +1,4 @@
-import { stripLineNo, stateMeta } from '../../lib/domain';
+import { stripLineNo } from '../../lib/domain';
 
 // Cited configuration lines with their real line numbers. Only lines the backend returned are shown (it never
 // sends the raw configuration, and every quote is already redacted); context rows are shown only when the
@@ -35,17 +35,6 @@ export function Evidence({ lineNumbers = [], lines = [], scopePath = [], before 
   );
 }
 
-// `state` is a key of the one state model (lib/domain STATE): components never pass raw backend statuses
-export function StatusMark({ state, children, size }) {
-  const m = stateMeta(state);
-  return (
-    <span className={`status status-${m.tone} ${size || ''}`}>
-      <span className="status-glyph" aria-hidden="true">{m.mark}</span>
-      <span className="status-word">{children || m.label}</span>
-    </span>
-  );
-}
-
-export function Severity({ level }) {
-  return <span className={`sev sev-${level}`}>{level}</span>;
-}
+// The status and severity marks live in the shared primitives now. Re-exported here because six screens
+// already import them from this module, and `StatusMark` is the name they use.
+export { StatusLabel as StatusMark, StatusLabel, Severity, SeverityMeter } from './primitives';

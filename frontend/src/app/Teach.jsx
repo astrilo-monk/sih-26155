@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../api/client';
-import { Evidence } from '../components/ui/Evidence';
+import { Evidence, StatusMark } from '../components/ui/Evidence';
+import { Notice } from '../components/ui/primitives';
 import { deviceLabels, explainGate, sayFact, sayMeaning, statusState, vendorName } from '../lib/domain';
 import { UnresolvedDetail } from './Unresolved';
 import LegacyInterpretations from './LegacyInterpretations';
@@ -259,10 +260,11 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
       </header>
 
       {audit.queueError && (
-        <div className="notice notice-danger" role="alert">
-          <span className="notice-mark">×</span><strong>The unresolved checks couldn’t be loaded.</strong><span>{audit.queueError}</span>
-          <button type="button" className="btn btn-sm notice-action" onClick={audit.loadQueue}>Try again</button>
-        </div>
+        <Notice kind="danger" label="Couldn’t load" role="alert"
+          action={<button type="button" className="btn btn-sm" onClick={audit.loadQueue}>Try again</button>}>
+          <strong>The unresolved checks couldn’t be loaded.</strong>
+          <span>{audit.queueError}</span>
+        </Notice>
       )}
 
       {unresolved == null && !audit.queueError && <p className="muted" aria-busy="true">Loading the checks that need you…</p>}
@@ -300,12 +302,12 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
                 {labels.length > 1 && ` · ${labels[item.config_index]}`}
               </p>
               <h2 className="teach-title" id="teach-title">{item.question}</h2>
-              <p className="teach-status">
-                <span className={`state-chip tone-${statusState(item.status) === 'not_configured' ? 'nc' : 'unknown'}`}>
+              <div className="teach-status">
+                <StatusMark state={statusState(item.status)}>
                   {item.status === 'not_configured' ? 'Not configured' : 'Not enough information'}
-                </span>
-                {item.reason}
-              </p>
+                </StatusMark>
+                <p>{item.reason}</p>
+              </div>
 
               <fieldset className="choices" disabled={phase.kind === 'checking'}>
                 <legend>Which line of your configuration answers this?</legend>
@@ -343,6 +345,11 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
                   {options && (
                     <fieldset className="choices" disabled={phase.kind === 'checking'}>
                       <legend>What does this line say about this check?</legend>
+                      {/* The answers come from the control's own settings, not from the line, so the list
+                          is identical on every line. Saying so stops it reading as a stuck control. */}
+                      <p className="small muted choices-hint">
+                        These are the answers this check can take, so they stay the same whichever line you pick.
+                      </p>
                       {options.map((o) => (
                         <label key={meaningKey(o)} className={`choice ${choice === meaningKey(o) ? 'is-checked' : ''}`}>
                           <input type="radio" name="teach-meaning" value={meaningKey(o)}
@@ -412,7 +419,7 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
                   <>
                     <p className="teach-decided">
                       <span className="mono">{phase.item.control_id}</span> is now{' '}
-                      <strong className={`tone-${result.status === 'pass' ? 'pass' : 'fail'}`}>{result.status === 'pass' ? 'Passed' : 'Failed'}</strong>
+                      <strong>{result.status === 'pass' ? 'Passed' : 'Failed'}</strong>
                       {' '}— {result.reason}
                     </p>
                     <ul className="fixmix">

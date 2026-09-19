@@ -238,7 +238,10 @@ it('offers a candidate fix instead of a dead end when the vendor is not confirme
   expect(screen.getAllByText('Needs administrator input').length).toBeGreaterThan(0);
   expect(screen.getByText(/vendor and command syntax are not confirmed/)).toBeTruthy();
   expect(screen.getByText('Disable Telnet and use SSH for remote management.')).toBeTruthy();
-  expect(screen.getByText(/No candidate yet/)).toBeTruthy();
+  // one status for the finding, and only one: no candidate yet means it is still waiting on a person
+  const finding = within(screen.getByRole('region', { name: /Needs administrator input/ }));
+  expect(finding.getAllByText((_, el) => el?.className === 'status-word')).toHaveLength(1);
+  expect(finding.getByText('Needs input')).toBeTruthy();
   expect(screen.queryByText('We can’t fix this automatically.')).toBeNull();
   // the page footnote explains the same thing, and never claims a device was touched
   expect(screen.getByText(/never writes vendor commands for R1|never writes vendor commands for JUNIPER-EDGE-01/)).toBeTruthy();
@@ -309,6 +312,9 @@ it('generates an AI candidate, labels it unverified, verifies it and confirms it
   expect(screen.getByText('Not checked yet')).toBeTruthy();
   expect(screen.getByText('delete system services telnet;')).toBeTruthy();
   expect(screen.getByText(/Removes the Telnet service/)).toBeTruthy();
+  // assumptions are collapsed by default so they never compete with the command
+  expect(screen.queryByText(/Assumes: a curly-brace hierarchical CLI/)).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Assumptions (1)' }));
   expect(screen.getByText(/Assumes: a curly-brace hierarchical CLI/)).toBeTruthy();
   // an unchecked candidate can never be confirmed straight away
   expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull();
@@ -317,6 +323,8 @@ it('generates an AI candidate, labels it unverified, verifies it and confirms it
   expect(await screen.findByText('Verified against this configuration')).toBeTruthy();
   expect(screen.getByText(/fail → not_configured on a copy of your configuration/)).toBeTruthy();
   expect(screen.getByText(/does not establish that the command is safe to run on the physical device/)).toBeTruthy();
+  // the rescan checks and the simulated diff are detail behind a disclosure, not a second wall of status
+  fireEvent.click(screen.getByRole('button', { name: 'Show what it changes' }));
   expect(screen.getByText('This problem is gone')).toBeTruthy();
 
   fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
@@ -404,7 +412,7 @@ it('offers the verified copy as soon as a candidate verifies, and not a moment e
   render(<Harness scan={UNKNOWN_SCAN} />);
 
   // no candidate at all
-  expect(await screen.findByText(/No candidate yet/)).toBeTruthy();
+  expect(await screen.findByRole('button', { name: 'Enter command manually' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Download verified corrected copy' })).toBeNull();
 
   fireEvent.click(screen.getByRole('button', { name: 'Enter command manually' }));

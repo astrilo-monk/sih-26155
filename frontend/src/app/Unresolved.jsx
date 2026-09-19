@@ -1,4 +1,5 @@
 import { Evidence, Severity, StatusMark } from '../components/ui/Evidence';
+import { Notice } from '../components/ui/primitives';
 import { sayFact, statusState } from '../lib/domain';
 
 // The resolution queue: the checks NetAuditAI could not decide, and what would let it decide them.
@@ -16,7 +17,6 @@ export function UnresolvedRow({ item, label, onTeach, index }) {
         disabled={!teachable}
         onClick={teachable ? () => onTeach(`${item.config_index}-${item.control_id}`) : undefined}
       >
-        <span className="sev-dot sev-review" aria-hidden="true" />
         <span className="problem-main">
           <span className="problem-title">{item.title}</span>
           <span className="problem-meta">
@@ -48,12 +48,11 @@ export default function UnresolvedList({ items, loading, error, onRetry, labels,
     return (
       <section className="undecided" aria-labelledby="undecided-title">
         <h2 className="section-title" id="undecided-title">Checks we couldn’t decide</h2>
-        <div className="notice notice-danger" role="alert">
-          <span className="notice-mark">×</span>
+        <Notice kind="danger" label="Couldn’t load" role="alert"
+          action={onRetry && <button type="button" className="btn btn-sm" onClick={onRetry}>Try again</button>}>
           <strong>What these checks need couldn’t be loaded.</strong>
           <span>{error}</span>
-          {onRetry && <button type="button" className="btn btn-sm notice-action" onClick={onRetry}>Try again</button>}
-        </div>
+        </Notice>
         {/* the scan itself still says which checks are undecided, so they are never hidden */}
         <ul className="check-list">
           {fallback.map((item) => (

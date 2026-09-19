@@ -1,4 +1,5 @@
-import { Severity, StatusMark } from '../components/ui/Evidence';
+import { Severity, SeverityMeter, StatusMark } from '../components/ui/Evidence';
+import { Notice } from '../components/ui/primitives';
 import Count from '../components/ui/Count';
 import {
   assessment, auditCounts, checkItems, deviceLabels, isProblem, itemState, nextStep, SEVERITIES, sayFact, stateMeta,
@@ -88,8 +89,7 @@ function ProblemRow({ item, state, label, onOpen, index }) {
   const meta = stateMeta(state);
   return (
     <li className="problem-li" style={{ '--i': index }}>
-      <button type="button" className={`problem sev-edge-${item.severity}`} onClick={() => onOpen(item)}>
-        <span className={`sev-dot sev-${item.severity}`} aria-hidden="true" />
+      <button type="button" className="problem" onClick={() => onOpen(item)}>
         <span className="problem-main">
           <span className="problem-title">{item.title}</span>
           <span className="problem-meta">
@@ -158,6 +158,7 @@ export default function Results({ scan, audit, onOpen, onTeach, go }) {
               <li key={s} className={`sev-cell sev-${s} ${counts.severity[s] ? '' : 'is-zero'}`}>
                 <span className="sev-count tnum"><Count value={counts.severity[s]} /></span>
                 <span className="sev-name">{s}</span>
+                <SeverityMeter level={s} />
               </li>
             ))}
           </ul>
@@ -186,31 +187,28 @@ export default function Results({ scan, audit, onOpen, onTeach, go }) {
       </div>
 
       {critical.length > 0 && (
-        <div className="notice notice-warn">
-          <span className="notice-mark">!</span>
+        <Notice kind="warning" label="Not checked">
           <strong>We couldn’t check {critical.length === 1 ? 'a critical setting' : `${critical.length} critical settings`}: {critical.join(', ')}.</strong>
           <span>Don’t treat this device as secure on {critical.length === 1 ? 'this point' : 'these points'} until it is checked.</span>
-        </div>
+        </Notice>
       )}
 
       {unreadable.length > 0 && (
-        <div className="notice notice-warn">
-          <span className="notice-mark">!</span>
+        <Notice kind="warning" label="Nothing to assess">
           <strong>
             {unreadable.length === scan.devices.length
               ? 'This file doesn’t contain enough recognizable configuration to assess.'
               : `${unreadable.length} of the uploaded files don’t contain enough recognizable configuration to assess.`}
           </strong>
           <span>Nothing in it sets any security option, so NetAuditAI has nothing to check and calculated no score. Upload a device configuration instead.</span>
-        </div>
+        </Notice>
       )}
 
       {unfamiliar && unreadable.length < scan.devices.length && (
-        <div className="notice notice-info">
-          <span className="notice-mark">i</span>
+        <Notice label="Generic analysis">
           <strong>NetAuditAI has no dedicated reader for {multi ? 'some of these devices' : 'this device'}.</strong>
           <span>It checked what it could. Lines it isn’t sure about aren’t counted until you confirm them, and it never generates vendor commands for an unconfirmed vendor.</span>
-        </div>
+        </Notice>
       )}
 
       {!nothingToAssess && (
@@ -243,7 +241,6 @@ export default function Results({ scan, audit, onOpen, onTeach, go }) {
               return (
                 <li key={`${q.config_index}-${q.control_id}`} className="problem-li" style={{ '--i': list.length + qi }}>
                   <button type="button" className="problem is-question" onClick={() => onTeach(`${q.config_index}-${q.control_id}`)}>
-                    <span className="sev-dot sev-review" aria-hidden="true" />
                     <span className="problem-main">
                       <span className="problem-title">Unfamiliar configuration{summary}</span>
                       <span className="problem-meta">{multi && <span className="mono">{labels[q.config_index]}</span>}<StatusMark state="needs_review" size="compact" /></span>

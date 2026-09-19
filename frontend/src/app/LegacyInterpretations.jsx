@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Notice } from '../components/ui/primitives';
 import { apiClient } from '../api/client';
 import { Evidence } from '../components/ui/Evidence';
 import { validateInterpretation } from '../utils/adaptiveValidation';
@@ -104,8 +105,8 @@ export default function LegacyInterpretations({ scan, onScanUpdated, onScanExpir
         <input type="checkbox" checked={showResolved} onChange={(e) => setShowResolved(e.target.checked)} />
         <span>Show answered lines</span>
       </label>
-      {message && <div className="notice notice-ok" role="status"><span className="notice-mark">✓</span><strong>{message}</strong></div>}
-      {error && <div className="notice notice-danger" role="alert"><span className="notice-mark">×</span><span>{error}</span></div>}
+      {message && <Notice label="Saved" role="status"><strong>{message}</strong></Notice>}
+      {error && <Notice kind="danger" label="Failed" role="alert"><span>{error}</span></Notice>}
       {items.length === 0 ? <p className="empty-inline">No suggestions are waiting.</p> : (
         <ul className="legacy-list">
           {items.map((item) => {

@@ -355,8 +355,8 @@ def confirm(candidate: Candidate) -> Candidate:
         "Confirmed by an administrator. " + (
             "It was verified against the uploaded configuration; " if verified
             else "It could not be verified automatically; ")
-        + "NetAuditAI has not connected to the device and has not changed it. Apply it yourself, then "
-          "scan the device configuration again."
+        + "NetAuditAI has not connected to the device and has not changed it. Apply the command "
+          "yourself, then scan the device configuration again."
     )
     return candidate
 

@@ -14,9 +14,11 @@ it('the diff shows added and removed counts with real line numbers', () => {
 });
 
 it('status is never colour-only and evidence keeps its line numbers', () => {
-  render(<><StatusMark state="not_configured" /><Evidence lineNumbers={[71]} lines={['  71: remote-console protocol telnet']} /></>);
-  expect(screen.getByText('∅')).toBeTruthy();
+  const { container } = render(<><StatusMark state="not_configured" /><Evidence lineNumbers={[71]} lines={['  71: remote-console protocol telnet']} /></>);
+  // The status is carried by a word plus a square marker. Neither is a colour, so the meaning survives
+  // greyscale, colour blindness and a high-contrast theme.
   expect(screen.getByText('Not configured')).toBeTruthy();
+  expect(container.querySelector('.status-glyph')).toBeTruthy();
   expect(screen.getByText('71', { selector: '.ln' })).toBeTruthy();
   expect(screen.getByText('remote-console protocol telnet')).toBeTruthy();
 });

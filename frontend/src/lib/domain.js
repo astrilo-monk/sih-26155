@@ -211,6 +211,30 @@ export const isProblem = (item) => item.results.some((r) => r.status === 'fail' 
 export const itemState = (item, applied) =>
   resultState(item.primary, { remediation: item.remediation, applied: !!applied?.has(item.key) });
 
+// ── The one status a finding shows on the Fix page ─────────────────────────────────────────────────────────────
+// A finding carries two independent readings: itemState() says what can be done about the failure, and a
+// candidate's status tracks a command proposed for an unconfirmed vendor. Rendered as peers they contradict each
+// other — "Needs administrator input" beside "Confirmed by you". The data is right (confirming a candidate
+// deliberately does not mark the finding fixed, because NetAuditAI never touched the device), so nothing here
+// changes it: this only picks the single status to show, and the other reading becomes metadata.
+//
+// The track is linear: NEEDS INPUT → CANDIDATE READY → CONFIRMED BY YOU → VERIFIED. A finding that is not on that
+// track — a manual change, a failed verification, a plan still loading — keeps its own label and has no `step`.
+export function fixStatus(item, { applied, candidates } = {}) {
+  const state = itemState(item, applied);
+  if (state === 'fixed') return { key: 'verified', state: 'fixed', label: 'Verified', step: 4 };
+  if (state === 'can_fix') return { key: 'candidate_ready', state: 'can_fix', label: 'Ready to apply', step: 2 };
+  if (state === 'needs_input') return { key: 'needs_input', state: 'needs_input', label: 'Needs input', step: 1 };
+  if (state === 'needs_admin') {
+    const status = candidates?.[item.key]?.status;
+    if (status === 'confirmed') return { key: 'confirmed', state: 'pass', label: 'Confirmed by you', step: 3 };
+    if (status && status !== 'rejected') return { key: 'candidate_ready', state: 'needs_review', label: 'Candidate ready', step: 2 };
+    return { key: 'needs_input', state: 'needs_input', label: 'Needs input', step: 1,
+      note: status === 'rejected' ? 'Last candidate rejected' : null };
+  }
+  return { key: state, state, label: stateMeta(state).label, step: null };
+}
+
 // Decisive failures only — what "problems found" means everywhere
 export const problems = (scan, plan) => checkItems(scan, plan).filter(isProblem);
 

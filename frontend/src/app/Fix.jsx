@@ -2,9 +2,10 @@ import { useState } from 'react';
 import FileDiff from '../components/ui/FileDiff';
 import Count from '../components/ui/Count';
 import { Severity, StatusMark } from '../components/ui/Evidence';
+import { ActionBar, CodeBlock, Disclosure, MetaLine, Notice } from '../components/ui/primitives';
 import {
-  auditCounts, candidateMeta, candidateSource, CANNOT_FIX_REASON, checkItems, isProblem, itemState,
-  NEEDS_ADMIN_REASON, quotedCommands, stateMeta, vendorName, vendorState,
+  auditCounts, candidateMeta, candidateSource, CANNOT_FIX_REASON, checkItems, fixStatus, isProblem, itemState,
+  NEEDS_ADMIN_REASON, quotedCommands, vendorName, vendorState,
 } from '../lib/domain';
 
 const CHECK_NAMES = {
@@ -16,10 +17,19 @@ const CHECK_NAMES = {
   generic_path: 'Still read by generic analysis',
 };
 
+// The trust disclaimer and the process it describes belong to the page, not to each finding.
+const DISCLAIMER = 'NetAuditAI never connects to your device. Apply each change yourself, then rescan.';
+const PROCESS = [['01', 'Review command'], ['02', 'Apply by hand'], ['03', 'Rescan']];
+
 const lowerFirst = (s) => (/^[A-Z][a-z]/.test(s) ? s[0].toLowerCase() + s.slice(1) : s);
 const joinWords = (words) => (words.length < 2 ? words.join('') : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`);
 // "MGMT-001 now passes: Telnet is not allowed…" → "Telnet is not allowed…"
 const plainOutcome = (reason = '') => reason.replace(/^[A-Z]+-\d+ now passes:\s*/, '');
+const pad2 = (n) => String(n).padStart(2, '0');
+// The backend's reason and our own caveat about a candidate can state the same sentence word for word
+// (a confirmed candidate says "NetAuditAI has not connected to the device…" in both). Say each sentence once.
+const notAlreadySaid = (caveat = '', said = '') =>
+  caveat.split(/(?<=\.)\s+/).filter((line) => !said.includes(line)).join(' ');
 
 // The rescan checks behind a verified fix
 export function VerifyList({ checks }) {
@@ -37,39 +47,15 @@ export function VerifyList({ checks }) {
   );
 }
 
-function CopyButton({ text, label }) {
-  const [copied, setCopied] = useState(null);
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied('Copied');
-    } catch {
-      setCopied('Copy isn’t available here — select the text instead');
-    }
-  };
-  return (
-    <span className="copy">
-      <button type="button" className="btn btn-sm" onClick={copy}>{label}</button>
-      {copied && <span className="small muted" role="status">{copied}</span>}
-    </span>
-  );
-}
-
 // The generated change and its rescan checks, for people who want to see them
 function ChangeDetails({ rem, summary = 'Show the change' }) {
-  const [open, setOpen] = useState(false);
   if (!rem?.diff && !rem?.checks?.length) return null;
   return (
-    <div className="more">
-      <button type="button" className="more-toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)}>{summary}</button>
-      {open && (
-        <div className="more-body reveal-open">
-          {rem.diff && <FileDiff diff={rem.diff} file={rem.device_hostname} caption="Proposed change" />}
-          {rem.checks?.length > 0 && <VerifyList checks={rem.checks} />}
-          {rem.explanation && <p className="small muted">{rem.explanation}</p>}
-        </div>
-      )}
-    </div>
+    <Disclosure summary={summary}>
+      {rem.diff && <FileDiff diff={rem.diff} file={rem.device_hostname} caption="Proposed change" />}
+      {rem.checks?.length > 0 && <VerifyList checks={rem.checks} />}
+      {rem.explanation && <p className="small muted">{rem.explanation}</p>}
+    </Disclosure>
   );
 }
 
@@ -140,62 +126,65 @@ export function CandidateFix({ item, audit }) {
     </form>
   );
 
+  // Nothing proposed yet: three ways to get a command, one of them primary.
   if (!candidate) {
+    if (editing) return <div className="fix">{editor}</div>;
     return (
-      <div className="fix fix-candidate">
-        <p className="fix-lead"><span className="fix-mark fix-mark-ask" aria-hidden="true">?</span> Needs administrator input</p>
-        <p className="small muted">{NEEDS_ADMIN_REASON}</p>
-        {item.finding?.recommendation && <p><strong>What to change: </strong>{item.finding.recommendation}</p>}
-        {editing ? editor : (
-          <>
-            <div className="actions">
-              <button type="button" className="btn btn-primary" onClick={() => step('derive')} disabled={!!busy}>
-                {busy === 'derive' ? 'Working it out…' : 'Fix it for me'}
-              </button>
-              <button type="button" className="btn" onClick={() => step('generate')} disabled={!!busy}>
-                {busy === 'generate' ? 'Asking AI…' : 'Ask AI for a command'}
-              </button>
-              <button type="button" className="btn" onClick={openEditor} disabled={!!busy}>Enter command manually</button>
-            </div>
-            <p className="small muted">
-              <strong>Fix it for me</strong> removes exactly the lines this finding cites from a copy of your file and
-              re-checks it. It needs no AI and no vendor grammar — but it can only remove a setting, never add one.
-            </p>
-            {errorLine}
-          </>
+      <div className="fix">
+        {item.finding?.recommendation && (
+          <dl className="fix-steps"><dt>What to change</dt><dd>{item.finding.recommendation}</dd></dl>
         )}
-        <p className="small muted"><strong>Candidate status:</strong> No candidate yet. NetAuditAI never applies a candidate automatically.</p>
+        <div className="actions">
+          <button type="button" className="btn btn-primary" onClick={() => step('derive')} disabled={!!busy}>
+            {busy === 'derive' ? 'Working it out…' : 'Fix it for me'}
+          </button>
+          <button type="button" className="btn btn-quiet" onClick={() => step('generate')} disabled={!!busy}>
+            {busy === 'generate' ? 'Asking AI…' : 'Ask AI for a command'}
+          </button>
+          <button type="button" className="btn btn-quiet" onClick={openEditor} disabled={!!busy}>Enter command manually</button>
+        </div>
+        <p className="small muted">
+          <strong>Fix it for me</strong> removes exactly the lines this finding cites from a copy of your file and
+          re-checks it. It needs no AI and no vendor grammar — but it can only remove a setting, never add one.
+        </p>
+        {errorLine}
       </div>
     );
   }
 
+  // A candidate still waiting on you is the active one: its command block carries the accent edge.
+  const awaiting = candidate.status !== 'confirmed' && candidate.status !== 'rejected';
+  const canConfirm = candidate.status === 'verified' || candidate.status === 'unverified';
+
   return (
-    <div className={`fix fix-candidate tone-${meta.tone}`}>
-      <p className="candidate-k">Candidate remediation</p>
-      <p className="candidate-badges">
-        <span className="tag">{candidateSource(candidate.source)}</span>
-        <span className={`tag tag-${meta.tone}`}>{meta.label}</span>
-        {candidate.confidence && <span className="small muted">AI confidence: {candidate.confidence}</span>}
-      </p>
-      <pre className="cmd"><code>{candidate.command}</code></pre>
-      {candidate.explanation && <p><strong>Why: </strong>{candidate.explanation}</p>}
-      {candidate.assumptions?.length > 0 && (
-        <p className="small muted">Assumes: {candidate.assumptions.join('; ')}</p>
-      )}
+    <div className="fix">
+      {/* Provenance and the check result are metadata under the one status above. "Confirmed by you" is left
+          out here because it IS the status: repeating it would be the second status this page had to lose. */}
+      <MetaLine parts={[candidateSource(candidate.source),
+        candidate.status === 'confirmed' ? null : meta.label,
+        candidate.confidence && `Confidence: ${candidate.confidence}`]} />
+      <CodeBlock code={candidate.command} active={awaiting} copyLabel="Copy command" />
+      {candidate.explanation && <p>{candidate.explanation}</p>}
+      <p>{candidate.reason}</p>
       {candidate.control_status_after && (
-        <p className="small">
+        <p className="small muted">
           <span className="mono">{candidate.rule_id}</span>{' '}
           {candidate.control_status_before} → {candidate.control_status_after} on a copy of your configuration
         </p>
       )}
-      <p>{candidate.reason}</p>
-      {candidate.checks?.length > 0 && <VerifyList checks={candidate.checks} />}
-      {candidate.diff && <FileDiff diff={candidate.diff} file={candidate.device_hostname} caption="Simulated change (on a copy — your file is untouched)" />}
-      <p className="small muted">{meta.note}</p>
-      {candidate.download_available && (
-        <p className="small muted">
-          Verified against a copy of your uploaded configuration. This file has not been applied to a device.
-        </p>
+      {notAlreadySaid(meta.note, candidate.reason) && (
+        <p className="small muted">{notAlreadySaid(meta.note, candidate.reason)}</p>
+      )}
+      {candidate.assumptions?.length > 0 && (
+        <Disclosure summary={`Assumptions (${candidate.assumptions.length})`}>
+          <p>Assumes: {candidate.assumptions.join('; ')}</p>
+        </Disclosure>
+      )}
+      {(candidate.diff || candidate.checks?.length > 0) && (
+        <Disclosure summary="Show what it changes">
+          {candidate.checks?.length > 0 && <VerifyList checks={candidate.checks} />}
+          {candidate.diff && <FileDiff diff={candidate.diff} file={candidate.device_hostname} caption="Simulated change (on a copy — your file is untouched)" />}
+        </Disclosure>
       )}
       {editing ? editor : (
         <>
@@ -205,24 +194,28 @@ export function CandidateFix({ item, audit }) {
                 {busy === 'verify' ? 'Checking…' : 'Verify candidate'}
               </button>
             )}
-            {(candidate.status === 'verified' || candidate.status === 'unverified') && (
+            {canConfirm && (
               <button type="button" className="btn btn-primary" onClick={() => step('confirm')} disabled={!!busy}>
                 {busy === 'confirm' ? 'Confirming…' : candidate.status === 'verified' ? 'Confirm' : 'Confirm anyway'}
               </button>
             )}
-            <button type="button" className="btn" onClick={openEditor} disabled={!!busy}>
+            <button type="button" className="btn btn-quiet" onClick={openEditor} disabled={!!busy}>
               {candidate.status === 'confirmed' || candidate.status === 'rejected' ? 'Propose another command' : 'Edit'}
             </button>
-            {candidate.status !== 'rejected' && candidate.status !== 'confirmed' && (
+            {awaiting && (
               <button type="button" className="btn btn-quiet" onClick={() => step('reject')} disabled={!!busy}>Reject</button>
             )}
             {candidate.download_available && (
-              <button type="button" className="btn btn-accent" onClick={saveCopy} disabled={!!busy}>
+              <button type="button" className="btn btn-quiet" onClick={saveCopy} disabled={!!busy}>
                 {busy === 'download' ? 'Preparing…' : 'Download verified corrected copy'}
               </button>
             )}
-            <CopyButton text={candidate.command} label="Copy command" />
           </div>
+          {candidate.download_available && (
+            <p className="small muted">
+              Verified against a copy of your uploaded configuration. This file has not been applied to a device.
+            </p>
+          )}
           {errorLine}
         </>
       )}
@@ -230,7 +223,8 @@ export function CandidateFix({ item, audit }) {
   );
 }
 
-// "What can we do?" for one problem — the same block on the Fix page and in the finding drawer
+// "What can we do?" for one problem — the same block on the Fix page and in the finding drawer.
+// It never renders a status of its own: the one status is shown once, by whatever frames it.
 export function FixAction({ item, scan, audit }) {
   const state = itemState(item, audit.applied);
   const rem = audit.verified[item.key] || item.remediation;
@@ -251,16 +245,13 @@ export function FixAction({ item, scan, audit }) {
     }
   };
 
-  const expected = (
-    <><dt>Expected result</dt><dd>After you change the device, scan its configuration again. “{item.question || item.title}” should then pass.</dd></>
-  );
   const recommendation = item.finding?.recommendation;
   const errorLine = error && <p className="field-error" role="alert">{error}</p>;
 
   if (state === 'fixed') {
     return (
-      <div className="fix fix-done" role="status">
-        <p className="fix-lead"><span className="fix-mark" aria-hidden="true">✓</span> Fix verified</p>
+      <div className="fix" role="status">
+        <p className="fix-lead">Fix verified</p>
         {rem?.reason && <p>{plainOutcome(rem.reason)}</p>}
         <p className="small muted">This fix is in your corrected configuration. NetAuditAI rescanned it to make sure the problem is gone and nothing else got worse.</p>
         <ChangeDetails rem={rem} />
@@ -270,12 +261,14 @@ export function FixAction({ item, scan, audit }) {
 
   if (state === 'can_fix') {
     return (
-      <div className="fix fix-can">
-        <p className="fix-lead"><span className="fix-mark" aria-hidden="true">✓</span> NetAuditAI can fix this safely.</p>
+      <div className="fix">
+        <p className="fix-lead">NetAuditAI can fix this safely.</p>
         <p className="small muted">It changes only the failing setting, then rescans the corrected configuration to prove the problem is gone.</p>
-        <button type="button" className="btn btn-primary" onClick={() => run(() => audit.fixOne(item))} disabled={busy}>
-          {busy ? 'Fixing and verifying…' : 'Fix this'}
-        </button>
+        <div className="actions">
+          <button type="button" className="btn btn-primary" onClick={() => run(() => audit.fixOne(item))} disabled={busy}>
+            {busy ? 'Fixing and verifying…' : 'Fix this'}
+          </button>
+        </div>
         {errorLine}
         <ChangeDetails rem={rem} summary="Preview the change" />
       </div>
@@ -292,7 +285,7 @@ export function FixAction({ item, scan, audit }) {
       });
     };
     return (
-      <form className="fix fix-input" onSubmit={submit}>
+      <form className="fix" onSubmit={submit}>
         <p className="fix-lead">We know the problem. We need your {joinWords(specs.map((s) => lowerFirst(s.label)))} to fix it.</p>
         <div className="fields">
           {specs.map((spec) => (
@@ -312,9 +305,11 @@ export function FixAction({ item, scan, audit }) {
             </label>
           ))}
         </div>
-        <button type="submit" className="btn btn-primary" disabled={busy || specs.some((s) => !(values[s.name] || '').trim())}>
-          {busy ? 'Generating and verifying…' : 'Generate fix'}
-        </button>
+        <div className="actions">
+          <button type="submit" className="btn btn-primary" disabled={busy || specs.some((s) => !(values[s.name] || '').trim())}>
+            {busy ? 'Generating and verifying…' : 'Generate fix'}
+          </button>
+        </div>
         {errorLine}
         <p className="small muted">Your values are checked, then written only into a fixed, known-safe change — never run as commands.</p>
       </form>
@@ -328,26 +323,24 @@ export function FixAction({ item, scan, audit }) {
     const commands = state === 'manual' && vs.key === 'confirmed' ? quotedCommands(rem?.reason, recommendation) : [];
     const why = state === 'cannot_fix' ? CANNOT_FIX_REASON[rem?.status] : rem?.reason;
     return (
-      <div className="fix fix-manual">
+      <div className="fix">
         <p className="fix-lead">
           {state === 'manual'
             ? 'We won’t change this automatically because doing so could affect how the network behaves.'
             : 'We can’t fix this automatically.'}
         </p>
+        {commands.length > 0 && (
+          <>
+            <CodeBlock code={commands.join('\n')} active copyLabel="Copy commands" />
+            <MetaLine parts={[`Commands for ${vendorName((scan.devices[item.configIndex] || {}).vendor)}`,
+              commands.some((c) => c.includes('…')) ? 'Replace … with your own value' : null]} />
+          </>
+        )}
         <dl className="fix-steps">
           {why && <><dt>Why</dt><dd>{why}</dd></>}
           {recommendation && <><dt>What to change</dt><dd>{recommendation}</dd></>}
-          {commands.length > 0 && (
-            <>
-              <dt>Commands for {vendorName((scan.devices[item.configIndex] || {}).vendor)}</dt>
-              <dd>
-                <pre className="cmd"><code>{commands.join('\n')}</code></pre>
-                {commands.some((c) => c.includes('…')) && <p className="small muted">Replace … with your own value.</p>}
-                <CopyButton text={commands.join('\n')} label="Copy commands" />
-              </dd>
-            </>
-          )}
-          {expected}
+          <dt>Expected result</dt>
+          <dd>After you change the device, scan its configuration again. “{item.question || item.title}” should then pass.</dd>
         </dl>
       </div>
     );
@@ -355,10 +348,10 @@ export function FixAction({ item, scan, audit }) {
 
   if (state === 'verification_failed') {
     return (
-      <div className="fix fix-failed" role="alert">
+      <div className="fix" role="alert">
         <p className="fix-lead">We generated a fix, but the rescan didn’t confirm it — so it is not in your download.</p>
         {rem?.reason && <p>{rem.reason}</p>}
-        {recommendation && <p><strong>What to change: </strong>{recommendation}</p>}
+        {recommendation && <dl className="fix-steps"><dt>What to change</dt><dd>{recommendation}</dd></dl>}
         <ChangeDetails rem={rem} summary="Show the generated change for review" />
       </div>
     );
@@ -371,29 +364,36 @@ export function FixAction({ item, scan, audit }) {
         {audit.planLoading ? 'Checking whether NetAuditAI can fix this…'
           : audit.planError ? `We couldn’t work out a fix: ${audit.planError}` : 'NetAuditAI couldn’t work out a fix for this.'}
       </p>
-      {recommendation && <p><strong>What to change: </strong>{recommendation}</p>}
+      {recommendation && <dl className="fix-steps"><dt>What to change</dt><dd>{recommendation}</dd></dl>}
     </div>
   );
 }
 
-function FixCard({ item, scan, audit, label, onOpen }) {
-  const state = itemState(item, audit.applied);
-  const meta = stateMeta(state);
-  // A question is open so it can be answered; a card the person just acted on stays open to show its outcome.
+// One finding: a full-width section on a 4/8 grid, hairline-separated. No card, no tint, no severity colour.
+function FindingSection({ item, scan, audit, label, index, onOpen }) {
+  const status = fixStatus(item, audit);
+  // A question is open so it can be answered; a finding the person just acted on stays open to show its outcome.
   // Automatic fixes start closed: "Fix all" above covers them without repeating the same sentence six times.
+  const state = itemState(item, audit.applied);
   const [open, setOpen] = useState(state === 'needs_input' || state === 'needs_admin' || !!audit.verified[item.key]);
   return (
-    <li className={`fix-card tone-${meta.tone} sev-edge-${item.severity}`}>
-      <div className="fix-card-head">
+    <li className="finding">
+      <div className="finding-side">
+        <p className="finding-idx">{pad2(index + 1)}</p>
         <Severity level={item.severity} />
-        <button type="button" className="fix-card-title" onClick={() => onOpen(item)}>{item.title}</button>
-        {label && <span className="small muted">{label}</span>}
-        <StatusMark state={state} size="compact" />
-        <button type="button" className="btn btn-quiet btn-sm" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-          {open ? 'Hide' : state === 'fixed' ? 'Details' : 'How to fix'}
-        </button>
+        <button type="button" className="finding-title" onClick={() => onOpen(item)}>{item.title}</button>
+        <MetaLine parts={[item.controlId, label]} />
       </div>
-      {open && <div className="fix-card-body reveal-open"><FixAction item={item} scan={scan} audit={audit} /></div>}
+      <div className="finding-main">
+        <StatusMark state={status.state}>{status.label}</StatusMark>
+        {status.note && <MetaLine parts={[status.note]} />}
+        {open && <div className="reveal-open"><FixAction item={item} scan={scan} audit={audit} /></div>}
+        <div className="actions">
+          <button type="button" className="btn btn-quiet btn-sm" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+            {open ? 'Hide' : status.key === 'verified' ? 'Details' : 'How to fix'}
+          </button>
+        </div>
+      </div>
     </li>
   );
 }
@@ -406,9 +406,10 @@ function Group({ id, title, hint, items, ...rest }) {
         <h2 className="section-title" id={`${id}-title`}>{title} <span className="count-pill tnum">{items.length}</span></h2>
         {hint && <p className="small muted">{hint}</p>}
       </header>
-      <ul className="fix-cards">
-        {items.map((item) => (
-          <FixCard key={item.key} item={item} label={rest.labels.length > 1 ? rest.labels[item.configIndex] : null} {...rest} />
+      <ul className="findings">
+        {items.map((item, i) => (
+          <FindingSection key={item.key} item={item} index={i}
+                          label={rest.labels.length > 1 ? rest.labels[item.configIndex] : null} {...rest} />
         ))}
       </ul>
     </section>
@@ -451,7 +452,7 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
   };
 
   const downloadButton = (
-    <button type="button" className="btn btn-accent" onClick={handleDownload} disabled={!downloadable || downloading}>
+    <button type="button" className="btn btn-primary" onClick={handleDownload} disabled={!downloadable || downloading}>
       {downloading ? 'Preparing…' : 'Download corrected configuration'}
     </button>
   );
@@ -467,22 +468,30 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
   ));
 
   return (
-    <div className="wrap fix-page enter">
-      <header className="page-head">
+    <div className={`wrap fix-page enter${plan && items.length > 0 ? ' has-actionbar' : ''}`}>
+      <header className="fix-head page-head">
         <p className="eyebrow">Fix</p>
         <h1 className="page-title">Fix what can be fixed</h1>
         <p className="lede">NetAuditAI fixes what it can prove is safe, asks you for anything it needs, and tells you exactly what to change by hand.</p>
+        <p className="fix-disclaimer">{DISCLAIMER}</p>
+        <ul className="process">
+          {PROCESS.map(([n, text]) => <li key={n}><b>{n}</b>{text}</li>)}
+        </ul>
+        {items.length > 0 && (
+          <p className="fix-tally">
+            <span className="fix-tally-v">{fixed.length} / {items.length}</span>
+            <span className="eyebrow">Verified</span>
+          </p>
+        )}
       </header>
 
       {planError && (
-        <div className="notice notice-danger" role="alert">
-          <span className="notice-mark">×</span>
-          <strong>We couldn’t prepare the fixes.</strong>
-          <span>{planError}</span>
-          <button type="button" className="btn btn-sm notice-action" onClick={() => audit.loadPlan()}>Try again</button>
-        </div>
+        <Notice kind="danger" label="We couldn’t prepare the fixes." role="alert"
+                action={<button type="button" className="btn btn-sm btn-quiet" onClick={() => audit.loadPlan()}>Try again</button>}>
+          <p>{planError}</p>
+        </Notice>
       )}
-      {error && <div className="notice notice-danger" role="alert"><span className="notice-mark">×</span><span>{error}</span></div>}
+      {error && <Notice kind="danger" label="Download failed." role="alert"><p>{error}</p></Notice>}
 
       {!plan && planLoading && (
         <div className="loading-block" aria-busy="true">
@@ -492,8 +501,7 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
       )}
 
       {plan && items.length === 0 && (
-        <div className="empty-state tone-pass">
-          <p className="empty-mark" aria-hidden="true">✓</p>
+        <div className="empty-state">
           <h2 className="empty-title">Your configuration is already clean.</h2>
           <p>Nothing that NetAuditAI checked needs fixing.</p>
           {counts.review > 0 && (
@@ -506,7 +514,7 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
         <>
           {fixed.length > 0 ? (
             <section className="verified enter" role="status" aria-labelledby="verified-title">
-              <p className="verified-k" id="verified-title"><span aria-hidden="true">✓</span> Fixes verified</p>
+              <p className="verified-k" id="verified-title">Fixes verified</p>
               {scoreMoves}
               <p className="verified-sum">{fixed.length} problem{fixed.length === 1 ? '' : 's'} fixed · {remaining} remaining</p>
               {fixed.length < verifiedTotal && (
@@ -520,11 +528,10 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
                   </button>
                 )}
                 {remaining > 0 && (
-                  <button type="button" className="btn" onClick={() => document.getElementById('fix-remaining')?.scrollIntoView({ block: 'start' })}>
+                  <button type="button" className="btn btn-quiet" onClick={() => document.getElementById('fix-remaining')?.scrollIntoView({ block: 'start' })}>
                     View remaining problems
                   </button>
                 )}
-                {downloadButton}
               </div>
             </section>
           ) : canFix.length > 0 && (
@@ -541,8 +548,7 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
           <div id="fix-remaining">
             <Group id="fix-can" title="Can fix automatically" items={canFix} {...shared} />
             <Group id="fix-input" title="Needs your input" hint="Answer these and NetAuditAI generates and verifies the fix." items={inState('needs_input')} {...shared} />
-            <Group id="fix-candidate" title="Needs administrator input"
-                   hint="NetAuditAI doesn’t write vendor commands for a vendor it couldn’t confirm. It can work the change out from your own configuration, or you can propose one — either way it is checked against this configuration before you confirm it."
+            <Group id="fix-candidate" title="Needs administrator input" hint={NEEDS_ADMIN_REASON}
                    items={inState('needs_admin')} {...shared} />
             <Group id="fix-manual" title="Needs manual action" hint="NetAuditAI shows what to change; you make the change on the device."
                    items={inState('manual', 'cannot_fix', 'verification_failed')} {...shared} />
@@ -553,40 +559,36 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
       )}
 
       {plan && counts.review > 0 && items.length > 0 && (
-        <div className="notice notice-info">
-          <span className="notice-mark">?</span>
-          <strong>{counts.review} line{counts.review === 1 ? '' : 's'} NetAuditAI doesn’t recognize.</strong>
-          <span>What they mean isn’t counted — and can’t be fixed — until you tell NetAuditAI.</span>
-          <button type="button" className="btn btn-sm notice-action" onClick={onTeach}>Teach NetAuditAI</button>
-        </div>
+        <Notice label={`${counts.review} line${counts.review === 1 ? '' : 's'} NetAuditAI doesn’t recognize.`}
+                action={<button type="button" className="btn btn-sm btn-quiet" onClick={onTeach}>Teach NetAuditAI</button>}>
+          <p>What they mean isn’t counted — and can’t be fixed — until you tell NetAuditAI.</p>
+        </Notice>
       )}
 
       {unconfirmed.length > 0 && (
-        <p className="small muted">
+        <p className="small muted prose">
           NetAuditAI never writes vendor commands for {joinWords(unconfirmed.map((d) => labels[d.config_index] ?? d.device_hostname))} by itself: the vendor isn’t confirmed. It can derive the change from the configuration you uploaded, and you can propose a command or have AI draft one — each is checked against that configuration before you confirm it. It never connects to the device.
         </p>
       )}
 
-      {plan && items.length > 0 && (
-        <div className="download-bar">
-          {downloadButton}
-          <span className="small">
-            {downloadable
-              ? `Includes every fix NetAuditAI verified (${verifiedTotal}). Only changes that passed the rescan are included — review before deploying.`
-              : candidateVerified
-                ? 'No corrected device configuration for an unconfirmed vendor. Each verified candidate offers its own corrected copy of your uploaded file, above — NetAuditAI checked it against that file and has not applied it to a device.'
-                : 'Nothing to download yet: no fix has been verified.'}
-          </span>
-        </div>
+      {downloaded && (
+        <Notice label="Downloaded your corrected configuration." role="status"
+                action={<a className="btn btn-sm btn-quiet" href="#/app">Scan it</a>}>
+          <p>To double-check it, scan the corrected file as a new audit.</p>
+        </Notice>
       )}
 
-      {downloaded && (
-        <div className="notice notice-ok" role="status">
-          <span className="notice-mark">✓</span>
-          <strong>Downloaded your corrected configuration.</strong>
-          <span>To double-check it, scan the corrected file as a new audit.</span>
-          <a className="btn btn-sm notice-action" href="#/app">Scan it</a>
-        </div>
+      {plan && items.length > 0 && (
+        <ActionBar
+          status={`${fixed.length} of ${items.length} verified`}
+          note={downloadable
+            ? `Includes every fix NetAuditAI verified (${verifiedTotal}). Only changes that passed the rescan are included — review before deploying.`
+            : candidateVerified
+              ? 'No corrected device configuration for an unconfirmed vendor. Each verified candidate offers its own corrected copy of your uploaded file, above — NetAuditAI checked it against that file and has not applied it to a device.'
+              : 'Nothing to download yet: no fix has been verified.'}
+        >
+          {downloadButton}
+        </ActionBar>
       )}
     </div>
   );

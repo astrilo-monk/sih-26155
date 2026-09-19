@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Notice } from '../components/ui/primitives';
 import { apiClient } from '../api/client';
 import { sayFact } from '../lib/domain';
 
@@ -95,7 +96,7 @@ export default function Learned() {
         </p>
       </header>
 
-      {error && <div className="notice notice-danger" role="alert"><span className="notice-mark">×</span><span>{error}</span></div>}
+      {error && <Notice kind="danger" label="Couldn’t load" role="alert"><span>{error}</span></Notice>}
 
       {all.length > 0 && (
         <div className="toolbar">

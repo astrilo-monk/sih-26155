@@ -404,7 +404,7 @@ export default function Home() {
             <SectionHead no="04" id="uncertainty-title" title="Unfamiliar syntax is not a failure. Absence is not a pass.">
               NetAuditAI keeps four outcomes apart, and reports how much of the device it could actually decide.
             </SectionHead>
-            <div className="status-grid reveal">
+            <div className="home-status-grid reveal">
               {STATUSES.map(([s, text]) => (
                 <div key={s} className="status-card"><StatusMark state={statusState(s)} size="lg" /><p>{text}</p></div>
               ))}

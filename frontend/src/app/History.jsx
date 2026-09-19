@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Notice } from '../components/ui/primitives';
 import { apiClient } from '../api/client';
 import { clearScanHistory, getScanHistory, markScansExpired } from '../utils/history';
 import { navigate } from '../lib/hooks';
@@ -75,11 +76,10 @@ export default function History({ onScansExpired }) {
       </header>
 
       {unreachable && (
-        <div className="notice notice-warn" role="status">
-          <span className="notice-mark">!</span>
+        <Notice kind="warning" label="Offline" role="status">
           <strong>The backend could not be reached.</strong>
           <span>It is unknown which scans it still holds.</span>
-        </div>
+        </Notice>
       )}
 
       {history.length === 0 ? (

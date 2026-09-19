@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Notice } from '../components/ui/primitives';
 import { apiClient } from '../api/client';
 import { markScansExpired, saveScanToHistory } from '../utils/history';
 import { navigate } from '../lib/hooks';
@@ -47,11 +48,10 @@ function ScanUnavailable({ opening, openError }) {
   if (openError) {
     return (
       <div className="wrap">
-        <div className="notice notice-danger" role="alert">
-          <span className="notice-mark">×</span>
+        <Notice kind="danger" label="Couldn’t open" role="alert">
           <strong>The scan could not be opened.</strong>
           <span>{openError.message}</span>
-        </div>
+        </Notice>
       </div>
     );
   }
@@ -171,8 +171,10 @@ export default function AppShell({ path }) {
             {scan && <a href={`#${base}`} aria-current={route.page === 'scan' && route.view !== 'fix' ? 'page' : undefined}>Results</a>}
             {scan && <a href={`#${base}/fix`} aria-current={here('scan', 'fix')}>Fix</a>}
             <a href="#/app/history" aria-current={here('history')}>History</a>
+            {/* Global, like History: the knowledge base, not a view of the current scan. Labelled to
+                match the page's own heading ("What NetAuditAI knows") rather than a bare "Learned". */}
+            <a href="#/app/learned" aria-current={here('learned')}>Knowledge</a>
           </nav>
-          <a className="appnav-aside" href="#/app/learned" aria-current={here('learned')}>Learned</a>
         </div>
         {current && (
           <nav aria-label="This scan" className="subnav">

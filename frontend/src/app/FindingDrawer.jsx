@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Drawer from '../components/ui/Drawer';
 import { Evidence, Severity, StatusMark } from '../components/ui/Evidence';
-import { ASSURANCE, isProblem, itemState, vendorState } from '../lib/domain';
+import { ASSURANCE, fixStatus, isProblem, itemState, vendorState } from '../lib/domain';
 import { FixAction } from './Fix';
 
 const FRAMEWORKS = { NIST_800_53: 'NIST SP 800-53' };
@@ -34,6 +34,7 @@ function More({ label, children }) {
 export default function FindingDrawer({ item, scan, audit, labels, onClose, onTeach }) {
   if (!item) return null;
   const state = itemState(item, audit.applied);
+  const status = fixStatus(item, audit);
   const problem = isProblem(item);
   const r = item.primary;
   const f = item.finding;
@@ -48,7 +49,8 @@ export default function FindingDrawer({ item, scan, audit, labels, onClose, onTe
       <div className="fd-head">
         <div className="fd-badges">
           {problem && <Severity level={item.severity} />}
-          <StatusMark state={state} />
+          {/* one status, from the same rule the Fix page uses, so the drawer can never disagree with it */}
+          <StatusMark state={status.state}>{status.label}</StatusMark>
         </div>
         <h2 className="fd-title">{item.title}</h2>
         <p className="small muted">{labels[item.configIndex]} · {vs.label}</p>
