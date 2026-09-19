@@ -19,7 +19,7 @@ into the seed file at runtime. The file is version-controlled and reviewed like 
 | `source` column | `seed` | `runtime` |
 | Loaded | automatically, on every database open | on every scan |
 | Decisive | yes — it passes the same gates | yes |
-| Can be stopped | yes, on the Learned page (stays stopped) | yes |
+| Can be stopped | yes, on the Knowledge page (stays stopped) | yes |
 
 Neither one decides compliance: both produce **facts**, and deterministic controls decide. Absence of a seed
 recognizer is never evidence — an unread concept stays `UNKNOWN` or `NOT_CONFIGURED`.

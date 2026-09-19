@@ -14,7 +14,7 @@ What the hackathon build needs, and where it stands.
 - [x] Derived, verified remediation for unconfirmed vendors — the change worked out from the configuration
       itself, simulated on a copy (only where a removal can honestly resolve the control)
 - [x] A resolution queue for UNKNOWN / NOT_CONFIGURED controls: teach a line, rescan, updated posture
-- [x] React dashboard: scan, Results, Fix, Teach, All checks, Devices, Frameworks, Learned, History
+- [x] React dashboard: scan, Results, Fix, Teach, All checks, Devices, Frameworks, Knowledge, History
 
 ## Stretch
 - [x] Human-in-the-loop learning that persists (recognizers)

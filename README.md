@@ -14,8 +14,8 @@ human confirms them before they count. NetAuditAI never connects to a network de
 ## Status
 
 Working hackathon prototype. All phases of [plan.md](plan.md) (0–9) are implemented, plus candidate
-remediation for unconfirmed vendors. Backend: 924 tests passed, 2 live-AI tests skipped. Frontend:
-70 tests passed, production build OK.
+remediation for unconfirmed vendors. Backend: 1020 tests passed, 2 live-AI tests skipped. Frontend:
+81 tests passed, production build OK.
 
 ## Pipeline
 
@@ -61,6 +61,13 @@ Details: [docs/architecture.md](docs/architecture.md).
 
 The vendor is decided deterministically. An AI vendor guess is reported as evidence only and never selects a parser, defaults or remediation.
 
+**Shipped knowledge.** 25 reviewed recognizers for five unparsed dialects (Juniper Junos 9, Huawei VRP 6,
+Palo Alto PAN-OS 4, Arista EOS 3, MikroTik RouterOS 3) ship in `backend/data/seed_recognizers.json` and load
+into an empty database on first start, so those dialects answer several controls before anyone teaches
+anything. They are ordinary recognizers — same templates, same validation, same decisive CONFIRMED facts —
+and are marked `source=seed` so shipped knowledge can be audited separately from what a deployment was
+taught. This is not a parser and not training: see [docs/seed-knowledge.md](docs/seed-knowledge.md).
+
 **Candidate remediation** (unconfirmed vendors, once a finding is decisive) is a proposal, not a fix. The
 administrator types the command, or asks the AI for one; NetAuditAI validates it, removes the cited
 statements from an **in-memory copy** of the configuration, re-reads that copy with the generic engine and
@@ -81,6 +88,17 @@ confirmation; it does **not** execute commands on physical devices.
 - **Framework views** regroup the same results under NIST SP 800-53 Rev. 5 and, for confirmed vendors, CIS Benchmarks. They are not a compliance certification.
 
 The scan response still carries `score`, the deprecated penalty score (kept for existing scripts). The UI does not use it.
+
+### The interface
+
+Two tiers. **Scan · Results · Fix · History · Knowledge** are global; within a scan, **Overview · Fix ·
+Teach · All checks · Devices · Frameworks**. *Knowledge* (route `#/app/learned`) lists everything the
+engine knows — shipped seed recognizers and whatever this deployment was taught — and lets an
+administrator stop any entry.
+
+Severity is a four-square meter plus the severity word, and status is a mono label with a square marker,
+so no result is conveyed by colour alone. The palette is near-black, greys and one accent, which marks
+attention and selection only — never severity, never status.
 
 ## Setup
 
@@ -115,10 +133,10 @@ Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `fr
 
 ```bash
 cd backend
-venv\Scripts\python -m pytest tests -q     # 924 passed, 2 skipped (live AI, needs NETAUDIT_LIVE_AI=1)
+venv\Scripts\python -m pytest tests -q     # 1020 passed, 2 skipped (live AI, needs NETAUDIT_LIVE_AI=1)
 
 cd frontend
-npm test                                    # 70 passed
+npm test                                    # 81 passed
 npm run build
 ```
 
@@ -142,6 +160,7 @@ A line holding a secret (password, key, community string) is never stored as a m
 - Parsers cover common Cisco IOS and FortiGate syntax; the IOS grammar is a curated root list, so an unusual real IOS config can come out unverified.
 - 15 controls. Remediation recipes exist only for Cisco IOS and FortiGate; weak stored passwords, AAA without a strong local account and any-to-any rules always need a human.
 - Unknown vendors rely on lexicon heuristics and confirmed recognizers; heuristics can misread a dialect until an administrator confirms or rejects the line.
+- Shipped seed knowledge covers five dialects and 25 recognizers against 14 teachable settings, so it answers only part of each dialect. Everything it does not cover still has to be taught, and a dialect with no seeds behaves exactly as before.
 - Redaction is pattern-based: a secret behind an unlisted keyword could still reach the AI.
 - The AI judge escalates only unknown / unverified vendors; UNKNOWN controls of confirmed vendors are not sent to AI.
 - Scan results live in memory; recognizer replay only checks scans held by the running backend. A candidate remediation lives in its scan only and is never persisted as knowledge.
@@ -160,6 +179,7 @@ A line holding a secret (password, key, community string) is never stored as a m
 | [docs/api.md](docs/api.md) | Endpoints and response fields |
 | [docs/detection-rules.md](docs/detection-rules.md) | The 15 controls, per-vendor facts and remediation |
 | [docs/data-model.md](docs/data-model.md) | Core objects |
+| [docs/seed-knowledge.md](docs/seed-knowledge.md) | Shipped recognizers: what they are, how they load, how to add one |
 | [docs/demo.md](docs/demo.md) | SIH demo script |
 | [docs/setup.md](docs/setup.md), [docs/testing.md](docs/testing.md), [docs/deployment.md](docs/deployment.md) | Running and testing |
 | [plan.md](plan.md) | Phase-by-phase implementation record |

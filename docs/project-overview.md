@@ -29,13 +29,17 @@ backend/
 frontend/src/
   App.jsx, home/Home.jsx      landing page and hash routing
   app/AppShell.jsx            navigation, scan loading, shared drawer
-  app/                        Upload, Results, Fix, Teach, Checks, Devices, Frameworks, Learned,
+  app/                        Upload, Results, Fix, Teach, Checks, Devices, Frameworks, Learned
+                              (shown in the UI as "Knowledge"),
                               History, FindingDrawer, LegacyInterpretations
   lib/domain.js               the one backend-state → user-facing-state mapping (states, counts, next step)
   lib/useAudit.js             scan-scoped remediation plan, review queue and the inputs a download may use
   api/client.js               API client
+  components/ui/primitives.jsx  the shared vocabulary every screen composes: SeverityMeter,
+                              StatusLabel, Notice, CodeBlock, Disclosure, DataRow, Tabs, ActionBar
   components/ui/              drawer, evidence, diff and count primitives
-  styles/, index.css          dark SOC visual system
+  styles/, index.css          design tokens and the screen stylesheets (hand-written CSS,
+                              no Tailwind, no CSS-in-JS, no component library)
   utils/                      history (summaries only), form validation
 sample/                       Cisco, FortiGate, unknown-vendor, Palo Alto and Juniper sample configs
 docs/                         documentation
@@ -52,5 +56,5 @@ plan.md                       phase-by-phase implementation record
 Scan (upload) → **Results** overview (posture, coverage, critical not assessed, what to do now, problems with
 evidence) → **Fix** (fix automatically, needs your input, manual action, cannot safely fix; verified download) →
 **Teach** (plain-language questions about unfamiliar lines; drafts, gates and replay under Advanced details) →
-**All checks**, **Devices**, **Frameworks** → **Learned** (shipped and taught recognizers; legacy review queue) →
+**All checks**, **Devices**, **Frameworks** → **Knowledge** (shipped and taught recognizers; legacy review queue) →
 **History** (browser summaries).

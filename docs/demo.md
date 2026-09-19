@@ -20,10 +20,10 @@ is not empty for long: the shipped seed recognizers load into it on first use, w
    coverage 0. Provisional results: *Suspected FAIL* Telnet on lines 70–71 with evidence, never scored.
 7. **Teach.** The page asks in plain language what an unfamiliar line means. Confirm line 71 for MGMT-001: drafted template `remote-console protocol {enum:protocol}`,
    gates, replay diff. Save: MGMT-001 becomes a decisive *confirmed* FAIL, coverage rises, zero AI calls.
-8. **Restart the backend and upload `sample/unknown.cfg` again.** The recognizer is reused from SQLite (see **Learned**): still decisive,
+8. **Restart the backend and upload `sample/unknown.cfg` again.** The recognizer is reused from SQLite (see **Knowledge**): still decisive,
    still no AI. Upload `sample/paloalto.cfg`: still generic analysis and no invented parser, but Telnet, HTTP
    management and the syslog servers are already decisive — that is shipped seed knowledge, not learning. Open
-   **Learned** and switch between *Shipped* and *Taught here*.
+   **Knowledge** and switch between *Shipped* and *Taught here*.
 9. **Upload `backend/tests/fixtures/seed_dialects/huawei.conf`** — a dialect nobody taught this deployment. Five
    controls are answered decisively out of the box (Telnet, HTTP management, session timeout, remote syslog, NTP),
    coverage is above 0, and every one cites a real line. The login banner stays `NOT_CONFIGURED` rather than being
