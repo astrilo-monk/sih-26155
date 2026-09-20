@@ -291,3 +291,5 @@ def test_finding_compliance_comes_from_the_catalog_for_its_vendor():
     assert ("2.4.5", "FortiGate 7.4.x Benchmark v1.0.1 (Level 1)") in ids(fortinet, "CIS")
     assert not any("IOS" in version for _, version in ids(fortinet, "CIS"))
     assert ids(cisco, "NIST_800_53") == ids(fortinet, "NIST_800_53") != set()
+    for framework in ("DISA_STIG", "ISO_27001"):  # vendor-neutral: identical for both vendors
+        assert ids(cisco, framework) == ids(fortinet, framework) != set()

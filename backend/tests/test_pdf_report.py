@@ -162,7 +162,9 @@ def test_frameworks_are_reported_and_the_unmapped_ones_are_named(client):
     body = text_of(client, upload(client, "cisco.cfg", CISCO_WITH_SECRETS))
     assert "NIST SP 800-53 — SP 800-53 Rev. 5" in body
     assert "Not mapped and not claimed" in body
-    assert "DISA STIG" in body and "ISO/IEC 27001" in body
+    assert "DISA STIG — Network Device Management SRG" in body
+    assert "ISO/IEC 27001 — ISO/IEC 27001:2022 Annex A" in body
+    assert "CIS Controls v8" in body
     assert "is not a certification" in body
 
 

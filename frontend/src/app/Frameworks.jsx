@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Evidence, StatusMark } from '../components/ui/Evidence';
 import { STATE, stateMeta, statusState } from '../lib/domain';
 
-const FRAMEWORK_NAMES = { NIST_800_53: 'NIST SP 800-53', CIS: 'CIS' };
+const FRAMEWORK_NAMES = { NIST_800_53: 'NIST SP 800-53', CIS: 'CIS', DISA_STIG: 'DISA STIG', ISO_27001: 'ISO/IEC 27001' };
 const COUNT_ORDER = ['fail', 'partial', 'unknown', 'not_configured', 'pass', 'n_a'];
 
 const decisiveness = (c) => (c.decisive ? 'Decided from evidence'

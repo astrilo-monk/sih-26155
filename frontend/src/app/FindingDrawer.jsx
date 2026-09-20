@@ -4,7 +4,7 @@ import { Evidence, Severity, StatusMark } from '../components/ui/Evidence';
 import { ASSURANCE, fixStatus, isProblem, itemState, vendorState } from '../lib/domain';
 import { FixAction } from './Fix';
 
-const FRAMEWORKS = { NIST_800_53: 'NIST SP 800-53' };
+const FRAMEWORKS = { NIST_800_53: 'NIST SP 800-53', DISA_STIG: 'DISA STIG', ISO_27001: 'ISO/IEC 27001' };
 
 const ADVICE = {
   pass: 'Nothing to do. This check passed.',

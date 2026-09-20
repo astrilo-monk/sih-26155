@@ -12,6 +12,12 @@ Mapping sources (verified 2026-09-13):
   (github.com/usnistgov/oscal-content). Every id below exists with this title
   and none is withdrawn. AU-8(1), formerly cited for NTP authentication, is
   withdrawn in Rev. 5 and moved to SC-45(1).
+* DISA STIG — requirement ids and titles from the Network Device Management SRG
+  (vendor-agnostic; the product STIGs derive their V-ids from these SRG ids).
+  Only requirements whose wording a control actually answers are mapped.
+* ISO/IEC 27001:2022 Annex A — control ids and titles as published in the
+  standard. Annex A controls are organisational; a device-configuration control
+  is evidence towards one, never proof that the Annex A control is met.
 * CIS Benchmarks — item ids and titles as published in Tenable's audit files
   for the named benchmark version and profile level. Only items confirmed for
   that exact benchmark version are listed: a control without a verified item
@@ -45,6 +51,10 @@ CIS_IOS_XE_L2 = "Cisco IOS XE 17.x Benchmark v2.2.1 (Level 2)"
 CIS_IOS_XE_210_L1 = "Cisco IOS XE 17.x Benchmark v2.1.0 (Level 1)"
 CIS_FORTIGATE_L1 = "FortiGate 7.4.x Benchmark v1.0.1 (Level 1)"
 CIS_FORTIGATE_L2 = "FortiGate 7.4.x Benchmark v1.0.1 (Level 2)"
+STIG = "DISA_STIG"
+STIG_NDM = "Network Device Management SRG V4"
+ISO = "ISO_27001"
+ISO_VERSION = "ISO/IEC 27001:2022 Annex A"
 
 
 @dataclass(frozen=True)
@@ -84,6 +94,14 @@ def _cis_fortigate(requirement_id: str, title: str, version: str = CIS_FORTIGATE
     return Mapping(CIS, version, requirement_id, title, Vendor.FORTINET)
 
 
+def _stig(requirement_id: str, title: str) -> Mapping:
+    return Mapping(STIG, STIG_NDM, requirement_id, title)
+
+
+def _iso(requirement_id: str, title: str) -> Mapping:
+    return Mapping(ISO, ISO_VERSION, requirement_id, title)
+
+
 _CONTROLS = (
     Control(
         control_id="MGMT-001",
@@ -97,6 +115,15 @@ _CONTROLS = (
             _nist("SC-8", "Transmission Confidentiality and Integrity"),
             _cis_ios("1.2.2", "Set 'transport input ssh' for 'line vty' connections"),
             _cis_fortigate("2.4.5", "Ensure only encrypted access channels are enabled"),
+            _stig("SRG-APP-000142-NDM-000245",
+                "The network device must be configured to prohibit the use of all unnecessary and nonsecure "
+                "functions, ports, protocols, and services"),
+            _stig("SRG-APP-000412-NDM-000331",
+                "The network device must be configured to implement cryptographic mechanisms to protect the "
+                "confidentiality of remote maintenance sessions"),
+            _iso("A.8.20", "Networks security"),
+            _iso("A.8.24", "Use of cryptography"),
+            _iso("A.5.14", "Information transfer"),
         ),
         remediation_keys=("MGMT-001",),
         needs=(P.PROTOCOL_ENABLED,),
@@ -113,6 +140,14 @@ _CONTROLS = (
             _nist("SC-8", "Transmission Confidentiality and Integrity"),
             _cis_fortigate("1.3", "Disable all management related services on WAN port"),
             _cis_fortigate("2.4.5", "Ensure only encrypted access channels are enabled"),
+            _stig("SRG-APP-000142-NDM-000245",
+                "The network device must be configured to prohibit the use of all unnecessary and nonsecure "
+                "functions, ports, protocols, and services"),
+            _stig("SRG-APP-000412-NDM-000331",
+                "The network device must be configured to implement cryptographic mechanisms to protect the "
+                "confidentiality of remote maintenance sessions"),
+            _iso("A.8.20", "Networks security"),
+            _iso("A.8.24", "Use of cryptography"),
         ),
         remediation_keys=("MGMT-002",),
         needs=(P.PROTOCOL_ENABLED,),
@@ -132,6 +167,12 @@ _CONTROLS = (
             _cis_ios("1.2.5", "Set 'access-class' for 'line vty'"),
             _cis_fortigate("1.3", "Disable all management related services on WAN port"),
             _cis_fortigate("2.4.2", "Ensure all the login accounts having specific trusted hosts enabled"),
+            _stig("SRG-APP-000033-NDM-000212",
+                "The network device must be configured to enforce approved authorizations for logical access "
+                "to information and system resources"),
+            _iso("A.5.15", "Access control"),
+            _iso("A.8.3", "Information access restriction"),
+            _iso("A.8.20", "Networks security"),
         ),
         remediation_keys=("MGMT-003",),
         needs=(P.SOURCE_RESTRICTED,),
@@ -151,6 +192,11 @@ _CONTROLS = (
             _cis_ios("1.5.4", "Do not set 'RW' for any 'snmp-server community'"),
             _cis_ios("1.5.5", "Set the ACL for each 'snmp-server community'"),
             _cis_fortigate("2.3.1", "Ensure only SNMPv3 is enabled"),
+            _stig("SRG-APP-000142-NDM-000245",
+                "The network device must be configured to prohibit the use of all unnecessary and nonsecure "
+                "functions, ports, protocols, and services"),
+            _iso("A.5.17", "Authentication information"),
+            _iso("A.8.21", "Security of network services"),
         ),
         remediation_keys=("MGMT-004",),
         needs=(P.SNMP_COMMUNITY,),
@@ -168,6 +214,10 @@ _CONTROLS = (
             _cis_ios("1.4.1", "Set 'password' for 'enable secret'"),
             _cis_ios("1.4.2", "Enable 'service password-encryption'"),
             _cis_ios("1.4.3", "Set 'username secret' for all local users"),
+            _stig("SRG-APP-000172-NDM-000259",
+                "The network device must be configured to use an encrypted representation of passwords"),
+            _iso("A.5.17", "Authentication information"),
+            _iso("A.8.5", "Secure authentication"),
         ),
         remediation_keys=("MGMT-005",),
         needs=(P.PASSWORD_STORAGE, P.PASSWORD_ENCRYPTION_SERVICE),
@@ -186,6 +236,11 @@ _CONTROLS = (
             _cis_ios("1.2.7", "Set 'exec-timeout' to less than or equal to 10 minutes 'line console 0'"),
             _cis_ios("1.2.8", "Set 'exec-timeout' to less than or equal to 10 minutes 'line vty'"),
             _cis_fortigate("2.4.4", "Ensure Admin idle timeout time is configured"),
+            _stig("SRG-APP-000190-NDM-000267",
+                "The network device must be configured to terminate a management session after an "
+                "organization-defined period of inactivity"),
+            _iso("A.5.15", "Access control"),
+            _iso("A.8.5", "Secure authentication"),
         ),
         remediation_keys=("MGMT-006",),
         needs=(P.IDLE_TIMEOUT,),
@@ -201,6 +256,14 @@ _CONTROLS = (
             _nist("SC-8", "Transmission Confidentiality and Integrity"),
             _nist("AC-17(2)", "Protection of Confidentiality and Integrity Using Encryption"),
             _cis_ios("2.1.1.2", "Set version 2 for 'ip ssh version'"),
+            _stig("SRG-APP-000412-NDM-000331",
+                "The network device must be configured to implement cryptographic mechanisms to protect the "
+                "confidentiality of remote maintenance sessions"),
+            _stig("SRG-APP-000142-NDM-000245",
+                "The network device must be configured to prohibit the use of all unnecessary and nonsecure "
+                "functions, ports, protocols, and services"),
+            _iso("A.8.24", "Use of cryptography"),
+            _iso("A.8.20", "Networks security"),
         ),
         remediation_keys=("MGMT-007",),
         needs=(P.SSH_VERSION,),
@@ -216,6 +279,12 @@ _CONTROLS = (
             _nist("IA-2", "Identification and Authentication (Organizational Users)"),
             _nist("AC-2", "Account Management"),
             _cis_ios("1.1.1", "Enable 'aaa new-model'"),
+            _stig("SRG-APP-000516-NDM-000336",
+                "The network device must be configured to use an authentication server to authenticate users "
+                "prior to granting administrative access"),
+            _iso("A.5.16", "Identity management"),
+            _iso("A.8.5", "Secure authentication"),
+            _iso("A.8.2", "Privileged access rights"),
         ),
         remediation_keys=("MGMT-008",),
         needs=(P.CENTRAL_AAA,),
@@ -232,6 +301,10 @@ _CONTROLS = (
             # 1.3.3 (banner motd) is not mapped: the banner fact does not tell a motd banner from a login banner
             _cis_ios("1.3.2", "Set the 'banner-text' for 'banner login'"),
             _cis_fortigate("2.1.1", "Ensure 'Pre-Login Banner' is set"),
+            _stig("SRG-APP-000068-NDM-000215",
+                "The network device must be configured to display the Standard Mandatory DoD Notice and "
+                "Consent Banner before granting access"),
+            _iso("A.5.10", "Acceptable use of information and other associated assets"),
         ),
         remediation_keys=("MGMT-009",),
         needs=(P.LOGIN_BANNER,),
@@ -248,6 +321,9 @@ _CONTROLS = (
             _nist("SC-7", "Boundary Protection"),
             _nist("SC-7(5)", "Deny by Default — Allow by Exception"),
             _cis_fortigate("3.2", 'Ensure that policies do not use "ALL" as Service'),
+            _iso("A.8.20", "Networks security"),
+            _iso("A.8.22", "Segregation of networks"),
+            _iso("A.8.3", "Information access restriction"),
         ),
         remediation_keys=("BOUNDARY-001",),
         needs=(P.PERMIT_ANY,),
@@ -263,6 +339,11 @@ _CONTROLS = (
             _nist("SC-7", "Boundary Protection"),
             _nist("CM-7", "Least Functionality"),
             _cis_ios("3.1.1", "Set 'no ip source-route'", version=CIS_IOS_XE_210_L1),
+            _stig("SRG-APP-000142-NDM-000245",
+                "The network device must be configured to prohibit the use of all unnecessary and nonsecure "
+                "functions, ports, protocols, and services"),
+            _iso("A.8.20", "Networks security"),
+            _iso("A.8.9", "Configuration management"),
         ),
         remediation_keys=("BOUNDARY-002",),
         needs=(P.SOURCE_ROUTING,),
@@ -277,6 +358,11 @@ _CONTROLS = (
         mappings=(
             _nist("CM-7", "Least Functionality"),
             _cis_ios("2.1.2", "Set 'no cdp run'"),
+            _stig("SRG-APP-000142-NDM-000245",
+                "The network device must be configured to prohibit the use of all unnecessary and nonsecure "
+                "functions, ports, protocols, and services"),
+            _iso("A.8.20", "Networks security"),
+            _iso("A.8.9", "Configuration management"),
         ),
         remediation_keys=("BOUNDARY-003",),
         needs=(P.DISCOVERY_PROTOCOL,),
@@ -292,6 +378,11 @@ _CONTROLS = (
             _nist("AU-4(1)", "Transfer to Alternate Storage"),
             _nist("AU-9(2)", "Store on Separate Physical Systems or Components"),
             _cis_fortigate("7.2.1", "Centralized Logging and Reporting", version=CIS_FORTIGATE_L2),
+            _stig("SRG-APP-000515-NDM-000325",
+                "The network device must be configured to offload audit records onto a different system than "
+                "the system being audited"),
+            _iso("A.8.15", "Logging"),
+            _iso("A.8.16", "Monitoring activities"),
         ),
         remediation_keys=("LOG-001",),
         needs=(P.LOG_REMOTE_DESTINATION,),
@@ -309,6 +400,13 @@ _CONTROLS = (
             _nist("SC-45(1)", "Synchronization with Authoritative Time Source"),
             _cis_ios("2.3.1.4", "Set 'key' for each 'ntp server'", version=CIS_IOS_XE_L2),
             _cis_fortigate("2.1.4", "Ensure correct system time is configured through NTP"),
+            _stig("SRG-APP-000373-NDM-000298",
+                "The network device must be configured to synchronize internal information system clocks with "
+                "the primary and secondary time sources"),
+            _stig("SRG-APP-000395-NDM-000347",
+                "The network device must be configured to authenticate Network Time Protocol sources"),
+            _iso("A.8.17", "Clock synchronisation"),
+            _iso("A.8.15", "Logging"),
         ),
         remediation_keys=("LOG-002",),
         needs=(P.NTP_SERVER, P.NTP_AUTHENTICATED),
@@ -323,6 +421,11 @@ _CONTROLS = (
         mappings=(
             _nist("SC-13", "Cryptographic Protection"),
             _nist("SC-8", "Transmission Confidentiality and Integrity"),
+            _stig("SRG-APP-000412-NDM-000331",
+                "The network device must be configured to implement cryptographic mechanisms to protect the "
+                "confidentiality of remote maintenance sessions"),
+            _iso("A.8.24", "Use of cryptography"),
+            _iso("A.8.20", "Networks security"),
         ),
         remediation_keys=("CRYPTO-001",),
         needs=(P.IPSEC_PROPOSAL,),

@@ -85,7 +85,7 @@ confirmation; it does **not** execute commands on physical devices.
 - **Coverage** = weighted share of applicable controls decided decisively. Posture and coverage are shown side by side, with the posture range if every undecided control failed or passed.
 - **Critical not assessed** lists critical controls that were not decided.
 - Provisional verdicts are shown with their evidence but never change posture, coverage, findings counts or remediation.
-- **Framework views** regroup the same results under NIST SP 800-53 Rev. 5 and, for confirmed vendors, CIS Benchmarks. They are not a compliance certification.
+- **Framework views** regroup the same results under NIST SP 800-53 Rev. 5, the DISA Network Device Management SRG, ISO/IEC 27001:2022 Annex A and, for confirmed vendors, CIS Benchmarks. They are not a compliance certification.
 
 The scan response still carries `score`, the deprecated penalty score (kept for existing scripts). The UI does not use it.
 
@@ -165,7 +165,7 @@ A line holding a secret (password, key, community string) is never stored as a m
 - The AI judge escalates only unknown / unverified vendors; UNKNOWN controls of confirmed vendors are not sent to AI.
 - Scan results live in memory; recognizer replay only checks scans held by the running backend. A candidate remediation lives in its scan only and is never persisted as knowledge.
 - A candidate can only be verified when it explicitly removes or switches off the lines the finding cites; anything else is kept for review as unverified.
-- Framework views cover NIST SP 800-53 Rev. 5 and verified CIS items only (no ISO 27001, DISA SRG or CIS Controls v8 mappings).
+- Framework views cover NIST SP 800-53 Rev. 5, verified CIS items, the DISA Network Device Management SRG and ISO/IEC 27001:2022 Annex A (no PCI DSS or CIS Controls v8 mappings).
 - `/api/assistant/status` reports AI available whenever a key is configured, even if the quota is used up.
 - Text configurations only. No live device connections: no command, generated or proposed, is ever executed on a device.
 

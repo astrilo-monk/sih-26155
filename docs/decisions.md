@@ -45,8 +45,10 @@ limited to decisive FAILs on confirmed vendors, and only called fixed after the 
 confirmed, coverage not reduced, control passing, nothing regressed. Unsafe cases go to a human.
 
 ## 9. Framework views without inventing mappings
-Framework views regroup existing results under NIST SP 800-53 Rev. 5 and verified CIS items. Unverified mappings
-(ISO 27001, DISA SRG, CIS Controls v8) were not added, because they would inflate apparent compliance coverage.
+Framework views regroup existing results under NIST SP 800-53 Rev. 5, verified CIS items, the DISA Network Device
+Management SRG and ISO/IEC 27001:2022 Annex A. Unverified mappings (PCI DSS, CIS Controls v8) were not added,
+because they would inflate apparent compliance coverage. ISO Annex A controls are organisational, so a device
+result is reported as evidence towards a control, not as the control being met.
 
 ## 10. What we deliberately did not build
 Ontologies or graph databases, SMT solvers, embeddings or vector databases, local LLMs or fine-tuning, extra vendor

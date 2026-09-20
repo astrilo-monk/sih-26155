@@ -366,12 +366,14 @@ again. Mappings are the catalog's, with exact versions:
 * **NIST SP 800-53 Rev. 5** (OSCAL release 5.2.0) — every control, every vendor.
 * **CIS Benchmarks** — Cisco IOS XE 17.x v2.2.1 (L1/L2) and v2.1.0 (L1), FortiGate 7.4.x v1.0.1 (L1/L2); only items
   verified for that benchmark version, attached only to devices of that confirmed vendor.
+* **DISA STIG** — Network Device Management SRG V4, vendor-agnostic; only requirements a control actually answers.
+* **ISO/IEC 27001:2022 Annex A** — every control, every vendor. Annex A controls are organisational: a device
+  result is evidence towards one, never proof the Annex A control is met.
 
 A requirement is FAIL if any mapped control FAILs decisively, PASS only if every applicable mapped control PASSes
 decisively, PARTIAL if some pass and the rest are undecided, NOT_CONFIGURED if every mapped control is, otherwise
 UNKNOWN. Provisional verdicts mark a requirement `provisional` and never make it PASS or FAIL. Coverage is the share
-of applicable requirements decided. ISO/IEC 27001, DISA SRGs and CIS Controls v8 are **not mapped**: no mapping was
-verified.
+of applicable requirements decided. PCI DSS and CIS Controls v8 are **not mapped**: no mapping was verified.
 
 ## 12. Reporting
 

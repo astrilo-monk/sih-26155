@@ -53,10 +53,11 @@ REMEDIATION_WORDS = {
     "not_failing": "Not failing",
 }
 # The catalog's framework keys, spelled the way the framework is named
-FRAMEWORK_NAMES = {"NIST_800_53": "NIST SP 800-53", "CIS": "CIS Benchmarks"}
+FRAMEWORK_NAMES = {"NIST_800_53": "NIST SP 800-53", "CIS": "CIS Benchmarks",
+                   "DISA_STIG": "DISA STIG", "ISO_27001": "ISO/IEC 27001"}
 # Frameworks this build maps. Anything else is named as not mapped rather than left to be assumed.
-MAPPED_FRAMEWORKS = ("NIST SP 800-53", "CIS Benchmarks")
-UNMAPPED_FRAMEWORKS = ("DISA STIG", "ISO/IEC 27001", "CIS Controls v8")
+MAPPED_FRAMEWORKS = ("NIST SP 800-53", "CIS Benchmarks", "DISA STIG", "ISO/IEC 27001")
+UNMAPPED_FRAMEWORKS = ("PCI DSS", "CIS Controls v8")
 
 
 def _device(scan, index: int) -> dict:

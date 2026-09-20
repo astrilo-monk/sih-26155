@@ -7,7 +7,7 @@ What the hackathon build needs, and where it stands.
 - [x] Dedicated parsers for two distinct vendors (Cisco IOS, FortiGate)
 - [x] Vendor-agnostic analysis for other vendors (generic tokenizer, heuristics, recognizers) — honestly provisional
 - [x] Deterministic security controls with evidence (15 controls)
-- [x] Compliance mappings to NIST SP 800-53 Rev. 5 and CIS Benchmarks, with versions
+- [x] Compliance mappings to NIST SP 800-53 Rev. 5, CIS Benchmarks, DISA STIG (NDM SRG) and ISO/IEC 27001:2022, with versions
 - [x] Posture and coverage scoring
 - [x] Optional AI (Groq) for explanations and for proposals on undecided controls
 - [x] Deterministic, verified remediation for confirmed vendors

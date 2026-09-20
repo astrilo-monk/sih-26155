@@ -492,10 +492,20 @@ export default function Home() {
                 <h3>CIS Benchmarks</h3>
                 <p>Cisco IOS XE 17.x v2.1.0 and v2.2.1, FortiGate 7.4.x v1.0.1 — only where the requirement is auditable from device configuration.</p>
               </article>
+              <article className="fw-card">
+                <span className="tag tag-pass">Mapped</span>
+                <h3>DISA STIG</h3>
+                <p>Network Device Management SRG V4 — the vendor-agnostic requirements a device configuration can answer.</p>
+              </article>
+              <article className="fw-card">
+                <span className="tag tag-pass">Mapped</span>
+                <h3>ISO/IEC 27001:2022</h3>
+                <p>Annex A. Annex A controls are organisational, so a device result is evidence towards one, not proof it is met.</p>
+              </article>
               <article className="fw-card fw-card-none">
                 <span className="tag tag-muted">Not mapped</span>
                 <h3>Not claimed</h3>
-                <p>ISO/IEC 27001, CIS Controls v8 and DISA STIG are not mapped today.</p>
+                <p>PCI DSS and CIS Controls v8 are not mapped today.</p>
               </article>
             </div>
           </div>

@@ -40,7 +40,7 @@ it('opens on the public homepage, states support honestly, and Try now enters th
   const { container } = render(<App />);
   expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/the line that proves it/);
   expect(screen.getAllByRole('link', { name: 'Try now' })[0].getAttribute('href')).toBe('#/app');
-  expect(container.textContent).toContain('ISO/IEC 27001, CIS Controls v8 and DISA STIG are not mapped today.');
+  expect(container.textContent).toContain('PCI DSS and CIS Controls v8 are not mapped today.');
   expect(container.textContent).not.toMatch(/(works with|supports) every vendor|100% accurate|fully autonomous|understands every/i);
 
   go('#/app');

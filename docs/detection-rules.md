@@ -22,5 +22,5 @@ confirmed recognizers, optional AI proposals).
 | LOG-002 | Is the clock synchronized from authenticated NTP servers? | Medium | `ntp server`, `ntp authenticate` | NTP servers, `authentication` | Add key and authentication (needs key; server if none) |
 | CRYPTO-001 | Do VPN proposals avoid weak encryption, hashing and DH groups? | High | ISAKMP policies, transform sets | phase1-interface `proposal`, `dhgrp` | AES-256 / SHA-256 / DH 14 (VPN peers must match) |
 
-Each control's framework mappings (NIST SP 800-53 Rev. 5; CIS items for the confirmed vendor) are listed in the
+Each control's framework mappings (NIST SP 800-53 Rev. 5, DISA NDM SRG, ISO/IEC 27001:2022 Annex A; CIS items for the confirmed vendor) are listed in the
 catalog and shown in the Framework view. Remediation details: [architecture.md](architecture.md#10-remediation).

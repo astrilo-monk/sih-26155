@@ -91,10 +91,11 @@ def test_pass_needs_every_mapped_control_decisive_and_ai_proposals_never_count()
 def test_unknown_vendor_gets_no_product_benchmark_and_no_decisive_requirement():
     scan = _scan(TestClient(app), ("u.cfg", (REPO / "sample" / "unknown.cfg").read_bytes()))
     views = _views(scan)
-    assert set(views) == {(NIST, NIST_VERSION)}  # CIS items are Cisco / FortiGate product benchmarks
+    assert not any(f == "CIS" for f, _ in views)  # CIS items are Cisco / FortiGate product benchmarks
+    for view in views.values():  # the vendor-neutral frameworks still apply, undecided
+        assert view["coverage"] == 0
+        assert {r["status"] for r in view["requirements"]} <= {"unknown", "not_configured"}
     nist = views[(NIST, NIST_VERSION)]
-    assert nist["coverage"] == 0
-    assert {r["status"] for r in nist["requirements"]} <= {"unknown", "not_configured"}
     assert _requirement(nist, "SC-8")["provisional"]  # the suspected Telnet FAIL is heuristic
 
 
