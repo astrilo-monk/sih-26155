@@ -13,7 +13,8 @@ Scope comes from ``adaptive.context.structural_paths`` (braces,
 
 Polarity: ``no …`` / ``unset …`` / ``delete …``, ``enable(d)`` / ``disable(d)``,
 ``on`` / ``off``, ``true`` / ``false``, ``yes`` / ``no``, including combinations
-such as ``disabled=yes`` and ``disable-telnet no``.
+such as ``disabled=yes`` and ``disable-telnet no``. A *leading* negator negates the whole
+statement, so it outranks any word inside it: ``undo telnet server enable`` is off, not on.
 
 Free text never yields keywords: descriptions, remarks and banner bodies are dropped.
 """
@@ -70,8 +71,8 @@ def tokenize_line(text: str, line: int = 1, scope_path: tuple[str, ...] = ()) ->
         return None
 
     polarities: list[bool] = []
-    if tokens[0].lower() in NEGATORS and len(tokens) > 1:
-        polarities.append(False)
+    negated = tokens[0].lower() in NEGATORS and len(tokens) > 1
+    if negated:
         tokens = tokens[1:]
 
     statement = Statement(line=line, text=text, scope_path=scope_path)
@@ -98,7 +99,9 @@ def tokenize_line(text: str, line: int = 1, scope_path: tuple[str, ...] = ()) ->
 
     if not statement.key_tokens or statement.key_tokens[0] in FREE_TEXT:
         return None
-    if polarities:
+    if negated:
+        statement.polarity = False
+    elif polarities:
         statement.polarity = polarities[-1]
     return statement
 

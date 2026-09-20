@@ -61,3 +61,10 @@ graphify-out/
 
 .playwright-mcp/
 CLAUDE.md
+# Scratch: agent prompts, session notes, raw teaching corpus (kept on disk, not shipped)
+claude.txt
+fix.md
+flow-temp.md
+front-fix.md
+teach/
+ign NetAuditAI frontend*

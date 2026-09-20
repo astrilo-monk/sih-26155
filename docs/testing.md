@@ -25,7 +25,8 @@ production default with the `seeded_adaptive_db` fixture.
 | Derived remediation: a verified change from the configuration alone on Junos / PAN-OS / RouterOS / Huawei, the words come from the file's own block path, a setting that must exist is never deleted to silence a check, a block opener is never removed alone, a provisional finding cannot be derived from, confirmed vendors keep recipes, the upload and the scan never move | `test_derived_remediation.py` |
 | Generic engine on hierarchical, terminator-separated dialects | `test_generic_hierarchical.py` |
 | Resolution queue: the initial score is unchanged, the queue is exactly what coverage left out, a line can be picked and its meaning stated, an answer the line does not support is refused, teaching persists and the next scan reuses it, the resolved control becomes PASS or FAIL with recalculated posture and coverage, the uploaded configuration is unchanged, prose is reported unreadable and never scored | `test_resolution_queue.py` |
-| Shipped seed knowledge: loading on a fresh database, idempotence, never overwriting what was taught, generalization across five dialects, no accidental or secret matches, unchanged Cisco / FortiGate and unknown-vendor behaviour, the fresh-deployment demo and teaching on top of it | `test_seed_knowledge.py`, fixtures in `tests/fixtures/seed_dialects/` |
+| Shipped seed knowledge: loading on a fresh database, idempotence, never overwriting what was taught, generalization across eight dialects, no accidental or secret matches, unchanged Cisco / FortiGate and unknown-vendor behaviour, the fresh-deployment demo and teaching on top of it | `test_seed_knowledge.py`, fixtures in `tests/fixtures/seed_dialects/` |
+| Recognizer generalization: one recognizer over many addresses, names and numbers; indentation, whitespace and statement order ignored; positive and negative forms opposite; the same leaf word in another block not matched; a value-sensitive setting giving different control results from one recognizer; half a multi-fact control left undecided; a taught concept reused on the next scan; a line that states nothing teaching only a setting it names, while a line that states an on/off may be named in any words; and the acceptance loop — five concepts taught through the API, a configuration of seven variant lines scanned, only the genuinely new control left in the queue | `test_recognizer_generalization.py` |
 | Compliance report (PDF): a PDF per device and a zip for several, a hostname cannot escape the download name, no secret of the configuration reaches the document or the rendered bytes, serial numbers are not invented, provisional readings are never shown as PASS/FAIL, no vendor commands for an unconfirmed vendor, the deterministic change and its rescan checks for a confirmed one, unmapped frameworks named, undecided checks listed, a prose file reported unreadable | `test_pdf_report.py` |
 | Parsers, pipeline, ACLs | `test_pipeline.py`, `test_cisco_acl.py` |
 | Adaptive layer and legacy interpreter, learned mappings, review API | `test_adaptive.py`, `test_adaptive_generic.py`, `test_adaptive_api_integration.py`, `test_phase3_adaptive_mapper.py`, `test_phase3_e2e.py`, `test_phase4_review_api.py`, `test_phase5_learned_mappings.py` |
@@ -57,7 +58,7 @@ Two live Groq tests in `test_adaptive_generic.py` are skipped unless `NETAUDIT_L
 
 ```powershell
 cd backend
-venv\Scripts\python -m pytest tests -q     # 1020 passed, 2 skipped
+venv\Scripts\python -m pytest tests -q     # 1106 passed, 2 skipped
 
 cd ..\frontend
 npm test                                    # 81 passed

@@ -47,7 +47,9 @@ REMOTE_LOG = frozenset({"syslog", "syslogd", "syslog-server", "syslog-host", "lo
 TIME_SYNC = frozenset({"ntp", "sntp", "time-sync", "timesync", "chrony"})
 AUTHENTICATED = frozenset({"authenticate", "authenticated", "authentication", "auth"})
 
-AAA_SERVERS = frozenset({"radius", "tacacs", "tacacs+", "radius-server", "tacacs-server"})
+AAA_SERVERS = frozenset({"radius", "tacacs", "tacacs+", "radius-server", "tacacs-server",
+                         # Junos spells TACACS+ "tacplus"
+                         "tacplus", "tacplus-server"})
 
 # Keywords that name the device: ``hostname X``, ``system-name X``, ``set system host-name X``
 HOSTNAME = frozenset({"hostname", "host-name", "system-name", "sysname"})
@@ -56,6 +58,12 @@ CENTRAL = frozenset({"centralized", "central", "aaa"})
 IPSEC = frozenset({"ipsec", "ike", "ikev1", "ikev2", "isakmp", "esp", "transform-set", "proposal", "phase1",
                    "phase2", "crypto", "vpn"})
 DH_KEYWORDS = frozenset({"group", "dh-group", "dhgroup", "dhgrp", "pfs", "pfs-group"})
+
+# How a configuration writes "stored password" — a line must use one of these to teach password storage
+PASSWORD_RELATED = frozenset({
+    "password", "passwd", "password-encryption", "encrypted-password", "passphrase", "credential",
+    "secret", "hash", "hashed", "encrypted", "plaintext", "cipher", "irreversible-cipher", "algorithm-type",
+})
 
 SNMP = frozenset({"snmp", "snmp-server", "snmpd"})
 READ_WRITE = frozenset({"rw", "read-write", "write"})
@@ -70,6 +78,8 @@ BANNER_TYPES = frozenset({"login", "motd", "pre-login", "prelogin"})
 # its meaning; the verifier still requires the line's own value (polarity, number with a unit, address).
 SOURCE_RELATED = SOURCE_RESTRICTION | RESTRICTED | frozenset({
     "allowed", "permitted", "trusted", "allowlist", "whitelist", "access-class", "restrict", "restriction",
+    # a rule names the sources it lets in: ``allow-address``, ``source-address``, ``permitted-ip``
+    "allow", "allow-address", "source-address", "src-address", "trusthost1", "access-group",
 })
 IDLE_RELATED = IDLE | TIMEOUT_KEYWORDS | frozenset({
     "timeout", "lock", "autolock", "logout", "autologout", "inactive",

@@ -212,8 +212,9 @@ completes.
 
 ## 8. Human-in-the-loop: recognizers
 
-A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships 25 reviewed recognizers for
-five dialects that have no dedicated parser (Junos, PAN-OS, Arista EOS, Huawei VRP, RouterOS);
+A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships 50 reviewed recognizers for
+eight dialects that have no dedicated parser (Junos, PAN-OS, Arista EOS, Huawei VRP, RouterOS, Aruba AOS-CX,
+Check Point Gaia, Extreme EXOS) — one generalized entry per concept per dialect, never one per line;
 `app/facts/seed.py` loads them into SQLite the first time a process opens the database. They pass the same gates
 listed below, are decisive in the same way, and are marked `source = "seed"` so shipped knowledge and what this
 deployment was taught stay distinguishable. Loading is idempotent and never overwrites or revives a row an
@@ -236,12 +237,23 @@ and nothing is counted. The uploaded configuration is only ever read, and no fil
 1. The scan lists provisional results (heuristic lines and verified AI proposals) and the resolution queue on the
    **Teach** page.
 2. The administrator confirms a line, or states what a line means; the backend drafts a recognizer: a typed-slot template
-   (`{int}`, `{ip}`, `{duration[:unit]}`, `{enum:name}`, `{polarity}`, `{any}`; never raw regex), predicate,
-   subject, optional scope template, dialect fingerprint and value table.
+   (`{int}`, `{host}`, `{ip}`, `{duration[:unit]}`, `{enum:name}`, `{polarity}`, `{neg}`, `{any}`; never raw
+   regex), predicate, subject, optional scope template, dialect fingerprint and value table. The draft
+   generalizes what varies and keeps what identifies: addresses, hostnames, numbers, durations and the
+   facilities, ids and instance names that qualify a value go into slots, while keywords and polarity stay
+   literal. A *leading* negator becomes `{neg}`, so one recognizer reads `telnet server` and `no telnet
+   server` as opposites instead of needing two.
 3. Gates (`app/facts/recognizers.validate_recognizer`, `app/db/mappings.validate_mapping`): at least two keywords
    besides stopwords **counting the scope template** — a hierarchical dialect keeps the nouns in the block header,
-   so `server {ip}` scoped to `ntp` is specific enough while `server {ip}` unscoped is not, and a scope can never
-   carry a recognizer whose own template has no keyword; stated polarity or a true/false table — or, for a scoped
+   so `server {host}` scoped to `ntp` is specific enough while `server {host}` unscoped is not, and a scope can
+   never carry a recognizer whose own template has no keyword; the scope is the block the statement is *in*,
+   never an outer ancestor, so an NTP `server` recognizer does not answer `ntp { traceoptions { server … } }`;
+   a line carrying a value can only teach a boolean listed in `PRESENCE_PREDICATES` — a source restriction
+   and central AAA are stated by naming an address, every other boolean is a toggle a value says nothing
+   about; a line that states no on/off of its own, and any line read through a value slot, must also name
+   the setting it is taught as (`CONCEPT_WORDS`), so `uid 2001` cannot teach anything, while a line that
+   does state an on/off may be named in any words, because that is what teaching an unfamiliar dialect is;
+   all of it in the gate, not only in the draft; stated polarity or a true/false table — or, for a scoped
    bare statement, presence, which can only ever mean "on"; a unit for durations; the template must match its
    example line; no identical active recognizer (pattern **and** scope, so `server {ip}` under `ntp` and under
    `syslog` are different recognizers); dialect overlap unless "any dialect"; and **no secret** in any stored text.

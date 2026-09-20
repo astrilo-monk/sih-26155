@@ -58,9 +58,9 @@ UNITLESS_CFG = "system {\n    login {\n        idle-timeout 30;\n    }\n}\n"
 
 
 @pytest.mark.parametrize("text, line, slot, scope", [
-    (NTP_CFG, 3, "ip", "ntp"),                 # value read from an {ip} slot
+    (NTP_CFG, 3, "host", "ntp"),               # destination read from a {host} slot (address or name)
     (SSH_CFG, 4, "int", "ssh"),                # a version written as v2, not a bare number
-    (TELNET_CFG, 3, None, "services"),         # presence: no slot, a constant value
+    (TELNET_CFG, 3, "neg", "services"),        # presence: {neg} reads on from the statement, off from "no"
     (TIMEOUT_CFG, 3, "duration", "login"),     # numeric slot, unit carried into the slot
 ])
 def test_a_generated_draft_passes_its_own_validation_and_compiles(text, line, slot, scope):

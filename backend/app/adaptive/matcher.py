@@ -19,7 +19,16 @@ from template tokens and stays optional in the line, so ``server {ip};``,
 ``server {ip}`` and ``server 192.0.2.1`` all describe the same statement.
 
 Recognizer templates (Phase 6) use typed slots instead of ``{value}``, at most one per template:
-``{int}``, ``{ip}``, ``{duration}`` / ``{duration:<unit>}``, ``{enum:<name>}``, ``{polarity}``.
+``{int}``, ``{ip}``, ``{host}``, ``{duration}`` / ``{duration:<unit>}``, ``{enum:<name>}``,
+``{polarity}``, ``{neg}``.
+
+``{host}`` reads an address *or* a hostname / FQDN, so one recognizer covers
+``ntp server 192.0.2.10``, ``ntp server 2001:db8::10`` and ``ntp server ntp1.example.com``.
+
+``{neg}`` is an *optional* leading negator (``no`` / ``unset`` / ``delete`` / ``undo``) and may only be
+the template's first token. It reads the statement's polarity from its own presence, so ``{neg} telnet
+server`` is one recognizer for both ``telnet server`` (on) and ``no telnet server`` (off). Leading
+negation is what the slot reads, which is why it beats any ``enabled`` / ``on`` word later in the line.
 
 Templates are compiled by escaping every literal, so the resulting regex is
 linear and cannot be abused (no user- or AI-supplied regex is ever run).
@@ -51,10 +60,15 @@ SLOT_PATTERNS = {
     "int": r"(?:[Vv]|[Vv]er|[Vv]ersion)?\d+",
     "ip": r"[0-9A-Fa-f.:]+(?:/\d{1,3})?",
     "duration": r"\d+(?:\.\d+)?[A-Za-z]*",
+    # an address, or a hostname / FQDN; ``recognizer_value`` decides whether the text is usable
+    "host": r"[A-Za-z0-9][\w.:-]*(?:/\d{1,3})?",
     "enum": r"[A-Za-z][\w.+-]*",
     "polarity": r"(?:enabled?|disabled?|on|off|true|false|yes|no)",
 }
-_SLOT = re.compile(r"^\{(int|ip|duration|enum|polarity)(?::([A-Za-z][\w-]*))?\}$")
+_SLOT = re.compile(r"^\{(int|ip|host|duration|enum|polarity|neg)(?::([A-Za-z][\w-]*))?\}$")
+NEGATION_SLOT = "{neg}"
+# An optional leading negator: absent = the statement is in force, present = it is negated.
+_NEGATION_PREFIX = r"(?P<slot>(?:no|unset|delete|undo)[\s=]+)?"
 
 # Statement terminators: punctuation in every dialect that uses them, never part of a token
 TERMINATORS = ";"
@@ -105,6 +119,8 @@ def validate_pattern(pattern: str, extraction_method: str) -> list[str]:
     slots = [t for t in tokens if recognizer and _SLOT.match(t)]
     if len(slots) > 1:
         raise PatternError("A recognizer template may contain at most one typed slot")
+    if NEGATION_SLOT in tokens[1:]:
+        raise PatternError(f"{NEGATION_SLOT} reads a leading negator, so it can only be the first token")
     literals = [t for t in tokens if t not in (VALUE_TOKEN, ANY_TOKEN) and t not in slots]
     allowed = "typed slots, {any}" if recognizer else f"{VALUE_TOKEN} and {ANY_TOKEN} placeholders"
     for tok in literals:
@@ -124,8 +140,12 @@ def validate_pattern(pattern: str, extraction_method: str) -> list[str]:
 
 def compile_pattern(pattern: str, extraction_method: str) -> re.Pattern[str]:
     """Compile a validated template into an anchored, escaped regex."""
+    tokens = validate_pattern(pattern, extraction_method)
+    # ``{neg}`` is an optional prefix, not a token: it carries its own separator so the rest of the
+    # template still has to start the line when no negator is there.
+    prefix = _NEGATION_PREFIX if tokens[:1] == [NEGATION_SLOT] else ""
     parts = []
-    for tok in validate_pattern(pattern, extraction_method):
+    for tok in tokens[1:] if prefix else tokens:
         if tok == VALUE_TOKEN:
             parts.append(r"(?P<value>\S+)")
         elif slot := _SLOT.match(tok):
@@ -137,7 +157,7 @@ def compile_pattern(pattern: str, extraction_method: str) -> re.Pattern[str]:
     terminator = f"[{re.escape(TERMINATORS)}]?"
     # ``=`` separates a token from its value in key=value dialects (RouterOS ``disabled=yes``), exactly as
     # the tokenizer splits it; a trailing ``{`` is a block opener, punctuation like the terminator.
-    return re.compile(r"^\s*" + r"[\s=]+".join(p + terminator for p in parts) + r"(?:\s*\{)?\s*$",
+    return re.compile(r"^\s*" + prefix + r"[\s=]+".join(p + terminator for p in parts) + r"(?:\s*\{)?\s*$",
                       re.IGNORECASE)
 
 

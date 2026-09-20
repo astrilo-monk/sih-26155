@@ -94,7 +94,7 @@ def test_seed_loading_never_touches_what_an_administrator_confirmed(seeded_adapt
     seed = next(m for m in repository.list_mappings() if m.command_pattern == "telnet server {polarity}")
     repository.disable_mapping(seed.id, actor="admin")
     edited = repository.update_mapping(
-        next(m for m in repository.list_mappings() if m.command_pattern == "logging host {ip}").id,
+        next(m for m in repository.list_mappings() if m.command_pattern == "logging host {host}").id,
         {"concept": "Syslog (site wording)"}, actor="admin")
 
     assert load_seed_recognizers(seeded_adaptive_db) == 0
@@ -106,15 +106,15 @@ def test_seed_loading_never_touches_what_an_administrator_confirmed(seeded_adapt
 
 def test_a_seed_entry_colliding_with_a_learned_pattern_is_skipped(seeded_adaptive_db):
     repository = MappingRepository()
-    shipped = next(m for m in repository.list_mappings() if m.command_pattern == "ntp server {ip}")
+    shipped = next(m for m in repository.list_mappings() if m.command_pattern == "ntp server {host}")
     repository.disable_mapping(shipped.id, actor="admin")
     # the site now owns that pattern with its own wording
     repository.save_mapping(_runtime_recognizer(
-        concept="Site NTP", predicate="time.ntp.server", subject=None, command_pattern="ntp server {ip}",
+        concept="Site NTP", predicate="time.ntp.server", subject=None, command_pattern="ntp server {host}",
         constant_value=None, example_line="ntp server 192.0.2.10"))
 
     assert load_seed_recognizers(seeded_adaptive_db) == 0
-    owners = [m.source for m in MappingRepository().list_mappings() if m.command_pattern == "ntp server {ip}"]
+    owners = [m.source for m in MappingRepository().list_mappings() if m.command_pattern == "ntp server {host}"]
     assert owners == [SOURCE_RUNTIME]
 
 
@@ -142,7 +142,8 @@ def test_one_concept_is_read_from_materially_different_dialects(seeded_adaptive_
     assert _telnet(_text(DIALECTS / name)) is True
 
 
-@pytest.mark.parametrize("name", ["junos.conf", "panos.conf", "arista.conf", "huawei.conf", "routeros.rsc"])
+@pytest.mark.parametrize("name", ["junos.conf", "panos.conf", "arista.conf", "huawei.conf", "routeros.rsc",
+                                  "gaia.conf", "exos.conf", "aruba.conf"])
 def test_every_shipped_dialect_contributes_decisive_facts(seeded_adaptive_db, name):
     facts = _facts(_text(DIALECTS / name))
     assert len(facts) >= 3
@@ -176,6 +177,26 @@ def test_changed_values_and_layout_do_not_break_recognition(seeded_adaptive_db, 
 ])
 def test_unrelated_lines_never_trigger_a_seed_recognizer(seeded_adaptive_db, config):
     assert _telnet(config) is None
+
+
+@pytest.mark.parametrize("config, predicate, expected", [
+    # taught from teach/: a login banner, an any-any rule, a management source restriction
+    ("banner login\n", "banner.login.present", True),
+    ("configure banner before-login\n", "banner.login.present", True),
+    ("ip access-list WAN-IN\n   10 permit ip any any\n", "boundary.policy.permit_any", True),
+    ("access-list ip EDGE-IN\n    10 permit any any\n", "boundary.policy.permit_any", True),
+    ("management ssh\n   ip access-group MGMT-IN in\n", "mgmt.remote_access.source_restricted", True),
+    ("system {\n  login {\n    profile OPS {\n      allow-address 192.0.2.0/24;\n    }\n  }\n}\n",
+     "mgmt.remote_access.source_restricted", True),
+    ("set network profiles interface-management-profile MGMT permitted-ip 192.0.2.0/24\n",
+     "mgmt.remote_access.source_restricted", True),
+    # the same words where they configure something else state nothing
+    ("interface Ethernet1\n   ip access-group EDGE-IN in\n", "mgmt.remote_access.source_restricted", None),
+    ("ip access-list WAN-IN\n   10 permit ip 192.0.2.0/24 any\n", "boundary.policy.permit_any", None),
+])
+def test_the_taught_dialect_lines_are_read_and_only_where_they_apply(seeded_adaptive_db, config, predicate, expected):
+    values = [f.value for f in _facts(config) if f.predicate == predicate]
+    assert values == ([expected] if expected is not None else [])
 
 
 def test_a_number_that_is_not_a_version_is_not_read_as_one(seeded_adaptive_db):
