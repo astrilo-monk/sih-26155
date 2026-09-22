@@ -123,6 +123,8 @@ Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `fr
 | Variable | File | Purpose |
 |---|---|---|
 | `GROQ_API_KEY`, `GROQ_API_KEY_1..4` | `backend/.env` | AI judge, explanations and chat. Keys are tried in order; the next key is used on 429 / 401 / 403 / 404. Keys of one Groq organization share one daily quota. |
+| `API_KEY` | `backend/.env` | When set, every `/api` request must send it as an `X-API-Key` header or gets 401. Empty (default) = no key, as the demo runs. |
+| `CORS_ORIGINS` | `backend/.env` | Origins allowed to call the API: `*` (default) or a comma-separated list. |
 | `ADAPTIVE_DB_PATH` | `backend/.env` | SQLite database for recognizers, learned mappings, rejected lines and the AI judge cache. Default `backend/data/adaptive.db`. |
 | `AI_JUDGE_MAX_CALLS_PER_SCAN` | `backend/.env` | AI judge requests per scan (default 2; cache hits are free). |
 | `VENDOR_PARSE_COVERAGE_THRESHOLD` | `backend/.env` | Share of lines that must follow the detected vendor's grammar (default 0.7). |

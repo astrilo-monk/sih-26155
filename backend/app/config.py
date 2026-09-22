@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     app_name: str = "NetAuditAI"
     debug: bool = True
 
+    # When set, every /api route requires it in an X-API-Key header. Empty = open, as the demo runs.
+    api_key: str = ""
+    # Origins allowed to call the API: "*" or a comma-separated list of origins
+    cors_origins: str = "*"
+
     groq_api_key: str = ""
     groq_api_key_1: str = ""
     groq_api_key_2: str = ""
