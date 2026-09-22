@@ -134,3 +134,27 @@ def test_empty_config_detection():
     """Empty or garbage text should return UNKNOWN vendor."""
     assert detect_vendor("") == Vendor.UNKNOWN
     assert detect_vendor("hello world this is not a config") == Vendor.UNKNOWN
+
+
+FORTI_HEADER = "#config-version=FGT60D-6.00-FW-build0163-180510:opmode=0:vdom=0:user=admin\n#buildno=0163\n#global_vdom=1\n"
+
+
+def test_fortinet_header_states_model_and_firmware_and_nothing_else():
+    config = (FIXTURES / "fortinet_vulnerable.cfg").read_text()
+    with_header = FortinetParser().parse(FORTI_HEADER + config)
+    assert with_header.device.model == "FGT60D"
+    assert with_header.device.os_version == "6.00 build0163"
+    assert 1 in with_header.device.source_lines
+    # identification only: the same controls decide the same way
+    plain = FortinetParser().parse(config)
+    outcome = lambda c: [(r.control_id, r.status) for r in analyze(c).device_results[0]]
+    assert outcome(with_header) == outcome(plain)
+
+
+def test_fortinet_without_header_states_no_model_or_firmware():
+    body = (FIXTURES / "fortinet_vulnerable.cfg").read_text().split("config system global", 1)[1]
+    config = FortinetParser().parse("config system global" + body)
+    assert config.device.model is None and config.device.os_version is None
+    # a header-shaped comment after the first statement is not the export header
+    late = FortinetParser().parse("config system global\nend\n" + FORTI_HEADER)
+    assert late.device.model is None

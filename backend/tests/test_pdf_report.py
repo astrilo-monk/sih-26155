@@ -124,7 +124,7 @@ def test_no_secret_of_the_configuration_reaches_the_report(client):
 
 def test_serial_numbers_and_hardware_are_not_invented(client):
     body = text_of(client, upload(client, "cisco.cfg", CISCO_WITH_SECRETS))
-    assert "Serial number, chassis and hardware inventory are not part of a device configuration" in body
+    assert "Serial number and chassis details are not part of a device configuration" in body
     assert "EDGE-TEST-01" in body
 
 

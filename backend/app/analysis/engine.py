@@ -49,6 +49,7 @@ def analyze(config: NormalizedConfig) -> ScanResult:
             "hostname": config.device.hostname,
             "vendor": config.device.vendor.value,
             "os_version": config.device.os_version or "unknown",
+            "model": config.device.model,
             "assessed": assessed,
         }],
         device_results=[results],

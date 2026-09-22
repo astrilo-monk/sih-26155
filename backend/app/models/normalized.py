@@ -250,6 +250,7 @@ class DeviceInfo:
     hostname: str = "unknown"
     vendor: Vendor = Vendor.UNKNOWN
     os_version: Optional[str] = None
+    model: Optional[str] = None  # hardware platform, only when the configuration states it
     source_lines: list[int] = field(default_factory=list)
 
 

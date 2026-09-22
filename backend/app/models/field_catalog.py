@@ -166,6 +166,8 @@ FIELD_REGISTRY: dict[str, FieldTypeInfo] = dict([
            "Name the device identifies itself with"),
     _field("device.os_version", TYPE_OPTIONAL_STR, "OS / firmware version",
            "Operating system or firmware version string"),
+    _field("device.model", TYPE_OPTIONAL_STR, "Hardware model",
+           "Hardware platform or model the configuration states, e.g. FGT60D"),
 
     # ManagementAccess
     _field("management.ssh_enabled", TYPE_BOOL, "SSH management enabled",

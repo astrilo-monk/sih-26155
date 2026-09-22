@@ -1,3 +1,4 @@
+import re
 import shlex
 import collections
 from typing import List, Tuple, Dict
@@ -8,6 +9,10 @@ from app.models.normalized import (
     Authentication, LocalUser, SnmpConfig, SnmpCommunity, LoggingConfig,
     NtpConfig, FirewallPolicy, VpnConfig, IpsecProposal, BannerConfig, ServiceConfig
 )
+
+# Export header, e.g. #config-version=FGT60D-6.00-FW-build0163-180510:opmode=0:vdom=0:user=admin
+_CONFIG_VERSION = re.compile(r"^#\s*config-version=([A-Za-z0-9]+)-(\d+(?:\.\d+)+)-FW-(build\d+)\b", re.IGNORECASE)
+
 
 class FortinetParser(BaseParser):
     """
@@ -22,6 +27,7 @@ class FortinetParser(BaseParser):
         norm = NormalizedConfig(raw_config=raw_config, raw_lines=self._index_lines(raw_config))
         norm.device.vendor = Vendor.FORTINET
         
+        self._parse_header(norm)
         commands = self._parse_blocks(norm.raw_lines)
         groups = collections.defaultdict(list)
         for ctx, line_num, cmd in commands:
@@ -41,6 +47,21 @@ class FortinetParser(BaseParser):
 
         return norm
         
+    def _parse_header(self, norm: NormalizedConfig):
+        """Model and firmware from the leading #config-version comment; nothing when it is absent."""
+        for i, line in enumerate(norm.raw_lines, 1):
+            text = line.strip()
+            if not text:
+                continue
+            if not text.startswith("#"):
+                return  # the header only precedes the first statement
+            m = _CONFIG_VERSION.match(text)
+            if m:
+                norm.device.model = m.group(1)
+                norm.device.os_version = f"{m.group(2)} {m.group(3)}"
+                norm.device.source_lines.append(i)
+                return
+
     def _parse_blocks(self, lines: list[str]) -> list[tuple[list[str], int, str]]:
         """
         Convert flat lines into a list of contextualized commands.
