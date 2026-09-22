@@ -30,6 +30,7 @@ import json
 import logging
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Optional
 
 from app.adaptive.context import _header, structural_paths
@@ -322,8 +323,9 @@ def _cache_get(key: str) -> Optional[list]:
 def _cache_put(key: str, proposals: list) -> None:
     try:
         with get_connection() as conn:
-            conn.execute("INSERT OR REPLACE INTO ai_judge_cache (key, response, created_at) "
-                         "VALUES (?, ?, datetime('now'))", (key, json.dumps(proposals)))
+            conn.execute("INSERT INTO ai_judge_cache (key, response, created_at) VALUES (?, ?, ?) "
+                         "ON CONFLICT (key) DO UPDATE SET response = excluded.response, created_at = excluded.created_at",
+                         (key, json.dumps(proposals), datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")))
     except Exception as e:
         logger.warning("AI judge cache unavailable: %s", e)
 

@@ -6,6 +6,9 @@ pydantic>=2.0.0
 pydantic-settings>=2.0.0
 python-dotenv>=1.0.0
 
+# Postgres (optional, used when DATABASE_URL is set)
+psycopg[binary,pool]>=3.1
+
 # PDF reporting
 reportlab>=4.0
 

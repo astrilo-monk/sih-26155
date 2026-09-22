@@ -33,6 +33,9 @@ class Settings(BaseSettings):
 
     # SQLite database holding administrator-confirmed adaptive mappings
     adaptive_db_path: Path = _BACKEND_DIR / "data" / "adaptive.db"
+    # Postgres (e.g. Supabase) instead of the SQLite file above, so learned knowledge survives a host whose disk is
+    # wiped on restart. Empty = SQLite.
+    database_url: str = ""
 
     # LEGACY, isolated: send lines the Cisco/FortiGate parsers do not read to the line-by-line interpreter
     # (app.adaptive.interpreter). The Phase 7 judge never escalates confirmed vendors, so it cannot replace this

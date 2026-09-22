@@ -25,6 +25,8 @@ def isolated_adaptive_db(tmp_path, monkeypatch):
 
     db_path = tmp_path / "adaptive.db"
     monkeypatch.setattr(app_config.settings, "adaptive_db_path", db_path)
+    # a dev .env may point at a real Postgres: tests always use their own SQLite file
+    monkeypatch.setattr(app_config.settings, "database_url", "")
     # marking the path as already seeded is what keeps the shipped recognizers out
     monkeypatch.setattr(database, "_SEEDED", {db_path})
     yield db_path

@@ -126,7 +126,7 @@ def test_runtime_learning_and_seed_knowledge_both_survive_a_new_process(tmp_path
     code = ("import json;"
             "from app.db.mappings import MappingRepository;"
             "print(json.dumps([m.source for m in MappingRepository().list_mappings()]))")
-    env = {**os.environ, "ADAPTIVE_DB_PATH": str(db)}
+    env = {**os.environ, "ADAPTIVE_DB_PATH": str(db), "DATABASE_URL": ""}
     done = subprocess.run([sys.executable, "-c", code], cwd=BACKEND, env=env, capture_output=True, text=True,
                           timeout=180)
     assert done.returncode == 0, done.stderr

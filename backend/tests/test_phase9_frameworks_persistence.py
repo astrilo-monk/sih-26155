@@ -183,7 +183,7 @@ print(json.dumps({"status": r["status"], "assurance": r["assurance"], "lines": r
 
 def _backend_process(code: str, db: Path) -> dict:
     """A fresh Python process: nothing survives from the previous one except the database file."""
-    env = {**os.environ, "ADAPTIVE_DB_PATH": str(db),
+    env = {**os.environ, "ADAPTIVE_DB_PATH": str(db), "DATABASE_URL": "",
            **{key: "" for key in ("GROQ_API_KEY", "GROQ_API_KEY_1", "GROQ_API_KEY_2", "GROQ_API_KEY_3", "GROQ_API_KEY_4")}}
     done = subprocess.run([sys.executable, "-c", code], cwd=BACKEND, env=env, capture_output=True, text=True,
                           timeout=180)

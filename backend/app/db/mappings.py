@@ -44,7 +44,7 @@ from app.adaptive.matcher import (
     validate_pattern,
 )
 from app.ai.redaction import redact_line
-from app.db.database import get_connection
+from app.db.database import _database_url, get_connection
 from app.facts.predicates import FIELD_PREDICATES
 from app.facts.recognizers import RecognizerError, validate_recognizer
 
@@ -248,14 +248,33 @@ def validate_mapping(mapping: LearnedMapping) -> LearnedMapping:
     return mapping
 
 
+# Postgres reads, per database URL: a scan reads the store several times and every round trip to a hosted
+# database costs a few hundred milliseconds. Every write below goes through this module and clears it.
+# ponytail: per-process cache, correct for one backend instance; with several instances a write on one leaves the
+# others stale until they restart -move to LISTEN/NOTIFY or a short TTL before scaling out.
+_PG_READS: dict[tuple, Any] = {}
+
+
 class MappingRepository:
-    """SQLite-backed store of learned mappings and rejected lines."""
+    """Store of learned mappings and rejected lines (SQLite, or Postgres when DATABASE_URL is set)."""
 
     def __init__(self, db_path: Path | str | None = None):
         self._db_path = db_path
 
     def _conn(self):
         return get_connection(self._db_path)
+
+    def _cached(self, key: str, read):
+        url = _database_url(self._db_path)
+        if not url:
+            return read()
+        if (url, key) not in _PG_READS:
+            _PG_READS[(url, key)] = read()
+        return _PG_READS[(url, key)]
+
+    @staticmethod
+    def _written() -> None:
+        _PG_READS.clear()
 
     # ── mappings ────────────────────────────────────────────────────────────
 
@@ -268,12 +287,14 @@ class MappingRepository:
         with self._conn() as conn:
             self._raise_on_conflict(conn, mapping)
             now = _now()
-            cur = conn.execute(
+            row = conn.execute(
                 f"INSERT INTO learned_mappings ({', '.join(_COLUMNS)}, created_at, updated_at) "
-                f"VALUES ({', '.join('?' * len(_COLUMNS))}, ?, ?)",
+                f"VALUES ({', '.join('?' * len(_COLUMNS))}, ?, ?) RETURNING id",
                 (*_values(mapping), now, now),
-            )
-            return dataclasses.replace(mapping, id=cur.lastrowid, created_at=now, updated_at=now)
+            ).fetchone()
+        # after the commit: a read in between would otherwise cache the old list
+        self._written()
+        return dataclasses.replace(mapping, id=row["id"], created_at=now, updated_at=now)
 
     def get_mapping(self, mapping_id: int) -> LearnedMapping:
         with self._conn() as conn:
@@ -286,9 +307,12 @@ class MappingRepository:
         query = "SELECT * FROM learned_mappings"
         if not include_inactive:
             query += " WHERE active = 1"
-        with self._conn() as conn:
-            rows = conn.execute(query + " ORDER BY id").fetchall()
-        return [_row_to_mapping(r) for r in rows]
+
+        def read():
+            with self._conn() as conn:
+                return conn.execute(query + " ORDER BY id").fetchall()
+        # fresh objects each call: callers may change a mapping without writing it
+        return [_row_to_mapping(r) for r in self._cached(query, read)]
 
     def find_matching_mappings(self, raw_line: str) -> list[MappingMatch]:
         """Confirmed, active mappings whose pattern matches the line exactly."""
@@ -317,6 +341,7 @@ class MappingRepository:
                 f"UPDATE learned_mappings SET {', '.join(f'{c} = ?' for c in _COLUMNS)}, updated_at = ? WHERE id = ?",
                 (*_values(updated), now, mapping_id),
             )
+        self._written()
         return dataclasses.replace(updated, updated_at=now)
 
     def disable_mapping(self, mapping_id: int, actor: str) -> LearnedMapping:
@@ -339,17 +364,20 @@ class MappingRepository:
         with self._conn() as conn:
             conn.execute(
                 """
-                INSERT OR IGNORE INTO rejected_lines (line_key, raw_line, vendor, reason, created_at)
+                INSERT INTO rejected_lines (line_key, raw_line, vendor, reason, created_at)
                 VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT (line_key) DO NOTHING
                 """,
                 (rejection_key(raw_line), redact_line(raw_line).strip(), vendor, reason, _now()),
             )
+        self._written()
 
     def rejected_line_keys(self) -> set[str]:
         """Keys to compare with ``rejection_key(line)``."""
-        with self._conn() as conn:
-            rows = conn.execute("SELECT line_key FROM rejected_lines").fetchall()
-        return {r["line_key"] for r in rows}
+        def read():
+            with self._conn() as conn:
+                return conn.execute("SELECT line_key FROM rejected_lines").fetchall()
+        return {r["line_key"] for r in self._cached("rejected_lines", read)}
 
     def is_rejected(self, raw_line: str) -> bool:
         return rejection_key(raw_line) in self.rejected_line_keys()
