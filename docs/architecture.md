@@ -279,14 +279,15 @@ administrator; AI output never becomes a recognizer by itself.
 | `learned_mappings` | Recognizers (shipped `seed` and taught `runtime`) and learned field mappings | Yes | Refused at save |
 | `rejected_lines` | Rejected lines (redacted text, key from the redacted line) | Yes | Redacted |
 | `ai_judge_cache` | Verified AI answers keyed by a hash of the redacted prompt | Yes | Prompts were redacted |
-| Backend memory (`_scan_store`) | Scan results, parsed configurations | No | -|
+| `scans` | Each scan's redacted response and remediation plans, as the browser saw them | Yes | Redacted; the configuration itself is never stored |
+| Backend memory (`_scan_store`) | Parsed configurations of scans being worked on (teach, fix) | No | -|
 | Browser `localStorage` | History summaries (hostnames, vendors, posture, coverage, counts) | Browser only | None stored |
 
-The three tables live in SQLite at `ADAPTIVE_DB_PATH` (default `backend/data/adaptive.db`), or in Postgres when
+The tables live in SQLite at `ADAPTIVE_DB_PATH` (default `backend/data/adaptive.db`), or in Postgres when
 `DATABASE_URL` is set (e.g. Supabase, for a host whose disk is wiped on restart). `app/db/database.py` writes the
 SQL once for both (`ON CONFLICT`, `RETURNING`); Postgres connections are pooled and reads are cached per process,
 cleared on every write. Migrations are tracked with `PRAGMA user_version` on SQLite and a `schema_version` table on
-Postgres. Tests always use SQLite. Uploaded files are never written to disk. `tests/test_phase9_frameworks_persistence.py`
+Postgres. Tests always use SQLite. Uploaded files are never written to disk. After a restart an archived scan reopens read-only -results, frameworks, remediation plan, PDF- and teaching or fixing it asks for the configuration again (409), because the configuration holds secrets and is not kept (`tests/test_scan_archive.py`). `tests/test_phase9_frameworks_persistence.py`
 saves a recognizer in one Python process and proves a second process reuses it;
 `tests/test_seed_knowledge.py` proves the same for shipped seed knowledge alongside it.
 

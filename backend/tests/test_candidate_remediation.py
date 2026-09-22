@@ -610,7 +610,8 @@ def test_api_the_verified_copy_lives_only_in_scan_memory():
 
     # and it lives no longer than the scan that produced it
     get_scan_store().pop(scan["scan_id"])
-    assert _download(client, body).status_code == 404
+    # the archived scan keeps its results, never the copy: acting on it asks for the configuration again
+    assert _download(client, body).status_code == 409
 
 
 def test_api_a_confirmed_vendor_has_no_candidate_download():

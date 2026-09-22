@@ -74,10 +74,20 @@ MIGRATIONS: list[str] = [
     """
     ALTER TABLE learned_mappings ADD COLUMN source TEXT NOT NULL DEFAULT 'runtime';
     """,
+    # v5 -scan history: the redacted scan response and remediation plans, never the configuration
+    """
+    CREATE TABLE IF NOT EXISTS scans (
+        scan_id     TEXT PRIMARY KEY,
+        created_at  TEXT NOT NULL,
+        updated_at  TEXT NOT NULL,
+        response    TEXT NOT NULL,
+        plans       TEXT NOT NULL DEFAULT '[]'
+    );
+    """,
 ]
 
 
-# Postgres (Supabase): the same schema as SQLite migrations v1-v4, in Postgres types. A later SQLite
+# Postgres (Supabase): the same schema as SQLite migrations v1-v4 (then v5), in Postgres types. A later SQLite
 # migration needs its Postgres counterpart appended here.
 PG_MIGRATIONS: list[str] = [
     """
@@ -116,6 +126,16 @@ PG_MIGRATIONS: list[str] = [
         key         TEXT PRIMARY KEY,
         response    TEXT NOT NULL,
         created_at  TEXT NOT NULL
+    );
+    """,
+    # SQLite v5
+    """
+    CREATE TABLE IF NOT EXISTS scans (
+        scan_id     TEXT PRIMARY KEY,
+        created_at  TEXT NOT NULL,
+        updated_at  TEXT NOT NULL,
+        response    TEXT NOT NULL,
+        plans       TEXT NOT NULL DEFAULT '[]'
     );
     """,
 ]

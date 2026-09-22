@@ -29,8 +29,9 @@ from fastapi.responses import Response
 from app.ai.client import is_available
 from app.ai.redaction import Redactor
 from app.ai.remediation import propose_candidate
+from app.db.scans import load_scan
 from app.api.routes.scan import (
-    _device_results, config_redactor, display_scrub, get_scan_store, redact_config_text, redact_lines,
+    _device_results, config_redactor, display_scrub, get_scan_store, live_scan, redact_config_text, redact_lines,
 )
 from app.api.schemas import (
     DeviceRemediationPlanSchema, DownloadFixedRequest, EvidenceSchema, PostureSummarySchema,
@@ -49,9 +50,7 @@ router = APIRouter()
 
 
 def _stored(scan_id: str) -> dict:
-    stored = get_scan_store().get(scan_id)
-    if not stored:
-        raise HTTPException(404, "Scan not found")
+    stored = live_scan(scan_id)
     if not stored.get("configs"):
         raise HTTPException(400, "No configs available")
     return stored
@@ -203,7 +202,13 @@ def _device_plan(stored: dict, index: int, inputs: dict) -> DeviceRemediationPla
 
 @router.post("/remediation/plan", response_model=RemediationPlanResponse)
 async def remediation_plan(req: RemediationPlanRequest):
-    """Remediate every failing control of every device; each change verified by a rescan."""
+    """Remediate every failing control of every device; each change verified by a rescan.
+
+    A scan restored from history answers with the plans archived when it was scanned (default inputs)."""
+    if req.scan_id not in get_scan_store() and (archived := load_scan(req.scan_id)) is not None:
+        return RemediationPlanResponse(
+            scan_id=req.scan_id, inputs=[_input_schema(n) for n in INPUTS],
+            devices=[DeviceRemediationPlanSchema(**p) for p in archived[1] if p is not None])
     stored = _stored(req.scan_id)
     inputs = _inputs(req.inputs)
     return RemediationPlanResponse(

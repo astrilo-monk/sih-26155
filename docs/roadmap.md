@@ -13,6 +13,7 @@ The implementation record is [plan.md](../plan.md). Summary:
 - [x] Shipped seed knowledge: 96 generalized recognizers for eight unparsed dialects and AWS security groups
 - [x] Structured (JSON) configurations flattened to one statement per object, so cloud rules are read and teachable
 - [x] Serial number / model / OS version reported when the uploaded text states them
+- [x] Scan history survives a restart: a redacted copy of each scan and its plans (`scans` table)
 - [x] AI judge: budgeted, cached, citations verified, proposals never scored
 - [x] Deterministic, vendor-aware remediation verified by rescan
 - [x] Candidate remediation for unconfirmed vendors (typed, AI-proposed or derived), simulated on a copy
@@ -24,7 +25,7 @@ The implementation record is [plan.md](../plan.md). Summary:
 
 ## Not implemented (possible next steps)
 - [ ] Users and roles for review, recognizer and remediation endpoints (today: one optional shared key)
-- [ ] Persistent scan storage (today: memory only) and replay of recognizers against stored history
+- [ ] Replay of new recognizers against archived scans (the archive holds results, not configurations)
 - [ ] Pin the DISA SRG ids to a downloaded NDM SRG revision; CIS Controls v8 and PCI DSS mappings
 - [ ] AI escalation for UNKNOWN controls of confirmed vendors (decide, or drop the legacy interpreter)
 - [ ] Remove the deprecated `score` once no script depends on it

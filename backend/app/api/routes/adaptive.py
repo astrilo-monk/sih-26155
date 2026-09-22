@@ -46,6 +46,7 @@ from app.api.routes.scan import (
     config_redactor,
     display_scrub,
     get_scan_store,
+    live_scan,
     reanalyze_scan,
     redact_lines,
 )
@@ -115,10 +116,7 @@ def _mapping_schema(m: LearnedMapping) -> LearnedMappingSchema:
 # ── Review queue helpers ──────────────────────────────────────────────────────
 
 def _get_entry(scan_id: str) -> dict:
-    entry = get_scan_store().get(scan_id)
-    if not entry:
-        raise HTTPException(404, "Scan not found")
-    return entry
+    return live_scan(scan_id)
 
 
 def _item_id(config_index: int, line_number: int) -> str:

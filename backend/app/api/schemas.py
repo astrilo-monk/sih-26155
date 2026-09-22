@@ -217,6 +217,8 @@ class FindingSchema(BaseModel):
 class ScanResultResponse(BaseModel):
     scan_id: str
     timestamp: str
+    # Restored from the scan archive after a restart: viewable and reportable, not teachable or fixable
+    archived: bool = False
     # DEPRECATED (Phase 3): legacy 100 - penalties score; use posture + coverage
     score: Optional[int] = None
     # Weighted PASS / (PASS + FAIL) over decisive results; None when nothing was decided

@@ -212,6 +212,6 @@ def test_cis_motd_banner_is_not_claimed(client):
 
 def test_scan_status_reports_whether_the_backend_holds_a_scan(client):
     data = _scan(client, ("unknown.cfg", UNKNOWN_WITH_SECRETS))
-    assert client.get(f"/api/scan/{data['scan_id']}/status").json() == {"scan_id": data["scan_id"], "held": True}
+    assert client.get(f"/api/scan/{data['scan_id']}/status").json() == {"scan_id": data["scan_id"], "held": True, "archived": False}
     gone = client.get("/api/scan/no-such-scan/status")
-    assert gone.status_code == 200 and gone.json() == {"scan_id": "no-such-scan", "held": False}
+    assert gone.status_code == 200 and gone.json() == {"scan_id": "no-such-scan", "held": False, "archived": False}

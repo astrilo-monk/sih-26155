@@ -116,9 +116,11 @@ def test_multi_device_scan_scopes_benchmarks_per_vendor():
 # ── secrets never persisted ─────────────────────────────────────────────────
 
 def _database_text(path: Path) -> str:
+    """Everything the knowledge tables hold. The scan archive keeps redacted results -evidence lines
+    included- by design, and has its own no-secret test (test_scan_archive.py)."""
     conn = sqlite3.connect(path)
     try:
-        tables = [t for (t,) in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")]
+        tables = [t for (t,) in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'") if t != "scans"]
         return "\n".join(str(row) for t in tables for row in conn.execute(f"SELECT * FROM {t}"))
     finally:
         conn.close()

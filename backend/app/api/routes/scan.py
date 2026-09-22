@@ -46,6 +46,7 @@ from app.config import settings
 from app.adaptive import capture_unrecognized_lines
 from app.adaptive.context import structural_paths
 from app.ai.redaction import Redactor, placeholder
+from app.db.scans import load_scan, save_scan
 from app.facts.heuristics import generic_hostname, stated_identity
 from app.structure.structured import flatten_json
 from app.adaptive.interpreter import interpret_lines
@@ -60,8 +61,9 @@ from app.ai.judge import Budget, judge_config
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# Keep scan results in memory for the demo.
-# A real product would use a database.
+# Scans being worked on stay in memory (teaching and remediation need the configuration); a redacted copy of
+# each is archived in the database (app.db.scans), so history survives a restart.
+# ponytail: the archive is never pruned; add a retention limit if it grows past what the database should hold.
 _scan_store: dict[str, dict] = {}
 
 def config_redactor(configs) -> Redactor:
@@ -373,6 +375,26 @@ def reanalyze_scan(scan_id: str) -> None:
     entry["result"] = result
     entry["is_adaptive_only"] = False
     entry["timestamp"] = result.timestamp
+    archive_scan(scan_id)
+
+
+def archive_scan(scan_id: str) -> None:
+    """Persist what the browser sees of this scan (redacted), so history survives a restart (app.db.scans)."""
+    from app.api.routes.remediation import _device_plan  # remediation imports this module
+
+    plans = []
+    for index in range(len(_scan_store[scan_id]["configs"])):
+        try:
+            plans.append(_device_plan(_scan_store[scan_id], index, {}).model_dump(mode="json"))
+        except Exception:  # a scan is worth keeping even when remediation cannot be planned
+            plans.append(None)
+    save_scan(scan_id, _scan_store[scan_id]["timestamp"], build_scan_response(scan_id).model_dump(mode="json"), plans)
+
+
+def archived_scan(scan_id: str) -> Optional[ScanResultResponse]:
+    """A scan this process no longer holds, restored read-only from the archive, or None."""
+    stored = load_scan(scan_id)
+    return ScanResultResponse(**{**stored[0], "archived": True}) if stored else None
 
 
 def is_configuration(config: NormalizedConfig) -> bool:
@@ -576,6 +598,8 @@ async def scan_configs(files: list[UploadFile] = File(...)):
 
     if not (had_unknown_vendor and not had_ai_available and not anything_applied):
         reanalyze_scan(scan_id)
+    else:
+        archive_scan(scan_id)
 
     return build_scan_response(scan_id)
 
@@ -584,22 +608,39 @@ async def scan_configs(files: list[UploadFile] = File(...)):
 async def get_scan(scan_id: str):
     """Retrieve a previous scan result."""
     if scan_id not in _scan_store:
+        if archived := archived_scan(scan_id):
+            return archived
         raise HTTPException(404, "Scan not found")
     return build_scan_response(scan_id)
 
 
 @router.get("/scan/{scan_id}/status")
 async def scan_status(scan_id: str):
-    """Whether this backend still holds the scan (results live in memory until it restarts).
+    """Whether this backend can open the scan: in memory (``archived`` false), or restored read-only from the
+    scan archive after a restart (``archived`` true).
 
     Always 200: history checks every stored entry, and an expired scan is an answer, not an error.
     """
-    return {"scan_id": scan_id, "held": scan_id in _scan_store}
+    if scan_id in _scan_store:
+        return {"scan_id": scan_id, "held": True, "archived": False}
+    archived = load_scan(scan_id) is not None
+    return {"scan_id": scan_id, "held": archived, "archived": archived}
 
 
 def get_scan_store() -> dict:
     """Expose store for other routes that need scan data."""
     return _scan_store
+
+
+def live_scan(scan_id: str) -> dict:
+    """The in-memory scan an action needs; an archived scan is explained, not reported missing."""
+    entry = _scan_store.get(scan_id)
+    if entry:
+        return entry
+    if load_scan(scan_id) is not None:
+        raise HTTPException(409, "This scan was restored from history: its configuration is not kept, because it "
+                                 "holds secrets. Upload the configuration again to teach or fix it.")
+    raise HTTPException(404, "Scan not found")
 
 
 def get_scan_result_or_409(stored: dict):

@@ -5,7 +5,7 @@ import { clearScanHistory, getScanHistory, markScansExpired } from '../utils/his
 import { navigate } from '../lib/hooks';
 import { vendorName } from '../lib/domain';
 
-// Summaries live in this browser; full results live in backend memory until it restarts. Each entry is checked,
+// Summaries live in this browser; the backend archives a redacted copy of every scan. Each entry is checked,
 // and one the backend no longer holds is marked expired and never reopened.
 export default function History({ onScansExpired }) {
   const [history, setHistory] = useState(() => getScanHistory());

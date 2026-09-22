@@ -1,6 +1,6 @@
 // Scan history kept in this browser. Only a summary is stored -never findings, evidence or configuration
-// lines (they can hold secrets). Opening an entry fetches the scan from the backend, which keeps scans in
-// memory until it restarts: an entry the backend no longer holds is marked expired, never reopened.
+// lines (they can hold secrets). Opening an entry fetches the scan from the backend, which archives a redacted
+// copy of every scan: an entry the backend cannot open at all is marked expired, never reopened.
 // TODO: once auth lands, scope per-user, e.g. `netauditai_scan_history_${userId}`.
 export function getHistoryStorageKey() {
   return "netauditai_scan_history";

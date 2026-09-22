@@ -20,7 +20,9 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 
 from app.api.routes.remediation import _device_plan, _inputs, _stored
-from app.api.routes.scan import build_scan_response
+from app.api.routes.scan import archived_scan, build_scan_response, get_scan_store
+from app.api.schemas import DeviceRemediationPlanSchema
+from app.db.scans import load_scan
 from app.reporting.report import device_report_pdf
 
 router = APIRouter()
@@ -42,24 +44,38 @@ def _filename(hostname: str) -> str:
 
 @router.post("/report")
 async def compliance_report(req: ReportRequest):
-    """The compliance report as PDF. One device → a PDF; several → a .zip of one PDF per device."""
-    stored = _stored(req.scan_id)
-    inputs = _inputs(req.inputs)
-    count = len(stored["configs"])
+    """The compliance report as PDF. One device → a PDF; several → a .zip of one PDF per device.
+
+    A scan restored from the archive after a restart is reported from its stored (redacted) response and the
+    remediation plans made with default inputs when it was scanned."""
+    if req.scan_id in get_scan_store():
+        stored = _stored(req.scan_id)
+        inputs = _inputs(req.inputs)
+        scan = build_scan_response(req.scan_id)
+
+        def plan_for(index):
+            return _device_plan(stored, index, inputs)
+    else:
+        scan, plans = archived_scan(req.scan_id), (load_scan(req.scan_id) or (None, []))[1]
+        if scan is None:
+            raise HTTPException(404, "Scan not found")
+
+        def plan_for(index):
+            return DeviceRemediationPlanSchema(**plans[index])
+
+    count = len(scan.devices)
     if req.config_index is not None and not 0 <= req.config_index < count:
         raise HTTPException(404, f"This scan has no configuration {req.config_index}")
     indexes = [req.config_index] if req.config_index is not None else list(range(count))
 
-    scan = build_scan_response(req.scan_id)
     reports = []
     for index in indexes:
         try:
-            plan = _device_plan(stored, index, inputs)
+            plan = plan_for(index)
         except Exception:
             # A report is worth having even when remediation cannot be planned; the section says so.
             plan = None
-        hostname = stored["configs"][index].device.hostname
-        reports.append((hostname, device_report_pdf(scan, index, plan)))
+        reports.append((scan.devices[index].get("hostname"), device_report_pdf(scan, index, plan)))
 
     if len(reports) == 1:
         hostname, pdf = reports[0]

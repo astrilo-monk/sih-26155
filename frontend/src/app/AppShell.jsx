@@ -38,7 +38,7 @@ function ScanUnavailable({ opening, openError }) {
     return (
       <div className="wrap empty-state enter">
         <h1 className="page-title">This scan is no longer available.</h1>
-        <p className="lede">Scan results are kept only until the backend restarts. Nothing from the configuration was kept in this browser -upload it again to scan it.</p>
+        <p className="lede">The backend has no record of it. Nothing from the configuration was kept in this browser -upload it again to scan it.</p>
         <div className="actions">
           <a className="btn btn-primary" href="#/app">Scan again</a>
           <a className="btn" href="#/app/history">History</a>
@@ -201,6 +201,14 @@ export default function AppShell({ path }) {
         {route.page === 'new' && <Upload onScan={handleScan} scanning={scanning} error={uploadError} currentScan={scan} />}
         {route.page === 'scan' && (current ? (
           <>
+            {current.archived && (
+              <div className="wrap">
+                <Notice label="From history">
+                  <strong>This scan was restored from history.</strong>
+                  <span>Its results and PDF report are kept; its configuration is not, because it holds secrets. Upload it again to teach or fix it.</span>
+                </Notice>
+              </div>
+            )}
             {route.view === 'overview' && <Results {...shared} go={go} onTeach={openTeach} />}
             {route.view === 'fix' && <Fix {...shared} onTeach={() => openTeach()} />}
             {route.view === 'teach' && <LearningFlow scanHref={scanHref('teach')} here="teach" />}
