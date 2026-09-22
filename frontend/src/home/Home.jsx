@@ -133,7 +133,7 @@ function EvidenceChain() {
             <span className="fact-pred">mgmt.remote_access.protocol_enabled</span>
             <span className="fact-subj"> · telnet</span> <span className="fact-eq">=</span> <span className="fact-val">true</span>
           </p>
-          <p className="chain-note">scope <span className="mono">line vty 0 4</span> · Cisco IOS parser</p>
+          <p className="chain-note">scope <span className="code">line vty 0 4</span> · Cisco IOS parser</p>
         </li>
         <li className={`chain-step ${stageClass(on, 2)}`}>
           <div className="chain-label"><span className="sec-no">03</span> Control</div>
@@ -228,8 +228,8 @@ function LearningLoop() {
           <span className="learn-no mono">D</span>
           <h3>Typed recognizer</h3>
           <dl className="kv learn-kv">
-            <dt>Template</dt><dd className="mono">remote-console protocol {'{enum:protocol}'}</dd>
-            <dt>Value</dt><dd className="mono">{'{"telnet": true, "*": false}'}</dd>
+            <dt>Template</dt><dd className="code">remote-console protocol {'{enum:protocol}'}</dd>
+            <dt>Value</dt><dd className="code">{'{"telnet": true, "*": false}'}</dd>
             <dt>Replay</dt><dd className="mono">MGMT-001: fail (heuristic) → fail (confirmed)</dd>
           </dl>
         </li>

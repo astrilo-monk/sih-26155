@@ -52,7 +52,7 @@ function AdvancedDraft({ scanId, base, item, line, edits, setEdits }) {
       <dl className="kv">
         <dt>Check</dt><dd><span className="mono">{item.control_id}</span> {item.question}</dd>
         <dt>Current result</dt><dd>{item.status} -{item.reason}</dd>
-        <dt>Line</dt><dd className="mono">{line.line_number}: {line.text}</dd>
+        <dt>Line</dt><dd className="code">{line.line_number}: {line.text}</dd>
         {line.predicate && <><dt>Our reading</dt><dd className="mono">{line.predicate}{line.subject ? ` · ${line.subject}` : ''} = {fmtValue(line.value)}</dd></>}
       </dl>
       {!preview && <button type="button" className="btn btn-sm" onClick={() => load(base)}>Show the rule NetAuditAI would save</button>}
@@ -62,12 +62,12 @@ function AdvancedDraft({ scanId, base, item, line, edits, setEdits }) {
           <div className="fields">
             <label className="field">
               <span className="field-label">Template</span>
-              <input className="input mono" aria-label="Template" value={current.command_pattern} onChange={edit('command_pattern')} />
+              <input className="input code" aria-label="Template" value={current.command_pattern} onChange={edit('command_pattern')} />
               <span className="field-help">Slots: {'{int} {ip} {duration:min|s|h} {enum:name} {polarity} {any}'}</span>
             </label>
             <label className="field">
               <span className="field-label">Scope (optional)</span>
-              <input className="input mono" aria-label="Scope" value={current.scope_template} onChange={edit('scope_template')} />
+              <input className="input code" aria-label="Scope" value={current.scope_template} onChange={edit('scope_template')} />
             </label>
             <label className="field">
               <span className="field-label">Value (JSON)</span>
@@ -319,7 +319,7 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
                           <input type="radio" name="teach-line" checked={line === l.line_number}
                             onChange={() => { setLine(l.line_number); setChoice(''); setEdits(null); }} />
                           <span>
-                            <code className="mono">{l.line_number}: {l.text}</code>
+                            <code className="code">{l.line_number}: {l.text}</code>
                             {l.scope_path?.length > 0 && <span className="small muted"> in {l.scope_path.join(' › ')}</span>}
                             {sayFact(l) && <span className="teach-guess"> We think it {sayFact(l)}.</span>}
                           </span>
@@ -439,7 +439,7 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
                   {() => (
                     <dl className="kv">
                       <dt>Saved rule</dt><dd className="mono">#{phase.saved.mapping.id}</dd>
-                      {phase.saved.mapping.command_pattern && <><dt>Template</dt><dd className="mono">{phase.saved.mapping.command_pattern}</dd></>}
+                      {phase.saved.mapping.command_pattern && <><dt>Template</dt><dd className="code">{phase.saved.mapping.command_pattern}</dd></>}
                       <dt>Replay</dt>
                       <dd className="mono">{phase.saved.replay.map((c) => `${c.hostname} · ${c.control_id}: ${c.before} → ${c.after}`).join('; ') || 'no change'}</dd>
                     </dl>

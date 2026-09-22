@@ -110,7 +110,7 @@ export function CandidateFix({ item, audit }) {
       <label className="field">
         <span className="field-label">Command for this device</span>
         <textarea
-          className="input mono" rows={3} aria-label="Command for this device" name="candidate-command"
+          className="input code" rows={3} aria-label="Command for this device" name="candidate-command"
           value={command} onChange={(e) => setCommand(e.target.value)}
           placeholder={item.primary?.evidence?.lines?.[0] ? `e.g. the command that removes: ${item.primary.evidence.lines[0].trim()}` : ''}
         />

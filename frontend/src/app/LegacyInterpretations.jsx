@@ -151,7 +151,7 @@ export default function LegacyInterpretations({ scan, onScanUpdated, onScanExpir
                 {actionError?.itemId === id && <p className="field-error" role="alert">{actionError.message}</p>}
                 {isOpen && (
                   <div className="legacy-detail reveal-open">
-                    {item.structural_path?.length > 0 && <p className="small muted">Block: <span className="mono">{item.structural_path.join(' › ')}</span></p>}
+                    {item.structural_path?.length > 0 && <p className="small muted">Block: <span className="code">{item.structural_path.join(' › ')}</span></p>}
                     <Evidence lineNumbers={[item.line_number]} lines={[item.raw_line]} before={item.context_before} after={item.context_after} />
                     <p>{item.reasoning}</p>
                     {item.reason && <p className="small muted">{item.reason}</p>}
@@ -177,7 +177,7 @@ export default function LegacyInterpretations({ scan, onScanUpdated, onScanExpir
                         </label>
                         <label className="field">
                           <span className="field-label">Command pattern (optional)</span>
-                          <input className="input mono" aria-label="Command pattern" placeholder="e.g. secure-shell protocol-version {value}"
+                          <input className="input code" aria-label="Command pattern" placeholder="e.g. secure-shell protocol-version {value}"
                                  value={form.commandPattern} onChange={update('commandPattern')} />
                           {formErrors.commandPattern && <span className="field-error">{formErrors.commandPattern}</span>}
                         </label>

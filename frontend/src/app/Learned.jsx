@@ -27,12 +27,12 @@ function Advanced({ m }) {
         <dl className="kv more-body reveal-open">
           <dt>Rule</dt><dd className="mono">#{m.id} · {m.extraction_method === 'recognizer' ? 'typed recognizer' : 'learned mapping'}</dd>
           <dt>Establishes</dt><dd className="mono">{m.predicate ? `${m.predicate}${m.subject ? ` · ${m.subject}` : ''}` : m.normalized_field}</dd>
-          <dt>Template</dt><dd className="mono">{m.command_pattern}</dd>
-          {m.constant_value && <><dt>Value</dt><dd className="mono">{m.constant_value}</dd></>}
-          <dt>Scope</dt><dd>{m.scope_template ? <span className="mono">{m.scope_template}</span> : 'Anywhere in the configuration'}</dd>
+          <dt>Template</dt><dd className="code">{m.command_pattern}</dd>
+          {m.constant_value && <><dt>Value</dt><dd className="code">{m.constant_value}</dd></>}
+          <dt>Scope</dt><dd>{m.scope_template ? <span className="code">{m.scope_template}</span> : 'Anywhere in the configuration'}</dd>
           <dt>Dialect</dt><dd>{keywords.length ? <span className="mono small">{keywords.join(' ')}</span> : 'Any dialect'}</dd>
           <dt>Vendor</dt><dd>{m.vendor || 'Any'}</dd>
-          {m.negatives?.length > 0 && <><dt>Never matches</dt><dd className="mono">{m.negatives.join(' · ')}</dd></>}
+          {m.negatives?.length > 0 && <><dt>Never matches</dt><dd className="code">{m.negatives.join(' · ')}</dd></>}
           <dt>Where it came from</dt><dd>{isSeed(m) ? 'Shipped with NetAuditAI (reviewed seed knowledge)' : 'Taught on this deployment'}</dd>
           <dt>Confirmed by a person</dt><dd>{m.confirmed ? 'Yes' : 'No'}</dd>
         </dl>
