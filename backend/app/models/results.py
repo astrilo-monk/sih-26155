@@ -8,7 +8,8 @@ catalog produces a result for every scanned config:
     FAIL             the setting was found and is insecure (shown as a Finding)
     NOT_CONFIGURED   nothing relevant was found; not scored
     UNKNOWN          something relevant exists but could not be decided
-    N_A              proven not to apply (the confirmed vendor lacks the concept)
+    N_A              proven not to apply: the confirmed vendor lacks the concept, or the
+                     control asks about an optional feature the device does not have at all
 
 ``assurance`` records where the deciding evidence came from. Only PASS and
 FAIL carry one. Security facts (``facts``) arrive in Phase 4.

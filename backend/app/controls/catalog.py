@@ -80,6 +80,9 @@ class Control:
     remediation_keys: tuple[str, ...]
     # Security-fact predicates the control consumes
     needs: tuple[str, ...] = ()
+    # The control asks about an optional feature (a VPN): a device that does not configure it at all
+    # is N/A, not undecided. Only a confirmed vendor can prove the absence.
+    optional_feature: str = ""
 
 
 def _nist(requirement_id: str, title: str) -> Mapping:
@@ -429,6 +432,7 @@ _CONTROLS = (
         ),
         remediation_keys=("CRYPTO-001",),
         needs=(P.IPSEC_PROPOSAL,),
+        optional_feature="a VPN or IPsec tunnel",
     ),
 )
 

@@ -11,7 +11,8 @@ For every catalog control, over the security facts of one config:
    * any FAIL      → one FAIL per failing fact (scope)
    * else UNKNOWN  → UNKNOWN citing the undecidable facts
    * else PASS     → PASS citing every passing fact (needs a cited line unless DEFAULT)
-   * else nothing  → NOT_CONFIGURED, or UNKNOWN for relational controls
+   * else nothing  → N_A for an optional feature a confirmed vendor's parser found none of,
+     UNKNOWN for relational controls, otherwise NOT_CONFIGURED
 
 No vendor decides whether a control runs.
 """
@@ -91,6 +92,11 @@ def evaluate_control(control: Control, facts: list[SecurityFact], config: Normal
                                 f"{reason}, but no configuration line supports it", cited, assured=False)]
         return [_result(config, control, status, reason, cited, assured=status == Status.PASS)]
 
+    if control.optional_feature and vendor in PARSER_COVERAGE:
+        # Its parser reads the feature and found none of it: the question does not arise on this device
+        return [_result(config, control, Status.N_A,
+                        f"This device does not configure {control.optional_feature}, "
+                        "so the control does not apply")]
     if control.kind == ControlKind.RELATIONAL:
         return [_result(config, control, Status.UNKNOWN, "No relevant setting was found in this configuration")]
     return [_result(config, control, Status.NOT_CONFIGURED, "No relevant setting was found in this configuration")]

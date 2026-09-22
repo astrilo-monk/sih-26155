@@ -19,8 +19,8 @@ from app.controls.catalog import CONTROLS, ControlKind
 from app.controls.evaluate import evaluate_control, evaluate_controls
 from app.facts.from_normalized import facts_from_config
 from app.facts.predicates import (
-    CENTRAL_AAA, IDLE_TIMEOUT, LOG_REMOTE_DESTINATION, NOT_SET, PREDICATES, PROTOCOL_ENABLED, SOURCE_RESTRICTED,
-    SecurityFact,
+    CENTRAL_AAA, IDLE_TIMEOUT, IPSEC_PROPOSAL, LOG_REMOTE_DESTINATION, NOT_SET, PREDICATES, PROTOCOL_ENABLED,
+    SOURCE_RESTRICTED, SecurityFact,
 )
 from app.main import app
 from app.models.normalized import AIFieldMapping, DeviceInfo, NormalizedConfig, Vendor
@@ -108,6 +108,18 @@ def test_relational_decision_table():
     assert _one("MGMT-003", [_fact(SOURCE_RESTRICTED, True)]).status == Status.PASS
     assert _one("MGMT-003", []).status == Status.UNKNOWN
     assert _one("MGMT-003", [], Vendor.FORTINET).status == Status.UNKNOWN
+
+
+def test_an_optional_feature_the_device_does_not_have_is_not_applicable():
+    """A router with no VPN is not undecided on VPN cryptography -the question does not arise."""
+    assert CONTROLS["CRYPTO-001"].optional_feature
+    absent = _one("CRYPTO-001", [], Vendor.CISCO_IOS)
+    assert absent.status == Status.N_A and "does not apply" in absent.reason
+    # only a parser can prove the absence; an unconfirmed vendor stays undecided
+    assert _one("CRYPTO-001", []).status == Status.NOT_CONFIGURED
+    # and a device that does have one is judged as before
+    weak = _fact(IPSEC_PROPOSAL, {"encryption": "3des", "hash": "sha256", "dh_group": 14}, scope="proposal vpn1")
+    assert _one("CRYPTO-001", [weak], Vendor.CISCO_IOS).status == Status.FAIL
 
 
 def test_one_fail_per_failing_scope():

@@ -166,14 +166,15 @@ framework mappings. `app/controls/judges.py` says what one fact means for one co
 | `FAIL` | A fact says the setting is insecure; one FAIL per failing scope (interface, VTY range, policy …) |
 | `UNKNOWN` | Something relevant exists but could not be decided (conflict, missing unit, parser does not read it, relational control with no facts, an AI proposal awaiting confirmation) |
 | `NOT_CONFIGURED` | Nothing relevant was found. Never scored, never a PASS |
-| `N_A` | Proven not to apply (not emitted by any current control) |
+| `N_A` | Proven not to apply: the control asks about an optional feature (`Control.optional_feature`) and a confirmed vendor's parser, which reads that feature, found none of it. CRYPTO-001 on a device with no VPN. Left out of coverage, never scored, never listed as needing administrator input |
 
 Combination per control: any FAIL → FAIL per failing scope; else UNKNOWN; else PASS (needs a cited line unless
-DEFAULT); else NOT_CONFIGURED (UNKNOWN for relational controls). A confirmed vendor whose parser does not read a
-needed predicate reports UNKNOWN. A PASS / FAIL whose weakest evidence is `ai_verified` is reported as UNKNOWN
-with `proposed_status`. An AI fact is bound to the control that asked (`SecurityFact.control_id`), so it never
-answers another control. Findings are the view of decisive and heuristic FAIL results
-(`app/controls/views.py`); heuristic findings are labelled "Suspected".
+DEFAULT); else N_A for an optional feature a confirmed parser found none of, UNKNOWN for relational controls,
+otherwise NOT_CONFIGURED. An unconfirmed vendor never gets N_A: absence cannot be proven without a parser. A
+confirmed vendor whose parser does not read a needed predicate reports UNKNOWN. A PASS / FAIL whose weakest
+evidence is `ai_verified` is reported as UNKNOWN with `proposed_status`. An AI fact is bound to the control
+that asked (`SecurityFact.control_id`), so it never answers another control. Findings are the view of decisive
+and heuristic FAIL results (`app/controls/views.py`); heuristic findings are labelled "Suspected".
 
 ## 6. Posture, coverage and critical controls not assessed
 
