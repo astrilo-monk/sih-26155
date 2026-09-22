@@ -237,6 +237,21 @@ def test_a_narrowing_selector_anywhere_in_the_rule_means_it_is_not_all_traffic()
     assert _facts(text, PERMIT_ANY) == []
 
 
+def test_a_selector_that_names_a_wildcard_widens_the_rule_instead_of_narrowing_it():
+    """``application any`` is a selector word, but it selects everything: the Junos any-any policy."""
+    text = ("security {\n    policies {\n        from-zone trust to-zone untrust {\n"
+            "            policy allow-all {\n                match {\n"
+            "                    source-address any;\n                    destination-address any;\n"
+            "                    application any;\n                }\n"
+            "                then {\n                    permit;\n                }\n"
+            "            }\n        }\n    }\n}\n")
+    fact = _facts(text, PERMIT_ANY)[0]
+    assert fact.value is True
+    assert fact.evidence.line_numbers == [6, 7, 8, 11]  # the three wildcards and the action
+    # the same rule narrowed to one application is not "all traffic"
+    assert _facts(text.replace("application any;", "application junos-ssh;"), PERMIT_ANY) == []
+
+
 def test_a_flat_single_line_rule_still_works():
     assert _value("access-list 100 permit ip any any\n", PERMIT_ANY) is True
 

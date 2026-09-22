@@ -131,7 +131,8 @@ the single line, and none of them lets an absent line state anything:
 * **rule composition** -when a rule states its selectors and its action in separate statements
   (`source-address any; … permit;`), the rule is the action's own block or its parent: the first block wide
   enough to state both wildcards, never one holding a second action, and never one holding a narrowing selector
-  (a protocol, port or application). Evidence cites every line of the rule.
+  (a protocol, port or application). A selector that names a wildcard itself (`application any`) widens the rule
+  rather than narrowing it. Evidence cites every line of the rule.
 
 ## 4. SecurityFacts
 
@@ -268,7 +269,10 @@ and nothing is counted. The uploaded configuration is only ever read, and no fil
 5. Save writes it to `learned_mappings` (confirmed, active). The scan is re-evaluated.
 6. Every later scan -including after a backend restart, in a new process -loads active confirmed recognizers from
    the database. A matching line yields a `confirmed` (decisive) fact; heuristics and AI facts step aside for that
-   line; conflicting recognizers give UNKNOWN citing both. The AI is not asked about recognized lines.
+   line; conflicting recognizers give UNKNOWN citing both. The AI is not asked about recognized lines. A heuristic
+   elsewhere that merely repeats a recognizer's answer (the same predicate, subject and value) also steps aside:
+   citing it too would report a decided control as provisional, since a verdict takes the weakest assurance it
+   cites. A heuristic that contradicts one still speaks, so a recognizer never hides a line that disagrees.
 
 Rejecting a line records it (redacted) so heuristics and AI ignore it on later scans. Nothing is learned without an
 administrator; AI output never becomes a recognizer by itself.

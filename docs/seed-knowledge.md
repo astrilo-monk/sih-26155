@@ -133,12 +133,12 @@ parser's password fact does; every path to the AI redacts evidence first.
 
 ## What is covered
 
-96 recognizers over nine dialects that have **no dedicated parser** and stay generic/unconfirmed. The `vendor`
+97 recognizers over nine dialects that have **no dedicated parser** and stay generic/unconfirmed. The `vendor`
 field is a label for readability, never a claim of parser support and never used to select a code path.
 
 | Dialect | Concepts read |
 |---|---|
-| Juniper Junos | Telnet, HTTP management, SSH version, session idle timeout, remote syslog, NTP server, LLDP, RADIUS / TACACS+ servers, `authentication-order`, `allow-address` source restriction, login banner |
+| Juniper Junos | Telnet, HTTP management, SSH version, session idle timeout, remote syslog, NTP server, LLDP, RADIUS / TACACS+ servers, `authentication-order` (one method or a bracketed list), `allow-address` source restriction, login banner |
 | Palo Alto PAN-OS | Telnet (service and interface profile), HTTP management (service and interface profile), SSH version, session idle timeout (two spellings), remote syslog (two spellings), NTP server, NTP authentication, `permitted-ip` (system and interface profile), login banner |
 | Arista EOS | Telnet, HTTP management (both polarities), SSH version, session idle timeout, remote syslog, NTP server, NTP authentication, IP source routing, LLDP, login banner, management ACL applied under `management ssh`, permissive any-any rule, local-only login, password storage |
 | Huawei VRP | Telnet (`enable` and `undo`), HTTP management (`enable` and `undo`), remote syslog, NTP server, NTP authentication, session idle timeout, IP source routing, LLDP, login banner, password storage, permissive ACL rule |

@@ -390,14 +390,15 @@ def _composed_permit_any(action: Statement, statements: list[Statement]) -> Iter
     The rule is the action's own block or its parent -a selector further out than that belongs to
     something else, not to this rule. Within that, the first block wide enough to state both wildcards
     wins, a block holding a second action is never entered (two rules are never merged), and a
-    narrowing selector anywhere in the rule means it is not "all traffic". Purely structural: no
-    dialect supplies the block names."""
+    narrowing selector anywhere in the rule means it is not "all traffic" -unless that selector names
+    a wildcard itself (``application any``), which widens the rule instead of narrowing it. Purely
+    structural: no dialect supplies the block names."""
     for depth in range(len(action.scope_path), max(len(action.scope_path) - 2, 0), -1):
         members = [s for s in statements if s.scope_path[:depth] == action.scope_path[:depth]]
         if len([s for s in members if set(s.key_tokens) & (L.PERMIT | L.DENY)]) > 1:
             return
         if sum(_wildcards(s) for s in members) >= 2:
-            if any(set(s.key_tokens) & L.NARROWING for s in members):
+            if any(set(s.key_tokens) & L.NARROWING and not _wildcards(s) for s in members):
                 return
             lines = sorted({s.line for s in members if _wildcards(s)} | {action.line})
             yield _Candidate(PERMIT_ANY, True, lines, scope=" ".join(action.scope_path[:depth]))

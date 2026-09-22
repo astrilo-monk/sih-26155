@@ -23,6 +23,7 @@ from app.db import database
 from app.db.mappings import (
     SOURCE_RUNTIME, SOURCE_SEED, LearnedMapping, MappingRepository,
 )
+from app.facts.from_normalized import facts_from_config
 from app.facts.predicates import PREDICATES, PROTOCOL_ENABLED, SSH_VERSION
 from app.facts.recognizers import recognizer_facts
 from app.facts.seed import load_seed_recognizers, read_seed_file
@@ -193,6 +194,9 @@ def test_unrelated_lines_never_trigger_a_seed_recognizer(seeded_adaptive_db, con
     # second pass over teach/: every dialect, every setting its five files state
     ("system {\n  login {\n    message \"Authorized access only.\";\n  }\n}\n", "banner.login.present", True),
     ("system {\n  authentication-order [ tacplus password ];\n}\n", "auth.central_aaa.enabled", True),
+    # Junos takes one method without the brackets just as readily
+    ("system {\n  authentication-order tacplus;\n}\n", "auth.central_aaa.enabled", True),
+    ("system {\n  authentication-order radius;\n}\n", "auth.central_aaa.enabled", True),
     ('set deviceconfig system login-banner "Authorized access only."\n', "banner.login.present", True),
     ("set deviceconfig system session-timeout 10\n", "mgmt.session.idle_timeout", 10.0),
     ("set deviceconfig system ntp-servers primary-ntp-server authentication-type symmetric-key\n",
@@ -233,6 +237,8 @@ def test_unrelated_lines_never_trigger_a_seed_recognizer(seeded_adaptive_db, con
      "auth.central_aaa.enabled", None),
     ("system {\n  syslog {\n    message \"not a banner\";\n  }\n}\n", "banner.login.present", None),
     ("system {\n  authentication-order [ ldaps password ];\n}\n", "auth.central_aaa.enabled", None),
+    # local passwords alone are not centralized AAA, in either form
+    ("system {\n  authentication-order password;\n}\n", "auth.central_aaa.enabled", None),
     ("logging buffered 192.0.2.20\n", "log.remote.destination", None),
     ("set telnet enabled\n", "mgmt.remote_access.protocol_enabled", None),
     ("acl number 2000\n rule 5 permit source 192.0.2.0 0.0.0.255\n", "boundary.policy.permit_any", None),
@@ -242,6 +248,34 @@ def test_unrelated_lines_never_trigger_a_seed_recognizer(seeded_adaptive_db, con
 def test_the_taught_dialect_lines_are_read_and_only_where_they_apply(seeded_adaptive_db, config, predicate, expected):
     values = [f.value for f in _facts(config) if f.predicate == predicate]
     assert values == ([expected] if expected is not None else [])
+
+
+def test_a_heuristic_that_only_repeats_a_recognizer_does_not_make_the_verdict_provisional(seeded_adaptive_db):
+    """The recognizer reads the block header; the lexicon reads the server address inside it.
+
+    Both say centralized AAA is on. Citing the weaker one too would report a confirmed PASS as
+    provisional, so a control that is decided stops being decided.
+    """
+    text = ("system {\n"
+            "    authentication-order tacplus;\n"
+            "    tacplus-server {\n"
+            "        10.10.0.20 secret <SECRET:tacplus>;\n"
+            "    }\n"
+            "}\n")
+    result = _results(text)["MGMT-008"]
+    assert (result.status, result.assurance) == (Status.PASS, Assurance.CONFIRMED)
+
+
+def test_a_heuristic_that_contradicts_a_recognizer_still_speaks(seeded_adaptive_db):
+    """A recognizer answers for its setting, but it may never hide a line that disagrees with it."""
+    text = ("system {\n"
+            "    authentication-order tacplus;\n"
+            "}\n"
+            "aaa-authentication disable\n")
+    facts = [f for f in facts_from_config(_unknown(text)) if f.predicate == "auth.central_aaa.enabled"]
+    assert {(f.value, f.assurance) for f in facts} == {
+        (True, Assurance.CONFIRMED), (False, Assurance.HEURISTIC)}
+    assert _results(text)["MGMT-008"].status != Status.PASS
 
 
 def test_a_number_that_is_not_a_version_is_not_read_as_one(seeded_adaptive_db):

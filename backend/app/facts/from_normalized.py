@@ -60,11 +60,18 @@ def facts_from_config(config: NormalizedConfig, extra_recognizers: Iterable = ()
     # A recognizer answers the lines it matches; mappings and heuristics on those lines step aside.
     # Other lines still speak, so a recognizer never hides a contradicting statement elsewhere.
     recognized, skip = recognizer_facts(config.raw_lines, extra_recognizers)
+    # A recognizer answers for the whole setting, not only for its own line: a heuristic elsewhere that
+    # repeats that answer (the server address inside a block whose header was recognized) adds nothing
+    # but its weaker assurance, which would drag the control down to provisional. One that contradicts
+    # it still speaks, so a recognizer never hides a statement that disagrees with it.
+    answered = {(f.predicate, f.subject): repr(f.value) for f in recognized}
     # An admin-confirmed mapping answers its predicate. AI mappings and lexicon heuristics are both
     # provisional: when they disagree neither wins, the fact is undetermined and cites both.
     facts = [m for m in _mapped_facts(config) if not (skip and set(m.evidence.line_numbers) <= skip)]
     by_key = {(f.predicate, f.subject): index for index, f in enumerate(facts)}
     for heuristic in heuristic_facts(config.raw_lines, skip):
+        if answered.get((heuristic.predicate, heuristic.subject)) == repr(heuristic.value):
+            continue
         index = by_key.get((heuristic.predicate, heuristic.subject))
         if index is None:
             facts.append(heuristic)

@@ -20,7 +20,7 @@ Upload (single or bulk, CLI text or JSON export)
   → Vendor identification: fingerprint + parse coverage   (a look-alike is never "confirmed")
   → Confirmed vendor ─→ dedicated parser (Cisco IOS, FortiGate) ──────────────────────┐
   → Anything else   ─→ generic tokenizer (blocks, indentation, set-style, /menu paths)  │
-                        → recognizers (taught + 96 shipped)  → lexicon heuristics      │
+                        → recognizers (taught + 97 shipped)  → lexicon heuristics      │
                         → AI judge for what is still undecided (budgeted, cited)       │
   → Security facts (value, evidence lines, assurance) ←────────────────────────────────┘
   → Control evaluation: PASS / FAIL / UNKNOWN / NOT_CONFIGURED / N/A per control
@@ -51,7 +51,7 @@ object reads as one statement: `SecurityGroups IpPermissions FromPort 22 IpProto
 4. The recognizer is saved in SQLite or Postgres (Supabase) and applies to the next scan immediately — decisive,
    deterministic, no AI call, **no redeployment**. It can be stopped or edited from the Knowledge page.
 
-Shipped seed knowledge is the same mechanism, reviewed in Git: 96 recognizers covering Juniper Junos, Palo Alto
+Shipped seed knowledge is the same mechanism, reviewed in Git: 97 recognizers covering Juniper Junos, Palo Alto
 PAN-OS, Arista EOS, Huawei VRP, HPE Aruba AOS-CX, Check Point Gaia, Extreme EXOS, MikroTik RouterOS and AWS
 security groups, so a fresh deployment already reads these dialects before anyone teaches it.
 

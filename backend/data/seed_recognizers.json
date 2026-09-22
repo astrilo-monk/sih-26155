@@ -487,6 +487,24 @@
       "example_line": "ntp-service unicast-server 192.0.2.10"
     },
     {
+      "concept": "Central authentication order",
+      "vendor": "Juniper Junos",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "authentication-order [ {enum:method} password ]",
+      "scope_template": "system",
+      "constant_value": "{\"radius\": true, \"tacplus\": true}",
+      "example_line": "authentication-order [ radius password ];"
+    },
+    {
+      "concept": "Central authentication order",
+      "vendor": "Juniper Junos",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "authentication-order {enum:method}",
+      "scope_template": "system",
+      "constant_value": "{\"radius\": true, \"tacplus\": true}",
+      "example_line": "authentication-order tacplus;"
+    },
+    {
       "concept": "RADIUS authentication server",
       "vendor": "Juniper Junos",
       "predicate": "auth.central_aaa.enabled",
@@ -503,15 +521,6 @@
       "scope_template": "system",
       "constant_value": "true",
       "example_line": "tacplus-server {"
-    },
-    {
-      "concept": "Central authentication order",
-      "vendor": "Juniper Junos",
-      "predicate": "auth.central_aaa.enabled",
-      "command_pattern": "authentication-order [ {enum:method} password ]",
-      "scope_template": "system",
-      "constant_value": "{\"radius\": true, \"tacplus\": true}",
-      "example_line": "authentication-order [ radius password ];"
     },
     {
       "concept": "Login banner",
@@ -722,15 +731,15 @@
       "concept": "Management access source restriction",
       "vendor": "Palo Alto PAN-OS",
       "predicate": "mgmt.remote_access.source_restricted",
-      "command_pattern": "{neg} set network profiles interface-management-profile {any} permitted-ip {any}",
-      "example_line": "set network profiles interface-management-profile MGMT-PROFILE permitted-ip 192.0.2.0/24"
+      "command_pattern": "{neg} set deviceconfig system permitted-ip {any}",
+      "example_line": "set deviceconfig system permitted-ip 192.0.2.0/24"
     },
     {
       "concept": "Management access source restriction",
       "vendor": "Palo Alto PAN-OS",
       "predicate": "mgmt.remote_access.source_restricted",
-      "command_pattern": "{neg} set deviceconfig system permitted-ip {any}",
-      "example_line": "set deviceconfig system permitted-ip 192.0.2.0/24"
+      "command_pattern": "{neg} set network profiles interface-management-profile {any} permitted-ip {any}",
+      "example_line": "set network profiles interface-management-profile MGMT-PROFILE permitted-ip 192.0.2.0/24"
     },
     {
       "concept": "Session idle timeout",
