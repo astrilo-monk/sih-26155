@@ -1,5 +1,5 @@
 """
-Vendor evidence from adaptive interpretations — reporting only.
+Vendor evidence from adaptive interpretations -reporting only.
 
 ``device.vendor`` is set exclusively by the deterministic detector/parsers,
 because it selects vendor-specific compliance rules. What the AI believes
@@ -8,9 +8,9 @@ reported, but never used to activate rules.
 
 Outcomes:
 
-* ``identified``  — enough agreeing, validated interpretations name one vendor
-* ``conflicting`` — validated interpretations name different vendors
-* ``unknown``     — no usable vendor evidence
+* ``identified``  -enough agreeing, validated interpretations name one vendor
+* ``conflicting`` -validated interpretations name different vendors
+* ``unknown``     -no usable vendor evidence
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ _GENERIC_NAMES = frozenset({
 })
 
 # Compact alias (lowercase, alphanumerics only) → canonical vendor slug.
-# Name normalization only — no configuration syntax lives here.
+# Name normalization only -no configuration syntax lives here.
 _ALIASES: dict[str, tuple[str, ...]] = {
     "cisco_ios": ("cisco", "ciscoios", "ios", "iosxe", "ciscoiosxe", "catalyst", "ciscocatalyst"),
     "cisco_iosxr": ("iosxr", "ciscoiosxr"),

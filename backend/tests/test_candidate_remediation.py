@@ -3,9 +3,9 @@ Candidate remediation for unconfirmed vendors: proposed, deterministically check
 
 The invariants these tests pin:
 
-* a candidate exists only for a **decisive** FAIL on an **unconfirmed** vendor — a confirmed vendor keeps
+* a candidate exists only for a **decisive** FAIL on an **unconfirmed** vendor -a confirmed vendor keeps
   the deterministic recipe path, and a provisional (heuristic / AI) verdict gets no candidate at all;
-* command text — typed or AI-generated — is never executed, never applied to the stored configuration and
+* command text -typed or AI-generated -is never executed, never applied to the stored configuration and
   never enters a download; the uploaded text, the scan results, posture and coverage do not move;
 * "verified" means the command removes the finding from a **copy** of the configuration file, checked by
   re-reading it with the generic engine; it never means PASS-from-absence and never means the device changed;
@@ -300,7 +300,7 @@ def test_api_ai_is_never_asked_for_a_confirmed_vendor_and_the_deterministic_path
 
 
 def test_api_a_provisional_finding_gets_no_candidate():
-    """A heuristic verdict is not evidence for remediation — candidate or deterministic."""
+    """A heuristic verdict is not evidence for remediation -candidate or deterministic."""
     client = TestClient(app)
     scan = _scan(client, "unknown.cfg", (SAMPLES / "unknown.cfg").read_text())
     assert any(f["rule_id"] == "MGMT-001" and f["assurance"] == "heuristic" for f in scan["findings"])
@@ -442,7 +442,7 @@ def test_the_candidate_engine_names_no_vendor():
 
 # ── the verified corrected copy ─────────────────────────────────────────────
 # A verified candidate keeps the edited COPY it was verified against, so an administrator can download
-# it. It is the uploaded file with that one simulated change — never a device configuration NetAuditAI
+# it. It is the uploaded file with that one simulated change -never a device configuration NetAuditAI
 # generated, never something applied anywhere, and never reachable from any other candidate state.
 
 def _download(client: TestClient, body: dict):

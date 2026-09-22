@@ -56,7 +56,7 @@ export default function History({ onScansExpired }) {
           <p className="eyebrow">History</p>
           <h1 className="display page-title">Past scans</h1>
           <p className="lede">
-            Summaries are kept in this browser — hostnames, posture, coverage and counts, never configuration lines or
+            Summaries are kept in this browser -hostnames, posture, coverage and counts, never configuration lines or
             evidence. Full results stay on the backend only until it restarts; expired scans must be uploaded again.
           </p>
         </div>
@@ -100,11 +100,11 @@ export default function History({ onScansExpired }) {
                 <button type="button" className={`history-row ${entry.expired ? 'is-expired' : ''}`}
                         aria-disabled={entry.expired || undefined} title={title} onClick={() => open(entry)}>
                   <span className="hr-devices">
-                    <span className="mono hr-hosts">{(entry.hostnames || []).join(', ') || '—'}</span>
+                    <span className="mono hr-hosts">{(entry.hostnames || []).join(', ') || '-'}</span>
                     <span className="small muted">{(entry.vendors || []).map(vendorName).join(', ') || 'Unknown'}</span>
                   </span>
                   <span className="hr-cell"><span className="hr-k">Scanned</span>{new Date(entry.timestamp).toLocaleString()}</span>
-                  <span className="hr-cell"><span className="hr-k">Posture</span><span className="mono tnum">{entry.posture ?? '—'}</span></span>
+                  <span className="hr-cell"><span className="hr-k">Posture</span><span className="mono tnum">{entry.posture ?? '-'}</span></span>
                   <span className="hr-cell"><span className="hr-k">Coverage</span><span className="mono tnum">{entry.coverage ?? 0}%</span></span>
                   <span className="hr-cell"><span className="hr-k">Problems</span><span className="mono tnum">{entry.problemsCount ?? entry.findingsCount}</span>{entry.remediated && <span className="tag">Fixed file downloaded</span>}</span>
                   <span className="hr-cell"><span className={`tag ${tone}`}>{label}</span></span>

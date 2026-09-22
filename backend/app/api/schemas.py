@@ -56,7 +56,7 @@ class AIFieldMappingSchema(BaseModel):
 
 
 class VendorEvidenceSchema(BaseModel):
-    """What adaptive interpretations suggest about the vendor — reporting only.
+    """What adaptive interpretations suggest about the vendor -reporting only.
 
     Never used to select vendor-specific rules; ``devices[].vendor`` comes
     from the deterministic detector alone.
@@ -91,14 +91,14 @@ class AdaptiveScanInfoSchema(BaseModel):
     provisional_reasons: list[str] = []
     # Vendor evidence from adaptive interpretations (reporting only)
     vendor_evidence: Optional[VendorEvidenceSchema] = None
-    # Lines the AI could not assess (outage / quota) — distinct from low confidence
+    # Lines the AI could not assess (outage / quota) -distinct from low confidence
     ai_unavailable_lines: int = 0
     # False when no rule could evaluate real evidence from this config
     assessed: bool = True
 
 
 class VendorIdentificationSchema(BaseModel):
-    """Deterministic vendor identification for one config — never from AI output."""
+    """Deterministic vendor identification for one config -never from AI output."""
     config_index: int
     # What the fingerprint detector matched
     detected_vendor: str
@@ -332,7 +332,7 @@ class RemediationCandidateSchema(BaseModel):
     title: str
     device_hostname: str
     vendor: str
-    # confirmed | unverified | unknown — a candidate exists only for the last two
+    # confirmed | unverified | unknown -a candidate exists only for the last two
     vendor_status: str
     # manual | ai
     source: str

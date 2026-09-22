@@ -5,7 +5,7 @@ Derived remediation: the change NetAuditAI works out for itself on an unconfirme
     → the finding is gone and nothing else got worse → a candidate an administrator confirms
 
 No vendor grammar, no AI, no new authority: the derivation only states which lines to remove, and the
-existing candidate verification is what decides whether it holds. These tests hold it to that — it must
+existing candidate verification is what decides whether it holds. These tests hold it to that -it must
 work across dialects it was never taught, refuse what it cannot state safely, never edit the upload, and
 never turn a provisional reading into a fix.
 """
@@ -104,7 +104,7 @@ def test_it_works_on_dialects_nobody_taught_this_deployment(client, name):
 # ── what it refuses ──────────────────────────────────────────────────────────
 
 def test_a_setting_that_must_exist_is_never_deleted_to_make_a_check_stop_failing(client):
-    """An idle timeout of 30 minutes is too long — but deleting it leaves no timeout at all.
+    """An idle timeout of 30 minutes is too long -but deleting it leaves no timeout at all.
 
     A removal can only honestly resolve a control that says something must NOT be there. NetAuditAI
     refuses to derive one for a control that requires a setting or holds it to a threshold, even though

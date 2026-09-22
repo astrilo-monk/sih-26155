@@ -1,5 +1,5 @@
 """
-Phase 2 — control catalog and ControlResults.
+Phase 2 -control catalog and ControlResults.
 
 Every control answers every config with PASS / FAIL / NOT_CONFIGURED /
 UNKNOWN / N_A. Findings are the FAIL results, framework mappings live in the
@@ -54,7 +54,7 @@ NIST_REV5_TITLES = {
     "IA-5": "Authenticator Management",
     "IA-5(1)": "Password-based Authentication",
     "SC-7": "Boundary Protection",
-    "SC-7(5)": "Deny by Default — Allow by Exception",
+    "SC-7(5)": "Deny by Default -Allow by Exception",
     "SC-8": "Transmission Confidentiality and Integrity",
     "SC-10": "Network Disconnect",
     "SC-13": "Cryptographic Protection",

@@ -3,14 +3,14 @@ The per-device compliance report.
 
     scan response (already redacted)  +  remediation plan  →  document model  →  PDF bytes
 
-The document is built in two steps on purpose. ``report_blocks`` produces a plain structure —
-headings, paragraphs, tables, monospace blocks — which is what the tests read, so what the PDF
+The document is built in two steps on purpose. ``report_blocks`` produces a plain structure -
+headings, paragraphs, tables, monospace blocks -which is what the tests read, so what the PDF
 says can be asserted without parsing PDF streams. ``render_pdf`` only lays that structure out.
 
 Nothing is evaluated, scored or remediated here: the report states what the scan already decided.
 Its two rules are the product's own:
 
-* it never reports something the configuration does not state — a configuration file carries no
+* it never reports something the configuration does not state -a configuration file carries no
   serial number or hardware inventory, and the report says so rather than inventing one;
 * it never prints a secret. Every string it receives has already been redacted by the API layer
   (``config_redactor`` / ``display_scrub``), and ``tests/test_pdf_report.py`` re-checks the
@@ -45,11 +45,11 @@ ASSURANCE_WORDS = {
 REMEDIATION_WORDS = {
     "fixed": "Deterministic fix generated and verified by rescan",
     "needs_input": "A value is needed before the fix can be generated",
-    "manual_review": "Change this by hand — no safe automatic recipe",
-    "verification_failed": "Generated, but the rescan did not confirm it — not applied",
+    "manual_review": "Change this by hand -no safe automatic recipe",
+    "verification_failed": "Generated, but the rescan did not confirm it -not applied",
     "no_recipe": "No deterministic recipe for this control",
-    "vendor_unverified": "Vendor not confirmed — no vendor commands are generated",
-    "provisional": "The finding is provisional — remediation waits for confirmation",
+    "vendor_unverified": "Vendor not confirmed -no vendor commands are generated",
+    "provisional": "The finding is provisional -remediation waits for confirmation",
     "not_failing": "Not failing",
 }
 # The catalog's framework keys, spelled the way the framework is named
@@ -79,8 +79,8 @@ def _vendor_line(scan, index: int) -> str:
     if identification.status == "confirmed":
         return f"{identification.detected_vendor} ({status}, dedicated parser)"
     if identification.status == "unverified":
-        return f"resembles {identification.detected_vendor} ({status}) — generic analysis"
-    return f"{status} — generic analysis"
+        return f"resembles {identification.detected_vendor} ({status}) -generic analysis"
+    return f"{status} -generic analysis"
 
 
 def _results_for(scan, index: int) -> list:
@@ -124,7 +124,7 @@ def summary_block(scan, index: int) -> list[Block]:
 
     rows = [
         ["Security posture", f"{scan.posture}/100" if scan.posture is not None else
-         "not assessed — no control could be decided from validated evidence"],
+         "not assessed -no control could be decided from validated evidence"],
         ["Coverage", f"{scan.coverage}% of applicable controls decided from evidence"],
         ["Checks assessed", f"{len(passed) + len(failed)} decided ({len(passed)} passed, {len(failed)} failed)"],
         ["Checks needing input", str(sum(1 for c in by_control if c not in passed and c not in failed))],
@@ -149,10 +149,10 @@ def findings_block(scan, index: int) -> list[Block]:
         status = STATUS_WORDS.get(r.status, r.status.upper())
         if r.proposed_status:
             status = f"{status} (AI proposes {r.proposed_status.upper()}, awaiting confirmation)"
-        evidence = ", ".join(str(n) for n in r.evidence.line_numbers) or "—"
+        evidence = ", ".join(str(n) for n in r.evidence.line_numbers) or "-"
         rows.append([
             r.control_id,
-            f"{r.title}{f' — {r.scope}' if r.scope else ''}",
+            f"{r.title}{f' -{r.scope}' if r.scope else ''}",
             r.severity,
             status,
             ASSURANCE_WORDS.get(r.assurance, "not established") if r.assurance else "not established",
@@ -184,7 +184,7 @@ def frameworks_block(scan, index: int) -> list[Block]:
                 ", ".join(c.control_id for c in controls),
             ])
         if rows:
-            blocks.append(("p", f"{FRAMEWORK_NAMES.get(view.framework, view.framework)} — {view.version}"))
+            blocks.append(("p", f"{FRAMEWORK_NAMES.get(view.framework, view.framework)} -{view.version}"))
             blocks.append(("table", (["Requirement", "Title", "Result", "Controls"], rows)))
     if len(blocks) == 1:
         blocks.append(("p", "No framework requirement could be reported for this device."))
@@ -225,15 +225,15 @@ def remediation_block(plan, index: int) -> list[Block]:
                                "can propose a command in the application, where it is checked against this "
                                "configuration before anything is accepted."))
     for item in items:
-        blocks.append(("h3", f"{item.rule_id} — {item.title}"))
+        blocks.append(("h3", f"{item.rule_id} -{item.title}"))
         rows = [["Status", REMEDIATION_WORDS.get(item.status, item.status)]]
         if item.scopes:
             rows.append(["Scope", ", ".join(item.scopes)])
         if item.evidence.line_numbers:
             rows.append(["Before (cited lines)", ", ".join(str(n) for n in item.evidence.line_numbers)])
         if item.control_status_before or item.control_status_after:
-            rows.append(["Control state", f"{(item.control_status_before or '—').upper()} → "
-                                          f"{(item.control_status_after or '—').upper()}"])
+            rows.append(["Control state", f"{(item.control_status_before or '-').upper()} → "
+                                          f"{(item.control_status_after or '-').upper()}"])
         if item.missing_inputs:
             rows.append(["Needed from you", ", ".join(item.missing_inputs)])
         blocks.append(("table", (["Item", "Value"], rows)))
@@ -245,12 +245,12 @@ def remediation_block(plan, index: int) -> list[Block]:
                                 "on a device):"))
             blocks.append(("mono", commands))
         for check in item.checks:
-            blocks.append(("p", f"{'PASSED' if check.passed else 'FAILED'} — {check.name}: {check.detail}"))
+            blocks.append(("p", f"{'PASSED' if check.passed else 'FAILED'} -{check.name}: {check.detail}"))
     return blocks
 
 
 def unresolved_block(scan, index: int) -> list[Block]:
-    """What the scan could not decide, and what it needs — the queue an administrator works through."""
+    """What the scan could not decide, and what it needs -the queue an administrator works through."""
     undecided = [r for r in _results_for(scan, index) if r.status in ("unknown", "not_configured")]
     blocks: list[Block] = [("h2", "6. Checks that need administrator input")]
     if not undecided:
@@ -269,7 +269,7 @@ def report_blocks(scan, index: int, plan=None, generated_at: Optional[datetime] 
     device = _device(scan, index)
     when = (generated_at or datetime.now()).strftime("%Y-%m-%d %H:%M")
     blocks: list[Block] = [
-        ("h1", f"Network security compliance report — {device.get('hostname') or 'unnamed device'}"),
+        ("h1", f"Network security compliance report -{device.get('hostname') or 'unnamed device'}"),
         ("p", f"NetAuditAI · generated {when} · scan {scan.scan_id}"),
     ]
     if index in (getattr(scan, "unreadable_configs", None) or []):
@@ -285,7 +285,7 @@ def report_blocks(scan, index: int, plan=None, generated_at: Optional[datetime] 
 
 
 def report_text(blocks: list[Block]) -> str:
-    """The report as plain text — what the PDF says, for tests and for a quick check."""
+    """The report as plain text -what the PDF says, for tests and for a quick check."""
     out = []
     for kind, payload in blocks:
         if kind in ("h1", "h2", "h3", "p", "note"):
@@ -367,4 +367,4 @@ def render_pdf(blocks: list[Block], title: str = "Compliance report") -> bytes:
 def device_report_pdf(scan, index: int, plan=None, generated_at: Optional[datetime] = None) -> bytes:
     device = _device(scan, index)
     blocks = report_blocks(scan, index, plan, generated_at)
-    return render_pdf(blocks, title=f"Compliance report — {device.get('hostname') or 'device'}")
+    return render_pdf(blocks, title=f"Compliance report -{device.get('hostname') or 'device'}")

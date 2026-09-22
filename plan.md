@@ -1,4 +1,4 @@
-# NetAuditAI — Control-First Refactor Plan
+# NetAuditAI -Control-First Refactor Plan
 
 Branch: `refc/complete-change`
 
@@ -114,7 +114,7 @@ admin declared a device profile. Absence is never N/A for unknown vendors.
 
 ```text
 weights:   critical 10, high 6, medium 3, low 1
-posture  = Σw(PASS) / Σw(PASS + FAIL) × 100     over decisive results; "—" if none
+posture  = Σw(PASS) / Σw(PASS + FAIL) × 100     over decisive results; "-" if none
 coverage = Σw(decided) / Σw(applicable)         applicable = everything except N/A
 bounds   = posture if all unknowns fail … if all unknowns pass
 flag     = any critical control unassessed
@@ -162,7 +162,7 @@ Every phase must leave the full backend test suite green.
 
 ---
 
-# Phase 0 — Safety Net
+# Phase 0 -Safety Net
 
 ## Why
 
@@ -195,7 +195,7 @@ FortiGate findings don't silently change.
   scan API with AI off: vendor, score, `(rule_id, severity, line_numbers)`.
 - `backend/tests/test_phase0_snapshots.py`
   - `test_known_vendor_findings_match_phase0_snapshot`
-  - `test_unknown_cfg_reports_telnet_on_lines_70_71` — `xfail(strict=True)`;
+  - `test_unknown_cfg_reports_telnet_on_lines_70_71` -`xfail(strict=True)`;
     must start passing in Phase 5.
 - Verified against a clean `git archive HEAD` export (pre-refactor engine):
   31 passed + 1 xfailed.
@@ -206,7 +206,7 @@ FortiGate findings don't silently change.
 
 ---
 
-# Phase 1 — Stop the Leaks
+# Phase 1 -Stop the Leaks
 
 ## Why
 
@@ -315,14 +315,14 @@ Decisions and deviations:
   "Not assessed" = unknown vendor with no findings and no applied value that a
   rule **actually evaluated** (`evaluated_fields(config)`; e.g. NTP
   authentication without a server is not evaluated) → `score: null`,
-  `devices[].assessed`, `adaptive.assessed`, UI shows "— NOT ASSESSED".
+  `devices[].assessed`, `adaptive.assessed`, UI shows "-NOT ASSESSED".
 - **Interim layer**, all tagged `INTERIM(phase1)` for removal with the Phase 2
   catalog: `BaseRule.absence_based`, `evaluated_fields()`, `_absence_is_evidence`,
   `_applied_value` (rules/base.py, logging_rules.py, boundary.py),
   `engine.ABSENCE_BASED_RULE_IDS` / `has_assessable_evidence`, the absence reason
   in `routes/scan.py`. API fields `devices[].assessed` / `adaptive.assessed` are
   superseded by Phase 3 posture/coverage.
-  *(Removed in Phase 2 — replaced by ControlResult statuses. `_absence_is_evidence`
+  *(Removed in Phase 2 -replaced by ControlResult statuses. `_absence_is_evidence`
   and `_applied_value` remain as rule logic, retagged `INTERIM(phase4)`.)*
 - Existing tests that asserted the old defect (LOG-001 FAIL / numeric score on
   unknown vendors) were updated deliberately, with explicit expectations (no
@@ -333,7 +333,7 @@ Decisions and deviations:
 Known limits (accepted, owned by later phases):
 
 - One evaluated vendor-neutral value on an unknown vendor (e.g. only
-  `ip_source_route = false`) still yields a 100 score — unassessed controls are
+  `ip_source_route = false`) still yields a 100 score -unassessed controls are
   not yet penalised. Fixed by Phase 3 posture + coverage.
 - Redaction is pattern-based: an unkeyed secret in an unlisted syntax can still
   pass. The explain and chat paths also scrub every value collected from the
@@ -346,7 +346,7 @@ Known limits (accepted, owned by later phases):
 
 ---
 
-# Phase 2 — Control Catalog + ControlResult
+# Phase 2 -Control Catalog + ControlResult
 
 ## Why
 
@@ -368,7 +368,7 @@ PASS / FAIL / NOT_CONFIGURED / UNKNOWN / N/A with evidence.
    Add `results[]` to the scan response.
 5. Move compliance mappings out of rule code into the catalog. Verify each
    against the current framework version (e.g. LOG-002 cites NIST AU-8(1),
-   which Rev 5 appears to have withdrawn into SC-45(1) — check).
+   which Rev 5 appears to have withdrawn into SC-45(1) -check).
 
 ## Do not
 
@@ -398,14 +398,14 @@ Phase 0 snapshots unchanged: all 30 Cisco/FortiGate FAIL sets identical.
   are attached only to that vendor's findings.
   - NIST SP 800-53 Rev. 5 checked against the official OSCAL catalog, release
     5.2.0: every id exists with its official title, none withdrawn.
-    **AU-8(1) is withdrawn (moved to SC-45(1))** — LOG-002 now cites AU-8,
+    **AU-8(1) is withdrawn (moved to SC-45(1))** -LOG-002 now cites AU-8,
     SC-45, SC-45(1). LOG-001 now cites AU-4(1) / AU-9(2) (off-box storage)
     instead of the generic AU-2 / AU-4.
   - CIS: the old CIS numbers did not match any benchmark (e.g. "1.4.1
     Configure remote syslog" is a password item). Replaced only with item ids
     confirmed for the exact benchmark version and level (Tenable audit files):
     Cisco IOS XE 17.x v2.2.1 L1/L2, v2.1.0 L1 (3.1.1); FortiGate 7.4.x v1.0.1
-    L1/L2. Controls without a verified item have no CIS mapping — not a guess:
+    L1/L2. Controls without a verified item have no CIS mapping -not a guess:
     Cisco MGMT-002, BOUNDARY-001, LOG-001, CRYPTO-001; FortiGate MGMT-005,
     MGMT-007, MGMT-008, BOUNDARY-002, BOUNDARY-003, CRYPTO-001. (IOS XE
     `logging host` / `ntp authenticate` ids were only found for 16.x.)
@@ -429,7 +429,7 @@ Phase 0 snapshots unchanged: all 30 Cisco/FortiGate FAIL sets identical.
 - **Findings** = `controls/views.finding_from_result` over FAIL results;
   compliance from the catalog; `ComplianceMappingSchema.version` added
   (shown as a tooltip in `FindingDetail`).
-- **API**: `results[]` on every scan response (display-only scans too —
+- **API**: `results[]` on every scan response (display-only scans too -
   controls are deterministic), with control question, kind, status, assurance,
   scope, reason and evidence.
 - **Interim layer removed**: `absence_based`, `evaluated_fields`,
@@ -447,12 +447,12 @@ Known limits:
 
 - An unknown-vendor NTP server with undetermined authentication is now UNKNOWN
   (not a scored pass), so such configs are "not assessed" unless another control
-  decides — deliberate, stricter than Phase 1.
+  decides -deliberate, stricter than Phase 1.
 - CIS coverage is partial by design (verified items only).
 
 ---
 
-# Phase 3 — Scoring v2
+# Phase 3 -Scoring v2
 
 ## Why
 
@@ -465,12 +465,12 @@ Known limits:
 2. Only decisive assurance counts toward posture.
 3. API: add the new fields; keep legacy `score` for one phase, marked deprecated.
 4. Frontend (`ScoreOverview`, `ScoreGauge`): show posture, coverage and the
-   critical-unassessed warning. Show "—" when nothing is decided.
+   critical-unassessed warning. Show "-" when nothing is decided.
 
 ## Tests
 
 - All PASS → 100 posture, 100% coverage.
-- All UNKNOWN → posture "—", coverage 0%.
+- All UNKNOWN → posture "-", coverage 0%.
 - Critical UNKNOWN sets the flag.
 - N/A excluded from coverage denominator.
 - Existing scoring tests updated deliberately (this is a semantics change).
@@ -495,22 +495,22 @@ Suite after Phase 3: **597 passed, 2 skipped, 1 xfailed** (frontend 13 passed, b
 - API: `posture`, `coverage`, `posture_bounds`, `critical_unassessed` on every
   scan response (display-only scans too). Legacy `score` / `calculate_score`
   kept, marked DEPRECATED; remediation before/after still uses it (Phase 8).
-- Frontend: `ScoreOverview` shows posture ("—" when nothing decided), coverage,
+- Frontend: `ScoreOverview` shows posture ("-" when nothing decided), coverage,
   the fail/pass range and the critical-unassessed warning; the dashboard banner
   keys off `posture`. `ScoreGauge` is unused and was left alone.
 - Tests `tests/test_scoring_v2.py`: all PASS, all UNKNOWN / NOT_CONFIGURED,
   provisional assurance, critical flag, N/A exclusion, weights + bounds,
-  per-scope collapse, multi-device, API on `sample/unknown.cfg` (posture "—",
+  per-scope collapse, multi-device, API on `sample/unknown.cfg` (posture "-",
   coverage 0) and a Cisco fixture. Existing tests unchanged (legacy score kept).
 
 Known limits:
 
-- An AI-mapped value on an unknown vendor now yields posture "—" even when the
-  legacy score is set — deliberate until recognizers (Phase 6) confirm it.
+- An AI-mapped value on an unknown vendor now yields posture "-" even when the
+  legacy score is set -deliberate until recognizers (Phase 6) confirm it.
 
 ---
 
-# Phase 4 — Security Facts + Remove Vendor Gates
+# Phase 4 -Security Facts + Remove Vendor Gates
 
 ## Why
 
@@ -569,7 +569,7 @@ Controls should run for every vendor. Vendor parsers become one source of facts.
 ## Status: done
 
 Suite after Phase 4: **652 passed, 2 skipped, 1 xfailed** (frontend unchanged).
-Shadow mode before the switch — old rules vs new evaluator on 42 configs (30
+Shadow mode before the switch -old rules vs new evaluator on 42 configs (30
 snapshot files, 9 look-alikes, `sample/unknown.cfg`, `sample/paloalto.cfg`,
 `fortigate_broken_snmp_remediation.cfg`): **0 FAIL differences, 0 status
 differences**. Then `app/analysis/rules/` was deleted. Phase 0 snapshots unchanged.
@@ -609,7 +609,7 @@ differences**. Then `app/analysis/rules/` was deleted. Phase 0 snapshots unchang
   `test_phase6_adaptive_e2e`):
   - Unknown vendors: every applied mapped value is evaluated by its control
     (AI-mapped SSHv1 → MGMT-007 FAIL `ai_verified`; confirmed Telnet mapping →
-    MGMT-001 FAIL `confirmed`). AI verdicts stay provisional (posture "—"); the
+    MGMT-001 FAIL `confirmed`). AI verdicts stay provisional (posture "-"); the
     deprecated legacy score counts them.
   - FortiGate silent on `admintimeout` / `admin-ssh-v1` / `ip-src-routing` → PASS
     DEFAULT; silent on `pre-login-banner` → FAIL DEFAULT. No snapshot file is
@@ -637,12 +637,12 @@ Known limits:
 - Finding descriptions are vendor-neutral now (scope names the object);
   recommendations keep vendor wording.
 - `ControlResult.facts` is populated but not yet exposed by the API.
-- The Phase 0 xfail (Telnet on `sample/unknown.cfg` with AI off) is unchanged —
+- The Phase 0 xfail (Telnet on `sample/unknown.cfg` with AI off) is unchanged -
   it needs Phase 5 heuristics.
 
 ---
 
-# Phase 5 — Generic Tokenizer + Lexicon Heuristics
+# Phase 5 -Generic Tokenizer + Lexicon Heuristics
 
 ## Why
 
@@ -683,8 +683,8 @@ Unknown vendors must get useful, cited results with **no AI**.
 | NTP server + auth | Probable PASS | 59, 60 |
 | Central AAA | Probable PASS | 48–50 |
 | IPsec crypto | Probable PASS | 76–78 |
-| SNMP | NOT_CONFIGURED | — |
-| Login banner | NOT_CONFIGURED | — |
+| SNMP | NOT_CONFIGURED | -|
+| Login banner | NOT_CONFIGURED | -|
 
 The Phase 0 xfail test now passes.
 
@@ -727,7 +727,7 @@ The Phase 0 xfail is now a normal passing test. Phase 0 snapshots unchanged
   An AI mapping and a heuristic are both provisional: when they disagree the fact is
   undetermined (UNKNOWN citing both). Found in a live run: a partially rate-limited AI
   read `legacy-access disabled` as Telnet off and hid the suspected Telnet FAIL. The adaptive
-  AI path still writes `NormalizedConfig` (retired in Phase 7) — task 5 is satisfied
+  AI path still writes `NormalizedConfig` (retired in Phase 7) -task 5 is satisfied
   for the offline path, which produces facts only.
 - **Scan route**: display-only now only when AI is unavailable, nothing is applied
   **and** heuristics find nothing.
@@ -738,10 +738,10 @@ The Phase 0 xfail is now a normal passing test. Phase 0 snapshots unchanged
   "Suspected FAIL / Probable PASS" with evidence lines; findings table marks
   heuristic / AI findings "Suspected".
 - **Acceptance** (`tests/test_phase5_heuristics.py`, AI mocked unavailable, zero calls):
-  table above exact — MGMT-001 FAIL [70, 71], MGMT-003 UNKNOWN [67, 68, 72], MGMT-007
+  table above exact -MGMT-001 FAIL [70, 71], MGMT-003 UNKNOWN [67, 68, 72], MGMT-007
   PASS [32], LOG-001 PASS [55], MGMT-006 UNKNOWN [38], LOG-002 PASS [59, 60],
   MGMT-008 PASS [48–50], CRYPTO-001 PASS [76–78], MGMT-004 / MGMT-009 NOT_CONFIGURED;
-  posture "—", coverage 0. Plus tokenizer shape, negation, free-text, traffic-rule,
+  posture "-", coverage 0. Plus tokenizer shape, negation, free-text, traffic-rule,
   mapping-precedence and never-scored tests.
 - **Deliberate test updates** (unknown vendors with AI off are no longer empty):
   `test_phase0_snapshots` (xfail removed), `test_phase1_honest_unknowns`,
@@ -780,7 +780,7 @@ Known limits:
 
 ---
 
-# Phase 6 — Recognizers (Human-in-the-Loop Learning)
+# Phase 6 -Recognizers (Human-in-the-Loop Learning)
 
 ## Why
 
@@ -850,7 +850,7 @@ Suite after Phase 6: **697 passed, 2 skipped** (frontend 14 passed, build OK).
   (drafted template + admin edits → gate errors + replay diff), `POST …/recognizers` (save,
   re-evaluate), `POST …/provisional/reject` (line recorded as rejected; heuristics and AI
   ignore it).
-- **Training UI**: `RecognizerQueue` in the Training tab — Confirm drafts a recognizer
+- **Training UI**: `RecognizerQueue` in the Training tab -Confirm drafts a recognizer
   (template / scope / value JSON editable, Re-check shows gate errors and the replay diff),
   Save Recognizer, Reject. The mapping table lists recognizers by predicate.
 - **Tests** (`tests/test_phase6_recognizers.py`, AI mocked unavailable): confirm Telnet on
@@ -871,7 +871,7 @@ Known limits:
 
 ---
 
-# Phase 7 — AI Escalation Rewire
+# Phase 7 -AI Escalation Rewire
 
 ## Why
 
@@ -917,7 +917,7 @@ cached forever. Fixed as below.
 - **Judge** `app/ai/judge.py`: targets UNKNOWN results citing a line the lexicon reads as one of the
   control's AI-readable settings (MGMT-001 telnet / MGMT-002 http subjects only). Excerpt = each cited line's
   tokenizer scope: its block siblings (same scope path and flat block, nearest 15) plus enclosing block
-  headers — never blank-line paragraphs. The whole config is redacted first (so every secret is known), then
+  headers -never blank-line paragraphs. The whole config is redacted first (so every secret is known), then
   every excerpt and the prompt are `Redactor.scrub`bed as a whole. Up to 4 controls per call, most severe
   first; `ai_judge_max_calls_per_scan` (default 2) shared by a scan; an exhausted quota zeroes it. A control
   left unjudged gets `(AI: …)` appended (budget used up / unavailable / no verifiable citation). The scan
@@ -925,14 +925,14 @@ cached forever. Fixed as below.
 - **Cache**: migration v3 `ai_judge_cache`, key = sha256(prompt version `judge-v2` + model + system prompt +
   prompt). Relative line refs, so identical scopes across a fleet are one call. Only answers with at least one
   verified proposal are stored; a cached answer is re-verified, and one that verifies to nothing (or is not a
-  list) is not a hit — the judge asks again and overwrites it.
+  list) is not a hit -the judge asks again and overwrites it.
 - **Verifier** (deterministic, per proposal): control asked; predicate needed and AI-readable; line refs all
   valid (any out-of-range, zero or negative ref rejects the proposal); quoted evidence on a cited line; every
   cited setting line is read by the lexicon heuristics (`heuristic_candidates`) as this predicate and subject
   with the same value (bool, SSH version, timeout converted to minutes from the AI's unit, address); other cited
   lines may only be that reading's block state lines; all setting lines in one tokenizer scope (a top-level
   line is its own scope). Passing proposals → `config.ai_facts`, AI_VERIFIED, `control_id` = the asking control.
-- **Authority**: `SecurityFact.control_id` — the evaluator gives an AI fact only to its control. Any PASS / FAIL
+- **Authority**: `SecurityFact.control_id` -the evaluator gives an AI fact only to its control. Any PASS / FAIL
   whose weakest evidence is AI_VERIFIED (judge facts and legacy `ai_auto_mapped` mappings, confirmed vendors
   included) is reported as UNKNOWN with `proposed_status` and no failure: no finding, no severity count, no
   legacy score, no `assessed`, no posture / coverage, no remediation. `_is_assessed` counts decisive assurance
@@ -957,7 +957,7 @@ cached forever. Fixed as below.
   not a finding; 1 call then fleet cache hits; budget / quota; empty, all-rejected, malformed and invalid
   answers never cached; a poisoned cache entry is re-verified and asked again; verified line drafts a
   recognizer; hallucinated / unrelated lines absent from the queue, draft and reject 404; 12 unknown-vendor
-  secret syntaxes redacted and none — nor a value reused on a neighbour line — in the prompt.
+  secret syntaxes redacted and none -nor a value reused on a neighbour line -in the prompt.
 
 ### Final improvement: unfamiliar syntax, NOT_CONFIGURED discovery, legacy retirement
 
@@ -1008,7 +1008,7 @@ Known limits:
 
 ---
 
-# Phase 8 — Remediation v2
+# Phase 8 -Remediation v2
 
 ## Why
 
@@ -1042,7 +1042,7 @@ Fixes must be safe, parameterized and truly verified.
 
 Suite after Phase 8: **827 passed, 2 skipped** (frontend 16 passed, build OK). Phase 0 snapshots unchanged.
 
-- **Recipes** `app/remediation/recipes.py`: `RECIPES[(control_id, vendor)]` for Cisco IOS and FortiGate — 28
+- **Recipes** `app/remediation/recipes.py`: `RECIPES[(control_id, vendor)]` for Cisco IOS and FortiGate -28
   recipes over all 15 controls (MGMT-005 / MGMT-008 Cisco only: the FortiGate parser never decides them). A recipe
   gets the control's decisive FAIL results and the parser model and returns edited lines. Parameters come from the
   parser model and the results' cited lines (VTY ranges, interfaces, proposals, communities), never from evidence
@@ -1107,7 +1107,7 @@ Known limits:
 
 ---
 
-# Phase 9 — Framework Views + Final Demo
+# Phase 9 -Framework Views + Final Demo
 
 ## Tasks
 
@@ -1140,7 +1140,7 @@ Known limits:
 Suite after Phase 9: **834 passed, 2 skipped** (frontend 19 passed, build OK). Phase 0 snapshots unchanged.
 
 - **Framework views** `app/controls/frameworks.py`, `frameworks[]` on every scan response: the scan's control
-  results regrouped per (framework, version) and requirement — nothing re-evaluated. Requirement FAIL if a mapped
+  results regrouped per (framework, version) and requirement -nothing re-evaluated. Requirement FAIL if a mapped
   control FAILs decisively; PASS only if every applicable mapped control PASSes decisively; PARTIAL; NOT_CONFIGURED
   if all mapped controls are; else UNKNOWN; N/A if all N/A. Heuristic / AI verdicts set `provisional` and never make
   a requirement PASS or FAIL. Coverage = decided ÷ applicable requirements. Each mapped control carries status,
@@ -1148,8 +1148,8 @@ Suite after Phase 9: **834 passed, 2 skipped** (frontend 19 passed, build OK). P
 - **Task 2** ("not assessable from configuration"): every catalog mapping is a device-configuration requirement, so
   no listed requirement needs the label; unmapped requirements are not listed, and the UI says the view is not a
   certification. **Task 3**: CIS items stay attached only to their confirmed vendor. ISO/IEC 27001:2022, DISA NDM SRG
-  and CIS Controls v8 are **not implemented** — no mapping was verified and unverified mappings would inflate coverage.
-- **Task 4 (remove the legacy `score`) — deliberately not done.** It stays in the API, marked deprecated, and the UI no
+  and CIS Controls v8 are **not implemented** -no mapping was verified and unverified mappings would inflate coverage.
+- **Task 4 (remove the legacy `score`) -deliberately not done.** It stays in the API, marked deprecated, and the UI no
   longer shows it (history uses posture / coverage). `backend/test_api.py` reads `score` and
   `backend/diagnose_remediation.py` imports `calculate_score`; both are pre-existing repository scripts left untouched.
 - **Persistence audit**:
@@ -1181,15 +1181,15 @@ Suite after Phase 9: **834 passed, 2 skipped** (frontend 19 passed, build OK). P
   | Cisco secure | confirmed | 100 / 100 | nothing to fix (download 400) |
   | FortiGate vulnerable | confirmed | 4 / 82, MGMT-005 not assessed | 9 fixed, 2 needs input, BOUNDARY-001 review |
   | FortiGate secure | confirmed | 100 / 83, MGMT-005 not assessed | nothing to fix |
-  | `sample/unknown.cfg` | unknown | — / 0 | 6 provisional; NIST view only; remediation `vendor_unverified`, download 409 |
-  | `sample/paloalto.cfg` | unknown | — / 0 | 4 provisional (suspected Telnet / HTTP FAIL); remediation blocked |
-  | Synthetic Junos | unknown | — / 0 | 1 provisional; nothing decisive |
-  | Arista EOS look-alike | unverified (33 % grammar) | — / 0 | nothing decisive, blocked |
-  | Mixed IOS + foreign block | unverified (9 foreign statements) | — / 0 | provisional only, blocked |
+  | `sample/unknown.cfg` | unknown | -/ 0 | 6 provisional; NIST view only; remediation `vendor_unverified`, download 409 |
+  | `sample/paloalto.cfg` | unknown | -/ 0 | 4 provisional (suspected Telnet / HTTP FAIL); remediation blocked |
+  | Synthetic Junos | unknown | -/ 0 | 1 provisional; nothing decisive |
+  | Arista EOS look-alike | unverified (33 % grammar) | -/ 0 | nothing decisive, blocked |
+  | Mixed IOS + foreign block | unverified (9 foreign statements) | -/ 0 | provisional only, blocked |
   | Remediation (Cisco, inputs) | confirmed | 0 → 72 on real rescan (= plan) | 12 fixed; remaining FAILs = MGMT-005, MGMT-008, BOUNDARY-001 |
-  | Confirmed recognizer | unknown | — / 0 → 11 | MGMT-001 confirmed FAIL [70, 71]; AI judge asked only MGMT-003 / MGMT-006 (line 71 appears only as scope context) |
-  | Unfamiliar syntax (AI on) | unknown | — / 0 | `lock-after 10 minutes` → MGMT-006 UNKNOWN, AI proposes PASS; no finding, no posture |
-  | Fake secrets (AI on) | unknown | — / 0 | 1 judge call; none of 6 fake secrets in the prompt |
+  | Confirmed recognizer | unknown | -/ 0 → 11 | MGMT-001 confirmed FAIL [70, 71]; AI judge asked only MGMT-003 / MGMT-006 (line 71 appears only as scope context) |
+  | Unfamiliar syntax (AI on) | unknown | -/ 0 | `lock-after 10 minutes` → MGMT-006 UNKNOWN, AI proposes PASS; no finding, no posture |
+  | Fake secrets (AI on) | unknown | -/ 0 | 1 judge call; none of 6 fake secrets in the prompt |
 
 Known limits:
 
@@ -1237,7 +1237,7 @@ in "verified" fixes.
 - [x] No PASS without evidence or a documented default; no FAIL from missing data on unknown vendors
 - [x] Posture and coverage shown; unassessed never scores as passed
 - [x] `sample/unknown.cfg` gives useful cited results with AI off
-- [x] Admin confirmation makes the next scan decisive with zero AI calls — including after a backend restart
+- [x] Admin confirmation makes the next scan decisive with zero AI calls -including after a backend restart
 - [x] AI calls per config bounded by a budget and cached
 - [x] Verified remediation includes a regression check
 - [x] Full backend test suite green at every phase

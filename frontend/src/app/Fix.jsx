@@ -114,7 +114,7 @@ export function CandidateFix({ item, audit }) {
           value={command} onChange={(e) => setCommand(e.target.value)}
           placeholder={item.primary?.evidence?.lines?.[0] ? `e.g. the command that removes: ${item.primary.evidence.lines[0].trim()}` : ''}
         />
-        <span className="field-help">Exactly as you would type it on the device. NetAuditAI never runs it — it checks what it can against this configuration and keeps it for your confirmation.</span>
+        <span className="field-help">Exactly as you would type it on the device. NetAuditAI never runs it -it checks what it can against this configuration and keeps it for your confirmation.</span>
       </label>
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={busy || !command.trim()}>
@@ -145,7 +145,7 @@ export function CandidateFix({ item, audit }) {
         </div>
         <p className="small muted">
           <strong>Fix it for me</strong> removes exactly the lines this finding cites from a copy of your file and
-          re-checks it. It needs no AI and no vendor grammar — but it can only remove a setting, never add one.
+          re-checks it. It needs no AI and no vendor grammar -but it can only remove a setting, never add one.
         </p>
         {errorLine}
       </div>
@@ -183,7 +183,7 @@ export function CandidateFix({ item, audit }) {
       {(candidate.diff || candidate.checks?.length > 0) && (
         <Disclosure summary="Show what it changes">
           {candidate.checks?.length > 0 && <VerifyList checks={candidate.checks} />}
-          {candidate.diff && <FileDiff diff={candidate.diff} file={candidate.device_hostname} caption="Simulated change (on a copy — your file is untouched)" />}
+          {candidate.diff && <FileDiff diff={candidate.diff} file={candidate.device_hostname} caption="Simulated change (on a copy -your file is untouched)" />}
         </Disclosure>
       )}
       {editing ? editor : (
@@ -223,7 +223,7 @@ export function CandidateFix({ item, audit }) {
   );
 }
 
-// "What can we do?" for one problem — the same block on the Fix page and in the finding drawer.
+// "What can we do?" for one problem -the same block on the Fix page and in the finding drawer.
 // It never renders a status of its own: the one status is shown once, by whatever frames it.
 export function FixAction({ item, scan, audit }) {
   const state = itemState(item, audit.applied);
@@ -311,7 +311,7 @@ export function FixAction({ item, scan, audit }) {
           </button>
         </div>
         {errorLine}
-        <p className="small muted">Your values are checked, then written only into a fixed, known-safe change — never run as commands.</p>
+        <p className="small muted">Your values are checked, then written only into a fixed, known-safe change -never run as commands.</p>
       </form>
     );
   }
@@ -349,7 +349,7 @@ export function FixAction({ item, scan, audit }) {
   if (state === 'verification_failed') {
     return (
       <div className="fix" role="alert">
-        <p className="fix-lead">We generated a fix, but the rescan didn’t confirm it — so it is not in your download.</p>
+        <p className="fix-lead">We generated a fix, but the rescan didn’t confirm it -so it is not in your download.</p>
         {rem?.reason && <p>{rem.reason}</p>}
         {recommendation && <dl className="fix-steps"><dt>What to change</dt><dd>{recommendation}</dd></dl>}
         <ChangeDetails rem={rem} summary="Show the generated change for review" />
@@ -460,10 +460,10 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
   const scoreMoves = scored.map((d) => (
     <p key={d.config_index} className="score-move">
       {labels.length > 1 && <span className="mono small">{labels[d.config_index]}</span>}
-      <span className="score-k">Before</span><span className="score-v tnum">{d.before.posture ?? '—'}</span>
+      <span className="score-k">Before</span><span className="score-v tnum">{d.before.posture ?? '-'}</span>
       <span className="score-arrow" aria-hidden="true">→</span>
       <span className="score-k">After</span>
-      <span className="score-v score-after tnum">{d.after.posture == null ? '—' : <Count value={d.after.posture} from={d.before.posture ?? 0} duration={700} />}</span>
+      <span className="score-v score-after tnum">{d.after.posture == null ? '-' : <Count value={d.after.posture} from={d.before.posture ?? 0} duration={700} />}</span>
     </p>
   ));
 
@@ -518,7 +518,7 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
               {scoreMoves}
               <p className="verified-sum">{fixed.length} problem{fixed.length === 1 ? '' : 's'} fixed · {remaining} remaining</p>
               {fixed.length < verifiedTotal && (
-                <p className="small muted">The “after” score includes every fix NetAuditAI verified ({verifiedTotal}), including ones you haven’t applied here yet — they are all in the download.</p>
+                <p className="small muted">The “after” score includes every fix NetAuditAI verified ({verifiedTotal}), including ones you haven’t applied here yet -they are all in the download.</p>
               )}
               <div className="actions">
                 {/* answering one question must not take away the one-click path for the verified automatic fixes */}
@@ -561,13 +561,13 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
       {plan && counts.review > 0 && items.length > 0 && (
         <Notice label={`${counts.review} line${counts.review === 1 ? '' : 's'} NetAuditAI doesn’t recognize.`}
                 action={<button type="button" className="btn btn-sm btn-quiet" onClick={onTeach}>Teach NetAuditAI</button>}>
-          <p>What they mean isn’t counted — and can’t be fixed — until you tell NetAuditAI.</p>
+          <p>What they mean isn’t counted -and can’t be fixed -until you tell NetAuditAI.</p>
         </Notice>
       )}
 
       {unconfirmed.length > 0 && (
         <p className="small muted prose">
-          NetAuditAI never writes vendor commands for {joinWords(unconfirmed.map((d) => labels[d.config_index] ?? d.device_hostname))} by itself: the vendor isn’t confirmed. It can derive the change from the configuration you uploaded, and you can propose a command or have AI draft one — each is checked against that configuration before you confirm it. It never connects to the device.
+          NetAuditAI never writes vendor commands for {joinWords(unconfirmed.map((d) => labels[d.config_index] ?? d.device_hostname))} by itself: the vendor isn’t confirmed. It can derive the change from the configuration you uploaded, and you can propose a command or have AI draft one -each is checked against that configuration before you confirm it. It never connects to the device.
         </p>
       )}
 
@@ -582,9 +582,9 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
         <ActionBar
           status={`${fixed.length} of ${items.length} verified`}
           note={downloadable
-            ? `Includes every fix NetAuditAI verified (${verifiedTotal}). Only changes that passed the rescan are included — review before deploying.`
+            ? `Includes every fix NetAuditAI verified (${verifiedTotal}). Only changes that passed the rescan are included -review before deploying.`
             : candidateVerified
-              ? 'No corrected device configuration for an unconfirmed vendor. Each verified candidate offers its own corrected copy of your uploaded file, above — NetAuditAI checked it against that file and has not applied it to a device.'
+              ? 'No corrected device configuration for an unconfirmed vendor. Each verified candidate offers its own corrected copy of your uploaded file, above -NetAuditAI checked it against that file and has not applied it to a device.'
               : 'Nothing to download yet: no fix has been verified.'}
         >
           {downloadButton}

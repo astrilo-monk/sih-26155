@@ -1,5 +1,5 @@
 """
-Phase 4 — Admin training API tests.
+Phase 4 -Admin training API tests.
 
 Covers: queue listing, accept, edit, reject, invalid field, invalid value,
 already-reviewed items, rejected lines not retried, admin mapping management.

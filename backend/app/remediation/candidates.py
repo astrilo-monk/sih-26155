@@ -3,7 +3,7 @@ Candidate remediation for unconfirmed vendors: proposed, deterministically check
 
 A confirmed vendor keeps the deterministic path of ``engine.py`` (recipes + full rescan) untouched.
 A device whose vendor could not be confirmed has no recipe and no trusted grammar, so the command
-text can only come from outside the engine — typed by the administrator, or proposed by the AI. Such
+text can only come from outside the engine -typed by the administrator, or proposed by the AI. Such
 text is a **candidate**, never a fix:
 
     decisive FAIL of a control on an unconfirmed-vendor configuration
@@ -24,7 +24,7 @@ configuration NetAuditAI generated and not something applied anywhere. Every oth
 
 Nothing here touches the stored scan, its configuration text, its results, posture or coverage, and
 no command is executed anywhere: NetAuditAI never connects to a device. "Verified" means the text
-removes the finding from this configuration *file* — not that it is safe to run on the device.
+removes the finding from this configuration *file* -not that it is safe to run on the device.
 """
 
 from __future__ import annotations
@@ -51,7 +51,7 @@ SOURCE_DERIVED = "derived"
 
 # Controls a removal can honestly resolve: the configuration states something that must not be there.
 # A control that REQUIRES a setting (remote logging, AAA, a banner) or holds one to a THRESHOLD (an idle
-# timeout, a crypto proposal) is never derived from — deleting the line would leave the setting unset,
+# timeout, a crypto proposal) is never derived from -deleting the line would leave the setting unset,
 # which reads as "not configured" but is not an improvement. Those stay with the person who owns the
 # command: typed by an administrator, or proposed by the AI, and confirmed by a human either way.
 DERIVABLE_KINDS = frozenset({ControlKind.PROHIBITION, ControlKind.RELATIONAL})
@@ -138,7 +138,7 @@ def _covers(command: list[Statement], target: Statement) -> bool:
     """A negating command statement names this configuration statement and every word of its scope.
 
     Vendor-neutral: the words come from the configuration and from the text the administrator or the
-    AI wrote — no vendor table, no dialect branch. A command that is narrower (or about something
+    AI wrote -no vendor table, no dialect branch. A command that is narrower (or about something
     else) does not cover the statement, and nothing is then simulated.
     """
     needed = {t.lower() for t in target.key_tokens} | {w for segment in target.scope_path for w in _words(segment)}
@@ -159,7 +159,7 @@ def block_openers(raw_lines: list[str]) -> set[int]:
     """Lines that open a block, by number.
 
     Removing one of these alone would leave its block's contents (and its closer) orphaned, so a
-    derived change never touches them — whatever the dialect, since the depth comes from the same
+    derived change never touches them -whatever the dialect, since the depth comes from the same
     structural reading the tokenizer uses (braces, ``config``/``edit``, indentation).
     """
     paths = structural_paths(raw_lines)
@@ -176,8 +176,8 @@ def block_openers(raw_lines: list[str]) -> set[int]:
 def derived_command(text: str, evidence: Iterable[int]) -> Optional[str]:
     """The change NetAuditAI can state itself: remove exactly the lines this finding cites.
 
-    Built from the configuration's own words — the cited statement's keywords inside the block path
-    it sits in — so it needs no vendor grammar and claims none. It is the *change to this file*, and
+    Built from the configuration's own words -the cited statement's keywords inside the block path
+    it sits in -so it needs no vendor grammar and claims none. It is the *change to this file*, and
     ``verify`` proves it by re-reading the edited copy; whether this text is also the device's CLI
     syntax is for the administrator to say.
 
@@ -208,7 +208,7 @@ def removed_lines(text: str, command: str, evidence: Iterable[int]) -> Optional[
     The only effect this engine can derive from unfamiliar command text is a negation: a statement
     the command explicitly removes or switches off (``delete …``, ``no …``, ``unset …``,
     ``… disable``). Every cited failing line must be covered, and every statement of the command must
-    be about one of them — a command that also does something else is not simulated at all, because
+    be about one of them -a command that also does something else is not simulated at all, because
     that part of its effect cannot be checked.
     """
     cited = sorted(set(evidence))
@@ -262,9 +262,9 @@ def derive(text: str, config_index: int, control_id: str) -> Optional[Candidate]
         decisive FAIL → the lines it cites → remove exactly those from a copy → re-read the copy
         → the finding is gone and nothing else got worse → a candidate an administrator can confirm
 
-    Returns None when there is nothing to derive — no decisive failure, a control a removal could not
-    honestly resolve (see ``DERIVABLE_KINDS``), or a change that cannot be stated safely — and a
-    REJECTED candidate when the simulation does not hold — an honest answer
+    Returns None when there is nothing to derive -no decisive failure, a control a removal could not
+    honestly resolve (see ``DERIVABLE_KINDS``), or a change that cannot be stated safely -and a
+    REJECTED candidate when the simulation does not hold -an honest answer
     either way, and never an unverified one. Nothing about the scan changes.
     """
     control = CONTROLS.get(control_id)
@@ -279,7 +279,7 @@ def derive(text: str, config_index: int, control_id: str) -> Optional[Candidate]
     candidate = new_candidate(
         text, config_index, control_id, SOURCE_DERIVED, command,
         explanation=("NetAuditAI derived this from the configuration itself: the lines this finding cites, "
-                     "removed from the block they sit in. It is a change to this configuration file — check "
+                     "removed from the block they sit in. It is a change to this configuration file -check "
                      "that the wording matches your device's command syntax before you use it."),
     )
     return verify(candidate, text)

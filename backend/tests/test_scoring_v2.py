@@ -1,4 +1,4 @@
-"""Phase 3 — Scoring v2: posture + coverage over control results."""
+"""Phase 3 -Scoring v2: posture + coverage over control results."""
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch

@@ -1,7 +1,7 @@
 # NetAuditAI
 
 Configuration security auditor for network devices, built for Smart India Hackathon 2026
-(SIH26155 — AI-Driven Multi-Vendor Network Security Compliance Auditor, NTRO, Cybersecurity).
+(SIH26155 -AI-Driven Multi-Vendor Network Security Compliance Auditor, NTRO, Cybersecurity).
 
 NetAuditAI answers 15 security questions (**controls**) about every uploaded configuration, cites the
 configuration lines behind every answer, keeps what it could decide separate from what it could not, and
@@ -64,7 +64,7 @@ The vendor is decided deterministically. An AI vendor guess is reported as evide
 **Shipped knowledge.** 25 reviewed recognizers for five unparsed dialects (Juniper Junos 9, Huawei VRP 6,
 Palo Alto PAN-OS 4, Arista EOS 3, MikroTik RouterOS 3) ship in `backend/data/seed_recognizers.json` and load
 into an empty database on first start, so those dialects answer several controls before anyone teaches
-anything. They are ordinary recognizers — same templates, same validation, same decisive CONFIRMED facts —
+anything. They are ordinary recognizers -same templates, same validation, same decisive CONFIRMED facts -
 and are marked `source=seed` so shipped knowledge can be audited separately from what a deployment was
 taught. This is not a parser and not training: see [docs/seed-knowledge.md](docs/seed-knowledge.md).
 
@@ -72,16 +72,16 @@ taught. This is not a parser and not training: see [docs/seed-knowledge.md](docs
 administrator types the command, or asks the AI for one; NetAuditAI validates it, removes the cited
 statements from an **in-memory copy** of the configuration, re-reads that copy with the generic engine and
 re-evaluates every control. A verified candidate means *the finding is gone from this configuration file*
-(typically `FAIL → NOT_CONFIGURED` — absence is never a PASS). It does not mean the command is safe to run
+(typically `FAIL → NOT_CONFIGURED` -absence is never a PASS). It does not mean the command is safe to run
 on the device, and it changes no posture, coverage, finding or download until the device itself is changed
 and scanned again. NetAuditAI performs detection, candidate remediation, verification and human
 confirmation; it does **not** execute commands on physical devices.
 
 ## Reading the results
 
-- **Status** per control: `PASS`, `FAIL`, `UNKNOWN` (something relevant exists but could not be decided), `NOT_CONFIGURED` (nothing relevant found — never counted as PASS), `N_A`.
+- **Status** per control: `PASS`, `FAIL`, `UNKNOWN` (something relevant exists but could not be decided), `NOT_CONFIGURED` (nothing relevant found -never counted as PASS), `N_A`.
 - **Assurance**: `parser`, `confirmed` (recognizer or administrator mapping) and `default` (documented vendor default) are **decisive**; `heuristic` and `ai_verified` are **provisional** ("Suspected FAIL", "Probable PASS", "AI proposes …").
-- **Posture** = weighted PASS ÷ (PASS + FAIL) over decisive results; "—" when nothing was decided.
+- **Posture** = weighted PASS ÷ (PASS + FAIL) over decisive results; "-" when nothing was decided.
 - **Coverage** = weighted share of applicable controls decided decisively. Posture and coverage are shown side by side, with the posture range if every undecided control failed or passed.
 - **Critical not assessed** lists critical controls that were not decided.
 - Provisional verdicts are shown with their evidence but never change posture, coverage, findings counts or remediation.
@@ -93,12 +93,12 @@ The scan response still carries `score`, the deprecated penalty score (kept for 
 
 Two tiers. **Scan · Results · Fix · History · Knowledge** are global; within a scan, **Overview · Fix ·
 Teach · All checks · Devices · Frameworks**. *Knowledge* (route `#/app/learned`) lists everything the
-engine knows — shipped seed recognizers and whatever this deployment was taught — and lets an
+engine knows -shipped seed recognizers and whatever this deployment was taught -and lets an
 administrator stop any entry.
 
 Severity is a four-square meter plus the severity word, and status is a mono label with a square marker,
 so no result is conveyed by colour alone. The palette is near-black, greys and one accent, which marks
-attention and selection only — never severity, never status.
+attention and selection only -never severity, never status.
 
 ## Setup
 
@@ -146,7 +146,7 @@ Every AI call is mocked and every test gets its own SQLite database. See [docs/t
 
 | Data | Where | Survives restart |
 |---|---|---|
-| Confirmed recognizers and learned mappings | SQLite `learned_mappings` | Yes — reused by every later scan and process |
+| Confirmed recognizers and learned mappings | SQLite `learned_mappings` | Yes -reused by every later scan and process |
 | Lines an administrator rejected | SQLite `rejected_lines`, stored redacted | Yes |
 | Verified AI judge answers | SQLite `ai_judge_cache` (answers to redacted prompts) | Yes |
 | Scan results, uploaded configurations | Backend memory | No |

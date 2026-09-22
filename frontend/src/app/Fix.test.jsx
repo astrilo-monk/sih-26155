@@ -177,7 +177,7 @@ it('fixes one problem through the backend and only calls it fixed when the resca
 
   fireEvent.click(within(can).getByRole('button', { name: 'Fix this' }));
   await waitFor(() => expect(apiClient.getRemediation).toHaveBeenCalledWith('scan-1', 'MGMT-007', 'R1', 0, {}));
-  expect(await screen.findByText(/the rescan didn’t confirm it — so it is not in your download/)).toBeTruthy();
+  expect(await screen.findByText(/the rescan didn’t confirm it -so it is not in your download/)).toBeTruthy();
   expect(screen.queryByText('Fixes verified')).toBeNull();
 });
 
@@ -233,7 +233,7 @@ it('offers a candidate fix instead of a dead end when the vendor is not confirme
   apiClient.getRemediationPlan.mockResolvedValue(unknownPlan());
   render(<Harness scan={UNKNOWN_SCAN} />);
 
-  // the problem is its own group, open, and says what is missing — never "can't fix"
+  // the problem is its own group, open, and says what is missing -never "can't fix"
   expect(await screen.findByRole('region', { name: /Needs administrator input/ })).toBeTruthy();
   expect(screen.getAllByText('Needs administrator input').length).toBeGreaterThan(0);
   expect(screen.getByText(/vendor and command syntax are not confirmed/)).toBeTruthy();

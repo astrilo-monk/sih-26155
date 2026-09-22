@@ -8,7 +8,7 @@ import LegacyInterpretations from './LegacyInterpretations';
 
 // Teach NetAuditAI: a person shows it which line of their own configuration answers a check it could not
 // decide, and says what that line means. Underneath, the answer drafts a recognizer, the backend checks its
-// safety gates and replays it, and only then saves it — nothing is counted before that, and nothing here can
+// safety gates and replays it, and only then saves it -nothing is counted before that, and nothing here can
 // bypass those checks. The uploaded configuration is only ever read. The technical draft stays under Advanced.
 
 const STEPS = ['The check', 'The line', 'Your answer', 'Learned'];
@@ -51,7 +51,7 @@ function AdvancedDraft({ scanId, base, item, line, edits, setEdits }) {
     <div className="advanced">
       <dl className="kv">
         <dt>Check</dt><dd><span className="mono">{item.control_id}</span> {item.question}</dd>
-        <dt>Current result</dt><dd>{item.status} — {item.reason}</dd>
+        <dt>Current result</dt><dd>{item.status} -{item.reason}</dd>
         <dt>Line</dt><dd className="mono">{line.line_number}: {line.text}</dd>
         {line.predicate && <><dt>Our reading</dt><dd className="mono">{line.predicate}{line.subject ? ` · ${line.subject}` : ''} = {fmtValue(line.value)}</dd></>}
       </dl>
@@ -76,7 +76,7 @@ function AdvancedDraft({ scanId, base, item, line, edits, setEdits }) {
           </div>
           <label className="check">
             <input type="checkbox" checked={!!current.any_dialect} onChange={edit('any_dialect')} />
-            <span>Apply to any dialect <span className="muted">— by default it matches only configurations sharing this one’s top-level keywords</span></span>
+            <span>Apply to any dialect <span className="muted">-by default it matches only configurations sharing this one’s top-level keywords</span></span>
           </label>
           <button type="button" className="btn btn-sm" onClick={() => load({ ...base, ...current })}>Re-check</button>
           {preview.errors.length > 0 ? (
@@ -169,7 +169,7 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
     setPicking(!item?.suggested_lines?.length);
   }, [key, phase.kind]);
 
-  // What this line may mean for this check — the backend decides, from the check's own settings
+  // What this line may mean for this check -the backend decides, from the check's own settings
   useEffect(() => {
     if (!item || line == null) {
       setOptions(null);
@@ -360,12 +360,12 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
                       {chosenLine.predicate && (
                         <label className={`choice ${choice === 'reject' ? 'is-checked' : ''}`}>
                           <input type="radio" name="teach-meaning" value="reject" checked={choice === 'reject'} onChange={() => setChoice('reject')} />
-                          <span>Something else — NetAuditAI misread this line</span>
+                          <span>Something else -NetAuditAI misread this line</span>
                         </label>
                       )}
                       <label className={`choice ${choice === 'skip' ? 'is-checked' : ''}`}>
                         <input type="radio" name="teach-meaning" value="skip" checked={choice === 'skip'} onChange={() => setChoice('skip')} />
-                        <span>I’m not sure — skip this check for now</span>
+                        <span>I’m not sure -skip this check for now</span>
                       </label>
                     </fieldset>
                   )}
@@ -420,10 +420,10 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
                     <p className="teach-decided">
                       <span className="mono">{phase.item.control_id}</span> is now{' '}
                       <strong>{result.status === 'pass' ? 'Passed' : 'Failed'}</strong>
-                      {' '}— {result.reason}
+                      {' '}-{result.reason}
                     </p>
                     <ul className="fixmix">
-                      <li className="tone-pass"><b className="tnum">{after.posture ?? '—'}</b> security posture <span className="muted">(was {phase.before.posture ?? '—'})</span></li>
+                      <li className="tone-pass"><b className="tnum">{after.posture ?? '-'}</b> security posture <span className="muted">(was {phase.before.posture ?? '-'})</span></li>
                       <li className="tone-pass"><b className="tnum">{after.coverage}%</b> checked <span className="muted">(was {phase.before.coverage}%)</span></li>
                       <li className="tone-input"><b className="tnum">{after.unresolved_count}</b> still need input <span className="muted">(was {phase.before.unresolved_count})</span></li>
                     </ul>

@@ -117,7 +117,7 @@ def _build_mock_interpretations(pairs):
 
 
 # ===========================================================================
-# Test 2 — HIGH confidence auto-mapped to config (unit-level)
+# Test 2 -HIGH confidence auto-mapped to config (unit-level)
 # ===========================================================================
 
 def test_e2e_high_confidence_auto_mapped_to_config():
@@ -159,7 +159,7 @@ def test_e2e_high_confidence_auto_mapped_to_config():
 
 
 # ===========================================================================
-# Test 4 — LOW confidence NOT written to config (unit-level)
+# Test 4 -LOW confidence NOT written to config (unit-level)
 # ===========================================================================
 
 def test_e2e_low_confidence_not_written_to_config():
@@ -197,7 +197,7 @@ def test_e2e_low_confidence_not_written_to_config():
 
 
 # ===========================================================================
-# Test 5 — Container field rejected (unit-level)
+# Test 5 -Container field rejected (unit-level)
 # ===========================================================================
 
 def test_e2e_container_field_rejected():
@@ -223,7 +223,7 @@ def test_e2e_container_field_rejected():
 
     mappings = map_interpretations(normalized, interpretations)
 
-    # NOT auto-mapped — routed to needs_review
+    # NOT auto-mapped -routed to needs_review
     assert mappings[0].source == "needs_review"
 
     # Config has no interfaces (was not enriched)
@@ -233,7 +233,7 @@ def test_e2e_container_field_rejected():
 
 
 # ===========================================================================
-# Test 8 — HIGH confidence + invalid type conversion → needs_review (unit)
+# Test 8 -HIGH confidence + invalid type conversion → needs_review (unit)
 # ===========================================================================
 
 def test_e2e_invalid_type_conversion_routed_to_review():
@@ -271,7 +271,7 @@ def test_e2e_invalid_type_conversion_routed_to_review():
 
 
 # ===========================================================================
-# Test 9 — AI unavailable → graceful degradation (API)
+# Test 9 -AI unavailable → graceful degradation (API)
 # ===========================================================================
 
 def test_e2e_ai_unavailable_graceful():
@@ -304,7 +304,7 @@ def test_e2e_ai_unavailable_graceful():
 
 
 # ===========================================================================
-# Test 10 — Remediation round-trip (full HTTP API flow)
+# Test 10 -Remediation round-trip (full HTTP API flow)
 # ===========================================================================
 
 def test_e2e_remediation_round_trip():
@@ -316,7 +316,7 @@ def test_e2e_remediation_round_trip():
 
     client = TestClient(app)
 
-    # Step 1 — scan the vulnerable config (known vendor, no AI)
+    # Step 1 -scan the vulnerable config (known vendor, no AI)
     scan_resp = client.post(
         "/api/scan",
         files=[("files", ("cisco_vuln.cfg", cisco_config.encode(), "text/plain"))],
@@ -329,7 +329,7 @@ def test_e2e_remediation_round_trip():
 
     scan_id = scan_data["scan_id"]
 
-    # Step 2 — download the config with every verified fix (operator values for syslog / NTP / ACL)
+    # Step 2 -download the config with every verified fix (operator values for syslog / NTP / ACL)
     dl_resp = client.post(
         "/api/download-fixed",
         json={"scan_id": scan_id, "inputs": {
@@ -341,7 +341,7 @@ def test_e2e_remediation_round_trip():
     remediated_text = dl_resp.text
     assert "ip ssh version 2" in remediated_text  # SSHv1 was fixed
 
-    # Step 3 — re-scan the remediated config
+    # Step 3 -re-scan the remediated config
     rescan_resp = client.post(
         "/api/scan",
         files=[("files", ("cisco_fixed.cfg", remediated_text.encode(), "text/plain"))],
@@ -349,7 +349,7 @@ def test_e2e_remediation_round_trip():
     assert rescan_resp.status_code == 200
     rescan_data = rescan_resp.json()
 
-    # Step 4 — (Phase 8) every verified fix holds on a real rescan; only the controls with no
+    # Step 4 -(Phase 8) every verified fix holds on a real rescan; only the controls with no
     # known-safe deterministic fix remain: weak stored passwords, AAA without a strong local
     # account (lockout risk), and the any-any ACL
     assert rescan_data["vendor_identification"][0]["status"] == "confirmed"

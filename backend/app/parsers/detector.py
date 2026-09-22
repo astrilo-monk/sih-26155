@@ -2,7 +2,7 @@
 Vendor auto-detection.
 
 Looks at the raw config text and figures out which vendor it belongs to.
-Uses simple heuristic pattern matching — no need for anything fancy here.
+Uses simple heuristic pattern matching -no need for anything fancy here.
 """
 
 from __future__ import annotations
@@ -80,7 +80,7 @@ STATUS_UNKNOWN = "unknown"
 # ratio when at least this many lines fall outside its grammar.
 MIN_UNCOVERED_LINES = 3
 # This many consecutive foreign top-level statements reject the vendor whatever
-# the ratio — a block of another dialect pasted into a valid config.
+# the ratio -a block of another dialect pasted into a valid config.
 MAX_FOREIGN_RUN = 5
 
 PARSERS = {
@@ -95,7 +95,7 @@ class VendorIdentification:
     detected_vendor: Vendor
     status: str
     coverage: Optional[CoverageReport] = None
-    # Parser output — only kept when the vendor profile is confirmed
+    # Parser output -only kept when the vendor profile is confirmed
     config: Optional[NormalizedConfig] = None
     # Why an UNVERIFIED profile was rejected
     reason: Optional[str] = None
@@ -147,7 +147,7 @@ def identify_vendor(raw_config: str, threshold: Optional[float] = None) -> Vendo
         reason = f"only {coverage.ratio:.0%} of {coverage.total_lines} lines follow its syntax"
 
     if reason:
-        logger.warning("Config resembles %s but %s — vendor unverified", detected.value, reason)
+        logger.warning("Config resembles %s but %s -vendor unverified", detected.value, reason)
         return VendorIdentification(
             detected_vendor=detected, status=STATUS_UNVERIFIED, coverage=coverage, reason=reason,
         )

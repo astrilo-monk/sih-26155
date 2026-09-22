@@ -7,7 +7,7 @@ The same pipeline must handle any configuration dialect:
             → evidence + confidence decision → safe NormalizedConfig write
             → existing compliance engine
 
-Four syntactically different dialects are exercised — flat ``set`` paths,
+Four syntactically different dialects are exercised -flat ``set`` paths,
 brace hierarchies, ``config``/``edit`` blocks and slash-path ``key=value``
 commands. None of them is special-cased anywhere in the application; the
 knowledge tables below only play the role of the external AI model.
@@ -146,7 +146,7 @@ class Answer(NamedTuple):
     evidence: str
 
 
-# What a competent model would answer — keyed by a distinctive fragment.
+# What a competent model would answer -keyed by a distinctive fragment.
 # Lines with no entry are answered "unknown" (rules, objects, noise).
 KNOWLEDGE = {
     "flat": [
@@ -362,7 +362,7 @@ def _lines(*texts: str) -> list[UnrecognizedLine]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 1 + 8 — every dialect produces structured interpretations that safely
+# 1 + 8 -every dialect produces structured interpretations that safely
 #         populate NormalizedConfig and feed the unchanged compliance engine
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -405,7 +405,7 @@ def test_unsupported_structures_go_to_review_not_to_config():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Regression — the Palo Alto screenshot, stated generically
+# Regression -the Palo Alto screenshot, stated generically
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def test_regression_unknown_vendor_does_not_downgrade_valid_syslog_and_ntp():
@@ -450,7 +450,7 @@ def test_regression_ai_outage_is_not_reported_as_low_confidence():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 2 — controlled vocabulary from one source of truth
+# 2 -controlled vocabulary from one source of truth
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def test_vocabulary_derives_from_one_catalog(client):
@@ -471,7 +471,7 @@ def test_vocabulary_derives_from_one_catalog(client):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 3 + 4 — invalid fields / values are rejected per line
+# 3 + 4 -invalid fields / values are rejected per line
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def test_invented_field_only_affects_its_own_line():
@@ -539,7 +539,7 @@ def test_negation_is_resolved_generically_and_contradictions_are_reviewed():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 5 — parser-established values are protected
+# 5 -parser-established values are protected
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def test_parser_values_are_never_overwritten():
@@ -558,7 +558,7 @@ def test_parser_values_are_never_overwritten():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 6 — vendor evidence: normalized, reported, never used to activate rules
+# 6 -vendor evidence: normalized, reported, never used to activate rules
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @pytest.mark.parametrize("name,expected", [
@@ -620,7 +620,7 @@ def test_conflicting_vendor_evidence_never_creates_a_vendor():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 7 — MEDIUM (and evidence-less HIGH) never mutate the config
+# 7 -MEDIUM (and evidence-less HIGH) never mutate the config
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def test_medium_confidence_does_not_mutate():
@@ -648,7 +648,7 @@ def test_high_without_cited_evidence_is_capped_at_medium():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 9 + 10 + 11 — learned knowledge takes precedence over AI
+# 9 + 10 + 11 -learned knowledge takes precedence over AI
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def test_rejected_lines_bypass_ai():
@@ -718,7 +718,7 @@ def test_ai_high_that_disagrees_with_similar_confirmed_mapping_goes_to_review():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 12 — AI failure never destroys the scan
+# 12 -AI failure never destroys the scan
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def test_ai_outage_keeps_learned_values_and_scoring(client):
@@ -931,7 +931,7 @@ def test_context_is_sent_but_results_stay_tied_to_the_target_line():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 13 — repeated scans are semantically stable
+# 13 -repeated scans are semantically stable
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _semantics(cfg, records):

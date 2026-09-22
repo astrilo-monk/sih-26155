@@ -2,17 +2,17 @@
 Recognizers: admin-confirmed templates that answer a security predicate decisively.
 
     scan → provisional (heuristic) result → admin confirms a line → recognizer saved
-         → next scan: the recognizer answers that syntax with a CONFIRMED fact — no heuristic, no AI
+         → next scan: the recognizer answers that syntax with a CONFIRMED fact -no heuristic, no AI
 
 A recognizer is a learned mapping with extraction method ``recognizer``:
 
-* ``command_pattern`` — typed-slot template, e.g. ``remote-console protocol {enum:protocol}``
-* ``predicate`` / ``subject`` — the fact it produces
-* ``scope_template`` — optional: some enclosing block header must match it
-* ``dialect_fingerprint`` — top-level keywords of the config it was confirmed on; it only
+* ``command_pattern`` -typed-slot template, e.g. ``remote-console protocol {enum:protocol}``
+* ``predicate`` / ``subject`` -the fact it produces
+* ``scope_template`` -optional: some enclosing block header must match it
+* ``dialect_fingerprint`` -top-level keywords of the config it was confirmed on; it only
   applies to configs sharing enough of them (empty = any dialect)
-* ``negatives`` — lines it must never match
-* ``constant_value`` — JSON: the value of a slot-less template, or an ``{enum:…}`` value table
+* ``negatives`` -lines it must never match
+* ``constant_value`` -JSON: the value of a slot-less template, or an ``{enum:…}`` value table
   (``{"telnet": true, "*": false}``)
 """
 
@@ -45,7 +45,7 @@ BOOL_PREDICATES = frozenset({
 })
 # Settings a configuration states by *naming a thing*: the line exists only to configure them, so the
 # address or name it carries is which instance, not whether the setting is on. No dialect writes
-# "source restriction: on" — it writes ``permitted-ip 10.0.0.0/24`` or ``allow-address …``, and the
+# "source restriction: on" -it writes ``permitted-ip 10.0.0.0/24`` or ``allow-address …``, and the
 # line being there is the restriction.
 #
 # Every other boolean is a toggle, where a value says nothing about on or off: ``server 10.0.0.1``
@@ -73,7 +73,7 @@ SLOT_PREDICATES = {
 RECOGNIZER_PREDICATES = BOOL_PREDICATES | frozenset(SLOT_PREDICATES)
 STOPWORDS = POSITIVE | NEGATIVE | NEGATORS | {"set", "config", "edit", "next", "end", "exit", "state", "status"}
 # A recognizer must be this specific. A hierarchical dialect keeps the nouns in the block header
-# (``ntp { server 1.2.3.4; }``), so the scope template counts too — but never on its own: the
+# (``ntp { server 1.2.3.4; }``), so the scope template counts too -but never on its own: the
 # statement itself must still carry a keyword, or the recognizer would answer any line in the block.
 MIN_KEYWORDS = 2
 FINGERPRINT_OVERLAP = 0.5
@@ -161,7 +161,7 @@ def validate_recognizer(r) -> None:
     value = recognizer_value(r, slot)
 
     example = tokenize_line(r.example_line) or Statement(0, "")
-    # A line that states an on/off of its own can be taught in any words — that is the whole point of
+    # A line that states an on/off of its own can be taught in any words -that is the whole point of
     # teaching an unfamiliar dialect (``management-plane legacy-access disabled`` may mean Telnet).
     # A line that states nothing is different: it is evidence only because it is *there*, so it has to
     # be a line about the setting. Without this, ``uid 2001`` or ``login {`` would teach anything.
@@ -170,7 +170,7 @@ def validate_recognizer(r) -> None:
     if r.predicate not in BOOL_PREDICATES or example.polarity is None:
         if not _names_concept(r.predicate, r.subject, [*example.key_tokens, *(r.scope_template or "").split()]):
             raise RecognizerError("This line states nothing on its own, and it does not name this setting "
-                                  "either — so being in the file is not evidence about it. Pick the line "
+                                  "either -so being in the file is not evidence about it. Pick the line "
                                   "that configures the setting, or one that says it is on or off.")
 
     if r.predicate in BOOL_PREDICATES:
@@ -297,7 +297,7 @@ def _stored_knowledge() -> tuple[list, set[str]]:
                        if m.confirmed and m.extraction_method == EXTRACTION_RECOGNIZER]
         return recognizers, repository.rejected_line_keys()
     except Exception as e:
-        logger.warning("Recognizer store unavailable — continuing without it: %s", e)
+        logger.warning("Recognizer store unavailable -continuing without it: %s", e)
         return [], set()
 
 
@@ -320,7 +320,7 @@ def draft_recognizer(raw_lines: list[str], needs: Iterable[str], line_number: in
                      extra: Iterable[_Candidate] = (), asserted: Optional[_Candidate] = None) -> dict:
     """Recognizer fields drafted from a line (the admin reviews them before saving).
 
-    The line is one a heuristic or a verified AI proposal read, or — ``asserted`` — any line of the
+    The line is one a heuristic or a verified AI proposal read, or -``asserted`` -any line of the
     configuration whose meaning an administrator stated. Either way the draft is only a proposal:
     ``validate_recognizer`` still has to find that meaning on the line itself.
     """
@@ -359,7 +359,7 @@ def _names_concept(predicate: str, subject: Optional[str], words: Iterable[str])
 
 
 def _states_by_presence(predicate: str, s: Statement, scope: Optional[str]) -> bool:
-    """A setting this line states simply by being there — and it must be a line about that setting."""
+    """A setting this line states simply by being there -and it must be a line about that setting."""
     if predicate not in PRESENCE_PREDICATES:
         return False
     words = [*s.key_tokens, *(t for header in s.scope_path for t in header.split()), *(scope or "").split()]
@@ -390,7 +390,7 @@ def _draft_template(s: Statement, c: _Candidate, scope: Optional[str] = None) ->
     def slot(index: int, kind: str, tail: bool = False) -> str:
         """The template with token ``index`` replaced by a typed slot.
 
-        ``tail``: the tokens after it become ``{any}`` — a facility, an id or an index qualifies the
+        ``tail``: the tokens after it become ``{any}`` -a facility, an id or an index qualifies the
         value, it does not state it, so keeping it literal would tie the recognizer to one instance."""
         name = words[index - 1] if index and _WORD.match(words[index - 1]) else "value"
         placeholder = f"{{enum:{name}}}" if kind == "enum" else f"{{{kind}}}"
@@ -411,7 +411,7 @@ def _draft_template(s: Statement, c: _Candidate, scope: Optional[str] = None) ->
         if polar and (words[polar[-1]] in POSITIVE) == c.value:
             return slot(polar[-1], "polarity"), None
         # A setting stated by naming a thing: the address or name is which instance is configured, so
-        # it becomes {any} and the line's presence is what says "on" — negated, the same recognizer
+        # it becomes {any} and the line's presence is what says "on" -negated, the same recognizer
         # says "off". Keeping the address literal would tie the recognizer to one subnet.
         if _states_by_presence(c.predicate, s, scope) and c.value is True and _addresses(tokens, s):
             return " ".join([NEGATION_SLOT, *(ANY_TOKEN if _addresses([t], s) else t for t in tokens)]), None
@@ -422,12 +422,12 @@ def _draft_template(s: Statement, c: _Candidate, scope: Optional[str] = None) ->
         if len(words) > 1 and (index := next((i for i, w in enumerate(words) if i and w in names), None)) is not None:
             # a selector: naming another protocol means this one is off
             return slot(index, "enum"), {words[index]: c.value, "*": not c.value}
-        # the last word as a value table — but not when trading it for a slot costs the keyword gate,
+        # the last word as a value table -but not when trading it for a slot costs the keyword gate,
         # because then the statement's own words, read with {neg} below, say more than the table would
         if len(words) > 1 and _WORD.match(words[-1]) and _specific_enough(slot(len(words) - 1, "enum"), scope):
             return slot(len(words) - 1, "enum"), {words[-1]: c.value}
         # The statement is the feature itself: on where it stands, off where it is negated. Only a
-        # statement carrying no value can mean that — ``server 10.0.0.1`` names a server and says
+        # statement carrying no value can mean that -``server 10.0.0.1`` names a server and says
         # nothing about a true/false setting, so reading {neg} off it would be a guess. The keyword
         # gate still decides whether what is left is specific enough to answer with.
         if c.value is True and not s.values:

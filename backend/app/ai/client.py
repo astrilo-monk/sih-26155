@@ -2,7 +2,7 @@
 AI client wrapper.
 
 Handles communication with the Groq API. Designed to fail
-gracefully when no API key is configured — the app works
+gracefully when no API key is configured -the app works
 without AI, it just won't have explanations and chat.
 
 Provider is isolated behind this layer. All AI calls go through
@@ -162,7 +162,7 @@ def _is_quota_exhausted(exc: Exception) -> bool:
 
 
 # Failures that may be specific to one API key (revoked/invalid key, a key
-# without access to the model) — another configured key can still succeed.
+# without access to the model) -another configured key can still succeed.
 _KEY_SPECIFIC_STATUSES = frozenset({401, 403, 404})
 
 

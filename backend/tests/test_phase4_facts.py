@@ -1,5 +1,5 @@
 """
-Phase 4 — security facts and the generic control evaluator.
+Phase 4 -security facts and the generic control evaluator.
 
 Controls read security facts, never vendor structures: every control runs on
 every config. Vendor parsers are one fact source (PARSER), adaptive mappings

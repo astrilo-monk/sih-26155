@@ -3,7 +3,7 @@
 **Branch:** bug-hunt (= main)  
 **Date:** 2026-09-12  
 **Scope:** Deterministic remediation pipeline audit  
-**Status:** DO NOT MODIFY CODE — findings only
+**Status:** DO NOT MODIFY CODE -findings only
 
 ---
 
@@ -23,7 +23,7 @@ The failure surface is dominated by:
 
 ### Management Rules (Cisco + Fortinet)
 
-#### MGMT-001 — Telnet Enabled on VTY / allowaccess
+#### MGMT-001 -Telnet Enabled on VTY / allowaccess
 | Stage | Detail |
 |-------|--------|
 | **Detection** | Cisco: VTY `transport_input` contains `"telnet"` or `"all"`; FortiNet: interface `allowed_services` contains `"telnet"` |
@@ -37,7 +37,7 @@ The failure surface is dominated by:
 
 **Status:** Works for Cisco. FortiNet template is ineffective (see Bug #4).
 
-#### MGMT-002 — HTTP Management Enabled
+#### MGMT-002 -HTTP Management Enabled
 | Stage | Detail |
 |-------|--------|
 | **Detection** | Cisco: `config.management.http_enabled == True`; FortiNet: `"http" in iface.allowed_services and iface.is_wan` |
@@ -51,7 +51,7 @@ The failure surface is dominated by:
 
 **Status:** Works for Cisco. FortiNet template is ineffective (see Bug #4).
 
-#### MGMT-003 — Unrestricted Management Access
+#### MGMT-003 -Unrestricted Management Access
 | Stage | Detail |
 |-------|--------|
 | **Detection** | Cisco: VTY lacks `access_class`; FortiNet: WAN interface has any of {ssh, https, http, telnet} in allowaccess |
@@ -65,7 +65,7 @@ The failure surface is dominated by:
 
 **Status:** Works for Cisco. FortiNet remediation incomplete (see Bug #4, Bug #6).
 
-#### MGMT-004 — Weak or Default SNMP Communities
+#### MGMT-004 -Weak or Default SNMP Communities
 | Stage | Detail |
 |-------|--------|
 | **Detection** | Community name in `{"public","private","community","snmp","default"}` OR (`RW` + no ACL) |
@@ -79,7 +79,7 @@ The failure surface is dominated by:
 
 **Status:** Cisco only removes default communities. Non-default RW communities without ACLs are never remediated (Bug #2).
 
-#### MGMT-005 — Plaintext / Weakly Encrypted Passwords
+#### MGMT-005 -Plaintext / Weakly Encrypted Passwords
 | Stage | Detail |
 |-------|--------|
 | **Detection** | Cisco: enable password type in `{"plaintext","type7","type0"}` OR user password type in same set OR `!config.services.password_encryption` |
@@ -90,9 +90,9 @@ The failure surface is dominated by:
 | **Post-remediation parser** | `enable_password_type = "type9_scrypt"`; `password_type` = `"type9_scrypt"` for remediated users |
 | **Post-remediation detection** | Does NOT fire |
 
-**Status:** Works for tested configs. Template has unsubstituted `<NEW_PASSWORD>` placeholder (Bug #8). Phase 4 regex does NOT match `password 0` without explicit `0`/`7` type (e.g. `password cisco` would not be matched — see Bug #12).
+**Status:** Works for tested configs. Template has unsubstituted `<NEW_PASSWORD>` placeholder (Bug #8). Phase 4 regex does NOT match `password 0` without explicit `0`/`7` type (e.g. `password cisco` would not be matched -see Bug #12).
 
-#### MGMT-006 — Missing Session Timeout
+#### MGMT-006 -Missing Session Timeout
 | Stage | Detail |
 |-------|--------|
 | **Detection** | Cisco: VTY `has_timeout == False` or console `has_timeout == False`; FortiNet: `admin_timeout > 15` |
@@ -106,7 +106,7 @@ The failure surface is dominated by:
 
 **Status:** Works.
 
-#### MGMT-007 — SSH Version 1
+#### MGMT-007 -SSH Version 1
 | Stage | Detail |
 |-------|--------|
 | **Detection** | Cisco: `ssh_version == 1`; FortiNet: `ssh_version == 1` (from `admin-ssh-v1 enable`) |
@@ -120,7 +120,7 @@ The failure surface is dominated by:
 
 **Status:** Works.
 
-#### MGMT-008 — AAA Not Configured
+#### MGMT-008 -AAA Not Configured
 | Stage | Detail |
 |-------|--------|
 | **Detection** | Cisco: `config.authentication.aaa_enabled == False` |
@@ -133,7 +133,7 @@ The failure surface is dominated by:
 
 **Status:** Works, but see Bug #10 (duplicate AAA lines when `aaa authentication` present without `aaa new-model`).
 
-#### MGMT-009 — Missing Login Banner
+#### MGMT-009 -Missing Login Banner
 | Stage | Detail |
 |-------|--------|
 | **Detection** | Cisco: `!config.banners.login_banner and !config.banners.motd_banner`; FortiNet: `pre_login_banner_enabled == False` |
@@ -149,7 +149,7 @@ The failure surface is dominated by:
 
 ### Boundary Rules
 
-#### BOUNDARY-001 — Overly Permissive ACL/Firewall Rules
+#### BOUNDARY-001 -Overly Permissive ACL/Firewall Rules
 | Stage | Detail |
 |-------|--------|
 | **Detection** | Cisco: ACL entry `action=="permit"` AND `_is_any(source)` AND `_is_any(destination)` AND `protocol in (None,"ip")`; FortiNet: policy `action=="accept"` AND `_is_any(srcaddr)` AND `_is_any(dstaddr)` AND `_has_all_services(service)` |
@@ -163,7 +163,7 @@ The failure surface is dominated by:
 
 **Status:** Works for tested configs. But see Bug #1 (`_remove_config_line` substring). Template has unsubstituted `{policy_id}` for FortiNet (Bug #8).
 
-#### BOUNDARY-002 — IP Source Routing Enabled
+#### BOUNDARY-002 -IP Source Routing Enabled
 | Stage | Detail |
 |-------|--------|
 | **Detection** | `config.services.ip_source_route == True` |
@@ -177,7 +177,7 @@ The failure surface is dominated by:
 
 **Status:** Works.
 
-#### BOUNDARY-003 — Discovery Protocol on External Interface
+#### BOUNDARY-003 -Discovery Protocol on External Interface
 | Stage | Detail |
 |-------|--------|
 | **Detection** | Cisco: `cdp_globally_enabled is not False` AND WAN interface `cdp_enabled is not False`; FortiNet: WAN interface `lldp_enabled == True` |
@@ -193,7 +193,7 @@ The failure surface is dominated by:
 
 ### Logging Rules
 
-#### LOG-001 — No Remote Syslog
+#### LOG-001 -No Remote Syslog
 | Stage | Detail |
 |-------|--------|
 | **Detection** | `config.logging.remote_hosts` is empty |
@@ -207,7 +207,7 @@ The failure surface is dominated by:
 
 **Status:** Works for Cisco. FortiNet syslog block is added if missing (but see Bug #5 for NTP).
 
-#### LOG-002 — NTP Not Configured or Unauthenticated
+#### LOG-002 -NTP Not Configured or Unauthenticated
 | Stage | Detail |
 |-------|--------|
 | **Detection** | `config.ntp.servers` is empty (MEDIUM), OR servers exist but `!authentication_enabled` (MEDIUM) |
@@ -223,7 +223,7 @@ The failure surface is dominated by:
 
 ### Crypto Rules
 
-#### CRYPTO-001 — Weak VPN/IPsec Crypto
+#### CRYPTO-001 -Weak VPN/IPsec Crypto
 | Stage | Detail |
 |-------|--------|
 | **Detection** | `proposal.encryption` contains weak algo (des/3des) OR `proposal.hash_algorithm` contains md5 OR `proposal.dh_group in {1,2,5}` |
@@ -241,7 +241,7 @@ The failure surface is dominated by:
 
 ## Concrete Bugs Found
 
-### Bug #1 (CRITICAL): `_remove_config_line` uses substring matching — false positive removals
+### Bug #1 (CRITICAL): `_remove_config_line` uses substring matching -false positive removals
 
 - **Severity:** CRITICAL
 - **Location:** `remediation/engine.py:888-892`
@@ -288,7 +288,7 @@ The failure surface is dominated by:
 
 - **Recommended fix:** Either (a) add remediation logic to convert/remove non-default RW communities without ACLs, or (b) add a separate template branch for RW-without-ACL findings. The remediation engine should parse the finding evidence to determine which community triggered the rule and generate a targeted `no snmp-server community <name>` command.
 
-### Bug #3 (CRITICAL): Fortinet `_replace_fortinet_set` only replaces first occurrence — multi-interface corruption
+### Bug #3 (CRITICAL): Fortinet `_replace_fortinet_set` only replaces first occurrence -multi-interface corruption
 
 - **Severity:** CRITICAL
 - **Location:** `remediation/engine.py:895-898`
@@ -311,7 +311,7 @@ The failure surface is dominated by:
   After remediation, wan1 gets `allowaccess ping` (from template), but wan2 retains `https ssh` (telnet/http removed by Phase 3, but ssh/https remain causing MGMT-003 to fire).
 
 - **Why it fails fixed-config verification:**
-  1. Phase 3 does not remove `ssh` and `https` from allowaccess — these are legitimate management services that MGMT-003 checks for on WAN interfaces
+  1. Phase 3 does not remove `ssh` and `https` from allowaccess -these are legitimate management services that MGMT-003 checks for on WAN interfaces
   2. `_replace_fortinet_set(count=1)` only modifies the first interface's allowaccess
   3. Phase 3's `\s*` after `\btelnet\b` consumes the newline, merging `set role wan` onto the same line as `set allowaccess`
 
@@ -325,7 +325,7 @@ The failure surface is dominated by:
 - **Severity:** CRITICAL
 - **Location:** `remediation/engine.py:177-180` (`generate_remediation`), `remediation/engine.py:100-109` (MGMT-001 template), `remediation/engine.py:33-36` (MGMT-002 template), `remediation/engine.py:110-128` (BOUNDARY-003 template)
 - **Affected rules:** MGMT-001, MGMT-002, MGMT-003, BOUNDARY-003 (FortiNet)
-- **Description:** `generate_remediation` only replaces `{interface}` using `_extract_interface_name(finding.evidence_lines)`. For FortiNet, the evidence lines contain `set allowaccess ...` and `set role wan` — they do NOT contain `edit "X"` or `interface X`. So `_extract_interface_name` returns `None`, and `{interface}` remains as a literal string in the commands.
+- **Description:** `generate_remediation` only replaces `{interface}` using `_extract_interface_name(finding.evidence_lines)`. For FortiNet, the evidence lines contain `set allowaccess ...` and `set role wan` -they do NOT contain `edit "X"` or `interface X`. So `_extract_interface_name` returns `None`, and `{interface}` remains as a literal string in the commands.
 
 - **Example:**
   ```
@@ -402,18 +402,18 @@ The failure surface is dominated by:
 
 - **Recommended fix:** Replace `\s*` with `$|(\s+|$)` or use `re.sub(r'^(\s*set allowaccess\s+.*)\btelnet\b\s*$', r'\1', ...)` to only match within a single line.
 
-### Bug #8 (HIGH): Template placeholders never substituted — invalid config syntax
+### Bug #8 (HIGH): Template placeholders never substituted -invalid config syntax
 
 - **Severity:** HIGH
 - **Location:** `remediation/engine.py:163-188` (`generate_remediation`), various template definitions
 - **Affected rules:** MGMT-004, MGMT-005, LOG-002 (Cisco/FortiNet)
 - **Description:** Templates contain placeholders that are never replaced:
-  - `{interface}` — only Cisco evidence includes `interface X`, so FortiNet always has unspliced `{interface}` (Bug #4)
-  - `{policy_id}` — BOUNDARY-001 FortiNet template. `generate_remediation` never tries to replace it.
-  - `{vpn_name}` — CRYPTO-001 FortiNet template. Never replaced.
-  - `<AUTH_PASS>`, `<PRIV_PASS>` — MGMT-004 Cisco/FortiNet templates. Never replaced.
-  - `<NEW_PASSWORD>` — MGMT-005 Cisco template. Never replaced (but command is ignored in Phase 2).
-  - `<NTP_KEY>` — LOG-002 Cisco template. Never replaced (but command is ignored in Phase 2).
+  - `{interface}` -only Cisco evidence includes `interface X`, so FortiNet always has unspliced `{interface}` (Bug #4)
+  - `{policy_id}` -BOUNDARY-001 FortiNet template. `generate_remediation` never tries to replace it.
+  - `{vpn_name}` -CRYPTO-001 FortiNet template. Never replaced.
+  - `<AUTH_PASS>`, `<PRIV_PASS>` -MGMT-004 Cisco/FortiNet templates. Never replaced.
+  - `<NEW_PASSWORD>` -MGMT-005 Cisco template. Never replaced (but command is ignored in Phase 2).
+  - `<NTP_KEY>` -LOG-002 Cisco template. Never replaced (but command is ignored in Phase 2).
 
 - **Example:**
   ```
@@ -454,7 +454,7 @@ The failure surface is dominated by:
 - **Severity:** MEDIUM
 - **Location:** `remediation/engine.py:384` (`has_aaa` check), `remediation/engine.py:542-546` (`_append_missing_globals`)
 - **Affected rule:** MGMT-008
-- **Description:** The `has_aaa` check is `'aaa new-model' in full_text`. If the config has `aaa authentication login default local` but NOT `aaa new-model`, Phase 10b removes `no aaa new-model` (if present), then `has_aaa` is False (because `aaa new-model` is not in the text). Phase 11 adds `aaa new-model`, `aaa authentication login default local`, and `aaa authorization exec default local` — duplicating the existing `aaa authentication login default local` line.
+- **Description:** The `has_aaa` check is `'aaa new-model' in full_text`. If the config has `aaa authentication login default local` but NOT `aaa new-model`, Phase 10b removes `no aaa new-model` (if present), then `has_aaa` is False (because `aaa new-model` is not in the text). Phase 11 adds `aaa new-model`, `aaa authentication login default local`, and `aaa authorization exec default local` -duplicating the existing `aaa authentication login default local` line.
 
 - **Example config:**
   ```
@@ -471,7 +471,7 @@ The failure surface is dominated by:
 
 - **Why it fails fixed-config verification:** The duplicate `aaa authentication login default local` line is valid Cisco IOS (later lines override earlier ones), so the parser doesn't fail. But it's messy and the `test_no_duplicate_commands_in_fixed_config` test would catch it if applied to this config.
 
-- **Recommended fix:** The `has_aaa` check should be more granular — check for `aaa new-model` separately from `aaa authentication` and `aaa authorization`. Only add the lines that are actually missing.
+- **Recommended fix:** The `has_aaa` check should be more granular -check for `aaa new-model` separately from `aaa authentication` and `aaa authorization`. Only add the lines that are actually missing.
 
 ### Bug #11 (MEDIUM): FortiNet IKE version not remediated by CRYPTO-001
 
@@ -488,7 +488,7 @@ The failure surface is dominated by:
     next
   end
   ```
-  Phase 7 only replaces weak proposals (`3des-md5`/`des-md5` → `aes256-sha256`) and weak DH groups (`[12]` → `14`). It does NOT enforce `ike-version 2`. If the config has `set ike-version 1`, Phase 7 doesn't change it. The parser sets `ike_version = 1` but CRYPTO-001 doesn't check `ike_version` — it only checks encryption, hash, and DH group. So this is a detection gap, not a remediation bug. But the template includes `ike-version 2` which is not applied.
+  Phase 7 only replaces weak proposals (`3des-md5`/`des-md5` → `aes256-sha256`) and weak DH groups (`[12]` → `14`). It does NOT enforce `ike-version 2`. If the config has `set ike-version 1`, Phase 7 doesn't change it. The parser sets `ike_version = 1` but CRYPTO-001 doesn't check `ike_version` -it only checks encryption, hash, and DH group. So this is a detection gap, not a remediation bug. But the template includes `ike-version 2` which is not applied.
 
 - **Example config:**
   ```
@@ -518,17 +518,17 @@ The failure surface is dominated by:
   - `username admin privilege 15 password 7 0822455D0A16` ✓
   - `username admin password cisco` ✗ (no type number, but still plaintext type 0)
 
-  The regex requires `(?:\s+[07])?` — the type number is optional, but the regex still matches `password cisco` because `(?:\s+[07])?` can match nothing. So `username admin password cisco` WOULD be matched. Let me verify...
+  The regex requires `(?:\s+[07])?` -the type number is optional, but the regex still matches `password cisco` because `(?:\s+[07])?` can match nothing. So `username admin password cisco` WOULD be matched. Let me verify...
 
   Actually, looking more carefully: `password(?:\s+[07])?\s+\S+` means:
   - `password` followed by optional ` 0` or ` 7`, followed by whitespace and a non-whitespace token.
-  - `password cisco` → `password` + (no type) + ` cisco` ✓ — this matches.
+  - `password cisco` → `password` + (no type) + ` cisco` ✓ -this matches.
 
   So the regex IS correct for this case. But what about `username admin privilege 15 password cisco`? The regex is `^(username\s+\S+(?:\s+privilege\s+\d+)?)\s+password(?:\s+[07])?\s+\S+`. This matches `username admin privilege 15 password cisco`. So it IS correct.
 
   But what about `username admin secret 5 $1$HASH`? The regex requires `password` (not `secret`), so this doesn't match. But `secret 5` is type5_md5 which is NOT in WEAK_TYPES, so MGMT-005 wouldn't fire for it. So this is fine.
 
-  **Wait, I was wrong — there's no bug here. The regex correctly handles all weak password format.**
+  **Wait, I was wrong -there's no bug here. The regex correctly handles all weak password format.**
 
   Actually, let me reconsider. What about `username admin algorithm-type scrypt secret 9 $HASH`? The parser regex is:
   ```python
@@ -536,7 +536,7 @@ The failure surface is dominated by:
   ```
   This does NOT match `username admin algorithm-type scrypt secret 9 $HASH` because `algorithm-type scrypt` is between the username and `secret`. The parser skips this line. So `admin` is not in `local_users`. MGMT-005 doesn't fire for this user.
 
-  But the remediation Phase 4 regex also doesn't match this line (it expects `username ... password`). So `username admin algorithm-type scrypt secret 9 $HASH` is not modified. This is correct — the password is already strong.
+  But the remediation Phase 4 regex also doesn't match this line (it expects `username ... password`). So `username admin algorithm-type scrypt secret 9 $HASH` is not modified. This is correct -the password is already strong.
 
   However, there's a subtler issue: what if a config has BOTH `username admin password 0 cisco` AND `username admin secret 9 $HASH`? The parser would process both lines (in order). The last one wins for `password_type`. If `password 0 cisco` is last, `password_type = "plaintext"`, MGMT-005 fires. The remediation Phase 4 regex would match the `password 0 cisco` line and replace it with `secret 9 $9$REMEDIATED_HASH`. But the `secret 9 $HASH` line would still be there. After remediation, the parser would see both lines, and the last one wins. If `secret 9` is last, the type is `type9_scrypt`, and MGMT-005 doesn't fire. Good.
 
@@ -567,7 +567,7 @@ The failure surface is dominated by:
 
   These checks are fragile:
   - `'service password-encryption' in full_text` would be True if the string appears in a comment
-  - `'v3' in full_text` is extremely broad — `v3` could appear in version strings, comments, etc.
+  - `'v3' in full_text` is extremely broad -`v3` could appear in version strings, comments, etc.
   - `'ip ssh version 2' in full_text` could match `ip ssh version 2.0` or comments
   - `'ntp authenticate' in full_text` could match `no ntp authenticate`
 
@@ -605,7 +605,7 @@ The failure surface is dominated by:
 - **Severity:** LOW
 - **Location:** `remediation/engine.py:191-207` (`apply_remediation`), usage in test and API
 - **Affected rules:** All
-- **Description:** The e2e test and API both apply remediation commands sequentially — each `apply_remediation` call processes ALL phases (Phase 1-13) on the config. So the first finding's remediation runs all phases, then the second finding's remediation runs all phases again on the already-modified config. This is intentional (to be idempotent), but it means that the Phase 3 regex (telnet/http removal) runs 5+ times, each time on the already-modified config.
+- **Description:** The e2e test and API both apply remediation commands sequentially -each `apply_remediation` call processes ALL phases (Phase 1-13) on the config. So the first finding's remediation runs all phases, then the second finding's remediation runs all phases again on the already-modified config. This is intentional (to be idempotent), but it means that the Phase 3 regex (telnet/http removal) runs 5+ times, each time on the already-modified config.
 
   This is mostly fine but can cause subtle issues:
   - Each call to `apply_remediation` re-applies Phase 1 replacements (e.g., `exec-timeout 0 0` → `exec-timeout 5 0`). If the config already has `exec-timeout 5 0`, the replacement doesn't match, so no harm.
@@ -613,7 +613,7 @@ The failure surface is dominated by:
 
   But there's a subtle issue: the `has_*` checks in Phase 11 are evaluated each time. If the first remediation adds `aaa new-model`, the second remediation's `has_aaa` check would find it and skip adding AAA again. This is correct behavior for idempotency.
 
-  However, this means the remediation engine is NOT stateless — each call depends on the current state of the config. This makes it hard to reason about what each finding's remediation actually does.
+  However, this means the remediation engine is NOT stateless -each call depends on the current state of the config. This makes it hard to reason about what each finding's remediation actually does.
 
 - **Recommended fix:** Either (a) apply all findings' commands in a single `apply_remediation` call, or (b) document the stateful behavior clearly.
 
@@ -637,7 +637,7 @@ The failure surface is dominated by:
 | 13 | `has_*` checks use raw text instead of normalized state | LOW | All (Phase 11) | `'v3' in full_text`, `'ntp authenticate' in full_text` match comments/negations |
 | 14 | Sequential apply_remediation calls (stateful) | LOW | All | Each call re-runs all phases on already-modified config |
 
-> Note: Bug #12 was investigated but found NOT to be a bug — the Phase 4 regex handles all weak password formats correctly.
+> Note: Bug #12 was investigated but found NOT to be a bug -the Phase 4 regex handles all weak password formats correctly.
 
 ---
 
@@ -672,10 +672,10 @@ See Bug #8. These are never substituted. Only `{interface}` is attempted (and fa
 The `has_aaa` check (`'aaa new-model' in full_text`) is a presence check, not a state check. It doesn't verify that AAA authentication/authorization methods are properly configured. Only `aaa new-model` presence is checked, not `aaa authentication login default local` or `aaa authorization exec default local`.
 
 ### 7. SNMP presence checks instead of security-state checks
-The `has_snmpv3` check is `'snmp-server group' in full_text and 'v3' in full_text`. This is a very loose check — `v3` could appear in any context. The parser correctly checks `line.startswith("snmp-server group") and " v3 " in line`, but the remediation uses a much looser check.
+The `has_snmpv3` check is `'snmp-server group' in full_text and 'v3' in full_text`. This is a very loose check -`v3` could appear in any context. The parser correctly checks `line.startswith("snmp-server group") and " v3 " in line`, but the remediation uses a much looser check.
 
 ### 8. HTTP secure-server presence vs HTTP server still enabled
-Phase 6 uses regex `^ip http server\s*$` → `no ip http server` to disable HTTP. Phase 11 adds `ip http secure-server` if `has_http_secure` is False. But `has_http_secure = 'ip http secure-server' in full_text` — if the config has `! ip http secure-server` (commented), this would be True. However, the router would still not have HTTPS enabled because the line is commented.
+Phase 6 uses regex `^ip http server\s*$` → `no ip http server` to disable HTTP. Phase 11 adds `ip http secure-server` if `has_http_secure` is False. But `has_http_secure = 'ip http secure-server' in full_text` -if the config has `! ip http secure-server` (commented), this would be True. However, the router would still not have HTTPS enabled because the line is commented.
 
 ### 9. NTP server presence vs NTP authentication state
 The Phase 11 logic checks `has_ntp` (presence of `ntp server` line) and `has_ntp_auth` (presence of `ntp authenticate` string). If NTP server exists but auth doesn't, it adds auth lines. If neither exists, it adds both. But `has_ntp_auth = 'ntp authenticate' in full_text` would be True if the config has `no ntp authenticate` (which isn't removed by Phase 10b).
@@ -696,12 +696,12 @@ See Bug #10. When `aaa authentication login default local` exists without `aaa n
 
 ### 13. vendor-specific hierarchical configuration handling
 - **Cisco**: The remediation uses line-by-line text manipulation without understanding Cisco's hierarchical structure (global config, interface blocks, ACL blocks, VTY blocks). This works for simple cases but fails for configs with overlapping patterns.
-- **FortiNet**: The remediation partially understands the `config`/`edit`/`next`/`end` structure (via `_fortinet_remove_default_snmp`, `_fortinet_restrict_firewall_policies`, `_fortinet_fix_syslog`, `_fortinet_fix_ntp_auth`). But `_replace_fortinet_set` doesn't understand edit blocks — it replaces the first `set` match in the entire file, which can be in the wrong edit block.
+- **FortiNet**: The remediation partially understands the `config`/`edit`/`next`/`end` structure (via `_fortinet_remove_default_snmp`, `_fortinet_restrict_firewall_policies`, `_fortinet_fix_syslog`, `_fortinet_fix_ntp_auth`). But `_replace_fortinet_set` doesn't understand edit blocks -it replaces the first `set` match in the entire file, which can be in the wrong edit block.
 
 ### 14. whether fixed-config verification performs a fresh parse and fresh analysis
 **Yes.** The e2e test (`test_remediation_e2e.py`) and the API route (`remediation.py:83-85`) both:
-1. Call `apply_remediation(modified_config, commands)` which internally calls `CiscoIOSParser().parse(modified)` or `FortinetParser().parse(modified)` — this IS a fresh parse.
-2. Then call `analyze(reparsed)` — this IS a fresh analysis on the re-parsed config.
+1. Call `apply_remediation(modified_config, commands)` which internally calls `CiscoIOSParser().parse(modified)` or `FortinetParser().parse(modified)` -this IS a fresh parse.
+2. Then call `analyze(reparsed)` -this IS a fresh analysis on the re-parsed config.
 
 The verification is correctly using fresh parse and fresh analysis. The failures are in the remediation logic itself, not in the verification pipeline.
 

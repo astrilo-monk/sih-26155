@@ -1,4 +1,4 @@
-// Domain rules every view shares. They mirror guarantees the backend already enforces — the backend stays
+// Domain rules every view shares. They mirror guarantees the backend already enforces -the backend stays
 // the authority; these only keep the UI from presenting provisional or partial results as decisive.
 
 // Heuristic / AI verdicts: shown with their evidence, never counted until a human confirms them
@@ -12,8 +12,8 @@ export const ASSURANCE = {
   parser: { label: 'Read directly by a dedicated parser', technical: 'parser', decisive: true },
   confirmed: { label: 'Recognized from a meaning someone taught NetAuditAI', technical: 'confirmed recognizer', decisive: true },
   default: { label: 'Documented platform default', technical: 'default', decisive: true },
-  heuristic: { label: 'A best guess from the wording — needs review', technical: 'heuristic', decisive: false },
-  ai_verified: { label: 'An AI suggestion whose quoted line was checked — needs review', technical: 'ai_verified', decisive: false },
+  heuristic: { label: 'A best guess from the wording -needs review', technical: 'heuristic', decisive: false },
+  ai_verified: { label: 'An AI suggestion whose quoted line was checked -needs review', technical: 'ai_verified', decisive: false },
 };
 
 // A framework requirement or a bare control status (no assurance to consider) → state
@@ -46,7 +46,7 @@ export function assessment(posture, coverage = 0, criticalUnassessed = []) {
   if (coverage < LIMITED_COVERAGE) {
     // a band ("Good", "Critical risk") would describe the whole device from a small sample: withheld
     return { scope: 'Limited assessment', label: 'Limited assessment', tone: 'limited',
-      desc: `This posture reflects only the ${coverage}% of applicable controls that could be decided — not the whole device.` };
+      desc: `This posture reflects only the ${coverage}% of applicable controls that could be decided -not the whole device.` };
   }
   return { scope: 'Partial assessment', label: `${b.label} · partial`, tone: b.tone,
     desc: `Based on the ${coverage}% of applicable controls that could be decided.` };
@@ -81,13 +81,13 @@ export function vendorState(ident) {
 // Every view shows these states and nothing else. Backend statuses (control status, assurance, remediation status)
 // are mapped here only, so no component interprets them on its own. The technical state stays on the objects.
 //
-//   pass / not_configured / not_applicable / unknown   — how a control was decided (unknown = not enough information)
-//   needs_review                                      — a heuristic / AI reading waiting for a person; never counted
-//   problem                                           — a decisive failure whose fix options are not known yet
-//   can_fix / needs_input / manual / cannot_fix       — a decisive failure, by what can be done about it
-//   needs_admin                                       — a decisive failure on an unconfirmed vendor: only a
+//   pass / not_configured / not_applicable / unknown   -how a control was decided (unknown = not enough information)
+//   needs_review                                      -a heuristic / AI reading waiting for a person; never counted
+//   problem                                           -a decisive failure whose fix options are not known yet
+//   can_fix / needs_input / manual / cannot_fix       -a decisive failure, by what can be done about it
+//   needs_admin                                       -a decisive failure on an unconfirmed vendor: only a
 //                                                       candidate command a person proposes and confirms
-//   fixed / verification_failed                        — after a fix was generated and rescanned
+//   fixed / verification_failed                        -after a fix was generated and rescanned
 export const STATE = {
   pass: { label: 'Passed', tone: 'pass', mark: '✓' },
   problem: { label: 'Problem', tone: 'fail', mark: '×' },
@@ -135,10 +135,10 @@ export const CANNOT_FIX_REASON = {
 
 // Why an unconfirmed vendor gets a reviewed candidate instead of a generated fix
 export const NEEDS_ADMIN_REASON =
-  'NetAuditAI found the security problem, but this device’s vendor and command syntax are not confirmed, so it never writes a vendor command on its own. It can derive the change from your own configuration — the lines this finding cites, removed from the block they sit in — and check it by re-reading the edited copy. You can also type the command yourself or have AI draft one. Nothing counts until you confirm it, and nothing is ever sent to a device.';
+  'NetAuditAI found the security problem, but this device’s vendor and command syntax are not confirmed, so it never writes a vendor command on its own. It can derive the change from your own configuration -the lines this finding cites, removed from the block they sit in -and check it by re-reading the edited copy. You can also type the command yourself or have AI draft one. Nothing counts until you confirm it, and nothing is ever sent to a device.';
 
 // ── Candidate remediation (unconfirmed vendors) ────────────────────────────────────────────────────────────────
-// Proposed command text — typed by an administrator or drafted by AI. It is never executed and never becomes a
+// Proposed command text -typed by an administrator or drafted by AI. It is never executed and never becomes a
 // verified fix on its own: the backend validates it, simulates it on a copy of the uploaded configuration where it
 // can, and waits for a person to confirm. "Verified" is always about the configuration file, never the device.
 export const CANDIDATE = {
@@ -214,12 +214,12 @@ export const itemState = (item, applied) =>
 // ── The one status a finding shows on the Fix page ─────────────────────────────────────────────────────────────
 // A finding carries two independent readings: itemState() says what can be done about the failure, and a
 // candidate's status tracks a command proposed for an unconfirmed vendor. Rendered as peers they contradict each
-// other — "Needs administrator input" beside "Confirmed by you". The data is right (confirming a candidate
+// other -"Needs administrator input" beside "Confirmed by you". The data is right (confirming a candidate
 // deliberately does not mark the finding fixed, because NetAuditAI never touched the device), so nothing here
 // changes it: this only picks the single status to show, and the other reading becomes metadata.
 //
 // The track is linear: NEEDS INPUT → CANDIDATE READY → CONFIRMED BY YOU → VERIFIED. A finding that is not on that
-// track — a manual change, a failed verification, a plan still loading — keeps its own label and has no `step`.
+// track -a manual change, a failed verification, a plan still loading -keeps its own label and has no `step`.
 export function fixStatus(item, { applied, candidates } = {}) {
   const state = itemState(item, applied);
   if (state === 'fixed') return { key: 'verified', state: 'fixed', label: 'Verified', step: 4 };
@@ -235,12 +235,12 @@ export function fixStatus(item, { applied, candidates } = {}) {
   return { key: state, state, label: stateMeta(state).label, step: null };
 }
 
-// Decisive failures only — what "problems found" means everywhere
+// Decisive failures only -what "problems found" means everywhere
 export const problems = (scan, plan) => checkItems(scan, plan).filter(isProblem);
 
 // ── Plain language for a security fact ─────────────────────────────────────────────────────────────────────────
 // What a line means, in words a person can confirm. Built only from the predicate, subject and value the backend
-// read — never from the raw line — so the sentence says exactly what would be learned.
+// read -never from the raw line -so the sentence says exactly what would be learned.
 const PROTOCOLS = { telnet: 'Telnet', http: 'HTTP', https: 'HTTPS', ssh: 'SSH', cdp: 'CDP', lldp: 'LLDP' };
 const onOff = (v, on, off) => (v === true ? on : v === false ? off : null);
 const list = (v) => (Array.isArray(v) ? v.join(', ') : typeof v === 'string' ? v : null);
@@ -266,7 +266,7 @@ export const MEANING = {
   'crypto.ipsec.proposal': { say: () => 'sets VPN encryption settings' },
 };
 
-// "This line turns on Telnet remote access." — or null when the reading can't be put into words
+// "This line turns on Telnet remote access." -or null when the reading can't be put into words
 export const sayFact = ({ predicate, subject, value } = {}) => MEANING[predicate]?.say(subject, value) || null;
 
 // A setting whose value is read from the line itself, not stated by the person: what they confirm is only
@@ -280,11 +280,11 @@ const READS = {
 };
 
 // One thing a person may say a line means. Value settings have no value to choose, so they read as
-// "this line names the NTP server" — the number or address comes from the line.
+// "this line names the NTP server" -the number or address comes from the line.
 export const sayMeaning = (m = {}) => sayFact(m) || READS[m.predicate] || null;
 
 // The backend's recognizer safety gates, in plain English. The original message stays available under
-// Advanced details; nothing here decides whether saving is allowed — the backend does.
+// Advanced details; nothing here decides whether saving is allowed -the backend does.
 const GATE_WORDS = [
   [/secret/i, 'This line contains a secret, such as a password or key. NetAuditAI never stores secrets, so it can’t learn from this line.'],
   [/does not match its example line/i, 'The pattern no longer matches the configuration line, so NetAuditAI couldn’t verify what it would learn.'],
@@ -312,7 +312,7 @@ export function reviewCount(scan) {
 // Every count a page shows, from one place.
 // plan: the backend remediation plan (fix groups are null until it is known)
 // applied: Set of item keys fixed this session
-// queue: { provisional, legacyPending } from the backend — once loaded, review counts the lines actually waiting
+// queue: { provisional, legacyPending } from the backend -once loaded, review counts the lines actually waiting
 export function auditCounts(scan, plan, applied = new Set(), queue = null) {
   const items = checkItems(scan, plan);
   const list = items.filter(isProblem);
@@ -339,7 +339,7 @@ export function auditCounts(scan, plan, applied = new Set(), queue = null) {
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-// "What am I supposed to do now?" — one answer for the whole audit, in priority order
+// "What am I supposed to do now?" -one answer for the whole audit, in priority order
 export function nextStep(c, { planLoading = false, planError = null } = {}) {
   if (c.canFix > 0) {
     return { tone: 'fix', to: 'fix', action: 'Fix them', title: `We can fix ${plural(c.canFix, 'problem')} automatically`,
@@ -374,7 +374,7 @@ export function nextStep(c, { planLoading = false, planError = null } = {}) {
 }
 
 // Command text the backend quotes in a remediation reason or recommendation ('no ip http server'). Shown for a
-// person to apply on the device — never generated here. A quoted redaction placeholder is not a command, and
+// person to apply on the device -never generated here. A quoted redaction placeholder is not a command, and
 // neither is a single quoted word: "Change user 'admin'" or "Remove 'telnet' from allowaccess" name things.
 export function quotedCommands(...texts) {
   const seen = new Set();

@@ -44,7 +44,7 @@ class Finding:
     evidence_lines: list[str] = field(default_factory=list)
     line_numbers: list[int] = field(default_factory=list)
 
-    # Why this is dangerous — short, technical
+    # Why this is dangerous -short, technical
     security_impact: str = ""
 
     # What to do about it

@@ -1,5 +1,5 @@
 """
-Phase 9 — framework views over existing control results, persistent recognizers across a
+Phase 9 -framework views over existing control results, persistent recognizers across a
 backend restart, and persistent stores that never hold configuration secrets.
 """
 

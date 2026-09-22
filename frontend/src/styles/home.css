@@ -1,4 +1,4 @@
-/* Public site — Bold Typography. Tokens come from index.css.
+/* Public site -Bold Typography. Tokens come from index.css.
    Same rules as the application: radius 0, no shadows, no glows, no tinted fills, one accent. */
 
 .home { background: var(--bg); }

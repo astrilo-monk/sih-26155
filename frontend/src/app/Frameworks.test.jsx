@@ -32,7 +32,7 @@ it('shows requirement statuses, readings that need review, unmapped frameworks a
   expect(screen.getByText(/ISO\/IEC 27001, CIS Controls v8 and DISA STIG are not mapped/)).toBeTruthy();
 
   fireEvent.click(screen.getByText('SC-45'));
-  expect(screen.getByText('Needs review — not counted')).toBeTruthy();
+  expect(screen.getByText('Needs review -not counted')).toBeTruthy();
   fireEvent.click(screen.getByText('AC-17(2)'));
   expect(screen.getByText('Decided from evidence')).toBeTruthy();
   expect(screen.getByText('transport input telnet ssh', { exact: false })).toBeTruthy();

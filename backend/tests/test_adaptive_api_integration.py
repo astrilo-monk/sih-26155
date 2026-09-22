@@ -239,7 +239,7 @@ def test_e_ai_interpretations_through_adaptive_mapper():
     )
     capture_unrecognized_lines(normalized)
 
-    # Phase 2 — AI produces interpretations (HIGH confidence)
+    # Phase 2 -AI produces interpretations (HIGH confidence)
     mock_interpretations = _mock_valid_interpretations(normalized.unrecognized_lines)
 
     # Verify the interpretations exist but Phase 2 did NOT write them
@@ -247,7 +247,7 @@ def test_e_ai_interpretations_through_adaptive_mapper():
     assert len(mock_interpretations) > 0
     assert normalized.management.ssh_version is None  # not written yet
 
-    # Phase 3 — AdaptiveMapper safely applies HIGH-valid interpretations
+    # Phase 3 -AdaptiveMapper safely applies HIGH-valid interpretations
     from app.adaptive.mapper import map_interpretations
     ai_mappings = map_interpretations(normalized, mock_interpretations)
 
@@ -301,7 +301,7 @@ def test_e2_medium_confidence_not_written_to_config():
     from app.adaptive.mapper import map_interpretations
     ai_mappings = map_interpretations(normalized, lines)
 
-    # Config NOT modified — safety rule
+    # Config NOT modified -safety rule
     assert normalized.management.ssh_version is None
     # Routed to needs_review
     review = [m for m in ai_mappings if m.source == "needs_review"]
@@ -385,7 +385,7 @@ def test_g_scoring_unchanged():
 
 def test_g2_remediation_compatibility_shims_never_apply_caller_commands():
     """Phase 8: the pre-Phase 8 functions remain as shims over the verified engine. Command text passed in
-    is ignored, and the result is no longer 100/100 — unsafe fixes (weak passwords, AAA without a strong
+    is ignored, and the result is no longer 100/100 -unsafe fixes (weak passwords, AAA without a strong
     local account, any-any ACL) and fixes needing operator values are left for a human."""
 
     from app.remediation.engine import generate_remediation, apply_remediation

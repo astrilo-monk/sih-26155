@@ -1,5 +1,5 @@
 """
-Phase 6 — recognizers: confirm a provisional result once, decided decisively on every later scan, no AI.
+Phase 6 -recognizers: confirm a provisional result once, decided decisively on every later scan, no AI.
 """
 
 import json

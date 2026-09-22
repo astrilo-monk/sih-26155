@@ -31,7 +31,7 @@ How to get the project running on your local machine.
    * `ADAPTIVE_DB_PATH`: SQLite file for recognizers, learned mappings, rejected lines and the AI judge cache (default `backend/data/adaptive.db`, created automatically). Recognizers survive backend restarts through this file. The shipped seed recognizers in `backend/data/seed_recognizers.json` are loaded into it the first time it is opened; loading is idempotent and never touches what an administrator confirmed (see [seed-knowledge.md](seed-knowledge.md)).
    * `AI_JUDGE_MAX_CALLS_PER_SCAN`: AI judge requests per scan for unknown-vendor configs (default `2`; cache hits are free).
    * `VENDOR_PARSE_COVERAGE_THRESHOLD`: share of lines that must follow the detected vendor's grammar before its parser is trusted (default `0.7`).
-   * `ADAPTIVE_AI_FOR_KNOWN_VENDORS`: legacy, default `false` — send lines the Cisco/FortiGate parsers do not read to the line interpreter; results only reach the review queue.
+   * `ADAPTIVE_AI_FOR_KNOWN_VENDORS`: legacy, default `false` -send lines the Cisco/FortiGate parsers do not read to the line interpreter; results only reach the review queue.
 5. Run the FastAPI dev server:
    ```bash
    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000

@@ -1,4 +1,4 @@
-// Shared presentation primitives. Every screen composes these — no page-specific one-off styling.
+// Shared presentation primitives. Every screen composes these -no page-specific one-off styling.
 // Rules they enforce, so no caller has to remember them:
 //   · severity is a filled-square meter plus a mono word, never a colour;
 //   · status is one mono label with a square marker, and an item shows at most one;
@@ -43,7 +43,7 @@ export function StatusLabel({ state, children, size }) {
   );
 }
 
-// Metadata beside a status — where a reading came from, how sure it is. Never a status itself.
+// Metadata beside a status -where a reading came from, how sure it is. Never a status itself.
 // `parts` are shown as "SOURCE: AI-GENERATED · CONFIDENCE: MEDIUM".
 export function MetaLine({ parts = [], children }) {
   const shown = parts.filter(Boolean);
@@ -76,7 +76,7 @@ export function CopyControl({ text, label = 'Copy' }) {
       await navigator.clipboard.writeText(text);
       setSaid('Copied');
     } catch {
-      setSaid('Copy isn’t available here — select the text instead');
+      setSaid('Copy isn’t available here -select the text instead');
     }
   };
   return (
@@ -116,7 +116,7 @@ export function Disclosure({ summary, children, defaultOpen = false }) {
 export function StatBlock({ label, value, children, meter }) {
   return (
     <div className="statblock">
-      <p className="statblock-v tnum">{value ?? '—'}</p>
+      <p className="statblock-v tnum">{value ?? '-'}</p>
       <p className="eyebrow">{label}</p>
       {meter && <SeverityMeter level={meter} />}
       {children}

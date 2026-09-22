@@ -1,5 +1,5 @@
 """
-Phase 5 — Learned mapping database tests.
+Phase 5 -Learned mapping database tests.
 
 A  - Save mapping
 B  - Retrieve mapping

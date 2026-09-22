@@ -1,5 +1,5 @@
 """
-Phase 1a — no raw secret reaches the AI provider.
+Phase 1a -no raw secret reaches the AI provider.
 
 Secret values are replaced by typed placeholders before any configuration
 text is put into a prompt; the kind of secret (type7, psk, …) is kept.
@@ -54,7 +54,7 @@ def test_each_secret_type_is_replaced_by_a_typed_placeholder(line, expected):
     assert redact_line(line) == expected
 
 
-# (line, secret that must not survive) — realistic syntaxes across vendors
+# (line, secret that must not survive) -realistic syntaxes across vendors
 LEAK_CASES = [
     # Cisco IOS / IOS-XE
     ("enable password level 15 LvlSecret1", "LvlSecret1"),

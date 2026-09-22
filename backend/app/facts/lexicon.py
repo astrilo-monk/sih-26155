@@ -59,7 +59,7 @@ IPSEC = frozenset({"ipsec", "ike", "ikev1", "ikev2", "isakmp", "esp", "transform
                    "phase2", "crypto", "vpn"})
 DH_KEYWORDS = frozenset({"group", "dh-group", "dhgroup", "dhgrp", "pfs", "pfs-group"})
 
-# How a configuration writes "stored password" — a line must use one of these to teach password storage
+# How a configuration writes "stored password" -a line must use one of these to teach password storage
 PASSWORD_RELATED = frozenset({
     "password", "passwd", "password-encryption", "encrypted-password", "passphrase", "credential",
     "secret", "hash", "hashed", "encrypted", "plaintext", "cipher", "irreversible-cipher", "algorithm-type",

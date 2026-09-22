@@ -1,4 +1,4 @@
-/* NetAuditAI design system — Bold Typography.
+/* NetAuditAI design system -Bold Typography.
    Black, white, grays and ONE accent (vermillion). Radius 0. No shadows, no glows, no tinted fills.
    Colour never carries meaning: severity is a filled-square meter, status is a mono label with a marker.
    Components use these tokens only; no raw colours outside this block. */
@@ -8,14 +8,14 @@
 
   /* ── Palette (the whole palette) ─────────────────────────────────────── */
   --bg: #0a0a0a;          /* near-black, not pure black */
-  --fg: #fafafa;          /* warm white — 18.1:1 on bg */
+  --fg: #fafafa;          /* warm white -18.1:1 on bg */
   --muted: #1a1a1a;       /* subtle surface elevation */
-  --muted-fg: #8a8a8a;    /* secondary text — 5.7:1 on bg (see NOTE below) */
+  --muted-fg: #8a8a8a;    /* secondary text -5.7:1 on bg (see NOTE below) */
   --card: #0f0f0f;        /* slight elevation from bg */
   --line: #262626;        /* barely-there dividers */
   --line-hover: #404040;  /* card/row hover */
   --input: #1a1a1a;
-  --accent: #ff3d00;      /* vermillion — 5.6:1 on bg */
+  --accent: #ff3d00;      /* vermillion -5.6:1 on bg */
   --accent-fg: #0a0a0a;
   /* NOTE: Part 2 specifies mutedForeground #737373 and claims 5.3:1. The real ratio on #0A0A0A is
      4.17:1, which fails WCAG AA for body text and contradicts Part 3.6 ("no gray text that fails AA").
@@ -28,9 +28,9 @@
   --sans: 'Inter Tight', Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
 
-  --fs-xs: 0.75rem;    /* 12px — uppercase mono eyebrows only */
-  --fs-sm: 0.875rem;   /* 14px — meta */
-  --fs-base: 1rem;     /* 16px — body floor */
+  --fs-xs: 0.75rem;    /* 12px -uppercase mono eyebrows only */
+  --fs-sm: 0.875rem;   /* 14px -meta */
+  --fs-base: 1rem;     /* 16px -body floor */
   --fs-lg: 1.125rem;
   --fs-xl: 1.25rem;
   --fs-2xl: 1.5rem;
@@ -67,7 +67,7 @@
 
   --gutter: clamp(24px, 5vw, 64px);
   --max: 1200px;
-  --measure: 34rem;   /* max-w-2xl — the readable line length for explanatory prose */
+  --measure: 34rem;   /* max-w-2xl -the readable line length for explanatory prose */
 
   /* severity meter */
   --sq: 7px;
@@ -135,7 +135,7 @@ button { font: inherit; color: inherit; letter-spacing: inherit; }
 }
 .lede { font-size: var(--fs-lg); line-height: var(--lh-normal); color: var(--muted-fg); max-width: var(--measure); }
 .muted { color: var(--muted-fg); }
-.small { font-size: var(--fs-sm); }            /* 14px floor — nothing smaller except mono eyebrows */
+.small { font-size: var(--fs-sm); }            /* 14px floor -nothing smaller except mono eyebrows */
 .tnum { font-variant-numeric: tabular-nums; }
 .text-fail, .text-unknown { color: var(--fg); }
 .prose { max-width: var(--measure); }
@@ -148,7 +148,7 @@ button { font: inherit; color: inherit; letter-spacing: inherit; }
 
 /* ── Buttons ────────────────────────────────────────────────────────────── */
 /* Default is text-only with an animated underline. Committing actions (.btn-primary) get a solid
-   block so a state-changing action never reads as a link — deliberate deviation, see the report. */
+   block so a state-changing action never reads as a link -deliberate deviation, see the report. */
 .btn {
   position: relative; display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);
   min-height: 44px; padding: var(--s-3) 0; border: 0; background: none; color: var(--fg);
@@ -388,7 +388,7 @@ button { font: inherit; color: inherit; letter-spacing: inherit; }
 .ev-row .ln, .diff-row .ln { padding-right: var(--s-4); text-align: right; color: var(--muted-fg); user-select: none; }
 .ev-row code, .diff-row code { white-space: pre; padding-right: var(--s-4); }
 .ev-row:hover { background: var(--muted); }
-/* the cited line: full-row muted background and a 2px accent edge — never a tint behind the text only */
+/* the cited line: full-row muted background and a 2px accent edge -never a tint behind the text only */
 .ev-row.cited { background: var(--muted); color: var(--fg); box-shadow: inset var(--bw-thick) 0 0 var(--accent); }
 .ev-row.cited .ln { color: var(--fg); }
 .ev-row.context { color: var(--muted-fg); }
@@ -396,7 +396,7 @@ button { font: inherit; color: inherit; letter-spacing: inherit; }
 .evidence.compact .evidence-body { padding: var(--s-1) 0; }
 .evidence.compact .ev-row { grid-template-columns: 44px 1fr; }
 
-/* Config line picker (Teach): one row per line, no list marker — the gutter carries the number. */
+/* Config line picker (Teach): one row per line, no list marker -the gutter carries the number. */
 .config-picker { display: grid; gap: var(--s-4); }
 .config-lines {
   list-style: none; margin: 0; padding: 0; max-height: 420px; overflow-y: auto;
@@ -521,7 +521,7 @@ button.datarow-hit:hover { background: var(--muted); border-left-color: var(--ac
 /* the page reserves the bar's height so the bar never sits on top of the last row */
 .has-actionbar { padding-bottom: 128px; }
 
-/* ── Motion — 150ms micro, 200ms standard, one pass only ────────────────── */
+/* ── Motion -150ms micro, 200ms standard, one pass only ────────────────── */
 @keyframes rise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes drawerIn { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }

@@ -1,5 +1,5 @@
 """
-Shipped seed knowledge — recognizers NetAuditAI deploys with, so an unfamiliar dialect already
+Shipped seed knowledge -recognizers NetAuditAI deploys with, so an unfamiliar dialect already
 answers several controls before an administrator teaches anything.
 
 Every test here runs against ``seeded_adaptive_db``: the isolated database as a fresh deployment
@@ -273,7 +273,7 @@ def test_unknown_vendor_results_only_improve_where_the_seed_covers_the_syntax(se
            {k: (v.status, v.assurance) for k, v in bare.items()}
 
 
-# ── 10–11: the demo — a fresh deployment, then teaching ─────────────────────
+# ── 10–11: the demo -a fresh deployment, then teaching ─────────────────────
 
 SEEDED_CONTROLS = {"MGMT-001", "MGMT-002", "MGMT-006", "LOG-001", "LOG-002"}
 NEW_CONCEPTS = {"MGMT-007": "SSH version", "MGMT-003": "management source restriction",

@@ -139,7 +139,7 @@ def test_a_positive_and_a_negative_form_read_as_opposites(taught, line, asserted
 
 
 def test_disabled_shutdown_and_absent_stay_distinct(seeded_adaptive_db):
-    """Three different configurations, three different answers — none of them a guess."""
+    """Three different configurations, three different answers -none of them a guess."""
     assert read("telnet server enable\n", PROTOCOL_ENABLED, "telnet") is True
     assert read("telnet server disable\n", PROTOCOL_ENABLED, "telnet") is False
     assert read("undo telnet server enable\n", PROTOCOL_ENABLED, "telnet") is False
@@ -324,7 +324,7 @@ def test_a_scan_of_seven_variant_lines_needs_no_further_teaching(taught):
     queue = taught.get(f"/api/adaptive/scans/{scan['scan_id']}/unresolved").json()
     unresolved = {item["control_id"] for item in queue["items"]}
     assert unresolved & TAUGHT_CONTROLS == set(), f"still being asked about: {unresolved & TAUGHT_CONTROLS}"
-    # what is left is genuinely new — the banner line is offered, and nothing reads it yet
+    # what is left is genuinely new -the banner line is offered, and nothing reads it yet
     assert "MGMT-009" in unresolved
     banner = next(i for i in queue["items"] if i["control_id"] == "MGMT-009")
     assert 8 in [line["line_number"] for line in banner["suggested_lines"]]
@@ -400,7 +400,7 @@ CENTRAL_AAA = "auth.central_aaa.enabled"
 
 
 def test_a_source_restriction_is_taught_from_the_address_it_names():
-    """No dialect writes "source restriction: on" — it names an allowed source, and that is the setting."""
+    """No dialect writes "source restriction: on" -it names an allowed source, and that is the setting."""
     saved = teach(PERMITTED_IP, "MGMT-003", 2, SOURCE_RESTRICTED, value=True)
     # the address is which source is permitted, not whether the setting is on: it must not be memorized
     assert "10.10.10.0/24" not in saved.command_pattern

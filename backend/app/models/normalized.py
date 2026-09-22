@@ -8,7 +8,7 @@ one set of rules, multiple vendor parsers feeding into the same model.
 
 Some fields are vendor-specific and may be None for vendors that don't
 have the concept (e.g. Cisco Type 7 passwords don't apply to FortiGate).
-That's expected — rules check for None before using those fields.
+That's expected -rules check for None before using those fields.
 """
 
 from __future__ import annotations
@@ -259,8 +259,8 @@ class AIFieldMapping:
     Audit record for a single AI-interpreted configuration line.
 
     Captures the full provenance of an AI interpretation and its disposition
-    within the NormalizedConfig.  Every AI-touched line — whether it was
-    auto-mapped, sent for review, or routed to training — produces exactly
+    within the NormalizedConfig.  Every AI-touched line -whether it was
+    auto-mapped, sent for review, or routed to training -produces exactly
     one entry here so that compliance decisions remain fully auditable.
     """
     line_number: int
@@ -270,7 +270,7 @@ class AIFieldMapping:
     confidence: float  # numeric 0.0 – 1.0
     confidence_tier: str  # "high", "medium", "low"
     reasoning: str
-    # Disposition — how this line was handled:
+    # Disposition -how this line was handled:
     #   "ai_auto_mapped"  – value written into NormalizedConfig (HIGH + valid)
     #   "learned_mapping" – value written from a confirmed learned mapping
     #   "admin_confirmed" – value written after an administrator accepted/edited it
@@ -326,7 +326,7 @@ class NormalizedConfig:
 
     # Audit trail for every AI-touched line.  Populated by AdaptiveMapper
     # (Phase 3).  Each entry records the raw line, interpretation, confidence
-    # tier, disposition (source), and the reasoning — ensuring every AI decision
+    # tier, disposition (source), and the reasoning -ensuring every AI decision
     # is traceable.  Empty when no AI interpretation has been applied.
     ai_mappings: list[AIFieldMapping] = field(default_factory=list)
 

@@ -10,10 +10,10 @@ A predicate exists only if a control consumes it.
 
 ``value`` conventions:
 
-* a concrete value — what the configuration states
-* ``None`` — the setting exists but its value could not be determined
+* a concrete value -what the configuration states
+* ``None`` -the setting exists but its value could not be determined
   (``provenance`` says why)
-* ``NOT_SET`` — a confirmed vendor parser read the whole configuration and the
+* ``NOT_SET`` -a confirmed vendor parser read the whole configuration and the
   setting is absent; the consuming control decides what absence means
 """
 

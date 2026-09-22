@@ -11,7 +11,7 @@ const FILTERS = [
   ['all', 'All', () => true],
 ];
 
-// Every check against every configuration — the complete evidence view behind the overview
+// Every check against every configuration -the complete evidence view behind the overview
 export default function Checks({ scan, audit, labels, onOpen }) {
   const items = checkItems(scan, audit.plan).map((item) => ({ item, state: itemState(item, audit.applied) }));
   const [filter, setFilter] = useState(() => (items.some(({ item }) => isProblem(item)) ? 'problems' : 'all'));

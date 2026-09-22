@@ -35,8 +35,8 @@ never evidence: a missing setting is NOT_CONFIGURED, not FAIL.
 | Only a candidate the simulation **verified** has a corrected copy to download; a draft, unverified, rejected or re-checked-and-failed candidate has none, and `/download-fixed` stays confirmed-vendor only |
 | A candidate exists only for a decisive FAIL on an unconfirmed vendor; a provisional verdict and a confirmed vendor are both refused | `routes/remediation.py` (`_candidate_target`) | `test_candidate_remediation.py` |
 | An AI remediation proposal is refused unless it is exactly the expected shape for the control that asked, and its prompt carries no secret | `ai/remediation.py` | `test_candidate_remediation.py` |
-| A derived candidate is built only from the configuration's own words, only for a control a removal can resolve (prohibitions and relational controls — never one that requires a setting or sets a threshold), never from a block opener, and it faces the same simulation and human confirmation as any other candidate | `remediation/candidates.py` (`derive`, `DERIVABLE_KINDS`, `block_openers`) | `test_derived_remediation.py` |
-| The PDF report carries no configuration secret and states nothing the configuration does not — no serial number, no hardware inventory, no provisional reading presented as compliance, no vendor command for an unconfirmed vendor | `app/reporting/report.py` (built from the already-redacted scan response) | `test_pdf_report.py` |
+| A derived candidate is built only from the configuration's own words, only for a control a removal can resolve (prohibitions and relational controls -never one that requires a setting or sets a threshold), never from a block opener, and it faces the same simulation and human confirmation as any other candidate | `remediation/candidates.py` (`derive`, `DERIVABLE_KINDS`, `block_openers`) | `test_derived_remediation.py` |
+| The PDF report carries no configuration secret and states nothing the configuration does not -no serial number, no hardware inventory, no provisional reading presented as compliance, no vendor command for an unconfirmed vendor | `app/reporting/report.py` (built from the already-redacted scan response) | `test_pdf_report.py` |
 | Teaching cannot assert a meaning the line does not state: an administrator's answer becomes an ordinary recognizer candidate and faces every gate, including the secret refusal | `facts/teaching.py`, `facts/recognizers.py` (`draft_recognizer`, `validate_recognizer`) | `test_resolution_queue.py` |
 | Operator inputs are validated before they are written into a template | `remediation/recipes.py` (`parse_inputs`) | `test_remediation_e2e.py` |
 | The browser history stores no evidence or configuration lines | `frontend/src/utils/history.js` | `history.test.js` |
@@ -56,7 +56,7 @@ never evidence: a missing setting is NOT_CONFIGURED, not FAIL.
   uploaded configuration *file*, as the generic engine reads it. It says nothing about the real CLI syntax, about
   side effects on the device, or about whether the command is safe to run. NetAuditAI never connects to a device.
 * The **verified corrected copy** (`POST /api/remediation/candidate/download`) is the administrator's own uploaded
-  file with that one simulated change — it adds nothing and redacts nothing, exactly like `/download-fixed`, and it
+  file with that one simulated change -it adds nothing and redacts nothing, exactly like `/download-fixed`, and it
   is labelled as a copy that has not been applied to a device. Only a verified candidate can produce one; the
   status gate is checked on the server, not in the browser. One copy per candidate: changes are never combined.
 * A command an administrator types is scrubbed with the configuration's known secrets before it is shown again, but

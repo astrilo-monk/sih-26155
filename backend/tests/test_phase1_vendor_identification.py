@@ -1,5 +1,5 @@
 """
-Phase 1b — a vendor profile is confirmed only when the config follows its grammar.
+Phase 1b -a vendor profile is confirmed only when the config follows its grammar.
 
 The fingerprint detector matches shared tokens (``hostname``, ``!``,
 ``interface``, ``config``/``edit``/``set``). Look-alike dialects and mixed

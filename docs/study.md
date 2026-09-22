@@ -1,4 +1,4 @@
-# NetAuditAI — Study Guide
+# NetAuditAI -Study Guide
 
 A short guide for presenting and defending the project.
 

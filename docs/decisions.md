@@ -8,12 +8,12 @@ use the generic path instead of more parsers: a parser per vendor does not scale
 look more trustworthy than it is.
 
 ## 2. Tech stack: FastAPI + React + SQLite + Groq
-- **Python / FastAPI** — fast to build, strong text processing.
-- **React / Vite** — a dashboard quickly.
-- **SQLite** — administrator knowledge (recognizers, learned mappings, rejected lines) and the AI judge cache must
+- **Python / FastAPI** -fast to build, strong text processing.
+- **React / Vite** -a dashboard quickly.
+- **SQLite** -administrator knowledge (recognizers, learned mappings, rejected lines) and the AI judge cache must
   survive restarts; SQLite needs no extra service. Scan results stay in memory: persisting uploaded configurations
   is not needed for the demo and would store secrets.
-- **Groq** (`openai/gpt-oss-120b`) — strict JSON-schema output and a free tier. All calls are isolated in
+- **Groq** (`openai/gpt-oss-120b`) -strict JSON-schema output and a free tier. All calls are isolated in
   `backend/app/ai/client.py`.
 
 ## 3. Controls over rules, facts over vendor structures

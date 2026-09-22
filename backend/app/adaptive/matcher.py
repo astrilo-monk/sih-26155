@@ -1,5 +1,5 @@
 """
-Phase 5 — Command-pattern templates and the learned mapping matcher.
+Phase 5 -Command-pattern templates and the learned mapping matcher.
 
 A learned mapping stores *how* a vendor expresses a concept as a safe
 template, never as a raw regular expression:
@@ -10,9 +10,9 @@ template, never as a raw regular expression:
 
 Template grammar (whitespace-separated tokens):
 
-* literal token   — matched case-insensitively, exactly
-* ``{value}``     — captures one token; the extracted value
-* ``{any}``       — matches one token that is ignored
+* literal token   -matched case-insensitively, exactly
+* ``{value}``     -captures one token; the extracted value
+* ``{any}``       -matches one token that is ignored
 
 A statement terminator (``;``) is punctuation, not part of a token: it is dropped
 from template tokens and stays optional in the line, so ``server {ip};``,
@@ -266,7 +266,7 @@ class LearnedMappingMatcher:
     """
     Checks unrecognized lines against confirmed, active learned mappings.
 
-    Vendor is metadata only — a mapping learned from one vendor applies to
+    Vendor is metadata only -a mapping learned from one vendor applies to
     any config that uses the same syntax. When several mappings match and
     disagree on field or value, the outcome is ``ambiguous`` and nothing is
     guessed.

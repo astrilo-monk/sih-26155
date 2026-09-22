@@ -1,5 +1,5 @@
 """
-Phase 6 — adaptive learning: confirmed learned mappings and AI output never mask each other,
+Phase 6 -adaptive learning: confirmed learned mappings and AI output never mask each other,
 and known-vendor scans are unchanged by learned mappings.
 
 The unknown-vendor demo (AI interpretation → admin confirmation → learned mapping) was retired with the

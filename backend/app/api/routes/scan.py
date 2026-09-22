@@ -270,11 +270,11 @@ def _build_adaptive_info(
         if identification is not None and identification.status == STATUS_UNVERIFIED:
             reason = (
                 f"Configuration resembles '{identification.detected_vendor.value}', but "
-                f"{identification.reason} — vendor unverified, so no vendor parser or defaults were used; "
+                f"{identification.reason} -vendor unverified, so no vendor parser or defaults were used; "
                 "controls rely on mappings and provisional heuristics"
             )
         else:
-            reason = ("Vendor could not be identified — no vendor parser or defaults were used; "
+            reason = ("Vendor could not be identified -no vendor parser or defaults were used; "
                       "controls rely on mappings and provisional heuristics")
         if evidence.status == EVIDENCE_IDENTIFIED:
             reason += (
@@ -290,17 +290,17 @@ def _build_adaptive_info(
         if undecided:
             reasons.append(
                 f"Evidence was not found or not decidable for {len(undecided)} control(s) "
-                f"({', '.join(undecided)}) — reported as not configured / unknown, "
+                f"({', '.join(undecided)}) -reported as not configured / unknown, "
                 "never failed from missing data"
             )
         if not assessed:
             reasons.append(
-                "No control could be decided from confirmed evidence (provisional verdicts are not scored) — "
+                "No control could be decided from confirmed evidence (provisional verdicts are not scored) -"
                 "it is reported as not assessed rather than scored"
             )
     if ai_unavailable:
         reasons.append(
-            f"AI interpretation was unavailable for {ai_unavailable} line(s) — "
+            f"AI interpretation was unavailable for {ai_unavailable} line(s) -"
             "they were not assessed; map them manually or rescan later"
         )
     if pending:
@@ -375,7 +375,7 @@ def is_configuration(config: NormalizedConfig) -> bool:
     """Whether the uploaded file holds device configuration at all.
 
     A confirmed vendor answers it by itself. Otherwise: no line of the file says anything about any
-    security setting — prose, a README, an empty template. Such a file is reported as unreadable and
+    security setting -prose, a README, an empty template. Such a file is reported as unreadable and
     never scored; an unfamiliar *configuration* is a different thing and is analysed generically.
     """
     return (config.device.vendor != Vendor.UNKNOWN
@@ -430,7 +430,7 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
     )
 
     if result is None:
-        # AI unavailable and nothing could be normalized — display-only
+        # AI unavailable and nothing could be normalized -display-only
         return ScanResultResponse(
             scan_id=scan_id,
             timestamp=entry.get("timestamp", datetime.now().isoformat()),
@@ -469,8 +469,8 @@ async def scan_configs(files: list[UploadFile] = File(...)):
     Returns findings, score, and device info.
 
     Unknown-vendor configs get recognizer, mapping and heuristic facts; then,
-    when AI is available, the AI judge (``app.ai.judge``) — the only AI path for
-    them — reads only the scopes of controls still UNKNOWN or NOT_CONFIGURED,
+    when AI is available, the AI judge (``app.ai.judge``) -the only AI path for
+    them -reads only the scopes of controls still UNKNOWN or NOT_CONFIGURED,
     within a per-scan call budget and a cache, and adds verified provisional
     facts. If AI is unavailable and nothing could be read, the scan degrades
     gracefully to display-only results.
@@ -599,7 +599,7 @@ def get_scan_result_or_409(stored: dict):
     if result is None:
         raise HTTPException(
             409,
-            "This scan has no compliance result yet — AI interpretation was unavailable. "
+            "This scan has no compliance result yet -AI interpretation was unavailable. "
             "Review the adaptive lines on the Review & Recognizers page first.",
         )
     return result

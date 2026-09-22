@@ -40,7 +40,7 @@ Deterministic Remediation (confirmed vendors, decisive FAILs)
       ↓
 Re-parse + Re-verify
 
-   — or, for an unconfirmed vendor —
+   -or, for an unconfirmed vendor -
 
 Candidate Remediation (command text: administrator-typed, or AI-proposed)
       ↓
@@ -119,12 +119,12 @@ produces HEURISTIC facts only with a predicate keyword, a typed value and a reso
 candidates become one undetermined fact citing all of them (UNKNOWN). Three readings use structure rather than
 the single line, and none of them lets an absent line state anything:
 
-* **presence as polarity** — a bare statement whose single keyword is a management protocol, inside a block that
+* **presence as polarity** -a bare statement whose single keyword is a management protocol, inside a block that
   already identifies it as a service (`services { telnet; }`), states that the protocol is on. A block switched
   off wins over it; a negation of the same feature contradicts it, so the fact is undetermined (UNKNOWN).
-* **version values** — a version fact reads `v2` / `ver2` / `version2` as 2. Elsewhere a token with a letter is
+* **version values** -a version fact reads `v2` / `ver2` / `version2` as 2. Elsewhere a token with a letter is
   still not a number.
-* **rule composition** — when a rule states its selectors and its action in separate statements
+* **rule composition** -when a rule states its selectors and its action in separate statements
   (`source-address any; … permit;`), the rule is the action's own block or its parent: the first block wide
   enough to state both wildcards, never one holding a second action, and never one holding a narrowing selector
   (a protocol, port or application). Evidence cites every line of the rule.
@@ -135,8 +135,8 @@ the single line, and none of them lets an absent line state anything:
 `mgmt.remote_access.protocol_enabled` with subject `telnet`, `log.remote.destination`, `crypto.ipsec.proposal`).
 A `SecurityFact` has predicate, subject, scope, value, unit, assurance, cited evidence lines and provenance.
 
-* value `None` — present but undetermined (provenance says why);
-* `NOT_SET` — a confirmed parser read the whole configuration and the setting is absent (the control decides what
+* value `None` -present but undetermined (provenance says why);
+* `NOT_SET` -a confirmed parser read the whole configuration and the setting is absent (the control decides what
   absence means). Unknown vendors never produce `NOT_SET`: absence is never evidence there.
 
 Sources and assurance:
@@ -177,14 +177,14 @@ answers another control. Findings are the view of decisive and heuristic FAIL re
 (several failing scopes count once at the worst severity):
 
 ```text
-posture  = Σw(decisive PASS) / Σw(decisive PASS + decisive FAIL) × 100     ("—" when nothing decided)
+posture  = Σw(decisive PASS) / Σw(decisive PASS + decisive FAIL) × 100     ("-" when nothing decided)
 coverage = Σw(decisive PASS + FAIL) / Σw(applicable)                       (applicable = everything but N/A)
 bounds   = posture if every undecided control failed … if every undecided control passed
 critical_unassessed = critical controls not decided decisively
 ```
 
 Heuristic and AI verdicts, UNKNOWN and NOT_CONFIGURED are undecided. A configuration with nothing decided shows
-posture "—" and coverage 0, never 100. The legacy `score` (100 − penalties) is still returned, deprecated, and not
+posture "-" and coverage 0, never 100. The legacy `score` (100 − penalties) is still returned, deprecated, and not
 used by the UI, remediation or framework views.
 
 ## 7. AI: role and boundaries
@@ -214,7 +214,7 @@ completes.
 
 A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships 50 reviewed recognizers for
 eight dialects that have no dedicated parser (Junos, PAN-OS, Arista EOS, Huawei VRP, RouterOS, Aruba AOS-CX,
-Check Point Gaia, Extreme EXOS) — one generalized entry per concept per dialect, never one per line;
+Check Point Gaia, Extreme EXOS) -one generalized entry per concept per dialect, never one per line;
 `app/facts/seed.py` loads them into SQLite the first time a process opens the database. They pass the same gates
 listed below, are decisive in the same way, and are marked `source = "seed"` so shipped knowledge and what this
 deployment was taught stay distinguishable. Loading is idempotent and never overwrites or revives a row an
@@ -227,11 +227,11 @@ An UNKNOWN or NOT_CONFIGURED control is not the end of the assessment: it is the
 queue** (`GET /api/adaptive/scans/{id}/unresolved`) lists every applicable control coverage left out, built from the
 same `control_outcomes` the posture is counted from, so what the queue calls unresolved is exactly what coverage
 excluded. Each item carries why the engine could not decide, the evidence it did cite, the lines of this
-configuration that mention the setting — and, when nothing does, the administrator picks any line of the file
+configuration that mention the setting -and, when nothing does, the administrator picks any line of the file
 (`…/configs/{i}/lines`, read-only) and states what it means (`…/meanings`). The answer becomes an asserted
 candidate and goes through the drafting and gates below unchanged; a line that does not state the value cannot
 teach it. Saving re-evaluates the same configuration: the control decides from CONFIRMED evidence, posture and
-coverage are recalculated by the unchanged scoring engine, and the queue shrinks — or the control stays undecided
+coverage are recalculated by the unchanged scoring engine, and the queue shrinks -or the control stays undecided
 and nothing is counted. The uploaded configuration is only ever read, and no file is uploaded again.
 
 1. The scan lists provisional results (heuristic lines and verified AI proposals) and the resolution queue on the
@@ -244,16 +244,16 @@ and nothing is counted. The uploaded configuration is only ever read, and no fil
    literal. A *leading* negator becomes `{neg}`, so one recognizer reads `telnet server` and `no telnet
    server` as opposites instead of needing two.
 3. Gates (`app/facts/recognizers.validate_recognizer`, `app/db/mappings.validate_mapping`): at least two keywords
-   besides stopwords **counting the scope template** — a hierarchical dialect keeps the nouns in the block header,
+   besides stopwords **counting the scope template** -a hierarchical dialect keeps the nouns in the block header,
    so `server {host}` scoped to `ntp` is specific enough while `server {host}` unscoped is not, and a scope can
    never carry a recognizer whose own template has no keyword; the scope is the block the statement is *in*,
    never an outer ancestor, so an NTP `server` recognizer does not answer `ntp { traceoptions { server … } }`;
-   a line carrying a value can only teach a boolean listed in `PRESENCE_PREDICATES` — a source restriction
+   a line carrying a value can only teach a boolean listed in `PRESENCE_PREDICATES` -a source restriction
    and central AAA are stated by naming an address, every other boolean is a toggle a value says nothing
    about; a line that states no on/off of its own, and any line read through a value slot, must also name
    the setting it is taught as (`CONCEPT_WORDS`), so `uid 2001` cannot teach anything, while a line that
    does state an on/off may be named in any words, because that is what teaching an unfamiliar dialect is;
-   all of it in the gate, not only in the draft; stated polarity or a true/false table — or, for a scoped
+   all of it in the gate, not only in the draft; stated polarity or a true/false table -or, for a scoped
    bare statement, presence, which can only ever mean "on"; a unit for durations; the template must match its
    example line; no identical active recognizer (pattern **and** scope, so `server {ip}` under `ntp` and under
    `syslog` are different recognizers); dialect overlap unless "any dialect"; and **no secret** in any stored text.
@@ -261,7 +261,7 @@ and nothing is counted. The uploaded configuration is only ever read, and no fil
    administrator is a duration unit the configuration itself never states.
 4. Replay shows which results the recognizer would change on the scans held by the backend.
 5. Save writes it to SQLite `learned_mappings` (confirmed, active). The scan is re-evaluated.
-6. Every later scan — including after a backend restart, in a new process — loads active confirmed recognizers from
+6. Every later scan -including after a backend restart, in a new process -loads active confirmed recognizers from
    the database. A matching line yields a `confirmed` (decisive) fact; heuristics and AI facts step aside for that
    line; conflicting recognizers give UNKNOWN citing both. The AI is not asked about recognized lines.
 
@@ -275,7 +275,7 @@ administrator; AI output never becomes a recognizer by itself.
 | SQLite `learned_mappings` | Recognizers (shipped `seed` and taught `runtime`) and learned field mappings | Yes | Refused at save |
 | SQLite `rejected_lines` | Rejected lines (redacted text, key from the redacted line) | Yes | Redacted |
 | SQLite `ai_judge_cache` | Verified AI answers keyed by a hash of the redacted prompt | Yes | Prompts were redacted |
-| Backend memory (`_scan_store`) | Scan results, parsed configurations | No | — |
+| Backend memory (`_scan_store`) | Scan results, parsed configurations | No | -|
 | Browser `localStorage` | History summaries (hostnames, vendors, posture, coverage, counts) | Browser only | None stored |
 
 The database path is `ADAPTIVE_DB_PATH` (default `backend/data/adaptive.db`); migrations are tracked with
@@ -304,14 +304,14 @@ saves a recognizer in one Python process and proves a second process reuses it;
 ### Candidate remediation (unconfirmed vendors)
 
 `app/remediation/candidates.py`. An unconfirmed vendor has no recipe and no trusted grammar, so the command text
-comes from outside the engine — typed by the administrator, or proposed by the AI
+comes from outside the engine -typed by the administrator, or proposed by the AI
 (`app/ai/remediation.py`). It is a **candidate**, never a fix, and the engine stays vendor-neutral: the
 configuration and the proposed text are read with the same generic tokenizer for every dialect.
 
 * Eligibility: a **decisive** FAIL (recognizer, parser or documented default) on an **unconfirmed** vendor. A
-  heuristic or AI verdict gets no candidate — confirm the reading on the Teach page first. A confirmed vendor is
+  heuristic or AI verdict gets no candidate -confirm the reading on the Teach page first. A confirmed vendor is
   refused (`409`): it keeps the deterministic path.
-* Validation: shape and size (≤ 2000 characters, ≤ 20 lines, no control characters), then *coverage* — a statement
+* Validation: shape and size (≤ 2000 characters, ≤ 20 lines, no control characters), then *coverage* -a statement
   of the command must negate (`delete` / `no` / `unset` / `undo` / a `disable` keyword) the failing statement and
   name every word of its block path, and every statement of the command must be about one of the cited lines.
 * Simulation: the only effect derivable from unfamiliar text is a negation, so the cited statements are removed from
@@ -324,13 +324,13 @@ configuration and the proposed text are read with the same generic tokenizer for
   reads `FAIL → NOT_CONFIGURED`.
 * The verified copy is retained: a `verified` candidate keeps the edited copy it was verified against
   (`Candidate.verified_config`), so an administrator can download it from
-  `POST /api/remediation/candidate/download` — a *verified corrected copy of the uploaded configuration*, one per
+  `POST /api/remediation/candidate/download` -a *verified corrected copy of the uploaded configuration*, one per
   candidate, never combined. Every other status clears it, so a draft, an unverified, a rejected or a
   re-checked-and-failed candidate has nothing to hand out. Confirming a candidate that only ever reached
   `unverified` still gives no file.
 * A candidate changes nothing else: not the stored configuration, the control results, findings, posture or
   coverage, and not the confirmed-vendor `/download-fixed` output. It lives in the scan's memory for that scan only
-  and is never persisted as knowledge —
+  and is never persisted as knowledge -
   recognizers answer "what does this line mean?", which is a different question from "what command changes it".
 
 Two different things produce a file, and they are kept apart:
@@ -339,17 +339,17 @@ Two different things produce a file, and they are kept apart:
 |---|---|---|
 | Change comes from | A fixed recipe in `recipes.py` | The change NetAuditAI derives from the configuration itself, or command text a person typed / the AI proposed |
 | Verified by | Full rescan as the confirmed vendor | Simulation on a copy, re-read by the generic engine |
-| Download | `POST /api/download-fixed` — the corrected configuration | `POST /api/remediation/candidate/download` — a *verified corrected copy of the uploaded configuration* |
+| Download | `POST /api/download-fixed` -the corrected configuration | `POST /api/remediation/candidate/download` -a *verified corrected copy of the uploaded configuration* |
 | Claim | This change is deterministic for this vendor | This text removes the finding from **this file**; it is not known to be correct or safe for the device |
 
 **Derived candidates.** `candidates.derive` is what makes the unconfirmed path self-serving: it takes the lines a
 decisive FAIL cites, removes them from a copy and runs the same verification, so a configuration in a dialect nobody
-taught still gets a change NetAuditAI worked out itself. The text is built from the configuration's own words — its
-block path, then the statement's keywords — so no vendor grammar is claimed and none is needed; what is verified is
+taught still gets a change NetAuditAI worked out itself. The text is built from the configuration's own words -its
+block path, then the statement's keywords -so no vendor grammar is claimed and none is needed; what is verified is
 the effect on the *file*, and whether the wording is also the device's CLI syntax is the administrator's call.
 
 Two limits keep it honest. It only derives for controls a removal can resolve (`DERIVABLE_KINDS`: prohibitions and
-relational controls). A control that requires a setting, or holds one to a threshold, is refused — deleting an idle
+relational controls). A control that requires a setting, or holds one to a threshold, is refused -deleting an idle
 timeout would make the check stop failing while leaving the device worse, so that change stays with the person who
 owns the command. And a block opener is never removed on its own, whatever the dialect, since removing it would
 orphan its contents.
@@ -360,14 +360,14 @@ candidate never claims it is safe to run on one.
 
 ## 11. Framework views
 
-`app/controls/frameworks.py` regroups the scan's control results by framework requirement — nothing is evaluated
+`app/controls/frameworks.py` regroups the scan's control results by framework requirement -nothing is evaluated
 again. Mappings are the catalog's, with exact versions:
 
-* **NIST SP 800-53 Rev. 5** (OSCAL release 5.2.0) — every control, every vendor.
-* **CIS Benchmarks** — Cisco IOS XE 17.x v2.2.1 (L1/L2) and v2.1.0 (L1), FortiGate 7.4.x v1.0.1 (L1/L2); only items
+* **NIST SP 800-53 Rev. 5** (OSCAL release 5.2.0) -every control, every vendor.
+* **CIS Benchmarks** -Cisco IOS XE 17.x v2.2.1 (L1/L2) and v2.1.0 (L1), FortiGate 7.4.x v1.0.1 (L1/L2); only items
   verified for that benchmark version, attached only to devices of that confirmed vendor.
-* **DISA STIG** — Network Device Management SRG V4, vendor-agnostic; only requirements a control actually answers.
-* **ISO/IEC 27001:2022 Annex A** — every control, every vendor. Annex A controls are organisational: a device
+* **DISA STIG** -Network Device Management SRG V4, vendor-agnostic; only requirements a control actually answers.
+* **ISO/IEC 27001:2022 Annex A** -every control, every vendor. Annex A controls are organisational: a device
   result is evidence towards one, never proof the Annex A control is met.
 
 A requirement is FAIL if any mapped control FAILs decisively, PASS only if every applicable mapped control PASSes
@@ -379,7 +379,7 @@ of applicable requirements decided. PCI DSS and CIS Controls v8 are **not mapped
 
 `app/reporting/report.py` builds the per-device compliance report, and `POST /api/report` returns it as PDF (one
 device → a PDF, several → a zip of one PDF per device). It is built in two steps: `report_blocks` produces a plain
-document model — headings, paragraphs, tables, monospace blocks — and `render_pdf` lays that out with ReportLab.
+document model -headings, paragraphs, tables, monospace blocks -and `render_pdf` lays that out with ReportLab.
 The tests read the model, so what the report says is asserted without parsing PDF streams.
 
 Its input is the same redacted `ScanResultResponse` the browser gets plus the remediation plan, so the report and
@@ -395,11 +395,11 @@ Two rules follow the rest of the product:
 
 ## 13. Legacy and deprecated parts
 
-* `score` / `calculate_score` — deprecated penalty score, still returned for existing scripts.
-* `adaptive_ai_for_known_vendors` (default off) — the line-by-line interpreter, `FIELD_REGISTRY` AI vocabulary and
+* `score` / `calculate_score` -deprecated penalty score, still returned for existing scripts.
+* `adaptive_ai_for_known_vendors` (default off) -the line-by-line interpreter, `FIELD_REGISTRY` AI vocabulary and
   the line review queue for confirmed vendors; its interpretations only reach the review queue.
-* `generate_remediation` / `apply_remediation` — compatibility shims over the Phase 8 engine (command text passed in
+* `generate_remediation` / `apply_remediation` -compatibility shims over the Phase 8 engine (command text passed in
   is ignored).
-* `NormalizedConfig` — the parsers' internal model; controls read facts, not this model.
+* `NormalizedConfig` -the parsers' internal model; controls read facts, not this model.
 
 See the README for current limitations and [plan.md](../plan.md) for the phase-by-phase record.

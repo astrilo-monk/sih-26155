@@ -1,5 +1,5 @@
 """
-Phase 3 — Confidence-based interpretation and safe NormalizedConfig enrichment.
+Phase 3 -Confidence-based interpretation and safe NormalizedConfig enrichment.
 
 Tests:
 1. Valid HIGH mapping → enriched + ai_auto_mapped
@@ -226,7 +226,7 @@ def test_medium_mapping():
 
     records = map_interpretations(config, [interp])
 
-    # Config NOT mutated — this is the critical safety rule
+    # Config NOT mutated -this is the critical safety rule
     assert config.management.ssh_version is None
     assert 15 not in config.management.source_lines
 
@@ -253,7 +253,7 @@ def test_medium_mapping_even_if_type_valid():
 
     records = map_interpretations(config, [interp])
 
-    # Must NOT silently set the value — that could mask a vulnerability
+    # Must NOT silently set the value -that could mask a vulnerability
     assert config.management.telnet_enabled is False  # default, not set by AI
     # Actually, default is False, so we verify source_lines were NOT updated
     assert 20 not in config.management.source_lines
@@ -597,7 +597,7 @@ def test_multiple_mixed_tiers():
     config.device.vendor = Vendor.CISCO_IOS
 
     interpretations = [
-        # HIGH — valid → auto-mapped
+        # HIGH -valid → auto-mapped
         _make_result(
             line_number=10,
             raw_line="ip ssh version 2",
@@ -605,7 +605,7 @@ def test_multiple_mixed_tiers():
             extracted_value="2",
             numeric_confidence=0.95,
         ),
-        # MEDIUM — valid but → review
+        # MEDIUM -valid but → review
         _make_result(
             line_number=20,
             raw_line="telnet disabled",
@@ -741,7 +741,7 @@ def test_unknown_interpretation_status():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 16. Integration — full pipeline with mocked Phase 2
+# 16. Integration -full pipeline with mocked Phase 2
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def test_full_pipeline_high_to_compliance():
@@ -787,7 +787,7 @@ credential-policy minimum-length 14
         status=InterpretationStatus.INTERPRETED,
     )
 
-    # Phase 3 — apply confidence-based interpretation
+    # Phase 3 -apply confidence-based interpretation
     map_interpretations(config, [mock_interpretation])
 
     # The HIGH-confidence mapping should have enriched the config

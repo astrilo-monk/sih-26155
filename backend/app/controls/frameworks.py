@@ -14,7 +14,7 @@ Nothing is evaluated here. Each requirement lists the catalog controls mapped to
 Heuristic and AI_VERIFIED verdicts are never decisive: a requirement they touch is marked
 ``provisional`` and cannot PASS or FAIL on them. Product benchmarks (CIS) apply only to
 devices whose vendor profile is confirmed; unknown vendors see vendor-neutral mappings.
-A framework view reports mapped device-configuration controls — it is not a compliance
+A framework view reports mapped device-configuration controls -it is not a compliance
 certification.
 """
 

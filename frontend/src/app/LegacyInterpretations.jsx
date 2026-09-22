@@ -9,7 +9,7 @@ import { validateInterpretation } from '../utils/adaptiveValidation';
 
 const STATUS = { pending: 'Waiting', accepted: 'Accepted', edited: 'Edited', rejected: 'Rejected', learned: 'Learned' };
 const isAiUnavailable = (item) => item.interpretation_status === 'ai_unavailable';
-const fieldLabel = (f) => (f.label ? `${f.label} — ${f.field}` : f.field);
+const fieldLabel = (f) => (f.label ? `${f.label} -${f.field}` : f.field);
 
 function emptyForm(item) {
   return {
@@ -128,7 +128,7 @@ export default function LegacyInterpretations({ scan, onScanUpdated, onScanExpir
                   </button>
                   <code className="legacy-line">{item.raw_line.trim()}</code>
                   <span className="legacy-suggest">
-                    {aiUnavailable ? <span className="small text-unknown">AI unavailable — map manually</span>
+                    {aiUnavailable ? <span className="small text-unknown">AI unavailable -map manually</span>
                       : hasSuggestion ? <span className="mono small">{item.normalized_field} = {item.extracted_value}</span>
                         : <span className="small muted">No usable suggestion</span>}
                   </span>
@@ -142,7 +142,7 @@ export default function LegacyInterpretations({ scan, onScanUpdated, onScanExpir
                     <span className="legacy-actions">
                       <button type="button" className="btn btn-primary btn-sm" aria-label={`Accept line ${item.line_number}`}
                               onClick={() => accept(item)} disabled={isBusy || !hasSuggestion}
-                              title={hasSuggestion ? undefined : 'No usable suggestion — edit instead'}>Accept</button>
+                              title={hasSuggestion ? undefined : 'No usable suggestion -edit instead'}>Accept</button>
                       <button type="button" className="btn btn-sm" aria-label={`Edit line ${item.line_number}`} onClick={() => startEdit(item)} disabled={isBusy}>Edit</button>
                       <button type="button" className="btn btn-sm" aria-label={`Reject line ${item.line_number}`} onClick={() => reject(item)} disabled={isBusy}>Reject</button>
                     </span>

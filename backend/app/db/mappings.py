@@ -1,12 +1,12 @@
 """
-MappingRepository — persistence boundary for learned adaptive mappings.
+MappingRepository -persistence boundary for learned adaptive mappings.
 
 Conceptual model:
 
-* CONCEPT  — what the configuration means (``session_timeout``)
-* PATTERN  — how some vendor expresses it (``admin idle-timeout {value}``)
-* MAPPING  — the confirmed link between a pattern and a normalized field
-* RECOGNIZER (Phase 6) — a mapping that answers a security predicate directly
+* CONCEPT  -what the configuration means (``session_timeout``)
+* PATTERN  -how some vendor expresses it (``admin idle-timeout {value}``)
+* MAPPING  -the confirmed link between a pattern and a normalized field
+* RECOGNIZER (Phase 6) -a mapping that answers a security predicate directly
   (``remote-console protocol {enum:protocol}`` → Telnet allowed); see ``app.facts.recognizers``
 
 Vendor is optional metadata, never part of a mapping's identity.

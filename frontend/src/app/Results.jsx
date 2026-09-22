@@ -48,7 +48,7 @@ export function PostureSummary({ posture, coverage = 0, bounds, criticalUnassess
       <div className="posture-main">
         <h2 className="posture-k" id="posture-title">Security posture</h2>
         <p className="posture-value tnum">
-          {posture == null ? '—' : <Count value={posture} />}
+          {posture == null ? '-' : <Count value={posture} />}
           {outOf && <span className="posture-of">/100</span>}
         </p>
         <p className="posture-label">{a.label}</p>
@@ -68,7 +68,7 @@ export function PostureSummary({ posture, coverage = 0, bounds, criticalUnassess
             {unresolved > 0 && <> · <span className="tnum">{unresolved}</span> need your input</>}
           </p>
         )}
-        <p className="assessment-line mono small muted">Posture {posture ?? '—'} · Coverage {coverage}% · {a.scope}</p>
+        <p className="assessment-line mono small muted">Posture {posture ?? '-'} · Coverage {coverage}% · {a.scope}</p>
         {bounds && posture != null && coverage < 100 && (
           <p className="small muted">If every undecided check failed or passed, the posture would be {bounds[0]}–{bounds[1]}.</p>
         )}
@@ -107,9 +107,9 @@ function ProblemRow({ item, state, label, onOpen, index }) {
 }
 
 function deviceLine(ident) {
-  if (ident?.status === 'confirmed') return `${vendorName(ident.detected_vendor)} — read by a dedicated parser`;
-  if (ident?.status === 'unverified') return `Looks like ${vendorName(ident.detected_vendor)}, but not confirmed — checked with generic analysis`;
-  return 'Unfamiliar device — checked with generic analysis';
+  if (ident?.status === 'confirmed') return `${vendorName(ident.detected_vendor)} -read by a dedicated parser`;
+  if (ident?.status === 'unverified') return `Looks like ${vendorName(ident.detected_vendor)}, but not confirmed -checked with generic analysis`;
+  return 'Unfamiliar device -checked with generic analysis';
 }
 
 export default function Results({ scan, audit, onOpen, onTeach, go }) {

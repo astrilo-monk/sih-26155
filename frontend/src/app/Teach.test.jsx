@@ -191,7 +191,7 @@ it('rejects a misread line and propagates the re-evaluated scan', async () => {
   const onUpdated = vi.fn();
   render(<Harness onUpdated={onUpdated} />);
   expect(await screen.findByText(/We think it turns on Telnet remote access/)).toBeTruthy();
-  fireEvent.click(await screen.findByLabelText('Something else — NetAuditAI misread this line'));
+  fireEvent.click(await screen.findByLabelText('Something else -NetAuditAI misread this line'));
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
   expect(await screen.findByText('Got it.')).toBeTruthy();
   expect(apiClient.rejectProvisionalLine).toHaveBeenCalledWith('scan-1', { config_index: 0, control_id: 'MGMT-001', line_number: 71 });
@@ -226,11 +226,11 @@ it('can pick any line of the uploaded configuration instead of the suggested one
 
 it('skips a check without answering it', async () => {
   render(<Harness />);
-  fireEvent.click(await screen.findByLabelText('I’m not sure — skip this check for now'));
+  fireEvent.click(await screen.findByLabelText('I’m not sure -skip this check for now'));
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
   expect(await screen.findByText('Do idle management sessions time out?')).toBeTruthy();
   expect(screen.getByText('Check 1 of 1')).toBeTruthy();
-  fireEvent.click(await screen.findByLabelText('I’m not sure — skip this check for now'));
+  fireEvent.click(await screen.findByLabelText('I’m not sure -skip this check for now'));
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
   expect(await screen.findByText('No more checks for now.')).toBeTruthy();
   expect(screen.getByText(/Skipped checks stay undecided and uncounted/)).toBeTruthy();

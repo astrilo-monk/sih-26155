@@ -6,7 +6,7 @@ import { motionAllowed, prefersReducedMotion, useInView, useReveal, useScrollPro
 import '../styles/home.css';
 
 // Every specimen on this page is real backend output for the repository's sample configurations, with secrets
-// exactly as the backend redacts them. The animations replay those recorded states in order — they never
+// exactly as the backend redacts them. The animations replay those recorded states in order -they never
 // suggest a scan is running.
 const SAMPLE = 'sample/cisco/01_cisco_multi_vulnerability.cfg';
 
@@ -46,7 +46,7 @@ const PIPELINE = [
   ['Understand', 'The platform is identified deterministically and parse coverage measured. Unfamiliar files are tokenized generically.', 'vendor identification · coverage'],
   ['Evaluate', 'Security facts are extracted and every control runs against every configuration.', 'security facts · controls'],
   ['Prove', 'Each result carries its cited lines and an assurance level. Undecidable semantics stay Unknown or go to a person.', 'evidence · assurance'],
-  ['Fix', 'A deterministic recipe changes failing settings only — and only for a confirmed vendor.', 'recipes · diff'],
+  ['Fix', 'A deterministic recipe changes failing settings only -and only for a confirmed vendor.', 'recipes · diff'],
   ['Verify', 'The fixed file is re-parsed and every control re-run: the target must pass and nothing else may get worse.', 'rescan checks'],
 ];
 
@@ -66,7 +66,7 @@ const ASSURANCE_LADDER = [
 ];
 
 const SUPPORT = [
-  ['Vendor identification', 'Deterministic, confirmed', 'Deterministic, confirmed', 'Reported as unknown or unverified — never guessed'],
+  ['Vendor identification', 'Deterministic, confirmed', 'Deterministic, confirmed', 'Reported as unknown or unverified -never guessed'],
   ['Reading the file', 'Dedicated parser', 'Dedicated parser', 'Generic structure analysis'],
   ['Decisive results', 'Parser evidence and documented defaults', 'Parser evidence and documented defaults', 'Human-confirmed recognizers only'],
   ['AI escalation', 'Not used', 'Not used', 'Bounded, for undecided controls; always provisional'],
@@ -207,7 +207,7 @@ function LearningLoop() {
           <figure className="evidence compact"><div className="evidence-body">
             <div className="ev-row cited"><span className="ln">71</span><code>remote-console protocol telnet</code></div>
           </div></figure>
-          <p className="small muted">sample/unknown.cfg — no vendor could be confirmed.</p>
+          <p className="small muted">sample/unknown.cfg -no vendor could be confirmed.</p>
         </li>
         <li className={`learn-step ${stageClass(on, 1)}`}>
           <span className="learn-no mono">B</span>
@@ -237,7 +237,7 @@ function LearningLoop() {
           <span className="learn-no mono">E</span>
           <h3>Future scan recognized</h3>
           <div className="chain-row"><StatusMark state="problem" /><span className="tag tag-pass">Human-confirmed recognizer</span></div>
-          <p>A new scan of the same file decides MGMT-001 from the saved recognizer — no heuristic, no AI. It persists in SQLite across scans and restarts.</p>
+          <p>A new scan of the same file decides MGMT-001 from the saved recognizer -no heuristic, no AI. It persists in SQLite across scans and restarts.</p>
         </li>
       </ol>
       <div className="learn-foot">
@@ -290,11 +290,11 @@ export default function Home() {
             <div className="hero-copy enter">
               <p className="eyebrow">Network configuration audit</p>
               <h1 className="display hero-title">
-                Know exactly what’s wrong with a network configuration — <em>and the line that proves it.</em>
+                Know exactly what’s wrong with a network configuration -<em>and the line that proves it.</em>
               </h1>
               <p className="lede">
                 NetAuditAI evaluates device configurations against security controls and cites the configuration
-                evidence behind every authoritative finding. When syntax is unfamiliar, it says so — and asks you.
+                evidence behind every authoritative finding. When syntax is unfamiliar, it says so -and asks you.
               </p>
               <div className="hero-actions">
                 <a className="btn btn-accent btn-lg" href="#/app">Start a scan</a>
@@ -355,7 +355,7 @@ export default function Home() {
         <section className="hsec" id="evidence" aria-labelledby="evidence-title">
           <div className="wrap">
             <SectionHead no="03" id="evidence-title" title="Every authoritative finding has evidence behind it.">
-              A result is only decisive when it rests on validated evidence. The finding tells you which kind — and
+              A result is only decisive when it rests on validated evidence. The finding tells you which kind -and
               shows you the line.
             </SectionHead>
             <div className="evidence-grid">
@@ -391,8 +391,8 @@ export default function Home() {
                     </li>
                   ))}
                 </ul>
-                <p className="small muted">Provisional readings are listed with their evidence but change nothing — not posture,
-                  coverage, severity counts, findings or remediation — until a person confirms them.</p>
+                <p className="small muted">Provisional readings are listed with their evidence but change nothing -not posture,
+                  coverage, severity counts, findings or remediation -until a person confirms them.</p>
               </div>
             </div>
           </div>
@@ -419,7 +419,7 @@ export default function Home() {
                 <article key={name} className="posture-mini">
                   <header><h3>{name}</h3><span className="mono small muted">{src}</span></header>
                   <div className="pm-metrics">
-                    <div><span className="metric-label">Posture</span><span className="pm-value tnum">{v.posture ?? '—'}</span></div>
+                    <div><span className="metric-label">Posture</span><span className="pm-value tnum">{v.posture ?? '-'}</span></div>
                     <div><span className="metric-label">Coverage</span><span className="pm-value tnum">{v.coverage}%</span></div>
                     <div><span className="metric-label">Assessment</span><span className="pm-scope">{a.label}</span></div>
                   </div>
@@ -434,7 +434,7 @@ export default function Home() {
         {/* 05 ADAPTIVE LEARNING */}
         <section className="hsec" id="adaptive" aria-labelledby="adaptive-title">
           <div className="wrap">
-            <SectionHead no="05" id="adaptive-title" title="It learns unfamiliar syntax — only when you confirm it.">
+            <SectionHead no="05" id="adaptive-title" title="It learns unfamiliar syntax -only when you confirm it.">
               Controlled, human-in-the-loop adaptation. Not model training: nothing changes until an administrator
               confirms a reading, and what is saved is a typed rule you can read, replay and disable.
             </SectionHead>
@@ -468,7 +468,7 @@ export default function Home() {
                 <li><strong>Only failing settings.</strong> Unrelated lines, nesting and comments are preserved.</li>
                 <li><strong>Confirmed vendors only.</strong> Vendor-specific commands are never generated for an unknown or unverified platform.</li>
                 <li><strong>Decisive findings only.</strong> Provisional readings cannot trigger a fix.</li>
-                <li><strong>Verified by rescan.</strong> Vendor still confirmed, coverage intact, target passes, nothing else worse — or it is not called a fix.</li>
+                <li><strong>Verified by rescan.</strong> Vendor still confirmed, coverage intact, target passes, nothing else worse -or it is not called a fix.</li>
               </ul>
             </div>
           </div>
@@ -490,12 +490,12 @@ export default function Home() {
               <article className="fw-card">
                 <span className="tag tag-pass">Mapped · confirmed vendors</span>
                 <h3>CIS Benchmarks</h3>
-                <p>Cisco IOS XE 17.x v2.1.0 and v2.2.1, FortiGate 7.4.x v1.0.1 — only where the requirement is auditable from device configuration.</p>
+                <p>Cisco IOS XE 17.x v2.1.0 and v2.2.1, FortiGate 7.4.x v1.0.1 -only where the requirement is auditable from device configuration.</p>
               </article>
               <article className="fw-card">
                 <span className="tag tag-pass">Mapped</span>
                 <h3>DISA STIG</h3>
-                <p>Network Device Management SRG V4 — the vendor-agnostic requirements a device configuration can answer.</p>
+                <p>Network Device Management SRG V4 -the vendor-agnostic requirements a device configuration can answer.</p>
               </article>
               <article className="fw-card">
                 <span className="tag tag-pass">Mapped</span>
@@ -515,7 +515,7 @@ export default function Home() {
         <section className="hsec hsec-alt" aria-labelledby="support-title">
           <div className="wrap">
             <SectionHead no="08" id="support-title" title="Supported today, stated plainly.">
-              The control model is vendor-agnostic. Dedicated parsing and remediation are not — and the product never
+              The control model is vendor-agnostic. Dedicated parsing and remediation are not -and the product never
               pretends otherwise.
             </SectionHead>
             <div className="table-wrap reveal">

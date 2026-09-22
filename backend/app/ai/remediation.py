@@ -1,14 +1,14 @@
 """
 AI remediation candidates: one proposal, for one control, on an unconfirmed vendor.
 
-The AI is asked for command *text* only — never for a verdict, never for a vendor, never for a change
+The AI is asked for command *text* only -never for a verdict, never for a vendor, never for a change
 it applies itself. The answer is a structured proposal that goes through exactly the same review as a
 command an administrator typed (``app.remediation.candidates``): deterministic validation,
 simulation on a copy of the configuration where that is possible, and administrator confirmation.
 
 What the model receives is the minimum the question needs: the control, its question, the guidance
 the deterministic engine already produced, the vendor detection status, and the tokenizer scope of
-the cited failing lines — the same excerpt rule the AI judge uses, with the whole configuration
+the cited failing lines -the same excerpt rule the AI judge uses, with the whole configuration
 redacted first and the prompt scrubbed of every known secret afterwards.
 
 What comes back is accepted only if it is exactly the expected shape: the control that was asked, one
@@ -85,11 +85,11 @@ class AIProposal:
 def _prompt(control: Control, recommendation: str, vendor_status: str, detected_vendor: str,
             scopes: list[str], excerpt: list[str]) -> str:
     return (
-        f"FINDING\n- control: {control.control_id} — {control.title}\n"
+        f"FINDING\n- control: {control.control_id} -{control.title}\n"
         f"- question the auditor asks: {control.question}\n"
         f"- vendor-neutral guidance: {recommendation or 'none recorded'}\n"
         f"- device vendor detection: {vendor_status}"
-        + (f" (the syntax resembles {detected_vendor}, unverified — this is evidence only, "
+        + (f" (the syntax resembles {detected_vendor}, unverified -this is evidence only, "
            "not a confirmed platform)" if detected_vendor and detected_vendor != "unknown" else "")
         + f"\n- block path of the failing lines: {' | '.join(scopes) or 'top level'}\n\n"
         "CONFIGURATION EXCERPT (secrets redacted; the cited failing lines are marked >>)\n"

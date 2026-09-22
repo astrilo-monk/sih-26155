@@ -1,5 +1,5 @@
 """
-Phase 1c — missing data on an unidentified vendor is never a FAIL or a score.
+Phase 1c -missing data on an unidentified vendor is never a FAIL or a score.
 
 For a confirmed vendor, an empty field means the parser read the config and
 the setting is absent. For an unknown vendor it only means nothing was
@@ -123,7 +123,7 @@ def test_remediation_routes_never_reparse_an_unconfirmed_config_as_cisco():
     client = TestClient(app)
     scan = _unknown_scan_with_result(client)
 
-    # Phase 8: the command-text /verify route is gone — nothing a client sends becomes configuration
+    # Phase 8: the command-text /verify route is gone -nothing a client sends becomes configuration
     verify = client.post("/api/verify", json={"scan_id": scan["scan_id"], "remediation_commands": ""})
     assert verify.status_code in (404, 405)
     download = client.post("/api/download-fixed", json={"scan_id": scan["scan_id"]})

@@ -3,7 +3,7 @@ import { Notice } from '../components/ui/primitives';
 import { sayFact, statusState } from '../lib/domain';
 
 // The resolution queue: the checks NetAuditAI could not decide, and what would let it decide them.
-// These are exactly the checks coverage left out — listing one here never counts it as passed or failed.
+// These are exactly the checks coverage left out -listing one here never counts it as passed or failed.
 
 export function UnresolvedRow({ item, label, onTeach, index }) {
   const teachable = item.action === 'teach';
@@ -29,11 +29,11 @@ export function UnresolvedRow({ item, label, onTeach, index }) {
           {teachable && suggested.length > 0 && (
             <span className="problem-where">
               {suggested.length === 1 ? '1 line' : `${suggested.length} lines`} in this configuration may answer it
-              {read && sayFact(read) ? ` — we read one as “it ${sayFact(read)}”` : ''}
+              {read && sayFact(read) ? ` -we read one as “it ${sayFact(read)}”` : ''}
             </span>
           )}
           {teachable && suggested.length === 0 && (
-            <span className="problem-where">Nothing here mentions this setting — point NetAuditAI at the line that does.</span>
+            <span className="problem-where">Nothing here mentions this setting -point NetAuditAI at the line that does.</span>
           )}
           {!teachable && <span className="problem-where">{item.blocked_reason}</span>}
         </span>
@@ -92,7 +92,7 @@ export default function UnresolvedList({ items, loading, error, onRetry, labels,
       </h2>
       <p className="small muted">
         NetAuditAI has no evidence for these, so they are never counted as passed or failed. Show it which
-        configuration line answers one and it re-checks the same configuration — the file itself is never changed.
+        configuration line answers one and it re-checks the same configuration -the file itself is never changed.
       </p>
       <ul className="problem-list">
         {resolvable.map((item, i) => (

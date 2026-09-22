@@ -6,7 +6,7 @@ const FRAMEWORK_NAMES = { NIST_800_53: 'NIST SP 800-53', CIS: 'CIS', DISA_STIG: 
 const COUNT_ORDER = ['fail', 'partial', 'unknown', 'not_configured', 'pass', 'n_a'];
 
 const decisiveness = (c) => (c.decisive ? 'Decided from evidence'
-  : c.proposed_status || c.assurance ? `${STATE.needs_review.label} — not counted` : STATE.unknown.label);
+  : c.proposed_status || c.assurance ? `${STATE.needs_review.label} -not counted` : STATE.unknown.label);
 
 export default function Frameworks({ frameworks = [] }) {
   // NIST maps every control; CIS views exist only for confirmed vendors and cover fewer requirements
@@ -40,7 +40,7 @@ export default function Frameworks({ frameworks = [] }) {
             </select>
           </label>
           <p className="fw-note small muted">
-            Built from the scanned control results — nothing is re-evaluated. Only requirements auditable from device
+            Built from the scanned control results -nothing is re-evaluated. Only requirements auditable from device
             configuration are mapped; this is not a compliance certification. Product benchmarks appear only for confirmed
             vendors. Readings still waiting for your confirmation never make a requirement pass or fail.
             ISO/IEC 27001, CIS Controls v8 and DISA STIG are not mapped.

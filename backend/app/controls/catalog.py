@@ -1,5 +1,5 @@
 """
-Control catalog — the security questions the auditor answers.
+Control catalog -the security questions the auditor answers.
 
 One entry per control (ids kept from the original rules). Each control states
 its question, decision kind, the highest severity a FAIL can have, the
@@ -8,17 +8,17 @@ framework mappings with the exact framework version.
 
 Mapping sources (verified 2026-09-13):
 
-* NIST SP 800-53 Rev. 5 — official OSCAL catalog, release 5.2.0
+* NIST SP 800-53 Rev. 5 -official OSCAL catalog, release 5.2.0
   (github.com/usnistgov/oscal-content). Every id below exists with this title
   and none is withdrawn. AU-8(1), formerly cited for NTP authentication, is
   withdrawn in Rev. 5 and moved to SC-45(1).
-* DISA STIG — requirement ids and titles from the Network Device Management SRG
+* DISA STIG -requirement ids and titles from the Network Device Management SRG
   (vendor-agnostic; the product STIGs derive their V-ids from these SRG ids).
   Only requirements whose wording a control actually answers are mapped.
-* ISO/IEC 27001:2022 Annex A — control ids and titles as published in the
+* ISO/IEC 27001:2022 Annex A -control ids and titles as published in the
   standard. Annex A controls are organisational; a device-configuration control
   is evidence towards one, never proof that the Annex A control is met.
-* CIS Benchmarks — item ids and titles as published in Tenable's audit files
+* CIS Benchmarks -item ids and titles as published in Tenable's audit files
   for the named benchmark version and profile level. Only items confirmed for
   that exact benchmark version are listed: a control without a verified item
   has no CIS mapping rather than a guessed one. CIS items are product-specific
@@ -319,7 +319,7 @@ _CONTROLS = (
         mappings=(
             _nist("AC-4", "Information Flow Enforcement"),
             _nist("SC-7", "Boundary Protection"),
-            _nist("SC-7(5)", "Deny by Default — Allow by Exception"),
+            _nist("SC-7(5)", "Deny by Default -Allow by Exception"),
             _cis_fortigate("3.2", 'Ensure that policies do not use "ALL" as Service'),
             _iso("A.8.20", "Networks security"),
             _iso("A.8.22", "Segregation of networks"),

@@ -1,6 +1,6 @@
 # Project Audit Report: NetAuditAI
 
-> **Historical report (2026-08-26).** It describes the code at that date. Several statements no longer apply —
+> **Historical report (2026-08-26).** It describes the code at that date. Several statements no longer apply -
 > penalty scoring, vendor-gated rules and template remediation were replaced by controls over security facts,
 > posture + coverage and verified remediation (plan.md phases 0–9). The current design is in
 > [architecture.md](architecture.md).

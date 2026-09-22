@@ -190,5 +190,5 @@ def test_interpreter_retry_and_split_still_handle_request_failures(keys, monkeyp
 
     results = interpreter.interpret_lines(lines)
 
-    assert calls == [0, 0, 0, 0]              # retry once, then one request per half — key 0 only
+    assert calls == [0, 0, 0, 0]              # retry once, then one request per half -key 0 only
     assert all(r.status.value == "ai_unavailable" for r in results)

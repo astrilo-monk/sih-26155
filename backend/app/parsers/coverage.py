@@ -6,10 +6,10 @@ them (Arista EOS, NX-OS, IOS-XR and Dell OS10 all have ``hostname``, ``!``
 and ``interface`` just like Cisco IOS). Before a vendor profile is trusted,
 every meaningful line is checked against that vendor's grammar:
 
-* FortiOS — a closed statement grammar (``config`` / ``edit`` / ``set`` /
+* FortiOS -a closed statement grammar (``config`` / ``edit`` / ``set`` /
   ``next`` / ``end`` …) whose nesting must balance, plus a FortiGate-only
   section, since other Fortinet products share the grammar.
-* Cisco IOS / IOS-XE — known global command roots with argument checks where
+* Cisco IOS / IOS-XE -known global command roots with argument checks where
   look-alike dialects diverge (case-sensitive interface names, ``line``
   ranges, ``username``, ``enable``, ``service``, ``vrf``, ``router``,
   ``ip access-list``). ``no`` forms are checked the same way. Children of

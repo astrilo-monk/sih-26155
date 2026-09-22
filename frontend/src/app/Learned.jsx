@@ -5,7 +5,7 @@ import { sayFact } from '../lib/domain';
 
 const FILTERS = [['active', 'In use'], ['taught', 'Taught here'], ['shipped', 'Shipped'], ['inactive', 'Stopped'], ['all', 'All']];
 const isSeed = (m) => m.source === 'seed';
-const fmtDate = (s) => (s ? new Date(s).toLocaleString() : '—');
+const fmtDate = (s) => (s ? new Date(s).toLocaleString() : '-');
 
 // A stored value, when it is a plain constant the sentence can state (enum tables are left to Advanced details)
 function constant(text) {
@@ -41,8 +41,8 @@ function Advanced({ m }) {
   );
 }
 
-// What NetAuditAI knows. Entries are either shipped seed knowledge — recognizers reviewed and released with the
-// product — or lines someone taught here. Both were checked before saving, are stored persistently, and are reused
+// What NetAuditAI knows. Entries are either shipped seed knowledge -recognizers reviewed and released with the
+// product -or lines someone taught here. Both were checked before saving, are stored persistently, and are reused
 // on every later scan. Stopping one keeps it for the record.
 export default function Learned() {
   const [items, setItems] = useState(null);
@@ -92,7 +92,7 @@ export default function Learned() {
         <h1 className="page-title">What NetAuditAI knows</h1>
         <p className="lede">
           Each item is a configuration line NetAuditAI can read decisively. Some ship with the product; the rest were taught
-          here. Either way it was checked before it was saved, and every future scan uses it — even after a restart.
+          here. Either way it was checked before it was saved, and every future scan uses it -even after a restart.
         </p>
       </header>
 

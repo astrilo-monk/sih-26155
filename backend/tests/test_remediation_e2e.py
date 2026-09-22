@@ -1,9 +1,9 @@
 """
-Phase 8 — remediation v2: deterministic, vendor-aware, verified by a full rescan.
+Phase 8 -remediation v2: deterministic, vendor-aware, verified by a full rescan.
 
 Replaces the pre-Phase 8 tests that required every sample to rescan at 100 with 0 findings.
 That was only reachable with placeholder values (``$9$REMEDIATED_HASH``, ``10.0.0.100``) and
-by rewriting any-to-any rules to invented address objects — exactly what Phase 8 removes.
+by rewriting any-to-any rules to invented address objects -exactly what Phase 8 removes.
 The new invariants: a FIXED control really passes on rescan, nothing else regresses, the
 vendor stays confirmed, output is idempotent, and everything not fixed says why.
 """
@@ -286,7 +286,7 @@ def test_single_control_remediation_is_idempotent():
 
 def test_cisco_remediation_changes_only_the_failing_settings():
     config = """!
-! core router — do not remove this comment
+! core router -do not remove this comment
 hostname EDGE
 !
 interface GigabitEthernet0/1

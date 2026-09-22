@@ -307,7 +307,7 @@ class Plan:
 def remediate_all(text: str, inputs: dict, skip: frozenset[str] | set[str] = frozenset()) -> Plan:
     """Remediate every failing control in catalog order; each step is verified against the previous text.
 
-    ``skip``: controls the caller knows to be provisional (e.g. an AI proposal in the stored scan) — never changed.
+    ``skip``: controls the caller knows to be provisional (e.g. an AI proposal in the stored scan) -never changed.
     """
     original = current = analyze_text(text)
     outcomes = []

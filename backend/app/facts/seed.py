@@ -5,8 +5,8 @@ Shipped seed knowledge.
     answers several controls → the administrator only has to teach what is left
 
 Seed recognizers are ordinary recognizers (``app.facts.recognizers``): the same templates, the same
-safety gates, the same decisive CONFIRMED facts. The only difference is provenance — they were
-shipped in ``backend/data/seed_recognizers.json`` instead of confirmed by an administrator — which
+safety gates, the same decisive CONFIRMED facts. The only difference is provenance -they were
+shipped in ``backend/data/seed_recognizers.json`` instead of confirmed by an administrator -which
 is recorded in the ``source`` column so the two can be told apart and audited separately.
 
 This is not training and not a second learning system: nothing is inferred, generalized or written
@@ -14,7 +14,7 @@ back here. The file is version-controlled, reviewed like code, and loaded as-is.
 
 Loading is deterministic and idempotent:
 
-* a seed entry whose template (and scope) is already stored is skipped, active or not — so a seed
+* a seed entry whose template (and scope) is already stored is skipped, active or not -so a seed
   an administrator disabled stays disabled, and a second load changes nothing
 * an entry that collides with an administrator's confirmed mapping is skipped, never overwritten
 * an entry that fails ``validate_recognizer`` (or holds a secret) is skipped with a warning, so one
@@ -59,7 +59,7 @@ def load_seed_recognizers(db_path: Path | str | None = None, seed_file: Path | s
     try:
         stored = {_key(m.command_pattern, m.scope_template) for m in repository.list_mappings(include_inactive=True)}
     except Exception as e:  # a store failure must never stop the scanner from starting
-        logger.warning("Seed knowledge not loaded — mapping store unavailable: %s", e)
+        logger.warning("Seed knowledge not loaded -mapping store unavailable: %s", e)
         return 0
 
     added = 0

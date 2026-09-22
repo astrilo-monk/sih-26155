@@ -63,7 +63,7 @@ def report(client, scan_id: str, **body):
 
 
 def text_of(client, scan_id: str, index: int = 0) -> str:
-    """The report's document model as text — what the PDF lays out."""
+    """The report's document model as text -what the PDF lays out."""
     from app.api.routes.remediation import _device_plan, _stored
     from app.api.routes.scan import build_scan_response
 
@@ -155,15 +155,15 @@ def test_a_confirmed_vendor_gets_the_deterministic_change_and_its_verification(c
     assert "Configuration change" in body
     assert "transport input ssh" in body
     assert "Deterministic fix generated and verified by rescan" in body
-    assert "PASSED — " in body
+    assert "PASSED -" in body
 
 
 def test_frameworks_are_reported_and_the_unmapped_ones_are_named(client):
     body = text_of(client, upload(client, "cisco.cfg", CISCO_WITH_SECRETS))
-    assert "NIST SP 800-53 — SP 800-53 Rev. 5" in body
+    assert "NIST SP 800-53 -SP 800-53 Rev. 5" in body
     assert "Not mapped and not claimed" in body
-    assert "DISA STIG — Network Device Management SRG" in body
-    assert "ISO/IEC 27001 — ISO/IEC 27001:2022 Annex A" in body
+    assert "DISA STIG -Network Device Management SRG" in body
+    assert "ISO/IEC 27001 -ISO/IEC 27001:2022 Annex A" in body
     assert "CIS Controls v8" in body
     assert "is not a certification" in body
 
@@ -184,4 +184,4 @@ def test_coverage_is_stated_next_to_the_posture(client):
 def test_a_file_without_configuration_is_reported_unreadable_and_unscored(client):
     body = text_of(client, upload(client, "notes.txt", PROSE))
     assert "does not contain enough recognizable configuration to assess" in body
-    assert "not assessed — no control could be decided from validated evidence" in body
+    assert "not assessed -no control could be decided from validated evidence" in body

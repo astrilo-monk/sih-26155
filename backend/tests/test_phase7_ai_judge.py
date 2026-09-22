@@ -1,5 +1,5 @@
 """
-Phase 7 — AI escalation: only eligible UNKNOWN controls are judged (NOT_CONFIGURED ones as evidence discovery),
+Phase 7 -AI escalation: only eligible UNKNOWN controls are judged (NOT_CONFIGURED ones as evidence discovery),
 within a budget, cached only when useful, every citation verified against the cited line itself, every answer
 bound to its control and never scored. The legacy line interpreter is isolated and never a default path.
 """

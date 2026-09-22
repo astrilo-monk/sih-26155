@@ -5,7 +5,7 @@ Resolving a control the scan left undecided.
       → lines of the uploaded configuration that mention the setting (the lexicon's reading of a
         line, else its related vocabulary); when none do, the person picks a line themselves
       → the person states what that line means for this control
-      → ``draft_recognizer(..., asserted=…)`` — the same recognizer, the same safety gates
+      → ``draft_recognizer(..., asserted=…)`` -the same recognizer, the same safety gates
       → saved → the scan is re-evaluated → the control decides from CONFIRMED evidence, or stays undecided
 
 Nothing here decides a control, and nothing here invents evidence. It only chooses what a person may
@@ -75,7 +75,7 @@ def _subject(control: Control, predicate: str, statement: Optional[Statement]) -
 def meanings(raw_lines: list[str], control: Control, line_number: int) -> list[dict]:
     """What a person may say this line means for this control.
 
-    A true/false setting offers both polarities — the line has to state the one that is chosen.
+    A true/false setting offers both polarities -the line has to state the one that is chosen.
     A value setting (a version, a timeout, an address) offers only "this line states it": the value
     is read from the line, never from the person.
     """

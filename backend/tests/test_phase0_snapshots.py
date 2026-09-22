@@ -1,5 +1,5 @@
 """
-Phase 0 — safety net for the control-first refactor.
+Phase 0 -safety net for the control-first refactor.
 
 ``snapshots/phase0_findings.json`` records what the engine produced for every
 Cisco / FortiGate fixture and sample *before* the refactor started

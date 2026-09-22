@@ -1,5 +1,5 @@
 """
-Phase 5 — generic tokenizer + lexicon heuristics: unknown vendors get cited,
+Phase 5 -generic tokenizer + lexicon heuristics: unknown vendors get cited,
 provisional results with no AI.
 """
 

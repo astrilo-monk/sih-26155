@@ -11,7 +11,7 @@ AI is used in four places:
 1. **Assistant:** explanations, summaries and chat about findings that already exist.
 2. **AI judge** (`backend/app/ai/judge.py`, unknown vendors): the only AI interpretation path by default.
 3. **Remediation candidates** (`backend/app/ai/remediation.py`, unconfirmed vendors, on request): command *text* for
-   a human to review — never a verdict, never applied.
+   a human to review -never a verdict, never applied.
 4. **Legacy line interpretation** (confirmed Cisco / FortiGate only, `adaptive_ai_for_known_vendors`, off by default): review-queue suggestions, never applied without an administrator.
 
 ## 1. Assistant
@@ -48,21 +48,21 @@ A device whose vendor is not confirmed has no deterministic recipe, so the Fix p
 command** instead of showing a dead end. One request, for one control, only when the administrator presses the
 button:
 
-1. **Context** — the minimum the question needs: the control id, its question, the vendor-neutral recommendation the
+1. **Context** -the minimum the question needs: the control id, its question, the vendor-neutral recommendation the
    deterministic engine already produced, the vendor detection status (and an unverified look-alike, labelled as
    evidence only), the block path of the failing lines, and the tokenizer scope of those lines (the same excerpt rule
    the judge uses). The whole configuration is redacted first and the prompt is scrubbed of every known secret;
    the answer is scrubbed again before it is shown.
-2. **Answer contract** — strict JSON schema: `control_id`, `candidate_command`, `explanation`, `confidence`
+2. **Answer contract** -strict JSON schema: `control_id`, `candidate_command`, `explanation`, `confidence`
    (low / medium / high), `assumptions`. An answer with a missing field, an extra field, another control's id, a
    non-text command or an unknown confidence level is **refused**, not repaired.
-3. **No authority** — the answer is command text and nothing else. It enters exactly the same review as a command an
+3. **No authority** -the answer is command text and nothing else. It enters exactly the same review as a command an
    administrator typed: deterministic validation, simulation on a copy of the configuration where an effect can be
    derived, and administrator confirmation (see [architecture.md](architecture.md#10-remediation)). It is labelled
    "AI-generated candidate / not verified" until then, changes no control result, no posture and no coverage, and
-   is never executed or applied. An AI proposal becomes downloadable — as a verified corrected *copy* of the
-   uploaded configuration — only after deterministic verification passes; the AI never produces a file.
-4. **Unavailable** — no key, no quota, a failed call or an unusable answer returns `503` with the reason; the manual
+   is never executed or applied. An AI proposal becomes downloadable -as a verified corrected *copy* of the
+   uploaded configuration -only after deterministic verification passes; the AI never produces a file.
+4. **Unavailable** -no key, no quota, a failed call or an unusable answer returns `503` with the reason; the manual
    path stays open. Nothing is invented on the AI's behalf.
 
 ## 4. Legacy Line Interpretation (confirmed vendors, opt-in)
@@ -78,9 +78,9 @@ The judge never escalates confirmed vendors, so this older path remains for them
 
 ## What is persisted
 
-* Recognizers and learned mappings (`learned_mappings`) — only after an administrator confirms; any text holding a secret is refused.
-* Rejected lines (`rejected_lines`) — stored redacted and matched by their redacted form.
-* AI judge cache (`ai_judge_cache`) — verified answers to redacted prompts, keyed by a hash; re-verified on every hit.
+* Recognizers and learned mappings (`learned_mappings`) -only after an administrator confirms; any text holding a secret is refused.
+* Rejected lines (`rejected_lines`) -stored redacted and matched by their redacted form.
+* AI judge cache (`ai_judge_cache`) -verified answers to redacted prompts, keyed by a hash; re-verified on every hit.
 
 Scan results and uploaded configurations are kept in memory only.
 
@@ -110,7 +110,7 @@ Keys that belong to the same Groq organization share one daily quota, so adding 
 **AI does not decide or apply remediation.** Fixes come from deterministic recipes keyed by control and confirmed vendor (`backend/app/remediation/recipes.py`), filled only with validated operator inputs, and are reported fixed only after a full rescan (`backend/app/remediation/engine.py`). AI_VERIFIED proposals and heuristic verdicts never trigger remediation.
 
 For an **unconfirmed** vendor the AI may propose *candidate* command text on request (section 3). A candidate is
-validated and simulated deterministically, confirmed by a human, and never executed — it is a proposal for a person,
+validated and simulated deterministically, confirmed by a human, and never executed -it is a proposal for a person,
 not a fix the system applies. See [api.md](api.md#remediation).
 
 ## Fallback Behavior

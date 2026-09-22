@@ -71,13 +71,13 @@ class ControlResult:
     device_hostname: str = "unknown"
     vendor: str = "unknown"
     assurance: Optional[Assurance] = None
-    # Provisional verdict (heuristic / AI) awaiting confirmation — Phase 5+
+    # Provisional verdict (heuristic / AI) awaiting confirmation -Phase 5+
     proposed_status: Optional[Status] = None
     # The object the result is about when a control is evaluated per scope
     # (an interface, a VTY range, an ACL, a firewall policy, an SNMP community)
     scope: Optional[str] = None
     evidence: Evidence = field(default_factory=Evidence)
-    # SecurityFacts the decision was based on — Phase 4
+    # SecurityFacts the decision was based on -Phase 4
     facts: list = field(default_factory=list)
     # Present exactly when status is FAIL
     failure: Optional[FailureDetail] = None

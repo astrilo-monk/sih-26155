@@ -15,21 +15,21 @@ Returns a simple status payload confirming the backend is running.
 Upload one or more raw configuration files for analysis.
 * **Request:** `multipart/form-data` with one or more `files` fields (UTF-8 text, max 2 MB each).
 * **Response:** `ScanResultResponse`:
-  * `scan_id`, `timestamp`, `devices[]` in upload order (hostname, vendor — `unknown` unless confirmed). For a
+  * `scan_id`, `timestamp`, `devices[]` in upload order (hostname, vendor -`unknown` unless confirmed). For a
     configuration no parser reads, the hostname is the one a single statement states (`hostname X`, `system-name X`,
     `set … hostname X`); `unknown` when absent or conflicting. Hostnames can repeat: a device is identified by its
     position, `config_index`.
   * `vendor_identification[]`: `detected_vendor`, `status` (`confirmed` / `unverified` / `unknown`), `parse_coverage`, `uncovered_lines`, `reason`
-  * `results[]`: every control for every config — `status`, `assurance`, `proposed_status` (AI verdict awaiting confirmation), `scope`, `reason`, `evidence`
+  * `results[]`: every control for every config -`status`, `assurance`, `proposed_status` (AI verdict awaiting confirmation), `scope`, `reason`, `evidence`
   * `findings[]`: FAIL results with their `config_index` (`assurance` heuristic = suspected, not scored) and severity counts
   * Every configuration quote (evidence lines, reasons, adaptive lines and their context) is redacted with that
     configuration's own secrets, e.g. `username admin password 0 <SECRET:type0>`. Evidence keeps its line numbers.
   * `posture` (null when nothing decided), `coverage`, `posture_bounds`, `critical_unassessed`
   * `assessed_count`, `unresolved_count`: applicable controls decided from decisive evidence, and the ones left
-    undecided — the resolution queue below lists exactly the latter
+    undecided -the resolution queue below lists exactly the latter
   * `unreadable_configs[]`: indexes of uploaded files holding no security configuration at all (prose, a README).
     They are reported as unreadable and never scored; an unfamiliar *configuration* is a different thing.
-  * `frameworks[]`: the same results by framework version — `coverage`, `counts`, `requirements[]` (`status` pass / fail / partial / unknown / not_configured / n_a, `provisional`, mapped `controls[]` with status, assurance, evidence)
+  * `frameworks[]`: the same results by framework version -`coverage`, `counts`, `requirements[]` (`status` pass / fail / partial / unknown / not_configured / n_a, `provisional`, mapped `controls[]` with status, assurance, evidence)
   * `score`: **deprecated** penalty score, kept for existing scripts; do not use for compliance
 * **`adaptive` block:** present when lines went through the adaptive layer. It holds:
   * `ai_calls`, `ai_cache_hits`: AI judge requests and cached answers for this config
@@ -94,7 +94,7 @@ removes them from a copy, re-reads the copy with the generic engine and runs the
 `no_regression` / `generic_path` checks any candidate faces. No AI and no vendor grammar: the text is built
 from the configuration's own block path and keywords.
 
-`422` when nothing can be derived — the control requires a setting to exist (a removal cannot satisfy it, see
+`422` when nothing can be derived -the control requires a setting to exist (a removal cannot satisfy it, see
 `DERIVABLE_KINDS`), the cited line opens a block, or the change cannot be stated safely. `409` when the vendor
 is confirmed (it has recipes) or the finding is not a decisive failure. The uploaded configuration is never
 edited and the scan's posture, coverage and results never move; a derived candidate still needs human
@@ -104,7 +104,7 @@ confirmation and is never applied to a device.
 
 Six operations on one candidate. A candidate is identified by the finding it is about, so at most one candidate per
 (`config_index`, `rule_id`) exists at a time and a new proposal replaces it. Candidates live in the scan's memory
-only — they are never written to the database.
+only -they are never written to the database.
 
 All six take the same body: `{"scan_id": "123-abc", "rule_id": "MGMT-001", "device_hostname": "JUNIPER-EDGE-01", "config_index": 0, "command": "delete system services telnet;", "reason": null}` (`command` is required for
 `/candidate` and ignored elsewhere; `reason` is used by `/reject`).
@@ -119,7 +119,7 @@ All six take the same body: `{"scan_id": "123-abc", "rule_id": "MGMT-001", "devi
 | `POST /api/remediation/candidate/download` | Download the verified corrected **copy** of the uploaded configuration (see below) |
 
 Common refusals: `404` unknown control, unknown device, or no candidate yet; `409` the vendor **is** confirmed (use
-`POST /api/remediate`); `409` the finding is not decided from validated evidence (a heuristic or AI verdict — confirm
+`POST /api/remediate`); `409` the finding is not decided from validated evidence (a heuristic or AI verdict -confirm
 the reading on the Teach page first).
 
 Every response is a `RemediationCandidateSchema`:
@@ -133,7 +133,7 @@ Every response is a `RemediationCandidateSchema`:
 | `explanation`, `confidence`, `assumptions` | From an AI proposal (`low` / `medium` / `high`); empty for a typed command |
 | `evidence` | The failing lines the candidate has to address (redacted) |
 | `control_status_before` / `_after` | The control before and on the simulated copy, e.g. `fail` → `not_configured` (absence is never a PASS) |
-| `checks` | `target`, `no_regression`, `generic_path` — empty when nothing could be simulated |
+| `checks` | `target`, `no_regression`, `generic_path` -empty when nothing could be simulated |
 | `diff` | The simulated change on the copy (redacted). The uploaded configuration is untouched |
 | `download_available` | Whether `/candidate/download` can hand out the verified corrected copy. The copy itself is never in this JSON |
 | `created_at`, `confirmed_at` | When it was proposed and, if it happened, confirmed |
@@ -151,7 +151,7 @@ candidate's simulated change, byte-for-byte the text that was re-analysed when t
   (built only from `[A-Za-z0-9._-]`), plus `X-NetAuditAI-Note: Verified corrected copy of the uploaded
   configuration; not applied to any device`. The file itself carries no added header, so it stays identical to the
   text that was verified.
-* **Refusals:** `409` for any candidate that is not `verified` (or `confirmed` after verifying) — a draft, an
+* **Refusals:** `409` for any candidate that is not `verified` (or `confirmed` after verifying) -a draft, an
   unverified, a rejected or a re-checked-and-failed candidate has no copy at all; `409` when the vendor **is**
   confirmed (that path is `/api/download-fixed`); `404` unknown scan, control, device, or no candidate yet.
 * One copy per candidate: candidate changes are never combined into one file.
@@ -170,7 +170,7 @@ Download the configuration(s) with every verified fix applied (unverified change
 ## Reporting
 
 ### `POST /api/report`
-The compliance report as PDF. **Request JSON:** `{"scan_id": "123-abc", "config_index": 0, "inputs": {}}` —
+The compliance report as PDF. **Request JSON:** `{"scan_id": "123-abc", "config_index": 0, "inputs": {}}` -
 `config_index` omitted reports every device of the scan. One device returns `application/pdf`
 (`<hostname>_compliance_report.pdf`); several return a `.zip` with one PDF per device. `404` for an unknown
 scan or device index.
@@ -212,24 +212,24 @@ The resolution queue: every applicable control the scan could not decide, i.e. e
 `status` (`unknown` / `not_configured`), `reason`, the `evidence` it did cite, the `needs` predicates,
 `suggested_lines[]` (lines of this configuration that mention the setting, with a heuristic's reading where there is
 one) and `action`: `teach`, or `blocked` with a `blocked_reason` (a confirmed parser reads this config, or no
-recognizer can express the setting). Listing a control never changes it — it stays undecided until confirmed
+recognizer can express the setting). Listing a control never changes it -it stays undecided until confirmed
 evidence decides it.
 
 ### `GET /api/adaptive/scans/{scan_id}/configs/{config_index}/lines`
 The uploaded configuration, redacted for display, so a person can point at any line: `lines[]` with `line_number`,
-`text` and `teachable` (a tokenizer statement a recognizer could come from). Read-only — nothing in this API
+`text` and `teachable` (a tokenizer statement a recognizer could come from). Read-only -nothing in this API
 writes the uploaded configuration back.
 
 ### `GET /api/adaptive/scans/{scan_id}/meanings?control_id=…&line_number=…&config_index=0`
 What an administrator may say one line means for one control: `options[]` of `{predicate, subject, value}`. A
 true/false setting offers both polarities; a value setting (a version, a timeout, an address) offers only "this line
-states it" — the value is read from the line, never from the person.
+states it" -the value is read from the line, never from the person.
 
 ### `POST /api/adaptive/scans/{scan_id}/recognizers/draft`
 Draft a recognizer from a provisional line. **Request JSON:** `{"config_index": 0, "control_id": "MGMT-001", "line_number": 71, "command_pattern": null, "scope_template": null, "value": null, "any_dialect": false, "negatives": []}`. **Response:** the draft, gate `errors` and the `replay` of results it would change on scans held by the backend.
 
 To resolve a control from a line no heuristic read, add the administrator's answer: `"predicate"`, `"asserted_value"`
-and `"subject"` (one of the options above). It is a proposal like any other — `validate_recognizer` still has to find
+and `"subject"` (one of the options above). It is a proposal like any other -`validate_recognizer` still has to find
 that meaning on the line itself, so a line that does not state the value cannot teach it (`422`).
 
 ### `POST /api/adaptive/scans/{scan_id}/recognizers`

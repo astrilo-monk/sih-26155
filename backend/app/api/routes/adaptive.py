@@ -349,7 +349,7 @@ async def accept_interpretation(
     _, _, record = _pending_record(entry, item_id)
     if record.normalized_field == "unknown" or record.extracted_value is None:
         raise HTTPException(
-            422, "This interpretation has no usable field/value — edit it instead of accepting"
+            422, "This interpretation has no usable field/value -edit it instead of accepting"
         )
     body = body or AcceptInterpretationRequest()
     return _confirm(
@@ -419,7 +419,7 @@ def _control(control_id: str):
 
 def _status_label(result: Optional[ControlResult]) -> str:
     if result is None:
-        return "—"
+        return "-"
     return result.status.value + (f" ({result.assurance.value})" if result.assurance else "")
 
 
@@ -534,7 +534,7 @@ async def draft_recognizer_from_line(scan_id: str, body: RecognizerDraftRequest)
 
 @router.post("/scans/{scan_id}/recognizers", response_model=RecognizerSaveResponse)
 async def save_recognizer(scan_id: str, body: RecognizerDraftRequest):
-    """Confirm: save the recognizer and re-evaluate the scan — its lines are now decided, no AI."""
+    """Confirm: save the recognizer and re-evaluate the scan -its lines are now decided, no AI."""
     mapping, errors = _draft(scan_id, body)
     if errors:
         raise HTTPException(422, errors[0])

@@ -27,7 +27,7 @@ export function validateValue(valueType, rawValue) {
 
 export function validatePattern(rawPattern) {
   const pattern = (rawPattern ?? '').trim();
-  if (!pattern) return null; // optional — the backend derives one from the line
+  if (!pattern) return null; // optional -the backend derives one from the line
 
   if (pattern.length > MAX_PATTERN_LENGTH) return `Pattern must be at most ${MAX_PATTERN_LENGTH} characters`;
 

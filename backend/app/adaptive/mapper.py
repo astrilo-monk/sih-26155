@@ -1,19 +1,19 @@
 """
-Phase 3 — Confidence-based interpretation and safe NormalizedConfig enrichment.
+Phase 3 -Confidence-based interpretation and safe NormalizedConfig enrichment.
 
 Pipeline::
 
-    AI Interpretation          (Phase 2 — InterpretationResult list)
+    AI Interpretation          (Phase 2 -InterpretationResult list)
            ↓
-    InterpretationValidator    — validates field / type / evidence / scheme
+    InterpretationValidator    -validates field / type / evidence / scheme
            ↓
-    ConfidenceDecision         — numeric ≥ 0.85 / 0.50 / < 0.50  →  HIGH / MEDIUM / LOW
+    ConfidenceDecision         -numeric ≥ 0.85 / 0.50 / < 0.50  →  HIGH / MEDIUM / LOW
            ↓
-    AdaptiveMapper             — safe NormalizedConfig enrichment
+    AdaptiveMapper             -safe NormalizedConfig enrichment
            ↓
     NormalizedConfig           (enriched + ``ai_mappings`` audit trail)
            ↓
-    Compliance Engine          (existing deterministic rules — sole authority)
+    Compliance Engine          (existing deterministic rules -sole authority)
 
 The same mapper also applies confirmed learned mappings (Phase 5) and
 administrator decisions (Phase 4), so there is exactly one place where
@@ -29,7 +29,7 @@ Safety guarantees
   the extracted value converts to the expected type, and the reasoning
   (evidence) is non-empty.  A failed HIGH maps to ``needs_review``.
 * AI and learned mappings never overwrite a value that is already set to
-  something different (e.g. by the vendor parser) — the conflict goes to
+  something different (e.g. by the vendor parser) -the conflict goes to
   review instead. Only an explicit administrator decision may overwrite.
 * Every AI-touched line produces exactly one ``AIFieldMapping`` entry
   in ``config.ai_mappings`` for full auditability.
@@ -150,7 +150,7 @@ def _field_error(normalized_field: str) -> Optional[ValidationResult]:
     if normalized_field == "unknown":
         return ValidationResult(
             is_valid=False,
-            reason="AI returned normalized_field='unknown' — no field to map",
+            reason="AI returned normalized_field='unknown' -no field to map",
         )
     if normalized_field in FIELD_REGISTRY:
         return None
@@ -159,7 +159,7 @@ def _field_error(normalized_field: str) -> Optional[ValidationResult]:
             is_valid=False,
             reason=(
                 f"'{normalized_field}' is a container / "
-                "list field requiring additional context — cannot auto-map"
+                "list field requiring additional context -cannot auto-map"
             ),
         )
     return ValidationResult(
@@ -176,7 +176,7 @@ class InterpretationValidator:
     Checks (in order):
 
     1. Phase 2 status is ``interpreted`` (not ``unknown`` / ``ai_unavailable``).
-    2. ``normalized_field`` is a registered scalar field — not ``unknown``,
+    2. ``normalized_field`` is a registered scalar field -not ``unknown``,
        not a container / list field that needs additional context.
     3. ``reasoning`` is non-empty (evidence threshold).
     4. ``extracted_value`` is provided (not ``None``).
@@ -185,29 +185,29 @@ class InterpretationValidator:
 
     @staticmethod
     def validate(interpretation: InterpretationResult) -> ValidationResult:
-        # 1 — status
+        # 1 -status
         if interpretation.status != InterpretationStatus.INTERPRETED:
             return ValidationResult(
                 is_valid=False,
                 reason=(
                     f"Interpretation status is '{interpretation.status.value}' "
-                    "— expected 'interpreted'"
+                    "-expected 'interpreted'"
                 ),
             )
 
-        # 2 — field is a registered scalar
+        # 2 -field is a registered scalar
         error = _field_error(interpretation.normalized_field)
         if error is not None:
             return error
 
-        # 3 — evidence
+        # 3 -evidence
         if not interpretation.reasoning or not interpretation.reasoning.strip():
             return ValidationResult(
                 is_valid=False,
-                reason="No reasoning provided — insufficient evidence",
+                reason="No reasoning provided -insufficient evidence",
             )
 
-        # 4, 5 — value present and of the expected type
+        # 4, 5 -value present and of the expected type
         return InterpretationValidator.validate_value(
             interpretation.normalized_field, interpretation.extracted_value,
         )
@@ -286,7 +286,7 @@ def write_field(
 
     List fields are merged. A scalar that already holds a different,
     non-default value is left untouched unless ``force`` is set (explicit
-    administrator decision) — a conflicting interpretation must be reviewed,
+    administrator decision) -a conflicting interpretation must be reviewed,
     not guessed.
     """
     field_info = validation.field_info
@@ -336,7 +336,7 @@ def make_confidence_decision(interpretation: InterpretationResult) -> Confidence
 
     Uses ``numeric_confidence`` when the AI provides it; otherwise falls back
     to a deterministic mapping from the string :class:`ConfidenceLevel`.
-    When the stated level and the number disagree, the lower tier wins —
+    When the stated level and the number disagree, the lower tier wins -
     an inconsistent answer is never treated as the more confident one.
     """
     numeric = interpretation.effective_confidence
@@ -448,7 +448,7 @@ def assess_evidence(
     return EvidenceAssessment(EVIDENCE_SUPPORTED)
 
 
-# ── AdaptiveMapper — safe NormalizedConfig enrichment ─────────────────────────
+# ── AdaptiveMapper -safe NormalizedConfig enrichment ─────────────────────────
 
 class AdaptiveMapper:
     """
@@ -478,7 +478,7 @@ class AdaptiveMapper:
 
         * HIGH-valid interpretations are written to their target fields
           and tracked in ``config.ai_mappings`` with ``source='ai_auto_mapped'``.
-        * Every interpretation — regardless of tier — produces an
+        * Every interpretation -regardless of tier -produces an
           ``AIFieldMapping`` audit entry appended to ``config.ai_mappings``.
         * MEDIUM / LOW interpretations never mutate config fields.
 
@@ -501,27 +501,27 @@ class AdaptiveMapper:
         """
         Decide and apply one AI interpretation; does not touch ``ai_mappings``.
 
-        ``learned_candidate_fields`` — fields of confirmed learned mappings
+        ``learned_candidate_fields`` -fields of confirmed learned mappings
         whose patterns resemble this line. A HIGH interpretation that maps the
         line somewhere else conflicts with confirmed knowledge and is reviewed.
-        ``auto_apply=False`` — a valid HIGH interpretation is reviewed too, never written.
+        ``auto_apply=False`` -a valid HIGH interpretation is reviewed too, never written.
         """
-        # Step 1 — validate
+        # Step 1 -validate
         validation = self.validator.validate(interp)
 
-        # Step 2 — confidence decision
+        # Step 2 -confidence decision
         decision = make_confidence_decision(interp)
         confidence = decision.numeric_confidence
         tier = decision.tier
 
-        # Step 3 — evidence (only meaningful for a valid field/value)
+        # Step 3 -evidence (only meaningful for a valid field/value)
         evidence = (
             assess_evidence(interp.normalized_field, interp.extracted_value, interp.raw_line, interp.value_evidence)
             if validation.is_valid else EvidenceAssessment(EVIDENCE_UNVERIFIED)
         )
         note = f"; note: {evidence.reason}" if evidence.status == EVIDENCE_CONTRADICTED else ""
 
-        # Step 4 — dispatch by tier + validity
+        # Step 4 -dispatch by tier + validity
         if tier == ConfidenceTier.HIGH:
             if validation.is_valid and validation.field_info is not None:
                 concern = self._high_confidence_concern(interp, evidence, learned_candidate_fields)
@@ -533,7 +533,7 @@ class AdaptiveMapper:
                 if not auto_apply:
                     return self._needs_review(
                         interp, confidence, tier,
-                        "HIGH confidence — AI interpretations are never applied without administrator review",
+                        "HIGH confidence -AI interpretations are never applied without administrator review",
                     )
                 return self._auto_map(config, interp, validation, confidence)
             # HIGH but invalid → needs_review
@@ -543,20 +543,20 @@ class AdaptiveMapper:
             )
 
         if tier == ConfidenceTier.MEDIUM:
-            # MEDIUM never writes to config — even if valid
+            # MEDIUM never writes to config -even if valid
             return self._needs_review(
                 interp, confidence, tier,
-                f"MEDIUM confidence — requires admin review before applying{note}",
+                f"MEDIUM confidence -requires admin review before applying{note}",
             )
 
         # LOW
         if interp.status == InterpretationStatus.AI_UNAVAILABLE:
             reason = (
-                "AI interpretation unavailable — this is not a confidence judgement; "
+                "AI interpretation unavailable -this is not a confidence judgement; "
                 "map the line manually or rescan when AI is available"
             )
         else:
-            reason = f"LOW confidence — not applied; needs training{note}"
+            reason = f"LOW confidence -not applied; needs training{note}"
         return self._needs_training(interp, confidence, tier, reason)
 
     @staticmethod
@@ -609,7 +609,7 @@ class AdaptiveMapper:
         return self._from_interpretation(
             interp, confidence, ConfidenceTier.HIGH.value, SOURCE_AI_AUTO_MAPPED,
             final_value=write.final_value,
-            reason="HIGH confidence and validated — applied automatically",
+            reason="HIGH confidence and validated -applied automatically",
         )
 
     def _needs_review(
@@ -633,7 +633,7 @@ class AdaptiveMapper:
         interp: InterpretationResult,
         confidence: float,
         tier: ConfidenceTier,
-        reason: str = "LOW confidence — not applied; needs training",
+        reason: str = "LOW confidence -not applied; needs training",
     ) -> AIFieldMapping:
         """Create a ``needs_training`` audit record (value NOT written to config)."""
         logger.info(
@@ -706,12 +706,12 @@ class AdaptiveMapper:
 
         record.source = SOURCE_LEARNED_MAPPING
         record.final_value = write.final_value
-        record.reason = "Recognized by a confirmed learned mapping — AI not consulted"
+        record.reason = "Recognized by a confirmed learned mapping -AI not consulted"
         return record
 
     @staticmethod
     def ambiguous_record(line: UnrecognizedLine, matches: list["MappingMatch"]) -> AIFieldMapping:
-        """Several learned mappings match with different meanings — never guess."""
+        """Several learned mappings match with different meanings -never guess."""
         described = "; ".join(
             f"#{m.mapping.id} → {m.mapping.normalized_field}={m.value}" for m in matches
         )
@@ -727,7 +727,7 @@ class AdaptiveMapper:
             status="learned",
             likely_vendor=line.vendor,
             security_concept="unknown",
-            reason="Ambiguous learned mappings — not applied",
+            reason="Ambiguous learned mappings -not applied",
         )
 
     @staticmethod
@@ -744,7 +744,7 @@ class AdaptiveMapper:
             status="rejected",
             likely_vendor=line.vendor,
             security_concept="unknown",
-            reason="Rejected earlier — not sent to AI again",
+            reason="Rejected earlier -not sent to AI again",
         )
 
     # ── Administrator decisions (Phase 4) ───────────────────────────────────

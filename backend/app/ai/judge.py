@@ -1,7 +1,7 @@
 """
-Phase 7 — AI escalation: the AI judges only the controls the deterministic pipeline left UNKNOWN.
+Phase 7 -AI escalation: the AI judges only the controls the deterministic pipeline left UNKNOWN.
 
-    UNKNOWN control with lines about one of its settings — lines the lexicon reads, or unfamiliar lines
+    UNKNOWN control with lines about one of its settings -lines the lexicon reads, or unfamiliar lines
     naming related vocabulary (``operator lock-after 10 minutes``); without such evidence, at most
     MAX_RELATED related lines of the config
         → those lines' tokenizer scopes (their blocks, capped, plus enclosing headers), redacted and scrubbed
@@ -15,7 +15,7 @@ The verifier discards a proposal unless the control was asked, the predicate is 
 evidence occurs on a cited line, all cited lines sit in one tokenizer scope (block state lines included) and
 every cited setting line supports the value: a line the lexicon reads must be read the same way; an
 unfamiliar line must name related vocabulary for the setting (never limits, counters or lockouts) and itself
-state the value — its polarity or its block's, a number with its written unit, an address. Absence cannot be
+state the value -its polarity or its block's, a number with its written unit, an address. Absence cannot be
 cited, so the AI can never pass a control from absence.
 
 NOT_CONFIGURED controls take the same path as evidence discovery: the lexicon found nothing, so only related

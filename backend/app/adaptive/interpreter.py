@@ -15,13 +15,13 @@ Contract and safety properties:
   (plus ``"unknown"``); the prompt carries each field's type and value rules
 * each target line is sent with its structural block path and a few
   surrounding lines, while every result stays keyed to the target line number
-* every returned item is validated on its own — one malformed or invented
+* every returned item is validated on its own -one malformed or invented
   item never discards the rest of the batch
 * results are matched by line number (whitespace differences in the echoed
   line are tolerated); missing lines get one follow-up request
 * transient failures are retried once, then the chunk is split; an exhausted
   usage quota stops further calls immediately
-* anything that still fails is marked ``ai_unavailable`` — never guessed —
+* anything that still fails is marked ``ai_unavailable`` -never guessed -
   and the deterministic scan continues unchanged
 
 All Groq calls go through app.ai.client and are fully mocked in tests.
@@ -64,7 +64,7 @@ logger = logging.getLogger(__name__)
 GROQ_MODEL = "openai/gpt-oss-120b"
 
 # Extraction task: conservative, repeatable sampling. This improves
-# consistency but is not relied on for correctness — every result is
+# consistency but is not relied on for correctness -every result is
 # validated downstream.
 TEMPERATURE = 0.0
 TOP_P = 1.0
@@ -300,22 +300,22 @@ def _build_prompt(lines: list[UnrecognizedLine]) -> str:
 # ---------------------------------------------------------------------------
 
 _DEFAULT_UNAVAILABLE_REASON = (
-    "AI interpretation unavailable — Groq call failed or returned invalid output"
+    "AI interpretation unavailable -Groq call failed or returned invalid output"
 )
 _QUOTA_REASON = (
-    "AI interpretation unavailable — the AI provider's usage quota is exhausted; "
+    "AI interpretation unavailable -the AI provider's usage quota is exhausted; "
     "nothing was inferred for this line"
 )
 _FAILURE_REASONS = {
-    ERROR_RATE_LIMITED: "AI interpretation unavailable — the AI provider is rate-limiting requests",
-    ERROR_INVALID_OUTPUT: "AI interpretation unavailable — the AI returned unusable output",
-    ERROR_REQUEST_FAILED: "AI interpretation unavailable — the AI request failed or timed out",
+    ERROR_RATE_LIMITED: "AI interpretation unavailable -the AI provider is rate-limiting requests",
+    ERROR_INVALID_OUTPUT: "AI interpretation unavailable -the AI returned unusable output",
+    ERROR_REQUEST_FAILED: "AI interpretation unavailable -the AI request failed or timed out",
     ERROR_QUOTA_EXHAUSTED: _QUOTA_REASON,
 }
 
 
 def _make_unavailable_result(line: UnrecognizedLine, reason: Optional[str] = None) -> InterpretationResult:
-    """An ai_unavailable result: no field, no value, zero confidence — not a judgement."""
+    """An ai_unavailable result: no field, no value, zero confidence -not a judgement."""
     return InterpretationResult(
         line_number=line.line_number,
         raw_line=line.raw_line,
@@ -331,7 +331,7 @@ def _make_unavailable_result(line: UnrecognizedLine, reason: Optional[str] = Non
 
 
 def _review_result(line: UnrecognizedLine, vendor: str, value: Optional[str], reasoning: str) -> InterpretationResult:
-    """The AI answered, but not in a usable form — keep what it said, send to review."""
+    """The AI answered, but not in a usable form -keep what it said, send to review."""
     return InterpretationResult(
         line_number=line.line_number,
         raw_line=line.raw_line,
@@ -369,7 +369,7 @@ def _parse_item(item: dict, line: UnrecognizedLine) -> InterpretationResult:
     if not isinstance(field, str) or (field != "unknown" and field not in NORMALIZED_FIELD_ALLOWLIST):
         return _review_result(
             line, vendor, value,
-            f"AI proposed an unsupported field {field!r} — needs review. {reasoning}".strip(),
+            f"AI proposed an unsupported field {field!r} -needs review. {reasoning}".strip(),
         )
 
     try:
@@ -398,10 +398,10 @@ def _parse_item(item: dict, line: UnrecognizedLine) -> InterpretationResult:
     ):
         confidence = ConfidenceLevel.MEDIUM
         numeric = min(numeric if numeric is not None else 0.7, _MEDIUM_CEILING)
-        reasoning = f"{reasoning} (no value evidence cited — capped at medium)".strip()
+        reasoning = f"{reasoning} (no value evidence cited -capped at medium)".strip()
 
     if _normalize_ws(item.get("raw_line")).lower() != _normalize_ws(line.raw_line).lower():
-        logger.info("AI echoed a different raw_line for line %d — using the original line", line.line_number)
+        logger.info("AI echoed a different raw_line for line %d -using the original line", line.line_number)
 
     try:
         return InterpretationResult(
@@ -452,7 +452,7 @@ def _match_items(items: list, chunk: list[UnrecognizedLine]) -> tuple[dict[int, 
         if len(candidates) == 1:
             results[candidates[0].line_number] = _parse_item(item, candidates[0])
         else:
-            logger.warning("AI returned a result for an unknown line (%r) — ignoring", item.get("line_number"))
+            logger.warning("AI returned a result for an unknown line (%r) -ignoring", item.get("line_number"))
 
     missing = [ln for ln in chunk if ln.line_number not in results]
     return results, missing
@@ -521,7 +521,7 @@ def _interpret_chunk(
             return [_make_unavailable_result(ln, _QUOTA_REASON) for ln in chunk]
         if depth < MAX_SPLIT_DEPTH and len(chunk) > 1:
             mid = len(chunk) // 2
-            logger.info("Chunk of %d lines failed — retrying as two halves", len(chunk))
+            logger.info("Chunk of %d lines failed -retrying as two halves", len(chunk))
             return (
                 _interpret_chunk(chunk[:mid], model, timeout, state, depth + 1)
                 + _interpret_chunk(chunk[mid:], model, timeout, state, depth + 1)
@@ -532,13 +532,13 @@ def _interpret_chunk(
 
     results, missing = _match_items(items, chunk)
     if missing and depth < MAX_SPLIT_DEPTH:
-        logger.info("AI omitted %d of %d line(s) — requesting them again", len(missing), len(chunk))
+        logger.info("AI omitted %d of %d line(s) -requesting them again", len(missing), len(chunk))
         for result in _interpret_chunk(missing, model, timeout, state, depth + 1):
             results[result.line_number] = result
 
     return [
         results.get(ln.line_number)
-        or _make_unavailable_result(ln, "AI interpretation unavailable — the AI returned no result for this line")
+        or _make_unavailable_result(ln, "AI interpretation unavailable -the AI returned no result for this line")
         for ln in chunk
     ]
 
@@ -559,7 +559,7 @@ def interpret_lines(
         return []
 
     if not is_available():
-        logger.info("Groq unavailable — marking %d lines ai_unavailable", len(unrecognized_lines))
+        logger.info("Groq unavailable -marking %d lines ai_unavailable", len(unrecognized_lines))
         return [_make_unavailable_result(line) for line in unrecognized_lines]
 
     chunks = [

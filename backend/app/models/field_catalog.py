@@ -1,5 +1,5 @@
 """
-Normalized field catalog — the single source of truth for adaptive mapping.
+Normalized field catalog -the single source of truth for adaptive mapping.
 
 Every consumer of "which NormalizedConfig fields may an unrecognized line
 map to" derives from this module:
@@ -158,7 +158,7 @@ def _field(path: str, type_category: str, label: str, description: str) -> tuple
 
 
 #: Registry of all scalar (directly settable) fields.
-#: Container fields (those with ``[]`` in the path) are intentionally absent —
+#: Container fields (those with ``[]`` in the path) are intentionally absent -
 #: they need additional context and are routed to review/training.
 FIELD_REGISTRY: dict[str, FieldTypeInfo] = dict([
     # DeviceInfo

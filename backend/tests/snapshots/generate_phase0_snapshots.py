@@ -1,5 +1,5 @@
 """
-Regenerate ``phase0_findings.json`` — the Phase 0 golden findings.
+Regenerate ``phase0_findings.json`` -the Phase 0 golden findings.
 
 The snapshot was recorded from the engine *before* the control-first refactor.
 Regenerating it replaces that baseline, so do it only for a deliberate,

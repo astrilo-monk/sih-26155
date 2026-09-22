@@ -1,5 +1,5 @@
 """
-Phase: the resolution loop — initial scan → unresolved queue → teach → rescan → updated score.
+Phase: the resolution loop -initial scan → unresolved queue → teach → rescan → updated score.
 
 Every test here asserts the loop moves a control from UNKNOWN / NOT_CONFIGURED to PASS / FAIL only
 through evidence the uploaded configuration itself states, and that the scoring engine is untouched.

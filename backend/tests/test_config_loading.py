@@ -23,7 +23,7 @@ from app.config import settings, _ENV_FILE, _BACKEND_DIR
 
 
 # ===========================================================================
-# Test 1 — .env path is resolved relative to the config module
+# Test 1 -.env path is resolved relative to the config module
 # ===========================================================================
 
 def test_env_file_path_is_resolved_relative_to_backend():
@@ -47,7 +47,7 @@ def test_env_file_path_is_resolved_relative_to_backend():
 
 
 # ===========================================================================
-# Test 2 — Settings model_config uses explicit env_file path
+# Test 2 -Settings model_config uses explicit env_file path
 # ===========================================================================
 
 def test_settings_model_config_has_explicit_env_file():
@@ -70,7 +70,7 @@ def test_settings_model_config_has_explicit_env_file():
 
 
 # ===========================================================================
-# Test 3 — GROQ_API_KEY is loaded (non-empty)
+# Test 3 -GROQ_API_KEY is loaded (non-empty)
 # ===========================================================================
 
 def test_groq_api_key_is_loaded():
@@ -89,7 +89,7 @@ def test_groq_api_key_is_loaded():
 
 
 # ===========================================================================
-# Test 4 — CWD independence (key loads from repo root)
+# Test 4 -CWD independence (key loads from repo root)
 # ===========================================================================
 
 def test_config_works_from_repo_root():
@@ -131,7 +131,7 @@ def test_config_works_from_repo_root():
 
 
 # ===========================================================================
-# Test 5 — is_available() returns True with key loaded
+# Test 5 -is_available() returns True with key loaded
 # ===========================================================================
 
 def test_is_available_returns_true_when_key_loaded():
@@ -148,7 +148,7 @@ def test_is_available_returns_true_when_key_loaded():
 
 
 # ===========================================================================
-# Test 6 — No deprecated class Config
+# Test 6 -No deprecated class Config
 # ===========================================================================
 
 def test_no_deprecated_class_config():

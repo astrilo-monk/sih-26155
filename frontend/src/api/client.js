@@ -3,7 +3,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
 function errorMessage(detail, status) {
   if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
     const fields = Object.entries(detail.errors || {}).map(([name, msg]) => `${name}: ${msg}`);
-    return [detail.message, ...fields].filter(Boolean).join(' — ');
+    return [detail.message, ...fields].filter(Boolean).join(' -');
   }
   return (typeof detail === 'string' && detail) || `API error: ${status}`;
 }

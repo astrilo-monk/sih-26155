@@ -2,7 +2,7 @@
 
 Backend tests use `pytest`; frontend tests use Vitest with Testing Library. No test needs a network or an API key:
 the AI judge transport is patched in every test (`backend/tests/conftest.py`), and each test gets its own temporary
-SQLite database. That database is empty by default — **including of the shipped seed recognizers** — so the rest of
+SQLite database. That database is empty by default -**including of the shipped seed recognizers** -so the rest of
 the suite keeps proving what the generic engine works out on its own. Tests about seed knowledge ask for the
 production default with the `seeded_adaptive_db` fixture.
 
@@ -10,28 +10,28 @@ production default with the `seeded_adaptive_db` fixture.
 
 | Area | Tests |
 |---|---|
-| Phase 0 — golden findings snapshots for 30 Cisco / FortiGate configs | `test_phase0_snapshots.py` |
-| Phase 1 — redaction, vendor identification and look-alikes, honest unknowns | `test_phase1_redaction.py`, `test_phase1_vendor_identification.py`, `test_phase1_honest_unknowns.py` |
-| Phase 2 — control catalog, NIST / CIS mappings, ControlResult | `test_phase2_controls.py` |
-| Phase 3 — posture and coverage | `test_scoring_v2.py` |
-| Phase 4 — security facts, decision tables, defaults | `test_phase4_facts.py` |
-| Phase 5 — tokenizer and lexicon heuristics (`sample/unknown.cfg` acceptance) | `test_phase5_heuristics.py` |
-| Phase 6 — recognizers, gates, replay, Training API | `test_phase6_recognizers.py`, `test_phase6_adaptive_e2e.py` |
-| Phase 7 — AI judge: verifier, budget, cache, redaction, authority | `test_phase7_ai_judge.py` |
-| Phase 8 — remediation: recipes, inputs, verification, idempotence, API rescan | `test_remediation_e2e.py`, `test_download_fixed.py` |
-| Phase 9 — framework views, recognizer persistence across a restart, secret-free stores | `test_phase9_frameworks_persistence.py` |
+| Phase 0 -golden findings snapshots for 30 Cisco / FortiGate configs | `test_phase0_snapshots.py` |
+| Phase 1 -redaction, vendor identification and look-alikes, honest unknowns | `test_phase1_redaction.py`, `test_phase1_vendor_identification.py`, `test_phase1_honest_unknowns.py` |
+| Phase 2 -control catalog, NIST / CIS mappings, ControlResult | `test_phase2_controls.py` |
+| Phase 3 -posture and coverage | `test_scoring_v2.py` |
+| Phase 4 -security facts, decision tables, defaults | `test_phase4_facts.py` |
+| Phase 5 -tokenizer and lexicon heuristics (`sample/unknown.cfg` acceptance) | `test_phase5_heuristics.py` |
+| Phase 6 -recognizers, gates, replay, Training API | `test_phase6_recognizers.py`, `test_phase6_adaptive_e2e.py` |
+| Phase 7 -AI judge: verifier, budget, cache, redaction, authority | `test_phase7_ai_judge.py` |
+| Phase 8 -remediation: recipes, inputs, verification, idempotence, API rescan | `test_remediation_e2e.py`, `test_download_fixed.py` |
+| Phase 9 -framework views, recognizer persistence across a restart, secret-free stores | `test_phase9_frameworks_persistence.py` |
 | Candidate remediation for unconfirmed vendors: eligibility, validation, simulation on a copy, verified / rejected / unverified, human confirmation, AI answer shape and prompt redaction, no vendor branch | `test_candidate_remediation.py` |
 | The verified corrected copy: retained only on verification and exactly equal to the simulated result, cleared by rejection and by a re-check that fails, downloadable only when verified or confirmed-after-verifying, one copy per candidate, correct content type and safe filename, never in SQLite, gone with the scan, `/download-fixed` still confirmed-vendor only, and the original `sample/juniper.cfg` byte-identical throughout | `test_candidate_remediation.py` |
 | Derived remediation: a verified change from the configuration alone on Junos / PAN-OS / RouterOS / Huawei, the words come from the file's own block path, a setting that must exist is never deleted to silence a check, a block opener is never removed alone, a provisional finding cannot be derived from, confirmed vendors keep recipes, the upload and the scan never move | `test_derived_remediation.py` |
 | Generic engine on hierarchical, terminator-separated dialects | `test_generic_hierarchical.py` |
 | Resolution queue: the initial score is unchanged, the queue is exactly what coverage left out, a line can be picked and its meaning stated, an answer the line does not support is refused, teaching persists and the next scan reuses it, the resolved control becomes PASS or FAIL with recalculated posture and coverage, the uploaded configuration is unchanged, prose is reported unreadable and never scored | `test_resolution_queue.py` |
 | Shipped seed knowledge: loading on a fresh database, idempotence, never overwriting what was taught, generalization across eight dialects, no accidental or secret matches, unchanged Cisco / FortiGate and unknown-vendor behaviour, the fresh-deployment demo and teaching on top of it | `test_seed_knowledge.py`, fixtures in `tests/fixtures/seed_dialects/` |
-| Recognizer generalization: one recognizer over many addresses, names and numbers; indentation, whitespace and statement order ignored; positive and negative forms opposite; the same leaf word in another block not matched; a value-sensitive setting giving different control results from one recognizer; half a multi-fact control left undecided; a taught concept reused on the next scan; a line that states nothing teaching only a setting it names, while a line that states an on/off may be named in any words; and the acceptance loop — five concepts taught through the API, a configuration of seven variant lines scanned, only the genuinely new control left in the queue | `test_recognizer_generalization.py` |
+| Recognizer generalization: one recognizer over many addresses, names and numbers; indentation, whitespace and statement order ignored; positive and negative forms opposite; the same leaf word in another block not matched; a value-sensitive setting giving different control results from one recognizer; half a multi-fact control left undecided; a taught concept reused on the next scan; a line that states nothing teaching only a setting it names, while a line that states an on/off may be named in any words; and the acceptance loop -five concepts taught through the API, a configuration of seven variant lines scanned, only the genuinely new control left in the queue | `test_recognizer_generalization.py` |
 | Compliance report (PDF): a PDF per device and a zip for several, a hostname cannot escape the download name, no secret of the configuration reaches the document or the rendered bytes, serial numbers are not invented, provisional readings are never shown as PASS/FAIL, no vendor commands for an unconfirmed vendor, the deterministic change and its rescan checks for a confirmed one, unmapped frameworks named, undecided checks listed, a prose file reported unreadable | `test_pdf_report.py` |
 | Parsers, pipeline, ACLs | `test_pipeline.py`, `test_cisco_acl.py` |
 | Adaptive layer and legacy interpreter, learned mappings, review API | `test_adaptive.py`, `test_adaptive_generic.py`, `test_adaptive_api_integration.py`, `test_phase3_adaptive_mapper.py`, `test_phase3_e2e.py`, `test_phase4_review_api.py`, `test_phase5_learned_mappings.py` |
 | Settings, Groq key rotation | `test_config_loading.py`, `test_ai_client_key_rotation.py` |
-| Browser UI audit regressions — no secret in API responses, `config_index` identity, generic hostnames, manual-review consistency, CIS banner mapping, scan status | `test_ui_audit_regressions.py` |
+| Browser UI audit regressions -no secret in API responses, `config_index` identity, generic hostnames, manual-review consistency, CIS banner mapping, scan status | `test_ui_audit_regressions.py` |
 
 Two live Groq tests in `test_adaptive_generic.py` are skipped unless `NETAUDIT_LIVE_AI=1` and a key are set.
 

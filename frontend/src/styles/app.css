@@ -36,7 +36,7 @@
 .subnav { border-top: var(--bw) solid var(--line); }
 .subnav-inner { display: flex; gap: var(--s-5); max-width: var(--max); margin: 0 auto; padding-inline: var(--gutter); overflow-x: auto; scrollbar-width: none; }
 .subnav-inner::-webkit-scrollbar { display: none; }
-/* the count reads as part of the label — "FIX (3)" — not as a coloured circle */
+/* the count reads as part of the label -"FIX (3)" -not as a coloured circle */
 .subnav-n {
   display: inline; padding: 0; background: none; border: 0;
   font: 500 var(--fs-xs)/1 var(--mono); color: var(--muted-fg); font-variant-numeric: tabular-nums;
@@ -311,7 +311,7 @@
 .candidate-form { display: grid; gap: var(--s-3); max-width: var(--measure); }
 .candidate-form textarea.input { min-height: 72px; resize: vertical; }
 
-/* Summary sections: hairline rules only — no panel, no fill, no glow. */
+/* Summary sections: hairline rules only -no panel, no fill, no glow. */
 .fix-all, .verified { display: grid; gap: var(--s-3); justify-items: start; margin: 0 0 var(--s-6); padding: var(--s-5) 0; border-bottom: var(--bw) solid var(--line); }
 .verified-k { font: 500 var(--fs-xs)/1 var(--mono); letter-spacing: var(--tr-wider); text-transform: uppercase; color: var(--muted-fg); }
 .verified-sum { font: 500 var(--fs-base)/var(--lh-normal) var(--sans); color: var(--fg); }
@@ -364,7 +364,7 @@
 .choices-hint { margin: 0 0 var(--s-3); max-width: var(--measure); }
 .choices .btn-sm { justify-self: start; margin-top: var(--s-4); }
 .choices .config-picker { margin-top: var(--s-4); }
-/* One option per hairline row. The accent edge marks the chosen one — no fill, no glow. */
+/* One option per hairline row. The accent edge marks the chosen one -no fill, no glow. */
 .choice {
   display: flex; align-items: flex-start; gap: var(--s-3); padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4);
   min-height: 44px; cursor: pointer; border: 0; border-top: var(--bw) solid var(--line); border-radius: 0;
@@ -403,7 +403,7 @@
 /* ── All checks, devices, learned, history ─────────────────────────────── */
 /* Every list on these screens is full-width rows split by hairlines. No card owns a row. */
 .check-row { padding: var(--s-4); }
-/* a check row is a table: status, then the check, then severity — so the titles line up down the page */
+/* a check row is a table: status, then the check, then severity -so the titles line up down the page */
 .check-row { display: grid; grid-template-columns: 224px minmax(0, 1fr) auto; align-items: baseline; }
 .check-row .status { align-self: baseline; }
 .device-cards, .learned-list { list-style: none; margin: 0; padding: 0; display: block; border-bottom: var(--bw) solid var(--line); }

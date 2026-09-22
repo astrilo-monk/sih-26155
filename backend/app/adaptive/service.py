@@ -1,5 +1,5 @@
 """
-Phase 6 — AdaptiveService: the single entry point for adaptive enrichment.
+Phase 6 -AdaptiveService: the single entry point for adaptive enrichment.
 
     unrecognized security-relevant lines   (Phase 1, captured after parsing)
                  ↓
@@ -16,7 +16,7 @@ Phase 6 — AdaptiveService: the single entry point for adaptive enrichment.
 
 Vendor parsers, the AI client and the database stay unaware of each other;
 this service is where they meet. Every failure in the adaptive layer
-degrades to "unresolved" — it never breaks the deterministic scan.
+degrades to "unresolved" -it never breaks the deterministic scan.
 """
 
 from __future__ import annotations
@@ -87,8 +87,8 @@ class AdaptiveService:
         """
         Enrich *config* in place from its ``unrecognized_lines``.
 
-        ``use_ai`` — allow the AI fallback for lines no learned mapping covers.
-        ``report_unresolved`` — create audit records for lines that stay
+        ``use_ai`` -allow the AI fallback for lines no learned mapping covers.
+        ``report_unresolved`` -create audit records for lines that stay
         unresolved without AI (disabled for known vendors so parser noise does
         not flood the review queue).
         """
@@ -155,7 +155,7 @@ class AdaptiveService:
                            if m.confirmed and m.extraction_method == EXTRACTION_RECOGNIZER]
             return LearnedMappingMatcher(self.repository), self.repository.rejected_line_keys(), recognizers
         except Exception as e:
-            logger.warning("Learned mapping store unavailable — continuing without it: %s", e)
+            logger.warning("Learned mapping store unavailable -continuing without it: %s", e)
             return None, set(), []
 
     @staticmethod
@@ -170,7 +170,7 @@ class AdaptiveService:
 
     def _interpret(self, lines: list[UnrecognizedLine], outcome: AdaptiveOutcome) -> list[InterpretationResult]:
         if not outcome.ai_available:
-            reason = "AI interpretation unavailable — AI is disabled or not configured for this scan"
+            reason = "AI interpretation unavailable -AI is disabled or not configured for this scan"
             return [_make_unavailable_result(ln, reason) for ln in lines]
 
         outcome.ai_called = True

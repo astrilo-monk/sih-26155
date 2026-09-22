@@ -29,7 +29,7 @@ _HASH = re.compile(r"(sha|md5)(\d|-|$)")
 _DH = re.compile(r"^(dh-?)?group(\d+)$")
 _NUMBER = re.compile(r"^(\d+(?:\.\d+)?)([a-z]*)$")
 # A version may be written with a version prefix (``v2``, ``ver2``, ``version2``). Only a fact that
-# asks for a version reads a token this way — elsewhere a letter still means the token is not a number.
+# asks for a version reads a token this way -elsewhere a letter still means the token is not a number.
 _VERSION = re.compile(r"^(?:v|ver|version)?(\d+(?:\.\d+)?)$")
 
 
@@ -153,7 +153,7 @@ def _declares_feature(s: Statement, ctx: list[str], index: int, statements: list
 
         services { telnet; }
 
-    Only a bare statement counts — its single keyword is the feature name, it carries no value and
+    Only a bare statement counts -its single keyword is the feature name, it carries no value and
     states no polarity, and its enclosing block already identified it as a management service. An
     explicit ``no telnet`` / ``telnet disabled`` states its own polarity and never reaches this.
     Absence of the line states nothing.
@@ -351,7 +351,7 @@ def _permit_any(statements) -> Iterator[_Candidate]:
 def _composed_permit_any(action: Statement, statements: list[Statement]) -> Iterator[_Candidate]:
     """A rule whose action and selectors are separate statements (``source-address any; … permit;``).
 
-    The rule is the action's own block or its parent — a selector further out than that belongs to
+    The rule is the action's own block or its parent -a selector further out than that belongs to
     something else, not to this rule. Within that, the first block wide enough to state both wildcards
     wins, a block holding a second action is never entered (two rules are never merged), and a
     narrowing selector anywhere in the rule means it is not "all traffic". Purely structural: no

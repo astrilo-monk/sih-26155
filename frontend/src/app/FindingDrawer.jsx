@@ -109,7 +109,7 @@ export default function FindingDrawer({ item, scan, audit, labels, onClose, onTe
           <dt>Platform</dt><dd>{vs.label} · {vs.path}</dd>
           {scopes.length > 0 && <><dt>Scope</dt><dd className="mono">{scopes.join(' · ')}</dd></>}
           <dt>Result</dt><dd className="mono">{item.results.map((x) => `${x.status}${x.assurance ? ` (${x.assurance})` : ''}`).join(' · ')}</dd>
-          {r.proposed_status && <><dt>Suggested</dt><dd className="mono">{r.proposed_status} — awaiting confirmation</dd></>}
+          {r.proposed_status && <><dt>Suggested</dt><dd className="mono">{r.proposed_status} -awaiting confirmation</dd></>}
           {item.remediation && <><dt>Fix status</dt><dd className="mono">{item.remediation.status}</dd></>}
         </dl>
       </More>

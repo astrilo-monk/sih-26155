@@ -21,7 +21,7 @@ const ITEM = {
   context_after: ['remote-console protocol telnet'], likely_vendor: 'generic', security_concept: 'ssh_protocol_version',
   normalized_field: 'management.ssh_version', extracted_value: '1', confidence: 0.78, confidence_tier: 'medium',
   reasoning: 'Declares the SSH protocol version', interpretation_status: 'interpreted', source: 'needs_review',
-  reason: 'MEDIUM confidence — requires admin review before applying', review_status: 'pending', mapping_id: null, candidates: [],
+  reason: 'MEDIUM confidence -requires admin review before applying', review_status: 'pending', mapping_id: null, candidates: [],
 };
 const FIELDS = [
   { field: 'management.ssh_version', value_type: 'optional_int' },
@@ -111,11 +111,11 @@ it('shows AI-unavailable lines as an outage, not as a confidence score', async (
   const unavailable = {
     ...ITEM, item_id: '0-4', line_number: 4, raw_line: 'remote-console protocol telnet', normalized_field: 'unknown',
     extracted_value: null, confidence: 0, confidence_tier: 'low', interpretation_status: 'ai_unavailable', source: 'needs_training',
-    reasoning: 'AI interpretation unavailable — quota exhausted',
+    reasoning: 'AI interpretation unavailable -quota exhausted',
   };
   apiClient.getReviewQueue.mockResolvedValue({ scan_id: 'scan-1', pending_count: 1, items: [unavailable] });
   renderIt();
-  expect(await screen.findByText('AI unavailable — map manually')).toBeTruthy();
+  expect(await screen.findByText('AI unavailable -map manually')).toBeTruthy();
   expect(screen.getByText('AI unavailable')).toBeTruthy();
   expect(screen.queryByText('0%')).toBeNull();
   expect(screen.getByLabelText('Accept line 4').disabled).toBe(true);
@@ -128,7 +128,7 @@ it('labels fields from the catalog and shows the block path', async () => {
   apiClient.getReviewQueue.mockResolvedValue({ scan_id: 'scan-1', pending_count: 1, items: [{ ...ITEM, structural_path: ['system', 'services'] }] });
   renderIt();
   fireEvent.click(await screen.findByLabelText('Edit line 3'));
-  expect(screen.getByText('SSH protocol version — management.ssh_version (optional_int)')).toBeTruthy();
+  expect(screen.getByText('SSH protocol version -management.ssh_version (optional_int)')).toBeTruthy();
   expect(screen.getByText('Value: whole number, digits only')).toBeTruthy();
   expect(screen.getByText('system › services')).toBeTruthy();
 });

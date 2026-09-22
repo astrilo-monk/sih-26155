@@ -35,13 +35,13 @@ export default function Devices({ scan, audit }) {
                 <dt>Checks decided</dt><dd>{decided} of {own.length}</dd>
                 <dt>Problems</dt><dd>{own.filter(isProblem).length}</dd>
                 <dt>AI help</dt>
-                <dd>{vs.key === 'confirmed' ? 'Not used — the parser decides'
-                  : ai?.ai_available ? `${ai.ai_calls || 0} request(s), ${ai.ai_cache_hits || 0} answered from cache — suggestions only, never counted`
+                <dd>{vs.key === 'confirmed' ? 'Not used -the parser decides'
+                  : ai?.ai_available ? `${ai.ai_calls || 0} request(s), ${ai.ai_cache_hits || 0} answered from cache -suggestions only, never counted`
                     : 'Off or unavailable'}{ai?.ai_unavailable_lines ? ` · unavailable for ${ai.ai_unavailable_lines} line(s)` : ''}</dd>
                 <dt>Automatic fixes</dt><dd>{vs.key === 'confirmed' ? 'Available where a proven fix exists' : 'Not available until the vendor is confirmed'}</dd>
                 {ai?.learned_matches > 0 && <><dt>Recognized from what you taught</dt><dd>{ai.learned_matches} line(s)</dd></>}
                 {evidence && evidence.status !== 'unknown' && (
-                  <><dt>Vendor hint</dt><dd>{evidence.status === 'identified' ? evidence.likely_vendor : 'conflicting'} <span className="muted">(information only — never selects a parser)</span></dd></>
+                  <><dt>Vendor hint</dt><dd>{evidence.status === 'identified' ? evidence.likely_vendor : 'conflicting'} <span className="muted">(information only -never selects a parser)</span></dd></>
                 )}
               </dl>
               <p className="small muted">{vs.note}</p>

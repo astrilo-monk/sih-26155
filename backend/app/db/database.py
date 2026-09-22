@@ -18,7 +18,7 @@ from app import config as app_config
 
 
 MIGRATIONS: list[str] = [
-    # v1 — learned mappings + reviewed-but-unmapped lines
+    # v1 -learned mappings + reviewed-but-unmapped lines
     """
     CREATE TABLE IF NOT EXISTS learned_mappings (
         id                  INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,7 +48,7 @@ MIGRATIONS: list[str] = [
         created_at  TEXT NOT NULL
     );
     """,
-    # v2 — recognizers (Phase 6): a mapping answers a security predicate. Field mappings keep their
+    # v2 -recognizers (Phase 6): a mapping answers a security predicate. Field mappings keep their
     # columns until Phase 7 ends; their predicate is derived from FIELD_PREDICATES when read.
     """
     ALTER TABLE learned_mappings ADD COLUMN predicate TEXT;
@@ -57,7 +57,7 @@ MIGRATIONS: list[str] = [
     ALTER TABLE learned_mappings ADD COLUMN dialect_fingerprint TEXT;
     ALTER TABLE learned_mappings ADD COLUMN negatives TEXT NOT NULL DEFAULT '[]';
     """,
-    # v3 — AI judge cache (Phase 7): proposals keyed by hash(prompt version + model + redacted prompt)
+    # v3 -AI judge cache (Phase 7): proposals keyed by hash(prompt version + model + redacted prompt)
     """
     CREATE TABLE IF NOT EXISTS ai_judge_cache (
         key         TEXT PRIMARY KEY,
@@ -65,7 +65,7 @@ MIGRATIONS: list[str] = [
         created_at  TEXT NOT NULL
     );
     """,
-    # v4 — provenance of a mapping: 'seed' = shipped knowledge (backend/data/seed_recognizers.json),
+    # v4 -provenance of a mapping: 'seed' = shipped knowledge (backend/data/seed_recognizers.json),
     # 'runtime' = learned from an administrator. Seeding never touches a runtime row.
     """
     ALTER TABLE learned_mappings ADD COLUMN source TEXT NOT NULL DEFAULT 'runtime';

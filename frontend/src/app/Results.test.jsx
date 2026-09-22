@@ -37,7 +37,7 @@ it('unassessed critical controls make the assessment partial; only full coverage
 it('no decided control is not assessed and shows no posture number', () => {
   render(<PostureSummary posture={null} coverage={0} />);
   expect(screen.getAllByText(/Not assessed/).length).toBeGreaterThan(0);
-  expect(screen.getByText('—')).toBeTruthy();
+  expect(screen.getByText('-')).toBeTruthy();
 });
 
 const audit = (extra = {}) => ({ plan: null, planLoading: false, planError: null, applied: new Set(), queue: null, ...extra });
