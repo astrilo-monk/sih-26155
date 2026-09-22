@@ -8,6 +8,8 @@ vi.mock('../api/client', () => ({
     getRemediation: vi.fn(),
     getProvisionalResults: vi.fn(),
     getReviewQueue: vi.fn(),
+    getAssistantStatus: vi.fn(),
+    getExplanation: vi.fn(),
   },
 }));
 
@@ -61,6 +63,7 @@ beforeEach(() => {
   apiClient.getRemediationPlan.mockResolvedValue({ scan_id: 'scan-1', inputs: [], devices: [{ config_index: 1, remediations: [FIXED], fixed_controls: ['MGMT-001'] }] });
   apiClient.getProvisionalResults.mockResolvedValue({ items: [] });
   apiClient.getReviewQueue.mockResolvedValue({ items: [] });
+  apiClient.getAssistantStatus.mockResolvedValue({ ai_available: true });
 });
 
 afterEach(() => {
@@ -114,4 +117,20 @@ it('shows absence as Not configured, never as a pass', () => {
   expect(screen.getAllByText('Not configured').length).toBeGreaterThan(0);
   expect(screen.getByText(/not counted as a pass/)).toBeTruthy();
   expect(screen.queryByText('Passed')).toBeNull();
+});
+
+it('explains a finding as labelled AI commentary, and a failed call says so inline', async () => {
+  apiClient.getExplanation.mockResolvedValueOnce({ rule_id: 'MGMT-001', explanation: 'Telnet sends passwords in clear text.', ai_generated: true });
+  render(<Harness controlId="MGMT-001" />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Explain this' }));
+  expect(await screen.findByText('Telnet sends passwords in clear text.')).toBeTruthy();
+  expect(screen.getByText('Source: AI-written')).toBeTruthy();
+  expect(apiClient.getExplanation).toHaveBeenCalledWith('scan-1', 'MGMT-001', 'BRANCH-FGT-02');
+  expect(screen.getByText('critical')).toBeTruthy();
+  cleanup();
+
+  apiClient.getExplanation.mockRejectedValueOnce(new Error('API error: 500'));
+  render(<Harness controlId="MGMT-001" />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Explain this' }));
+  expect((await screen.findByRole('alert')).textContent).toMatch(/couldn’t be loaded: API error: 500/);
 });

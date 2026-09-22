@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { apiClient } from '../api/client';
 import Drawer from '../components/ui/Drawer';
 import { Evidence, Severity, StatusMark } from '../components/ui/Evidence';
+import { MetaLine } from '../components/ui/primitives';
 import { ASSURANCE, fixStatus, isProblem, itemState, vendorState } from '../lib/domain';
 import { FixAction } from './Fix';
 
@@ -28,6 +30,52 @@ function More({ label, children }) {
       <button type="button" className="more-toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)}>{label}</button>
       {open && <div className="more-body reveal-open">{children}</div>}
     </div>
+  );
+}
+
+// Asked once per page load: the backend's key does not change while the app is open
+let aiStatus;
+const aiAvailable = () => (aiStatus ??= apiClient.getAssistantStatus().then((s) => !!s.ai_available, () => false));
+
+// AI commentary on a finding. It is text beside the evidence: it never changes a status, severity or count.
+function Explain({ scanId, finding }) {
+  const [available, setAvailable] = useState(false);
+  const [phase, setPhase] = useState({ state: 'idle' });
+  useEffect(() => {
+    let live = true;
+    aiAvailable().then((ok) => live && setAvailable(ok));
+    return () => { live = false; };
+  }, []);
+  if (!available) return null;
+
+  const ask = async () => {
+    setPhase({ state: 'loading' });
+    try {
+      const res = await apiClient.getExplanation(scanId, finding.rule_id, finding.device_hostname);
+      // The backend falls back to the stored recommendation when the model gives nothing back (quota, no key)
+      setPhase(res.ai_generated ? { state: 'done', text: res.explanation }
+        : { state: 'error', text: 'The AI didn’t answer (no key, or its quota is used up). Nothing about this result has changed.' });
+    } catch (err) {
+      setPhase({ state: 'error', text: `The explanation couldn’t be loaded: ${err.message}` });
+    }
+  };
+
+  return (
+    <section className="fd-sec">
+      {phase.state === 'done' ? (
+        <>
+          <h3 className="fd-k">Explanation</h3>
+          <MetaLine parts={['Source: AI-written', 'Commentary, not evidence']} />
+          <p>{phase.text}</p>
+        </>
+      ) : (
+        <>
+          <button type="button" className="btn btn-sm btn-quiet" onClick={ask} disabled={phase.state === 'loading'}>Explain this</button>
+          {phase.state === 'loading' && <p className="muted" aria-busy="true">Asking the AI…</p>}
+          {phase.state === 'error' && <p className="field-error" role="alert">{phase.text}</p>}
+        </>
+      )}
+    </section>
   );
 }
 
@@ -86,6 +134,8 @@ export default function FindingDrawer({ item, scan, audit, labels, onClose, onTe
                     title={x.scope || undefined} empty={emptyEvidence(x)} />
         ))}
       </More>
+
+      {problem && f && <Explain key={`${f.rule_id}|${f.device_hostname}`} scanId={scan.scan_id} finding={f} />}
 
       {f?.compliance?.length > 0 && (
         <More label="Show compliance">

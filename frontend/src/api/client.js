@@ -131,6 +131,11 @@ export const apiClient = {
     return handleResponse(response);
   },
 
+  async getAssistantStatus() {
+    const response = await fetch(`${API_BASE_URL}/assistant/status`, { cache: 'no-cache' });
+    return handleResponse(response);
+  },
+
   async getSummary(scanId) {
     const response = await fetch(`${API_BASE_URL}/assistant/summary/${scanId}`, {
       cache: 'no-cache',
