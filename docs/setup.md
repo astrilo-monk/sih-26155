@@ -28,6 +28,9 @@ How to get the project running on your local machine.
    ```
    All settings are optional. See the comments in `backend/.env.example`:
    * `GROQ_API_KEY`, `GROQ_API_KEY_1` .. `GROQ_API_KEY_4`: tried in that order. The next key is used when one is rate-limited (429) or rejected (401/403/404). Keys from the same Groq organization share one daily quota, so extra keys from the same account do not add quota.
+   * `API_KEY`: when set, every `/api` request needs it in an `X-API-Key` header (`401` otherwise). Leave empty for the demo: the frontend does not send the header.
+   * `CORS_ORIGINS`: `*` (default) or a comma-separated list of allowed origins.
+   * `DATABASE_URL`: Postgres URI (e.g. a Supabase Session pooler URI) to use instead of the SQLite file below. Empty (default) = SQLite. Needs `psycopg`, already in `requirements.txt`.
    * `ADAPTIVE_DB_PATH`: SQLite file for recognizers, learned mappings, rejected lines and the AI judge cache (default `backend/data/adaptive.db`, created automatically). Recognizers survive backend restarts through this file. The shipped seed recognizers in `backend/data/seed_recognizers.json` are loaded into it the first time it is opened; loading is idempotent and never touches what an administrator confirmed (see [seed-knowledge.md](seed-knowledge.md)).
    * `AI_JUDGE_MAX_CALLS_PER_SCAN`: AI judge requests per scan for unknown-vendor configs (default `2`; cache hits are free).
    * `VENDOR_PARSE_COVERAGE_THRESHOLD`: share of lines that must follow the detected vendor's grammar before its parser is trusted (default `0.7`).

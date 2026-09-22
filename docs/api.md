@@ -4,6 +4,11 @@ The FastAPI backend exposes the endpoints below. All routes except `/health` are
 
 Request and response models are defined in `backend/app/api/schemas.py`.
 
+**API key.** When `API_KEY` is set in `backend/.env`, every `/api` route needs an `X-API-Key: <key>` header and
+answers `401 {"detail": "Missing or invalid API key"}` without it. `/health` stays open. Empty (default) = no key.
+Allowed browser origins come from `CORS_ORIGINS` (`*` by default); `Content-Disposition` is exposed so downloads
+keep their file name.
+
 ## Health
 
 ### `GET /health`
@@ -15,7 +20,9 @@ Returns a simple status payload confirming the backend is running.
 Upload one or more raw configuration files for analysis.
 * **Request:** `multipart/form-data` with one or more `files` fields (UTF-8 text, max 2 MB each).
 * **Response:** `ScanResultResponse`:
-  * `scan_id`, `timestamp`, `devices[]` in upload order (hostname, vendor -`unknown` unless confirmed). For a
+  * `scan_id`, `timestamp`, `devices[]` in upload order (hostname, vendor -`unknown` unless confirmed, `os_version`
+    from Cisco `version` or the FortiGate `#config-version=` header, `model` from that FortiGate header only; `unknown`
+    / null when the file does not state them). For a
     configuration no parser reads, the hostname is the one a single statement states (`hostname X`, `system-name X`,
     `set … hostname X`); `unknown` when absent or conflicting. Hostnames can repeat: a device is identified by its
     position, `config_index`.
@@ -120,7 +127,7 @@ All six take the same body: `{"scan_id": "123-abc", "rule_id": "MGMT-001", "devi
 
 Common refusals: `404` unknown control, unknown device, or no candidate yet; `409` the vendor **is** confirmed (use
 `POST /api/remediate`); `409` the finding is not decided from validated evidence (a heuristic or AI verdict -confirm
-the reading on the Teach page first).
+the reading under Adaptive learning first).
 
 Every response is a `RemediationCandidateSchema`:
 
@@ -189,7 +196,9 @@ against the secrets of the configuration it was built from.
 Report whether AI features are configured: `{"ai_available": true}`. **Known issue:** this returns `true` whenever a key is set, even if the Groq quota is exhausted.
 
 ### `GET /api/assistant/explain/{scan_id}/{rule_id}/{hostname}`
-Explain a specific finding. Falls back to static text without AI.
+Explain a specific finding (the finding drawer's *Explain this*). The prompt is built from the redacted
+configuration. `ai_generated: false` means the model gave nothing back (no key, quota used up) and `explanation`
+is the stored recommendation.
 
 ### `GET /api/assistant/summary/{scan_id}`
 Summarize the scan results. Falls back to static text without AI.
@@ -201,7 +210,7 @@ Ask a question about a scan.
 
 ## Adaptive Training
 
-These endpoints back the Teach and Learned pages. **They have no authentication yet.** A stored recognizer carries `source`: `seed` for knowledge shipped in `backend/data/seed_recognizers.json`, `runtime` for what this deployment was taught ([seed-knowledge.md](seed-knowledge.md)). A mapping or recognizer whose text holds a secret (password, key, community string) is refused with `422`; rejected lines are stored redacted.
+These endpoints back the Adaptive learning pages (Teach and Learned). They are protected only by the optional shared `API_KEY`. A stored recognizer carries `source`: `seed` for knowledge shipped in `backend/data/seed_recognizers.json`, `runtime` for what this deployment was taught ([seed-knowledge.md](seed-knowledge.md)). A mapping or recognizer whose text holds a secret (password, key, community string) is refused with `422`; rejected lines are stored redacted.
 
 ### `GET /api/adaptive/scans/{scan_id}/provisional`
 Undecided or provisional control results of unknown-vendor configs, with the heuristic lines and verified AI proposal lines an administrator can confirm.
@@ -233,7 +242,7 @@ and `"subject"` (one of the options above). It is a proposal like any other -`va
 that meaning on the line itself, so a line that does not state the value cannot teach it (`422`).
 
 ### `POST /api/adaptive/scans/{scan_id}/recognizers`
-Save the recognizer (same body) to SQLite and return the re-evaluated scan. `422` when a gate fails, `409` on a conflicting recognizer.
+Save the recognizer (same body) to the knowledge store and return the re-evaluated scan. `422` when a gate fails, `409` on a conflicting recognizer.
 
 ### `POST /api/adaptive/scans/{scan_id}/provisional/reject`
 Record a provisional line as reviewed-but-unmapped: heuristics and AI ignore it on later scans. **Request JSON:** `{"config_index": 0, "control_id": "MGMT-001", "line_number": 71, "reason": null}`.

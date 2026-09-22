@@ -29,22 +29,25 @@ never evidence: a missing setting is NOT_CONFIGURED, not FAIL.
 | A downloaded configuration matches the reviewed plan (a fix and a download may use only the inputs the shown plan was generated with) | `frontend/src/lib/useAudit.js` | `app/Fix.test.jsx` |
 | The vendor is deterministic; look-alikes and mixed configs stay unverified | `parsers/detector.py`, `parsers/coverage.py` | `test_phase1_vendor_identification.py` |
 | Recognizers require an administrator and pass safety gates; templates are typed slots, not regex | `facts/recognizers.py`, `db/mappings.py`, `adaptive/matcher.py` | `test_phase6_recognizers.py` |
-| No secret is stored in the SQLite knowledge store | `db/mappings.py` (`_refuse_secrets`, redacted rejections) | `test_phase9_frameworks_persistence.py` |
+| No secret is stored in the knowledge store (SQLite or Postgres) | `db/mappings.py` (`_refuse_secrets`, redacted rejections) | `test_phase9_frameworks_persistence.py` |
 | Remediation only for decisive FAILs on confirmed vendors, never from caller or AI text, verified by rescan | `remediation/engine.py`, `routes/remediation.py` | `test_remediation_e2e.py` |
 | A candidate command (typed or AI-proposed) is never executed, never edits the uploaded configuration, never enters the confirmed-vendor download and never changes results, posture or coverage; it is simulated on a copy and needs a human to confirm | `remediation/candidates.py`, `routes/remediation.py` | `test_candidate_remediation.py` |
-| Only a candidate the simulation **verified** has a corrected copy to download; a draft, unverified, rejected or re-checked-and-failed candidate has none, and `/download-fixed` stays confirmed-vendor only |
+| Only a candidate the simulation **verified** has a corrected copy to download; a draft, unverified, rejected or re-checked-and-failed candidate has none, and `/download-fixed` stays confirmed-vendor only | `routes/remediation.py`, `remediation/candidates.py` | `test_candidate_remediation.py` |
 | A candidate exists only for a decisive FAIL on an unconfirmed vendor; a provisional verdict and a confirmed vendor are both refused | `routes/remediation.py` (`_candidate_target`) | `test_candidate_remediation.py` |
 | An AI remediation proposal is refused unless it is exactly the expected shape for the control that asked, and its prompt carries no secret | `ai/remediation.py` | `test_candidate_remediation.py` |
 | A derived candidate is built only from the configuration's own words, only for a control a removal can resolve (prohibitions and relational controls -never one that requires a setting or sets a threshold), never from a block opener, and it faces the same simulation and human confirmation as any other candidate | `remediation/candidates.py` (`derive`, `DERIVABLE_KINDS`, `block_openers`) | `test_derived_remediation.py` |
-| The PDF report carries no configuration secret and states nothing the configuration does not -no serial number, no hardware inventory, no provisional reading presented as compliance, no vendor command for an unconfirmed vendor | `app/reporting/report.py` (built from the already-redacted scan response) | `test_pdf_report.py` |
+| The PDF report carries no configuration secret and states nothing the configuration does not -no serial number or chassis details (the FortiGate model and firmware only when its `#config-version=` header states them), no provisional reading presented as compliance, no vendor command for an unconfirmed vendor | `app/reporting/report.py` (built from the already-redacted scan response) | `test_pdf_report.py` |
 | Teaching cannot assert a meaning the line does not state: an administrator's answer becomes an ordinary recognizer candidate and faces every gate, including the secret refusal | `facts/teaching.py`, `facts/recognizers.py` (`draft_recognizer`, `validate_recognizer`) | `test_resolution_queue.py` |
 | Operator inputs are validated before they are written into a template | `remediation/recipes.py` (`parse_inputs`) | `test_remediation_e2e.py` |
+| An AI explanation of a finding is labelled AI-written commentary, not evidence, and never changes a status, severity or count | `frontend/src/app/FindingDrawer.jsx`, `routes/assistant.py` | `app/FindingDrawer.test.jsx` |
 | The browser history stores no evidence or configuration lines | `frontend/src/utils/history.js` | `history.test.js` |
 
 ## Not protected (prototype)
 
-* No authentication or authorization on any endpoint; anyone who reaches the API can confirm recognizers or
-  download remediated configurations. CORS allows every origin.
+* Access control is one optional shared key: with `API_KEY` set, every `/api` route (not `/health`) requires a
+  matching `X-API-Key` header, compared in constant time (`app/main.py`, `test_api_key.py`). There are no users or
+  roles, and by default the key is empty, so anyone who reaches the API can confirm recognizers or download
+  remediated configurations. CORS allows every origin unless `CORS_ORIGINS` narrows it.
 * Redaction is pattern-based; a secret behind a keyword it does not know could reach the AI.
 * `POST /api/download-fixed` returns the real configuration, including its own secrets and the NTP key the
   operator typed. Response redaction uses the same pattern-based redactor, so an unknown secret syntax is not

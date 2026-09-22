@@ -9,15 +9,21 @@ The implementation record is [plan.md](../plan.md). Summary:
 - [x] Posture + coverage scoring with bounds and critical controls not assessed
 - [x] Security facts with assurance; every control runs on every configuration
 - [x] Generic tokenizer and lexicon heuristics for unknown vendors (provisional, no AI needed)
-- [x] Administrator-confirmed recognizers persisted in SQLite and reused across restarts
+- [x] Administrator-confirmed recognizers persisted (SQLite, or Postgres via `DATABASE_URL`) and reused across restarts
+- [x] Shipped seed knowledge: 61 generalized recognizers for eight unparsed dialects
 - [x] AI judge: budgeted, cached, citations verified, proposals never scored
 - [x] Deterministic, vendor-aware remediation verified by rescan
-- [x] Framework views and the demo UI (Results, Fix, Teach, All checks, Devices, Frameworks, Knowledge, History)
+- [x] Candidate remediation for unconfirmed vendors (typed, AI-proposed or derived), simulated on a copy
+- [x] Framework views: NIST SP 800-53 Rev. 5, CIS (confirmed vendors), DISA NDM SRG, ISO/IEC 27001:2022 Annex A
+- [x] Per-device PDF compliance report
+- [x] Sidebar UI (New scan, Overview, Devices, Findings, Remediation, Adaptive learning, Frameworks, History) with
+      AI *Explain this* in the finding drawer
+- [x] Optional shared API key (`API_KEY`) and configurable CORS origins
 
 ## Not implemented (possible next steps)
-- [ ] Authentication and roles for review, recognizer and remediation endpoints
+- [ ] Users and roles for review, recognizer and remediation endpoints (today: one optional shared key)
 - [ ] Persistent scan storage (today: memory only) and replay of recognizers against stored history
-- [ ] Verified mappings for ISO/IEC 27001:2022, DISA SRGs, CIS Controls v8
+- [ ] Pin the DISA SRG ids to a downloaded NDM SRG revision; CIS Controls v8 and PCI DSS mappings
 - [ ] AI escalation for UNKNOWN controls of confirmed vendors (decide, or drop the legacy interpreter)
 - [ ] Remove the deprecated `score` once no script depends on it
 - [ ] Assistant chat view in the frontend

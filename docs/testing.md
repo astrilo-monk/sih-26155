@@ -2,7 +2,7 @@
 
 Backend tests use `pytest`; frontend tests use Vitest with Testing Library. No test needs a network or an API key:
 the AI judge transport is patched in every test (`backend/tests/conftest.py`), and each test gets its own temporary
-SQLite database. That database is empty by default -**including of the shipped seed recognizers** -so the rest of
+SQLite database, even when `DATABASE_URL` is set. That database is empty by default -**including of the shipped seed recognizers** -so the rest of
 the suite keeps proving what the generic engine works out on its own. Tests about seed knowledge ask for the
 production default with the `seeded_adaptive_db` fixture.
 
@@ -28,9 +28,11 @@ production default with the `seeded_adaptive_db` fixture.
 | Shipped seed knowledge: loading on a fresh database, idempotence, never overwriting what was taught, generalization across eight dialects, no accidental or secret matches, unchanged Cisco / FortiGate and unknown-vendor behaviour, the fresh-deployment demo and teaching on top of it | `test_seed_knowledge.py`, fixtures in `tests/fixtures/seed_dialects/` |
 | Recognizer generalization: one recognizer over many addresses, names and numbers; indentation, whitespace and statement order ignored; positive and negative forms opposite; the same leaf word in another block not matched; a value-sensitive setting giving different control results from one recognizer; half a multi-fact control left undecided; a taught concept reused on the next scan; a line that states nothing teaching only a setting it names, while a line that states an on/off may be named in any words; and the acceptance loop -five concepts taught through the API, a configuration of seven variant lines scanned, only the genuinely new control left in the queue | `test_recognizer_generalization.py` |
 | Compliance report (PDF): a PDF per device and a zip for several, a hostname cannot escape the download name, no secret of the configuration reaches the document or the rendered bytes, serial numbers are not invented, provisional readings are never shown as PASS/FAIL, no vendor commands for an unconfirmed vendor, the deterministic change and its rescan checks for a confirmed one, unmapped frameworks named, undecided checks listed, a prose file reported unreadable | `test_pdf_report.py` |
-| Parsers, pipeline, ACLs | `test_pipeline.py`, `test_cisco_acl.py` |
+| Parsers, pipeline, ACLs, FortiGate model and firmware from the `#config-version=` header | `test_pipeline.py`, `test_cisco_acl.py` |
 | Adaptive layer and legacy interpreter, learned mappings, review API | `test_adaptive.py`, `test_adaptive_generic.py`, `test_adaptive_api_integration.py`, `test_phase3_adaptive_mapper.py`, `test_phase3_e2e.py`, `test_phase4_review_api.py`, `test_phase5_learned_mappings.py` |
 | Settings, Groq key rotation | `test_config_loading.py`, `test_ai_client_key_rotation.py` |
+| Optional API key: open when unset, `401` without or with a wrong `X-API-Key`, `/health` always open | `test_api_key.py` |
+| `DATABASE_URL`: a raw password holding `@` or `$` is percent-encoded so the right host is used | `test_database_url.py` |
 | Browser UI audit regressions -no secret in API responses, `config_index` identity, generic hostnames, manual-review consistency, CIS banner mapping, scan status | `test_ui_audit_regressions.py` |
 
 Two live Groq tests in `test_adaptive_generic.py` are skipped unless `NETAUDIT_LIVE_AI=1` and a key are set.
@@ -40,11 +42,11 @@ Two live Groq tests in `test_adaptive_generic.py` are skipped unless `NETAUDIT_L
 | Area | Tests |
 |---|---|
 | Backend state to user-facing state, counts, next step, plain-language readings, safety-gate wording | `lib/domain.test.js` |
-| Results overview: posture never overstated, honest counts, questions, the resolution queue of undecided checks, a file holding no configuration, the PDF report download | `app/Results.test.jsx` |
+| Overview (`Results.jsx`): posture never overstated, honest counts, questions, the resolution queue of undecided checks, a file holding no configuration, the PDF report download | `app/Results.test.jsx` |
 | Fix: the remediation classes, inputs, verified fix, download of verified changes only, candidate remediation for an unconfirmed vendor (derive, generate, review, verify, reject, confirm) and the refusal when a removal cannot resolve a check | `app/Fix.test.jsx` |
 | The verified corrected copy in the UI: no download without a candidate, none for a draft or a rejected one, the button and its "not applied to a device" warning once verified, the candidate endpoint (not `/download-fixed`) is what it calls, and the confirmed-vendor download is unchanged | `app/Fix.test.jsx` |
 | Teach: the undecided check, choosing a suggested line or any line of the configuration, stating what it means, safety-gate failures in plain English, the saved recognizer and the updated posture / coverage / remaining count, a save that still decides nothing, skipping | `app/Teach.test.jsx` |
-| Finding drawer: evidence, assurance, no invented commands | `app/FindingDrawer.test.jsx` |
+| Finding drawer: evidence, assurance, no invented commands, *Explain this* labelled as AI commentary and a failed call reported inline | `app/FindingDrawer.test.jsx` |
 | Framework view | `app/Frameworks.test.jsx` |
 | Expired history entries | `app/History.test.jsx` |
 | Legacy review queue | `app/LegacyInterpretations.test.jsx` |
@@ -58,10 +60,10 @@ Two live Groq tests in `test_adaptive_generic.py` are skipped unless `NETAUDIT_L
 
 ```powershell
 cd backend
-venv\Scripts\python -m pytest tests -q     # 1106 passed, 2 skipped
+venv\Scripts\python -m pytest tests -q     # 1123 passed, 2 skipped
 
 cd ..\frontend
-npm test                                    # 81 passed
+npm test                                    # 82 passed
 npm run build
 ```
 

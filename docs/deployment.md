@@ -18,5 +18,10 @@ If we were to take this to production:
 1. Containerize backend and frontend using Docker.
 2. Add a database such as PostgreSQL for persistent scan storage.
 3. Deploy to a managed service like AWS Fargate or Google Cloud Run.
-4. Implement proper user authentication and RBAC, including on the adaptive (`/api/adaptive/*`) endpoints, so companies can isolate their scan data.
-5. Restrict CORS, which is currently open to all origins.
+4. Replace the single shared `API_KEY` with user authentication and RBAC, including on the adaptive (`/api/adaptive/*`) endpoints, so companies can isolate their scan data.
+
+## Hardening an exposed instance today
+
+* Set `API_KEY` in `backend/.env`: every `/api` request then needs an `X-API-Key` header or gets `401`. `/health` stays open. The bundled frontend does not send this header, so only set it for API-only use or behind a proxy that adds it.
+* Set `CORS_ORIGINS` to the frontend's origin(s), comma-separated, instead of the default `*`.
+* Set `DATABASE_URL` on any host that loses its disk on restart, or everything administrators taught is lost.

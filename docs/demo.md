@@ -5,37 +5,38 @@ Start from an empty recognizer database for a clean replay (`ADAPTIVE_DB_PATH` p
 is not empty for long: the shipped seed recognizers load into it on first use, which is what steps 6a and 8 show.
 
 1. **Problem.** Multi-vendor configurations are audited by hand; a tool that guesses is worse than none.
-2. **Upload `backend/tests/fixtures/cisco_vulnerable.cfg`.** The **Results** overview names the device
+2. **Upload `backend/tests/fixtures/cisco_vulnerable.cfg`.** The **Overview** page names the device
    "Cisco IOS -read by a dedicated parser": posture 0, coverage 100%, problems by severity. Open MGMT-001 in the
-   drawer: cited lines, impact, NIST / CIS mappings.
-3. **Frameworks** (scan sub-navigation). NIST SP 800-53 Rev. 5 and the Cisco CIS benchmark: requirement status comes from the same control
+   drawer (from **Findings**): cited lines, impact, NIST / CIS mappings. With AI on, *Explain this* adds a
+   plain-language explanation labelled *AI-written, commentary, not evidence*.
+3. **Frameworks** (sidebar, under *Intelligence*). NIST SP 800-53 Rev. 5, the DISA NDM SRG, ISO/IEC 27001:2022 Annex A and the Cisco CIS benchmark: requirement status comes from the same control
    results; point out the "not a certification" note.
-4. **Fix.** The page groups the problems into *can be fixed automatically*, *needs your input*, *needs manual action*
+4. **Remediation.** The page groups the problems into *can be fixed automatically*, *needs your input*, *needs manual action*
    and *cannot be fixed safely* (weak passwords, AAA lockout risk, any-any ACL). Enter a syslog server, NTP key ID and key, and a management subnet; regenerate. Expand a
    fixed control: cited evidence → diff → rescan checks → posture before/after. Download, then upload the downloaded
    file: vendor still confirmed, posture 72, remaining findings exactly the three human-review controls.
-5. **Upload `backend/tests/fixtures/fortinet_vulnerable.cfg`.** Same controls, FortiGate facts. Posture 4, coverage 82%,
+5. **Upload `backend/tests/fixtures/fortinet_vulnerable.cfg`.** Same controls, FortiGate facts. Its PDF report (step 13) names the model `FG100F` and firmware `7.0.5 build0304`, read from the file's `#config-version=` header. Posture 4, coverage 82%,
    *critical not assessed: MGMT-005* -the FortiGate parser does not read password storage, and the tool says so.
 6. **Upload `sample/unknown.cfg`.** "Unfamiliar device -checked with generic analysis"; no vendor commands are generated. Posture "-",
    coverage 0. Provisional results: *Suspected FAIL* Telnet on lines 70–71 with evidence, never scored.
-7. **Teach.** The page asks in plain language what an unfamiliar line means. Confirm line 71 for MGMT-001: drafted template `remote-console protocol {enum:protocol}`,
+7. **Adaptive learning.** The page asks in plain language what an unfamiliar line means. Confirm line 71 for MGMT-001: drafted template `remote-console protocol {enum:protocol}`,
    gates, replay diff. Save: MGMT-001 becomes a decisive *confirmed* FAIL, coverage rises, zero AI calls.
-8. **Restart the backend and upload `sample/unknown.cfg` again.** The recognizer is reused from SQLite (see **Knowledge**): still decisive,
+8. **Restart the backend and upload `sample/unknown.cfg` again.** The recognizer is reused from the knowledge store (see **Adaptive learning → Learned mappings**): still decisive,
    still no AI. Upload `sample/paloalto.cfg`: still generic analysis and no invented parser, but Telnet, HTTP
    management and the syslog servers are already decisive -that is shipped seed knowledge, not learning. Open
-   **Knowledge** and switch between *Shipped* and *Taught here*.
+   **Adaptive learning → Learned mappings** and switch between *Shipped* and *Taught here*.
 9. **Upload `backend/tests/fixtures/seed_dialects/huawei.conf`** -a dialect nobody taught this deployment. Five
    controls are answered decisively out of the box (Telnet, HTTP management, session timeout, remote syslog, NTP),
    coverage is above 0, and every one cites a real line. The login banner stays `NOT_CONFIGURED` rather than being
-   guessed. Now **teach** the SSH-version line under **Teach**: the taught recognizer and the shipped ones are used
+   guessed. Now **teach** the SSH-version line under **Adaptive learning**: the taught recognizer and the shipped ones are used
    side by side on the rescan. See [seed-knowledge.md](seed-knowledge.md).
-10. **Fix, for the unconfirmed vendor -one click.** Press **Fix it for me**. NetAuditAI derives the change from
+10. **Remediation, for the unconfirmed vendor -one click.** Press **Fix it for me**. NetAuditAI derives the change from
     the configuration itself (`delete system services telnet`, built from the file's own block path), applies it to a
     **copy**, re-reads the copy with the generic engine and shows `target`, `no_regression` and `generic_path` all
     passing -no AI, no vendor grammar, nothing taught. Then point at what it refuses: **Fix it for me** never appears
     for a check that needs a setting *added*, and it will not delete an idle timeout to make a threshold check stop
     failing. Those stay with the person who owns the command.
-11. **Fix, the other two ways.** The problem is **"Needs administrator input"**, not a dead end. Press
+11. **Remediation, the other two ways.** The problem is **"Needs administrator input"**, not a dead end. Press
     *Generate candidate fix* (AI on) or *Enter command manually* and type `delete system services telnet;`. The
     candidate is labelled **AI-generated candidate · Not checked yet** and NetAuditAI has changed nothing.
     Press *Verify candidate*: it is applied to a **copy** of the uploaded file, the copy is re-read by the generic
@@ -51,7 +52,7 @@ is not empty for long: the shipped seed recognizers load into it on first use, w
     configuration. This file has not been applied to a device."* Before verifying, that button does not exist.
 12. **(Optional, AI on.)** The judge is asked only about undecided controls, with a redacted excerpt; a verified answer
     appears as "AI proposes …, awaiting confirmation" and changes neither posture nor coverage.
-13. **Download the PDF report** (*Download PDF report*, on Results). One PDF per device: device identification,
+13. **Download the PDF report** (*Download PDF report*, on Overview). One PDF per device: device identification,
     posture and coverage, every control with the assurance behind it and the lines it cites, the framework view,
     the remediation paths, and the checks still needing input. Two things to point at: the passwords and SNMP
     community strings are redacted in the report exactly as in the browser, and the identification section states

@@ -18,6 +18,7 @@ Cisco configs use a hierarchical indentation structure (though sometimes just sp
 Fortinet configs use a block structure with `config system ...` followed by `edit ...` and ending with `end`.
 * **Challenges:** Deeply nested contexts and vendor-specific settings. The current parser focuses on fields needed by the implemented rules and does not resolve every referenced FortiGate object.
 * **Strategy:** The parser tracks a stack of `config` and `edit` contexts, stores `set` commands with their context, and then extracts interfaces, policies, users, logging, NTP, VPN, and system settings.
+* **Device identification:** a leading `#config-version=FGT60D-6.00-FW-build0163-...` export header gives the model (`FGT60D`) and firmware (`6.00 build0163`), with its line cited. Without the header both stay unstated.
 
 ## Normalization Example
 

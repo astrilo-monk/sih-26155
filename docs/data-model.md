@@ -3,7 +3,7 @@
 The main objects, from parsed configuration to API response.
 
 ## `NormalizedConfig` -`app/models/normalized.py`
-Parser-internal model of a configuration: device (vendor, hostname, OS version), interfaces, management access (VTY,
+Parser-internal model of a configuration: device (vendor, hostname, OS version, model -FortiGate reads the model and firmware from its `#config-version=` header), interfaces, management access (VTY,
 console, SSH/HTTP/Telnet), authentication, SNMP, logging, NTP, ACLs, firewall policies, VPN proposals, banners,
 services, plus `raw_config` / `raw_lines` and the source line numbers of every parsed object. For unknown vendors it
 only carries the raw lines, captured lines and adaptive records; controls never read it directly.
@@ -34,7 +34,7 @@ failure: FailureDetail      # severity, description, impact, recommendation -pre
 A `Finding` (`app/models/findings.py`) is the view of a FAIL result used by the findings table.
 
 ## `LearnedMapping` -`app/db/mappings.py`
-Row of SQLite `learned_mappings`. A **recognizer** has `extraction_method = "recognizer"`, `command_pattern`
+Row of `learned_mappings` (SQLite, or Postgres with `DATABASE_URL`). A **recognizer** has `extraction_method = "recognizer"`, `command_pattern`
 (typed-slot template), `predicate`, `subject`, `scope_template`, `dialect_fingerprint`, `negatives`,
 `constant_value` (JSON value or enum table), `example_line`, `confirmed`, `active`, and `source`
 (`seed` = shipped knowledge from `backend/data/seed_recognizers.json`, `runtime` = taught on this deployment). Learned field mappings (legacy

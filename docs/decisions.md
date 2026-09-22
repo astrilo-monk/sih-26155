@@ -7,12 +7,14 @@ Cisco IOS covers routing and switching, FortiGate covers edge firewalls, and bot
 use the generic path instead of more parsers: a parser per vendor does not scale, and a half-finished parser would
 look more trustworthy than it is.
 
-## 2. Tech stack: FastAPI + React + SQLite + Groq
+## 2. Tech stack: FastAPI + React + SQLite (or Postgres) + Groq
 - **Python / FastAPI** -fast to build, strong text processing.
 - **React / Vite** -a dashboard quickly.
 - **SQLite** -administrator knowledge (recognizers, learned mappings, rejected lines) and the AI judge cache must
-  survive restarts; SQLite needs no extra service. Scan results stay in memory: persisting uploaded configurations
-  is not needed for the demo and would store secrets.
+  survive restarts; SQLite needs no extra service. On a host whose disk is wiped on restart (e.g. Render's free
+  tier), `DATABASE_URL` points the same tables at Postgres (e.g. Supabase); the SQL is written once for both and
+  tests always use SQLite. Scan results stay in memory: persisting uploaded configurations is not needed for the
+  demo and would store secrets.
 - **Groq** (`openai/gpt-oss-120b`) -strict JSON-schema output and a free tier. All calls are isolated in
   `backend/app/ai/client.py`.
 

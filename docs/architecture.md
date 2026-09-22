@@ -32,7 +32,7 @@ Provisional AI Proposal (never scored)
       ↓
 Human Confirmation
       ↓
-Confirmed Recognizer (SQLite)
+Confirmed Recognizer (SQLite or Postgres)
       ↓
 Future Scan Reuse (decisive, no AI)
       ↓
@@ -67,8 +67,8 @@ flowchart TD
     Controls -->|UNKNOWN / NOT_CONFIGURED, unknown vendor| Judge[AI judge]
     Judge --> Verify[Deterministic citation verifier]
     Verify -->|AI_VERIFIED, provisional| Controls
-    Controls --> Review[Teach UI]
-    Review -->|admin confirms| DB[(SQLite)]
+    Controls --> Review[Adaptive learning UI]
+    Review -->|admin confirms| DB[(SQLite / Postgres)]
     DB --> Recognizers
     Controls -->|decisive FAIL, confirmed vendor| Remediation[Deterministic recipes]
     Remediation --> Rescan[Rescan: vendor, coverage, controls]
@@ -98,6 +98,10 @@ Dedicated parsers exist for **Cisco IOS / IOS-XE** and **Fortinet FortiGate** on
 its parser, its documented defaults (`app/facts/defaults.py`: FortiOS `admintimeout`, `admin-ssh-v1`,
 `pre-login-banner`, `ip-src-routing`, and "no SNMP community" for both), its remediation recipes and its CIS
 benchmark mappings.
+
+Device identification reads only what the file states: the Cisco `version` line gives the OS version; a leading
+FortiOS `#config-version=<model>-<version>-FW-<build>` export header gives the model and firmware, citing that line.
+Neither is guessed when absent, and serial numbers and chassis details never are.
 
 **Palo Alto, Juniper, Arista and every other vendor have no parser.** They are analyzed by the generic path and
 shown in the UI as "Generic / adaptive analysis". An AI vendor guess is reported as *vendor evidence* only.
@@ -203,7 +207,7 @@ line exists, most severe first, up to 4 controls per call and `ai_judge_max_call
   posture, coverage, findings, severity counts, framework status or remediation.
 * AI never infers PASS from absence (absence cannot be cited), never selects a vendor, never writes remediation
   and never saves a recognizer.
-* Cache: SQLite `ai_judge_cache`, key = hash(prompt version + model + system prompt + redacted prompt). Only
+* Cache: `ai_judge_cache`, key = hash(prompt version + model + system prompt + redacted prompt). Only
   answers with at least one verified proposal are stored; a cached answer is verified again, and one that no longer
   verifies is asked again and replaced.
 
@@ -212,10 +216,10 @@ completes.
 
 ## 8. Human-in-the-loop: recognizers
 
-A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships 50 reviewed recognizers for
+A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships 61 reviewed recognizers for
 eight dialects that have no dedicated parser (Junos, PAN-OS, Arista EOS, Huawei VRP, RouterOS, Aruba AOS-CX,
 Check Point Gaia, Extreme EXOS) -one generalized entry per concept per dialect, never one per line;
-`app/facts/seed.py` loads them into SQLite the first time a process opens the database. They pass the same gates
+`app/facts/seed.py` loads them into the knowledge store the first time a process opens the database. They pass the same gates
 listed below, are decisive in the same way, and are marked `source = "seed"` so shipped knowledge and what this
 deployment was taught stay distinguishable. Loading is idempotent and never overwrites or revives a row an
 administrator changed or stopped. This is shipped knowledge, not training: nothing is inferred or written back.
@@ -260,7 +264,7 @@ and nothing is counted. The uploaded configuration is only ever read, and no fil
    A drafted recognizer is produced against these same gates: the only field a draft can leave for the
    administrator is a duration unit the configuration itself never states.
 4. Replay shows which results the recognizer would change on the scans held by the backend.
-5. Save writes it to SQLite `learned_mappings` (confirmed, active). The scan is re-evaluated.
+5. Save writes it to `learned_mappings` (confirmed, active). The scan is re-evaluated.
 6. Every later scan -including after a backend restart, in a new process -loads active confirmed recognizers from
    the database. A matching line yields a `confirmed` (decisive) fact; heuristics and AI facts step aside for that
    line; conflicting recognizers give UNKNOWN citing both. The AI is not asked about recognized lines.
@@ -272,14 +276,17 @@ administrator; AI output never becomes a recognizer by itself.
 
 | Store | Contents | Survives restart | Secrets |
 |---|---|---|---|
-| SQLite `learned_mappings` | Recognizers (shipped `seed` and taught `runtime`) and learned field mappings | Yes | Refused at save |
-| SQLite `rejected_lines` | Rejected lines (redacted text, key from the redacted line) | Yes | Redacted |
-| SQLite `ai_judge_cache` | Verified AI answers keyed by a hash of the redacted prompt | Yes | Prompts were redacted |
+| `learned_mappings` | Recognizers (shipped `seed` and taught `runtime`) and learned field mappings | Yes | Refused at save |
+| `rejected_lines` | Rejected lines (redacted text, key from the redacted line) | Yes | Redacted |
+| `ai_judge_cache` | Verified AI answers keyed by a hash of the redacted prompt | Yes | Prompts were redacted |
 | Backend memory (`_scan_store`) | Scan results, parsed configurations | No | -|
 | Browser `localStorage` | History summaries (hostnames, vendors, posture, coverage, counts) | Browser only | None stored |
 
-The database path is `ADAPTIVE_DB_PATH` (default `backend/data/adaptive.db`); migrations are tracked with
-`PRAGMA user_version`. Uploaded files are never written to disk. `tests/test_phase9_frameworks_persistence.py`
+The three tables live in SQLite at `ADAPTIVE_DB_PATH` (default `backend/data/adaptive.db`), or in Postgres when
+`DATABASE_URL` is set (e.g. Supabase, for a host whose disk is wiped on restart). `app/db/database.py` writes the
+SQL once for both (`ON CONFLICT`, `RETURNING`); Postgres connections are pooled and reads are cached per process,
+cleared on every write. Migrations are tracked with `PRAGMA user_version` on SQLite and a `schema_version` table on
+Postgres. Tests always use SQLite. Uploaded files are never written to disk. `tests/test_phase9_frameworks_persistence.py`
 saves a recognizer in one Python process and proves a second process reuses it;
 `tests/test_seed_knowledge.py` proves the same for shipped seed knowledge alongside it.
 
@@ -309,7 +316,7 @@ comes from outside the engine -typed by the administrator, or proposed by the AI
 configuration and the proposed text are read with the same generic tokenizer for every dialect.
 
 * Eligibility: a **decisive** FAIL (recognizer, parser or documented default) on an **unconfirmed** vendor. A
-  heuristic or AI verdict gets no candidate -confirm the reading on the Teach page first. A confirmed vendor is
+  heuristic or AI verdict gets no candidate -confirm the reading under Adaptive learning first. A confirmed vendor is
   refused (`409`): it keeps the deterministic path.
 * Validation: shape and size (≤ 2000 characters, ≤ 20 lines, no control characters), then *coverage* -a statement
   of the command must negate (`delete` / `no` / `unset` / `undo` / a `disable` keyword) the failing statement and

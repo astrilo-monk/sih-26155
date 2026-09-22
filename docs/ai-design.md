@@ -74,7 +74,7 @@ The judge never escalates confirmed vendors, so this older path remains for them
 3. **Learned mappings** (`matcher.py`): lines matching an administrator-confirmed mapping are normalized without an AI call. Previously rejected lines are never re-sent.
 4. **AI interpretation** (`interpreter.py`, only with the setting on): the remaining lines are sent 10 at a time using strict JSON-schema output (temperature 0, fixed seed). The AI may only pick a field from the controlled vocabulary in `backend/app/models/field_catalog.py`, or answer `unknown`. It must cite the evidence text. Failed batches are retried once and then split in half; a daily-quota error stops further calls for that scan.
 5. **Validation and confidence** (`mapper.py`): the cited evidence must appear in the line; string and list values must be present; on/off answers must match the line's polarity. `AdaptiveService` never applies an interpretation: HIGH, MEDIUM, LOW, contradicted and conflicting results all go to the Training queue.
-6. **Training** (Teach page, `/api/adaptive/*`): an administrator accepts, edits or rejects each item. Accepted mappings are stored in SQLite and reused on later scans; a line holding a secret is refused.
+6. **Training** (Adaptive learning, `/api/adaptive/*`): an administrator accepts, edits or rejects each item. Accepted mappings are stored in the knowledge store (SQLite or Postgres) and reused on later scans; a line holding a secret is refused.
 
 ## What is persisted
 

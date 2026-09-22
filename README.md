@@ -14,8 +14,8 @@ human confirms them before they count. NetAuditAI never connects to a network de
 ## Status
 
 Working hackathon prototype. All phases of [plan.md](plan.md) (0–9) are implemented, plus candidate
-remediation for unconfirmed vendors. Backend: 1020 tests passed, 2 live-AI tests skipped. Frontend:
-81 tests passed, production build OK.
+remediation for unconfirmed vendors. Backend: 1123 tests passed, 2 live-AI tests skipped. Frontend:
+82 tests passed, production build OK.
 
 ## Pipeline
 
@@ -38,7 +38,7 @@ AI judge: budgeted, redacted, cached (optional) ..................... app/ai/jud
   ↓
 Deterministic citation verification → AI_VERIFIED proposal (never scored)
   ↓
-Human confirmation (the "Teach" page) → recognizer saved in SQLite
+Human confirmation (Adaptive learning) → recognizer saved (SQLite, or Postgres via DATABASE_URL)
   ↓
 Future scans: the recognizer answers decisively, with no AI call
   ↓ decisive FAIL on a confirmed vendor        ↓ decisive FAIL on an unconfirmed vendor
@@ -61,12 +61,18 @@ Details: [docs/architecture.md](docs/architecture.md).
 
 The vendor is decided deterministically. An AI vendor guess is reported as evidence only and never selects a parser, defaults or remediation.
 
-**Shipped knowledge.** 25 reviewed recognizers for five unparsed dialects (Juniper Junos 9, Huawei VRP 6,
-Palo Alto PAN-OS 4, Arista EOS 3, MikroTik RouterOS 3) ship in `backend/data/seed_recognizers.json` and load
-into an empty database on first start, so those dialects answer several controls before anyone teaches
-anything. They are ordinary recognizers -same templates, same validation, same decisive CONFIRMED facts -
-and are marked `source=seed` so shipped knowledge can be audited separately from what a deployment was
-taught. This is not a parser and not training: see [docs/seed-knowledge.md](docs/seed-knowledge.md).
+**Shipped knowledge.** 61 reviewed recognizers for eight unparsed dialects (Arista EOS 13, Juniper Junos 10,
+Palo Alto PAN-OS 10, Huawei VRP 9, HPE Aruba AOS-CX 5, Extreme EXOS 5, MikroTik RouterOS 5, Check Point Gaia 4)
+ship in `backend/data/seed_recognizers.json` and load into an empty database on first start, so those dialects
+answer several controls before anyone teaches anything. Each entry is one concept per dialect, generalized over
+addresses, names, numbers and indentation through typed slots. They are ordinary recognizers -same templates,
+same validation, same decisive CONFIRMED facts -and are marked `source=seed` so shipped knowledge can be audited
+separately from what a deployment was taught. This is not a parser and not training: see
+[docs/seed-knowledge.md](docs/seed-knowledge.md).
+
+**Device identification** (API `devices[]` and the PDF report) states only what the file states: hostname, the
+Cisco `version` line, and for FortiGate the model and firmware from the `#config-version=` export header when
+present. Serial numbers and chassis details are never invented.
 
 **Candidate remediation** (unconfirmed vendors, once a finding is decisive) is a proposal, not a fix. The
 administrator types the command, or asks the AI for one; NetAuditAI validates it, removes the cited
@@ -91,14 +97,27 @@ The scan response still carries `score`, the deprecated penalty score (kept for 
 
 ### The interface
 
-Two tiers. **Scan · Results · Fix · History · Knowledge** are global; within a scan, **Overview · Fix ·
-Teach · All checks · Devices · Frameworks**. *Knowledge* (route `#/app/learned`) lists everything the
-engine knows -shipped seed recognizers and whatever this deployment was taught -and lets an
-administrator stop any entry.
+A fixed left sidebar. **New scan · Overview · Devices · Findings · Remediation**, then under *Intelligence*
+**Adaptive learning · Frameworks · History**. The scan pages are disabled until a scan is open.
 
-Severity is a four-square meter plus the severity word, and status is a mono label with a square marker,
-so no result is conveyed by colour alone. The palette is near-black, greys and one accent, which marks
-attention and selection only -never severity, never status.
+| Sidebar | Page | Route |
+|---|---|---|
+| New scan | Upload one or more configurations | `#/app` |
+| Overview | Posture, coverage, critical not assessed, what to do now, PDF report | `#/app/scan/{id}` |
+| Devices | How each configuration was read (vendor, parser or generic path, coverage) | `…/devices` |
+| Findings | Every control on every device, with evidence | `…/checks` |
+| Remediation | Fix automatically, needs your input, manual action, cannot safely fix; verified download; candidate fixes | `…/fix` |
+| Adaptive learning | With a scan open: this scan's unknown syntax to teach. Otherwise: learned mappings (shipped and taught, each can be stopped) | `…/teach`, `#/app/learned` |
+| Frameworks | The same results by framework requirement | `…/frameworks` |
+| History | Scan summaries kept in this browser | `#/app/history` |
+
+Clicking a finding opens a drawer with its cited lines, assurance and framework mappings. When AI is configured,
+**Explain this** asks for a plain-language explanation, labelled *AI-written, commentary, not evidence*; it never
+changes a status, severity or count.
+
+Severity is a four-square meter plus the severity word, and status is a label with a square marker, so no result
+is conveyed by colour alone. The palette is near-black, greys and one orange accent. Text is Inter; JetBrains Mono
+is used only where characters must line up (configuration lines, evidence, diffs, commands, recognizer patterns).
 
 ## Setup
 
@@ -123,9 +142,10 @@ Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `fr
 | Variable | File | Purpose |
 |---|---|---|
 | `GROQ_API_KEY`, `GROQ_API_KEY_1..4` | `backend/.env` | AI judge, explanations and chat. Keys are tried in order; the next key is used on 429 / 401 / 403 / 404. Keys of one Groq organization share one daily quota. |
-| `API_KEY` | `backend/.env` | When set, every `/api` request must send it as an `X-API-Key` header or gets 401. Empty (default) = no key, as the demo runs. |
+| `API_KEY` | `backend/.env` | When set, every `/api` request must send it as an `X-API-Key` header or gets 401. Empty (default) = no key, as the demo runs. The frontend does not send this header yet, so the UI stops working when it is set. |
 | `CORS_ORIGINS` | `backend/.env` | Origins allowed to call the API: `*` (default) or a comma-separated list. |
 | `ADAPTIVE_DB_PATH` | `backend/.env` | SQLite database for recognizers, learned mappings, rejected lines and the AI judge cache. Default `backend/data/adaptive.db`. |
+| `DATABASE_URL` | `backend/.env` | Postgres (e.g. a Supabase Session pooler URI) instead of the SQLite file, for hosts whose disk is wiped on restart. Empty (default) = SQLite. Tests always use SQLite. |
 | `AI_JUDGE_MAX_CALLS_PER_SCAN` | `backend/.env` | AI judge requests per scan (default 2; cache hits are free). |
 | `VENDOR_PARSE_COVERAGE_THRESHOLD` | `backend/.env` | Share of lines that must follow the detected vendor's grammar (default 0.7). |
 | `ADAPTIVE_AI_FOR_KNOWN_VENDORS` | `backend/.env` | Legacy, default `false`: send lines the Cisco / FortiGate parsers do not read to the line interpreter; results only reach the review queue. |
@@ -135,10 +155,10 @@ Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `fr
 
 ```bash
 cd backend
-venv\Scripts\python -m pytest tests -q     # 1020 passed, 2 skipped (live AI, needs NETAUDIT_LIVE_AI=1)
+venv\Scripts\python -m pytest tests -q     # 1123 passed, 2 skipped (live AI, needs NETAUDIT_LIVE_AI=1)
 
 cd frontend
-npm test                                    # 81 passed
+npm test                                    # 82 passed
 npm run build
 ```
 
@@ -146,11 +166,14 @@ Every AI call is mocked and every test gets its own SQLite database. See [docs/t
 
 ## Persistence
 
+The three knowledge tables live in SQLite (`ADAPTIVE_DB_PATH`) by default, or in Postgres when `DATABASE_URL` is
+set. Same schema and SQL on both; Postgres connections are pooled and reads are cached per process.
+
 | Data | Where | Survives restart |
 |---|---|---|
-| Confirmed recognizers and learned mappings | SQLite `learned_mappings` | Yes -reused by every later scan and process |
-| Lines an administrator rejected | SQLite `rejected_lines`, stored redacted | Yes |
-| Verified AI judge answers | SQLite `ai_judge_cache` (answers to redacted prompts) | Yes |
+| Confirmed recognizers and learned mappings | `learned_mappings` | Yes -reused by every later scan and process |
+| Lines an administrator rejected | `rejected_lines`, stored redacted | Yes |
+| Verified AI judge answers | `ai_judge_cache` (answers to redacted prompts) | Yes |
 | Scan results, uploaded configurations | Backend memory | No |
 | Scan history in the UI | Browser `localStorage`: summaries only (no findings, evidence or config lines) | Browser only; reopening needs the backend to still hold the scan |
 
@@ -158,11 +181,11 @@ A line holding a secret (password, key, community string) is never stored as a m
 
 ## Known limitations
 
-- Prototype, not a production security tool. No authentication on any endpoint; CORS is open.
+- Prototype, not a production security tool. Access control is one optional shared `API_KEY`: no users, no roles. With the defaults the API is open and CORS allows every origin.
 - Parsers cover common Cisco IOS and FortiGate syntax; the IOS grammar is a curated root list, so an unusual real IOS config can come out unverified.
 - 15 controls. Remediation recipes exist only for Cisco IOS and FortiGate; weak stored passwords, AAA without a strong local account and any-to-any rules always need a human.
 - Unknown vendors rely on lexicon heuristics and confirmed recognizers; heuristics can misread a dialect until an administrator confirms or rejects the line.
-- Shipped seed knowledge covers five dialects and 25 recognizers against 14 teachable settings, so it answers only part of each dialect. Everything it does not cover still has to be taught, and a dialect with no seeds behaves exactly as before.
+- Shipped seed knowledge covers eight dialects and 61 recognizers against 14 teachable settings, so it answers only part of each dialect. Everything it does not cover still has to be taught, and a dialect with no seeds behaves exactly as before.
 - Redaction is pattern-based: a secret behind an unlisted keyword could still reach the AI.
 - The AI judge escalates only unknown / unverified vendors; UNKNOWN controls of confirmed vendors are not sent to AI.
 - Scan results live in memory; recognizer replay only checks scans held by the running backend. A candidate remediation lives in its scan only and is never persisted as knowledge.

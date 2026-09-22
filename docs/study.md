@@ -49,7 +49,7 @@ discarded and never reaches the review queue. AI cannot infer a PASS from someth
 Redaction is pattern-based, which we state as a limitation.
 
 **Does it learn automatically?** Only through confirmed recognizers: an administrator confirms a line, the recognizer
-is validated, replayed, stored in SQLite and reused after restarts. No model is trained.
+is validated, replayed, stored (SQLite, or Postgres) and reused after restarts. No model is trained.
 
 **Can a fix break the device?** Fixes are fixed templates, not AI output, and apply only to decisive findings on
 confirmed vendors. Each is rescanned: vendor still confirmed, parse coverage not reduced, control passing, nothing
