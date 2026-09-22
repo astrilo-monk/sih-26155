@@ -36,7 +36,7 @@ function Scanning({ files }) {
         ))}
       </ol>
       <p className="small muted">
-        The scan runs in a single request and reports no progress, so no percentage is shown — these are the
+        The scan runs in a single request and reports no progress, so no percentage is shown -these are the
         stages it performs. Elapsed <span className="mono tnum">{seconds}s</span>.
       </p>
     </section>
@@ -57,8 +57,8 @@ export default function Upload({ onScan, scanning, error, currentScan }) {
   const tooLarge = files.some((f) => f.size > MAX_BYTES);
   const empty = files.some((f) => f.size === 0);
   const hint = !files.length ? 'Select at least one configuration.'
-    : tooLarge ? 'Remove files over 2 MB — the backend refuses them.'
-      : empty ? 'Remove empty files — there is nothing to scan in them.'
+    : tooLarge ? 'Remove files over 2 MB -the backend refuses them.'
+      : empty ? 'Remove empty files -there is nothing to scan in them.'
         : `${files.length} configuration${files.length > 1 ? 's' : ''} will be scanned together.`;
 
   return (
@@ -69,11 +69,11 @@ export default function Upload({ onScan, scanning, error, currentScan }) {
         <p className="lede">NetAuditAI checks it against every security control and shows you the configuration line behind each result.</p>
       </header>
 
-      <ol className="steps-inline" aria-label="How a scan works">
-        <li className="is-current"><span className="mono">01</span> Upload</li>
-        <li><span className="mono">02</span> Scan</li>
-        <li><span className="mono">03</span> Understand</li>
-        <li><span className="mono">04</span> Fix</li>
+      {/* the same three steps the guided path shows, so the wording never changes under the user */}
+      <ol className="steps-inline" aria-label="How this works">
+        <li className="is-current"><span className="mono">01</span> Upload your file</li>
+        <li><span className="mono">02</span> Answer the questions</li>
+        <li><span className="mono">03</span> Download the fixed file</li>
       </ol>
 
       <div className="upload-grid">
@@ -102,7 +102,7 @@ export default function Upload({ onScan, scanning, error, currentScan }) {
             />
             <span className="dz-glyph" aria-hidden="true"><span /><span /><span /></span>
             <span className="dz-title">Drop configuration files here</span>
-            <span className="dz-sub">or <span className="dz-choose">choose files</span> — plain-text exports (.cfg, .conf, .txt), up to 2 MB each</span>
+            <span className="dz-sub">or <span className="dz-choose">choose files</span> -plain-text exports (.cfg, .conf, .txt), up to 2 MB each</span>
           </label>
 
           {files.length > 0 && (
@@ -143,9 +143,9 @@ export default function Upload({ onScan, scanning, error, currentScan }) {
           <h2 className="aside-title" id="upload-aside-title">Before you upload</h2>
           <ul className="aside-list">
             <li><strong>Cisco IOS and FortiGate</strong> configurations are read by dedicated parsers once the vendor is confirmed.</li>
-            <li><strong>Other vendors and unfamiliar dialects</strong> take the generic analysis path. What cannot be established is reported as Unknown or Not configured — never as a pass.</li>
+            <li><strong>Other vendors and unfamiliar dialects</strong> take the generic analysis path. What cannot be established is reported as Unknown or Not configured -never as a pass.</li>
             <li><strong>Secrets</strong> such as passwords and SNMP communities are redacted by the backend before any result reaches this page.</li>
-            <li><strong>This browser keeps only a summary</strong> for History — hostnames, posture, coverage and counts, never configuration lines.</li>
+            <li><strong>This browser keeps only a summary</strong> for History -hostnames, posture, coverage and counts, never configuration lines.</li>
             <li>Examples to try are in the repository’s <span className="mono">sample/</span> folder.</li>
           </ul>
         </aside>

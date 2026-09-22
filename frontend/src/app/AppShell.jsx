@@ -6,6 +6,7 @@ import { navigate } from '../lib/hooks';
 import { useAudit } from '../lib/useAudit';
 import { auditCounts, checkItems, deviceLabels } from '../lib/domain';
 import Upload from './Upload';
+import Guide from './Guide';
 import Results from './Results';
 import Fix from './Fix';
 import Teach from './Teach';
@@ -17,7 +18,7 @@ import Learned from './Learned';
 import FindingDrawer from './FindingDrawer';
 import '../styles/app.css';
 
-export const SCAN_VIEWS = ['overview', 'fix', 'teach', 'checks', 'devices', 'frameworks'];
+export const SCAN_VIEWS = ['guide', 'overview', 'fix', 'teach', 'checks', 'devices', 'frameworks'];
 // Links from earlier versions keep working
 const OLD_VIEWS = { summary: 'overview', findings: 'checks', review: 'teach', remediation: 'fix' };
 
@@ -37,7 +38,7 @@ function ScanUnavailable({ opening, openError }) {
     return (
       <div className="wrap empty-state enter">
         <h1 className="page-title">This scan is no longer available.</h1>
-        <p className="lede">Scan results are kept only until the backend restarts. Nothing from the configuration was kept in this browser — upload it again to scan it.</p>
+        <p className="lede">Scan results are kept only until the backend restarts. Nothing from the configuration was kept in this browser -upload it again to scan it.</p>
         <div className="actions">
           <a className="btn btn-primary" href="#/app">Scan again</a>
           <a className="btn" href="#/app/history">History</a>
@@ -119,7 +120,7 @@ export default function AppShell({ path }) {
       setRevision((r) => r + 1);
       setOpenError(null);
       saveScanToHistory(result);
-      navigate(`/app/scan/${result.scan_id}`);
+      navigate(`/app/scan/${result.scan_id}/guide`);
     } catch (err) {
       setUploadError(err.message);
     } finally {
@@ -148,6 +149,7 @@ export default function AppShell({ path }) {
   const shared = { scan: current, audit, labels, onOpen: (item) => setOpenKey(item.key) };
 
   const SUBNAV = [
+    ['guide', 'Step by step'],
     ['overview', 'Overview'],
     // every problem still open, so the badge cannot contradict the problem count on Results
     ['fix', 'Fix', counts && counts.problems - counts.fixed],
@@ -168,7 +170,7 @@ export default function AppShell({ path }) {
           </a>
           <nav aria-label="Main" className="appnav">
             <a href="#/app" aria-current={here('new')}>Scan</a>
-            {scan && <a href={`#${base}`} aria-current={route.page === 'scan' && route.view !== 'fix' ? 'page' : undefined}>Results</a>}
+            {scan && <a href={`#${base}`} aria-current={route.page === 'scan' && !['fix', 'guide'].includes(route.view) ? 'page' : undefined}>Results</a>}
             {scan && <a href={`#${base}/fix`} aria-current={here('scan', 'fix')}>Fix</a>}
             <a href="#/app/history" aria-current={here('history')}>History</a>
             {/* Global, like History: the knowledge base, not a view of the current scan. Labelled to
@@ -193,6 +195,10 @@ export default function AppShell({ path }) {
         {route.page === 'new' && <Upload onScan={handleScan} scanning={scanning} error={uploadError} currentScan={scan} />}
         {route.page === 'scan' && (current ? (
           <>
+            {route.view === 'guide' && (
+              <Guide scan={current} audit={audit} base={base} onScanUpdated={handleScanUpdated}
+                     onScanExpired={(id) => handleScansExpired([id])} />
+            )}
             {route.view === 'overview' && <Results {...shared} go={go} onTeach={openTeach} />}
             {route.view === 'fix' && <Fix {...shared} onTeach={() => openTeach()} />}
             {route.view === 'teach' && (
