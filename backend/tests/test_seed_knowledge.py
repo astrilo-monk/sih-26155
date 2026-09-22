@@ -387,3 +387,40 @@ def test_teaching_adds_to_the_seed_knowledge_instead_of_replacing_it(seeded_adap
     rescan = _scan(client, DIALECTS / "huawei.conf")
     decisive = {r["control_id"] for r in rescan["results"] if r["assurance"] == "confirmed"}
     assert decisive == SEEDED_CONTROLS | {"MGMT-007"}
+
+
+# ── 12: structured (JSON) configurations ────────────────────────────────────
+
+AWS_SG = json.dumps({"SecurityGroups": [{
+    "GroupId": "sg-0abc1234", "GroupName": "web admin",
+    "IpPermissions": [
+        {"FromPort": 22, "IpProtocol": "tcp", "IpRanges": [{"CidrIp": "0.0.0.0/0"}], "Ipv6Ranges": [], "ToPort": 22},
+        {"IpProtocol": "-1", "IpRanges": [{"CidrIp": "0.0.0.0/0"}]},
+    ],
+    # the default egress rule allows everything out: it is not an inbound any-any rule
+    "IpPermissionsEgress": [{"IpProtocol": "-1", "IpRanges": [{"CidrIp": "0.0.0.0/0"}]}],
+}]}, indent=2)
+
+
+def test_a_cloud_security_group_is_read_once_flattened(seeded_adaptive_db):
+    scan = _scan(TestClient(app), _json_file(AWS_SG))
+    assert _result(scan, "MGMT-003")["status"] == "fail" and _result(scan, "MGMT-003")["assurance"] == "confirmed"
+    boundary = _result(scan, "BOUNDARY-001")
+    assert boundary["status"] == "fail" and boundary["assurance"] == "confirmed"
+    assert boundary["evidence"]["lines"] == ["SecurityGroups IpPermissions IpProtocol -1 CidrIp 0.0.0.0/0"]
+
+
+def test_a_restricted_security_group_passes_and_egress_is_not_a_finding(seeded_adaptive_db):
+    data = json.loads(AWS_SG)
+    data["SecurityGroups"][0]["IpPermissions"][0]["IpRanges"] = [{"CidrIp": "10.0.0.0/24"}]
+    del data["SecurityGroups"][0]["IpPermissions"][1]
+    scan = _scan(TestClient(app), _json_file(json.dumps(data)))
+    assert _result(scan, "MGMT-003")["status"] == "pass"
+    assert _result(scan, "BOUNDARY-001")["status"] != "fail"
+
+
+def _json_file(text: str) -> Path:
+    import tempfile
+    path = Path(tempfile.mkdtemp()) / "sg.json"
+    path.write_text(text, encoding="utf-8")
+    return path

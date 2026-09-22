@@ -198,6 +198,7 @@ A line holding a secret (password, key, community string) is never stored as a m
 
 | Document | Contents |
 |---|---|
+| [docs/architecture-brief.md](docs/architecture-brief.md) | Two-page architecture brief (evaluation deliverable) |
 | [docs/architecture.md](docs/architecture.md) | Pipeline, vendors, facts, controls, scoring, AI, recognizers, persistence, remediation, frameworks |
 | [docs/security-model.md](docs/security-model.md) | Trust boundaries and safety guarantees |
 | [docs/ai-design.md](docs/ai-design.md) | AI judge, remediation candidates, verification, cache, legacy interpreter |

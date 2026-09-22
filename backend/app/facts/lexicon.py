@@ -20,7 +20,9 @@ MGMT_PROTOCOLS = {
 # Keywords that only switch a block on or off: ``remote-console state enabled``
 STATE_WORDS = frozenset({"state", "status", "admin-state", "admin-status", "service"})
 # Traffic rules mention protocols without configuring management
-RULE_WORDS = frozenset({"permit", "deny", "accept", "action", "rule", "rules", "rulebase", "access-list", "acl"})
+RULE_WORDS = frozenset({"permit", "deny", "accept", "action", "rule", "rules", "rulebase", "access-list", "acl",
+                        # cloud security groups / NSGs, as flattened JSON (app.structure.structured)
+                        "ippermissions", "securityrules"})
 
 SOURCE_RESTRICTION = frozenset({
     "source-restriction", "allowed-source", "allowed-sources", "allowed-hosts", "trusted-host", "trusthost",
@@ -82,6 +84,8 @@ SOURCE_RELATED = SOURCE_RESTRICTION | RESTRICTED | frozenset({
     "allow", "allow-address", "source-address", "src-address", "trusthost1", "access-group",
     # EXOS binds a service to an ACL: ``configure ssh2 access-profile MGMT-SSH``
     "access-profile",
+    # a cloud rule names its source prefix: AWS ``CidrIp``, Azure ``sourceAddressPrefix``, GCP ``sourceRanges``
+    "cidrip", "cidripv6", "sourceaddressprefix", "sourceranges",
 })
 IDLE_RELATED = IDLE | TIMEOUT_KEYWORDS | frozenset({
     "timeout", "lock", "autolock", "logout", "autologout", "inactive",

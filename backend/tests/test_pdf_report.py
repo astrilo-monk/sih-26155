@@ -124,8 +124,16 @@ def test_no_secret_of_the_configuration_reaches_the_report(client):
 
 def test_serial_numbers_and_hardware_are_not_invented(client):
     body = text_of(client, upload(client, "cisco.cfg", CISCO_WITH_SECRETS))
-    assert "Serial number and chassis details are not part of a device configuration" in body
+    assert "not stated in the uploaded file" in body and "show inventory" in body
     assert "EDGE-TEST-01" in body
+
+
+def test_serial_and_model_stated_in_show_output_are_reported(client):
+    show = ("cisco ISR4331/K9 (1RU) processor with 1795999K/6147K bytes of memory.\n"
+            "Processor board ID FDO21520TGH\n")
+    body = text_of(client, upload(client, "cisco.cfg", show + CISCO_WITH_SECRETS))
+    assert "FDO21520TGH" in body and "ISR4331/K9" in body
+    assert "not stated in the uploaded file" not in body
 
 
 def test_findings_state_how_each_result_was_established(client):

@@ -10,8 +10,8 @@ says can be asserted without parsing PDF streams. ``render_pdf`` only lays that 
 Nothing is evaluated, scored or remediated here: the report states what the scan already decided.
 Its two rules are the product's own:
 
-* it never reports something the configuration does not state -a configuration file carries no
-  serial number or chassis details, and the report says so rather than inventing one;
+* it never reports something the configuration does not state -a serial number or model is printed only
+  when the uploaded text states it (``show version`` / ``show inventory`` output), never inferred;
 * it never prints a secret. Every string it receives has already been redacted by the API layer
   (``config_redactor`` / ``display_scrub``), and ``tests/test_pdf_report.py`` re-checks the
   rendered document against the secrets of the configuration it was built from.
@@ -97,13 +97,16 @@ def identification_block(scan, index: int) -> list[Block]:
         ["OS / firmware version", device.get("os_version") if device.get("os_version") not in (None, "", "unknown")
          else "not stated in the configuration"],
         ["Hardware model", device.get("model") or "not stated in the configuration"],
+        ["Serial number", device.get("serial") or "not stated in the uploaded file"],
     ]
     if identification is not None and identification.parse_coverage is not None:
         rows.append(["Parse coverage", f"{round(identification.parse_coverage * 100)}% of lines read by the parser "
                                        f"({identification.uncovered_lines} outside its grammar)"])
     blocks: list[Block] = [("h2", "1. Device identification"), ("table", (["Item", "Value"], rows))]
-    blocks.append(("note", "Serial number and chassis details are not part of a device configuration "
-                           "file and are not reported here. NetAuditAI states only what the uploaded file states."))
+    if not device.get("serial"):
+        blocks.append(("note", "A configuration file rarely carries the serial number: upload it together with "
+                               "'show version' or 'show inventory' output to have it reported. NetAuditAI states only "
+                               "what the uploaded file states."))
     return blocks
 
 

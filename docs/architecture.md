@@ -395,8 +395,9 @@ evaluated, scored or remediated in this layer.
 
 Two rules follow the rest of the product:
 
-* it reports only what the configuration states. A configuration file carries no serial number or hardware
-  inventory, so the report says so instead of inventing one;
+* it reports only what the uploaded file states. A serial number, hardware model or OS version is printed when
+  the text states it (`show version` / `show inventory` output, PAN-OS `show system info`, an XML export -read by
+  `stated_identity`), and the report says it is not stated otherwise, never inventing one;
 * provisional readings are labelled provisional and never presented as compliance, and no vendor command appears
   for a vendor that was not confirmed.
 

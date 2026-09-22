@@ -46,7 +46,8 @@ from app.config import settings
 from app.adaptive import capture_unrecognized_lines
 from app.adaptive.context import structural_paths
 from app.ai.redaction import Redactor, placeholder
-from app.facts.heuristics import generic_hostname
+from app.facts.heuristics import generic_hostname, stated_identity
+from app.structure.structured import flatten_json
 from app.adaptive.interpreter import interpret_lines
 from app.adaptive.mapper import REVIEWABLE_SOURCES, determine_tier
 from app.adaptive.relevance import is_security_relevant
@@ -341,6 +342,9 @@ def _process_unknown_vendor(raw_config: str, filename: str) -> NormalizedConfig:
     Creates a minimal NormalizedConfig preserving the raw config and runs
     Phase 1 candidate capture. Enrichment happens in ``AdaptiveService``.
     """
+    # a JSON export (cloud security group, NSG, config_db) becomes one statement per object
+    if (flat := flatten_json(raw_config)) is not None:
+        raw_config = "\n".join(flat)
     raw_lines = raw_config.splitlines()
 
     normalized = NormalizedConfig(
@@ -521,6 +525,11 @@ async def scan_configs(files: list[UploadFile] = File(...)):
             # LEGACY, off by default: interpretations only reach the review queue (never applied without an admin)
             use_ai = app_config.settings.adaptive_ai_for_known_vendors
             outcome = service.process(normalized, use_ai=use_ai, report_unresolved=use_ai)
+
+        # serial / model / version, where the uploaded text states them and no parser already read them
+        for item, value in stated_identity(normalized.raw_lines).items():
+            if not getattr(normalized.device, item):
+                setattr(normalized.device, item, value)
 
         run = None
         if not identification.confirmed or outcome.records:

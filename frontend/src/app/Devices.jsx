@@ -57,6 +57,9 @@ export default function Devices({ scan, audit }) {
                 <dt>Read by</dt>
                 <dd>{vs.key === 'confirmed' ? 'A dedicated parser' : 'Generic analysis (no dedicated parser)'}
                   {vs.key === 'confirmed' && ident?.parse_coverage != null && ` · ${Math.round(ident.parse_coverage * 100)}% of lines understood`}</dd>
+                {device.model && <><dt>Hardware model</dt><dd className="mono">{device.model}</dd></>}
+                {device.serial && <><dt>Serial number</dt><dd className="mono">{device.serial}</dd></>}
+                {device.os_version && device.os_version !== 'unknown' && <><dt>OS / firmware</dt><dd className="mono">{device.os_version}</dd></>}
                 <dt>Checks decided</dt><dd>{decided} of {own.length}</dd>
                 <dt>Problems</dt><dd>{own.filter(isProblem).length}</dd>
                 <dt>AI help</dt>

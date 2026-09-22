@@ -251,6 +251,7 @@ class DeviceInfo:
     vendor: Vendor = Vendor.UNKNOWN
     os_version: Optional[str] = None
     model: Optional[str] = None  # hardware platform, only when the configuration states it
+    serial: Optional[str] = None  # only when the uploaded text states it (show version / inventory output)
     source_lines: list[int] = field(default_factory=list)
 
 

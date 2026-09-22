@@ -62,8 +62,8 @@ SLOT_PATTERNS = {
     "duration": r"\d+(?:\.\d+)?[A-Za-z]*",
     # an address, or a hostname / FQDN; ``recognizer_value`` decides whether the text is usable
     "host": r"[A-Za-z0-9][\w.:-]*(?:/\d{1,3})?",
-    # a storage type may be a number (``secret 0``), so a value may start with a digit
-    "enum": r"[A-Za-z0-9][\w.+-]*",
+    # a storage type may be a number (``secret 0``), a source may be a prefix (``CidrIp 0.0.0.0/0``, ``::/0``)
+    "enum": r"[A-Za-z0-9:][\w.+/:-]*",
     "polarity": r"(?:enabled?|disabled?|on|off|true|false|yes|no)",
 }
 _SLOT = re.compile(r"^\{(int|ip|host|duration|enum|polarity|neg)(?::([A-Za-z][\w-]*))?\}$")

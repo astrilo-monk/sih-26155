@@ -50,6 +50,7 @@ def analyze(config: NormalizedConfig) -> ScanResult:
             "vendor": config.device.vendor.value,
             "os_version": config.device.os_version or "unknown",
             "model": config.device.model,
+            "serial": config.device.serial,
             "assessed": assessed,
         }],
         device_results=[results],

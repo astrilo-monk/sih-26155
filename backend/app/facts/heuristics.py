@@ -67,6 +67,42 @@ def generic_hostname(raw_lines: list[str]) -> Optional[str]:
     return names.pop() if len(names) == 1 else None
 
 
+# What a file can state about the hardware: a configuration rarely does, but ``show version`` /
+# ``show inventory`` output, PAN-OS ``show system info`` and XML exports pasted with it do.
+_IDENTITY = {
+    "serial": [re.compile(p, re.IGNORECASE) for p in (
+        r"\b(?:system\s+|chassis\s+|device\s+)?serial(?:[\s_-]*(?:number|num|no\.?))?\s*[:=]\s*\"?([A-Z0-9][A-Z0-9-]{3,})",
+        r"\bserial-number\s+\"?([A-Z0-9][A-Z0-9-]{3,})",
+        r"\bprocessor board id\s+([A-Z0-9]{6,})",
+        r"\bSN\s*:\s*([A-Z0-9][A-Z0-9-]{3,})",
+        r"<serial>\s*([^<\s]+)\s*</serial>",
+    )],
+    "model": [re.compile(p, re.IGNORECASE) for p in (
+        r"\b(?:hardware\s+)?model(?:[\s_-]*(?:number|name))?\s*[:=]\s*\"?([A-Z0-9][\w./+-]{2,})",
+        r"<model>\s*([^<\s]+)\s*</model>",
+        r"\bPID\s*:\s*([A-Z0-9][\w./+-]{2,})",
+        r"^\s*cisco\s+(\S+)\s+\(.*\)\s+processor",
+    )],
+    # a version is only one the line says is the software's, and it starts with a digit (never ``ssh version 2``)
+    "os_version": [re.compile(p, re.IGNORECASE) for p in (
+        r"^\s*(?:#+\s*)?(?:junos|sw-version|software\s+version|os\s+version|firmware(?:\s+version)?)\s*[:=]\s*"
+        r"([0-9][\w.()-]*)",
+        r"^\s*version\s+([0-9][\w.()-]*);?\s*$",
+    )],
+}
+
+
+def stated_identity(raw_lines: list[str]) -> dict[str, str]:
+    """Serial number, hardware model and OS version, where the file states them; the first statement wins
+    (``show inventory`` lists the chassis first). Nothing is inferred: a missing item stays missing."""
+    found: dict[str, str] = {}
+    for line in raw_lines:
+        for item, patterns in _IDENTITY.items():
+            if item not in found and (m := next((p.search(line) for p in patterns if p.search(line)), None)):
+                found[item] = m.group(1).strip("\"';")
+    return found
+
+
 def heuristic_candidates(raw_lines: list[str], skip: frozenset[int] = frozenset()) -> list["_Candidate"]:
     statements = tokenize(raw_lines)
     candidates = [c for extract in _EXTRACTORS for c in extract(statements)]

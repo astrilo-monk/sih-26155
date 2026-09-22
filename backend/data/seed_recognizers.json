@@ -9,6 +9,38 @@
   ],
   "recognizers": [
     {
+      "concept": "Permissive any-any rule",
+      "vendor": "AWS security group (JSON)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "SecurityGroups IpPermissions IpProtocol -1 CidrIp {enum:source}",
+      "constant_value": "{\"0.0.0.0/0\": true}",
+      "example_line": "SecurityGroups IpPermissions IpProtocol -1 CidrIp 0.0.0.0/0"
+    },
+    {
+      "concept": "Management access source restriction (SSH)",
+      "vendor": "AWS security group (JSON)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "SecurityGroups IpPermissions FromPort 22 IpProtocol tcp CidrIp {enum:source} ToPort 22",
+      "constant_value": "{\"0.0.0.0/0\": false, \"*\": true}",
+      "example_line": "SecurityGroups IpPermissions FromPort 22 IpProtocol tcp CidrIp 0.0.0.0/0 ToPort 22"
+    },
+    {
+      "concept": "Management access source restriction (Telnet)",
+      "vendor": "AWS security group (JSON)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "SecurityGroups IpPermissions FromPort 23 IpProtocol tcp CidrIp {enum:source} ToPort 23",
+      "constant_value": "{\"0.0.0.0/0\": false, \"*\": true}",
+      "example_line": "SecurityGroups IpPermissions FromPort 23 IpProtocol tcp CidrIp 0.0.0.0/0 ToPort 23"
+    },
+    {
+      "concept": "Management access source restriction (RDP)",
+      "vendor": "AWS security group (JSON)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "SecurityGroups IpPermissions FromPort 3389 IpProtocol tcp CidrIp {enum:source} ToPort 3389",
+      "constant_value": "{\"0.0.0.0/0\": false, \"*\": true}",
+      "example_line": "SecurityGroups IpPermissions FromPort 3389 IpProtocol tcp CidrIp 0.0.0.0/0 ToPort 3389"
+    },
+    {
       "concept": "Local-only login authentication",
       "vendor": "Arista EOS",
       "predicate": "auth.central_aaa.enabled",

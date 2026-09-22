@@ -10,7 +10,9 @@ The implementation record is [plan.md](../plan.md). Summary:
 - [x] Security facts with assurance; every control runs on every configuration
 - [x] Generic tokenizer and lexicon heuristics for unknown vendors (provisional, no AI needed)
 - [x] Administrator-confirmed recognizers persisted (SQLite, or Postgres via `DATABASE_URL`) and reused across restarts
-- [x] Shipped seed knowledge: 61 generalized recognizers for eight unparsed dialects
+- [x] Shipped seed knowledge: 96 generalized recognizers for eight unparsed dialects and AWS security groups
+- [x] Structured (JSON) configurations flattened to one statement per object, so cloud rules are read and teachable
+- [x] Serial number / model / OS version reported when the uploaded text states them
 - [x] AI judge: budgeted, cached, citations verified, proposals never scored
 - [x] Deterministic, vendor-aware remediation verified by rescan
 - [x] Candidate remediation for unconfirmed vendors (typed, AI-proposed or derived), simulated on a copy
