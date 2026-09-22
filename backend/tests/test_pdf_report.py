@@ -193,3 +193,38 @@ def test_a_file_without_configuration_is_reported_unreadable_and_unscored(client
     body = text_of(client, upload(client, "notes.txt", PROSE))
     assert "does not contain enough recognizable configuration to assess" in body
     assert "not assessed -no control could be decided from validated evidence" in body
+
+
+# ── the framework chosen at upload ───────────────────────────────────────────
+
+def _upload_for(client, framework=None) -> dict:
+    data = {"framework": framework} if framework else {}
+    response = client.post("/api/scan", data=data,
+                           files={"files": ("cisco.cfg", io.BytesIO(CISCO_WITH_SECRETS.encode()), "text/plain")})
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_without_a_choice_every_framework_is_reported(client):
+    scan = _upload_for(client)
+    assert scan["framework"] is None
+    assert {v["framework"] for v in scan["frameworks"]} == {"NIST_800_53", "CIS", "DISA_STIG", "ISO_27001"}
+
+
+def test_a_chosen_framework_limits_results_and_report_but_not_the_checks(client):
+    everything = _upload_for(client)
+    scan = _upload_for(client, "ISO_27001")
+    assert scan["framework"] == "ISO_27001"
+    assert {v["framework"] for v in scan["frameworks"]} == {"ISO_27001"}
+    assert {c["framework"] for f in scan["findings"] for c in f["compliance"]} == {"ISO_27001"}
+    # every control still ran: the choice limits the mapping, never the audit
+    assert [(r["control_id"], r["status"]) for r in scan["results"]] == \
+           [(r["control_id"], r["status"]) for r in everything["results"]]
+    body = text_of(client, scan["scan_id"])
+    assert "Assessed against ISO/IEC 27001 only" in body and "NIST SP 800-53 -" not in body
+
+
+def test_an_unknown_framework_is_refused(client):
+    response = client.post("/api/scan", data={"framework": "PCI_DSS"},
+                           files={"files": ("cisco.cfg", io.BytesIO(CISCO_WITH_SECRETS.encode()), "text/plain")})
+    assert response.status_code == 422

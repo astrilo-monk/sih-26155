@@ -111,11 +111,11 @@ export default function AppShell({ path }) {
   // A drawer belongs to the page it was opened on
   useEffect(() => { setOpenKey(null); }, [path]);
 
-  const handleScan = async (files) => {
+  const handleScan = async (files, framework = null) => {
     setScanning(true);
     setUploadError(null);
     try {
-      const result = await apiClient.scanConfigs(files);
+      const result = await apiClient.scanConfigs(files, framework);
       setScan(result);
       setRevision((r) => r + 1);
       setOpenError(null);

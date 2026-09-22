@@ -17,7 +17,8 @@ The implementation record is [plan.md](../plan.md). Summary:
 - [x] AI judge: budgeted, cached, citations verified, proposals never scored
 - [x] Deterministic, vendor-aware remediation verified by rescan
 - [x] Candidate remediation for unconfirmed vendors (typed, AI-proposed or derived), simulated on a copy
-- [x] Framework views: NIST SP 800-53 Rev. 5, CIS (confirmed vendors), DISA NDM SRG, ISO/IEC 27001:2022 Annex A
+- [x] Framework views: NIST SP 800-53 Rev. 5, CIS (confirmed vendors), DISA NDM SRG, ISO/IEC 27001:2022 Annex A,
+      one of them selectable at upload (default: all)
 - [x] Per-device PDF compliance report
 - [x] Sidebar UI (New scan, Overview, Devices, Findings, Remediation, Adaptive learning, Frameworks, History) with
       AI *Explain this* in the finding drawer

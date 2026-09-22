@@ -18,12 +18,12 @@ import uuid
 from datetime import datetime
 from functools import partial
 from typing import Optional
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.parsers.detector import STATUS_UNVERIFIED, VendorIdentification, identify_vendor
 from app.analysis.engine import analyze, analyze_multiple, evaluate_controls
 from app.analysis.scoring import calculate_posture, control_outcomes
 from app.facts.from_normalized import facts_from_config
-from app.controls.catalog import CONTROLS
+from app.controls.catalog import CIS, CONTROLS, ISO, NIST, STIG
 from app.controls.frameworks import framework_views
 from app.models.results import ControlResult, Status
 from app.models.normalized import Vendor, NormalizedConfig, DeviceInfo, AIFieldMapping
@@ -65,6 +65,8 @@ logger = logging.getLogger(__name__)
 # each is archived in the database (app.db.scans), so history survives a restart.
 # ponytail: the archive is never pruned; add a retention limit if it grows past what the database should hold.
 _scan_store: dict[str, dict] = {}
+# Frameworks a scan can be limited to at upload; none chosen means all of them
+FRAMEWORKS = (NIST, CIS, STIG, ISO)
 
 def config_redactor(configs) -> Redactor:
     """A redactor that knows every secret value in the scanned configs.
@@ -110,7 +112,7 @@ def redact_config_text(redactor: Redactor, text: Optional[str]) -> Optional[str]
                      for line, path in zip(lines, structural_paths(lines)))
 
 
-def _finding_to_schema(f, redactor: Redactor) -> FindingSchema:
+def _finding_to_schema(f, redactor: Redactor, framework: Optional[str] = None) -> FindingSchema:
     scrub = partial(display_scrub, redactor)
     return FindingSchema(
         rule_id=f.rule_id,
@@ -130,7 +132,7 @@ def _finding_to_schema(f, redactor: Redactor) -> FindingSchema:
                 control_id=c.control_id,
                 description=c.description,
                 version=c.version,
-            ) for c in f.compliance
+            ) for c in f.compliance if framework in (None, c.framework)
         ],
         ai_explanation=scrub(f.ai_explanation),
         category=f.category,
@@ -430,7 +432,8 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
     results_schema = [
         _result_to_schema(r, idx, redactors[idx]) for idx, results in enumerate(device_results) for r in results
     ]
-    views = framework_views(device_results)
+    selected = entry.get("framework")
+    views = [v for v in framework_views(device_results) if selected in (None, v["framework"])]
     for view in views:
         for requirement in view["requirements"]:
             for control in requirement["controls"]:
@@ -450,6 +453,7 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
         posture_bounds=list(posture.bounds) if posture.bounds else None,
         critical_unassessed=posture.critical_unassessed,
         frameworks=[FrameworkViewSchema(**view) for view in views],
+        framework=selected,
         unreadable_configs=[idx for idx, cfg in enumerate(configs) if not is_configuration(cfg)],
         assessed_count=sum(1 for o in outcomes.values() if o in ("pass", "fail")),
         unresolved_count=sum(1 for o in outcomes.values() if o == "undecided"),
@@ -479,7 +483,7 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
         medium=result.medium_count,
         low=result.low_count,
         devices=result.devices,
-        findings=[_finding_to_schema(f, redactors[f.config_index]) for f in result.findings],
+        findings=[_finding_to_schema(f, redactors[f.config_index], selected) for f in result.findings],
         adaptive=adaptive,
         adaptive_configs=infos,
         vendor_identification=identification_schemas,
@@ -489,7 +493,7 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
 
 
 @router.post("/scan", response_model=ScanResultResponse)
-async def scan_configs(files: list[UploadFile] = File(...)):
+async def scan_configs(files: list[UploadFile] = File(...), framework: Optional[str] = Form(None)):
     """
     Upload one or more config files for security analysis.
     Returns findings, score, and device info.
@@ -507,6 +511,10 @@ async def scan_configs(files: list[UploadFile] = File(...)):
     """
     if not files:
         raise HTTPException(400, "No files uploaded")
+    # the benchmark the user chose at upload; controls always run in full, only the reporting is limited
+    framework = framework or None
+    if framework is not None and framework not in FRAMEWORKS:
+        raise HTTPException(422, f"Unknown framework '{framework}': choose one of {', '.join(FRAMEWORKS)}")
 
     service = _new_adaptive_service()
     configs: list[NormalizedConfig] = []
@@ -594,6 +602,7 @@ async def scan_configs(files: list[UploadFile] = File(...)):
         "timestamp": datetime.now().isoformat(),
         # item_id -> {"status": accepted|edited|rejected|learned, "mapping_id": int|None}
         "review_state": {},
+        "framework": framework,
     }
 
     if not (had_unknown_vendor and not had_ai_available and not anything_applied):

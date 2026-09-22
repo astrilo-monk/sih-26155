@@ -65,11 +65,12 @@ async function saveDownload(path, body) {
 }
 
 export const apiClient = {
-  async scanConfigs(files) {
+  async scanConfigs(files, framework = null) {
     const formData = new FormData();
     for (const file of files) {
       formData.append('files', file);
     }
+    if (framework) formData.append('framework', framework);
 
     const response = await fetch(`${API_BASE_URL}/scan`, {
       method: 'POST',

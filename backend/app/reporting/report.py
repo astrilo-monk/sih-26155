@@ -192,6 +192,9 @@ def frameworks_block(scan, index: int) -> list[Block]:
             blocks.append(("table", (["Requirement", "Title", "Result", "Controls"], rows)))
     if len(blocks) == 1:
         blocks.append(("p", "No framework requirement could be reported for this device."))
+    if getattr(scan, "framework", None):
+        blocks.append(("p", f"Assessed against {FRAMEWORK_NAMES.get(scan.framework, scan.framework)} only, as "
+                            "selected when the scan was started."))
     blocks.append(("note", f"Mapped in this build: {', '.join(MAPPED_FRAMEWORKS)}. Not mapped and not claimed: "
                            f"{', '.join(UNMAPPED_FRAMEWORKS)}. A framework view regroups configuration controls; "
                            "it is not a certification and does not cover requirements outside device configuration."))

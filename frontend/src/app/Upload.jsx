@@ -43,8 +43,18 @@ function Scanning({ files }) {
   );
 }
 
+// Optional: the benchmark this scan reports against. Empty = every framework (the default)
+const FRAMEWORK_CHOICES = [
+  ['', 'All frameworks'],
+  ['NIST_800_53', 'NIST SP 800-53'],
+  ['CIS', 'CIS Benchmarks (Cisco IOS and FortiGate)'],
+  ['DISA_STIG', 'DISA STIG'],
+  ['ISO_27001', 'ISO/IEC 27001'],
+];
+
 export default function Upload({ onScan, scanning, error, currentScan }) {
   const [files, setFiles] = useState([]);
+  const [framework, setFramework] = useState('');
   const [drag, setDrag] = useState(false);
 
   const add = (list) => {
@@ -96,14 +106,14 @@ export default function Upload({ onScan, scanning, error, currentScan }) {
               className="visually-hidden"
               type="file"
               multiple
-              accept=".cfg,.conf,.txt"
+              accept=".cfg,.conf,.txt,.rsc,.json"
               onChange={(e) => { add(e.target.files); e.target.value = ''; }}
             />
             <span className="dz-glyph" aria-hidden="true"><span /><span /><span /></span>
             <span className="dz-title">Upload network configuration</span>
-            <span className="dz-sub">Drag &amp; drop a .cfg, .conf or .txt file here</span>
+            <span className="dz-sub">Drag &amp; drop a .cfg, .conf, .txt, .rsc or .json file here</span>
             <span className="btn btn-accent dz-choose">Choose file</span>
-            <span className="small muted">Plain-text exports, up to 2 MB each. Several files can be scanned together.</span>
+            <span className="small muted">CLI exports or JSON (cloud security groups), up to 2 MB each. Several files can be scanned together.</span>
           </label>
 
           {files.length > 0 && (
@@ -128,9 +138,17 @@ export default function Upload({ onScan, scanning, error, currentScan }) {
             </div>
           )}
 
+          <label className="field">
+            <span className="field-label">Framework</span>
+            <select className="select" value={framework} onChange={(e) => setFramework(e.target.value)}>
+              {FRAMEWORK_CHOICES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+            <span className="field-help">Optional. Every check still runs; results and the PDF report are mapped to this framework only.</span>
+          </label>
+
           <div className="upload-actions">
             <button type="button" className="btn btn-accent btn-lg" disabled={!files.length || tooLarge || empty}
-                    onClick={() => onScan(files)}>
+                    onClick={() => onScan(files, framework || null)}>
               Start scan
             </button>
             <span className="small muted">{hint}</span>

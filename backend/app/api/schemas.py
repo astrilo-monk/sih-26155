@@ -219,6 +219,8 @@ class ScanResultResponse(BaseModel):
     timestamp: str
     # Restored from the scan archive after a restart: viewable and reportable, not teachable or fixable
     archived: bool = False
+    # The framework chosen at upload (NIST_800_53 | CIS | DISA_STIG | ISO_27001); None = every framework
+    framework: Optional[str] = None
     # DEPRECATED (Phase 3): legacy 100 - penalties score; use posture + coverage
     score: Optional[int] = None
     # Weighted PASS / (PASS + FAIL) over decisive results; None when nothing was decided

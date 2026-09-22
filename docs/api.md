@@ -18,7 +18,10 @@ Returns a simple status payload confirming the backend is running.
 
 ### `POST /api/scan`
 Upload one or more raw configuration files for analysis.
-* **Request:** `multipart/form-data` with one or more `files` fields (UTF-8 text, max 2 MB each).
+* **Request:** `multipart/form-data` with one or more `files` fields (UTF-8 text or JSON, max 2 MB each), and an
+  optional `framework` field (`NIST_800_53` | `CIS` | `DISA_STIG` | `ISO_27001`). Every control runs either way;
+  the choice limits the framework views, the findings' compliance mapping and the PDF report to one benchmark.
+  An unknown name is refused with 422.
 * **Response:** `ScanResultResponse`:
   * `scan_id`, `timestamp`, `devices[]` in upload order (hostname, vendor -`unknown` unless confirmed, `os_version`
     from Cisco `version` or the FortiGate `#config-version=` header, `model` from that FortiGate header only; `unknown`
@@ -26,6 +29,7 @@ Upload one or more raw configuration files for analysis.
     configuration no parser reads, the hostname is the one a single statement states (`hostname X`, `system-name X`,
     `set … hostname X`); `unknown` when absent or conflicting. Hostnames can repeat: a device is identified by its
     position, `config_index`.
+  * `framework`: the benchmark chosen at upload, `null` when every framework is reported
   * `vendor_identification[]`: `detected_vendor`, `status` (`confirmed` / `unverified` / `unknown`), `parse_coverage`, `uncovered_lines`, `reason`
   * `results[]`: every control for every config -`status`, `assurance`, `proposed_status` (AI verdict awaiting confirmation), `scope`, `reason`, `evidence`
   * `findings[]`: FAIL results with their `config_index` (`assurance` heuristic = suspected, not scored) and severity counts
