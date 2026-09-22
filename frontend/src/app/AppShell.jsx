@@ -6,7 +6,6 @@ import { navigate } from '../lib/hooks';
 import { useAudit } from '../lib/useAudit';
 import { auditCounts, checkItems, deviceLabels } from '../lib/domain';
 import Upload from './Upload';
-import Guide from './Guide';
 import Results from './Results';
 import Fix from './Fix';
 import Teach from './Teach';
@@ -19,7 +18,7 @@ import FindingDrawer from './FindingDrawer';
 import LearningFlow from './LearningFlow';
 import '../styles/app.css';
 
-export const SCAN_VIEWS = ['guide', 'overview', 'fix', 'teach', 'checks', 'devices', 'frameworks'];
+export const SCAN_VIEWS = ['overview', 'fix', 'teach', 'checks', 'devices', 'frameworks'];
 // Links from earlier versions keep working
 const OLD_VIEWS = { summary: 'overview', findings: 'checks', review: 'teach', remediation: 'fix' };
 
@@ -155,7 +154,6 @@ export default function AppShell({ path }) {
   const NAV = [
     ['New scan', '#/app', here('new')],
     ['Overview', scanHref('overview'), here('scan', 'overview')],
-    ['Step by step', scanHref('guide'), here('scan', 'guide')],
     ['Devices', scanHref('devices'), here('scan', 'devices')],
     ['Findings', scanHref('checks'), here('scan', 'checks')],
     // every problem still open, so the badge cannot contradict the problem count on Results
@@ -203,10 +201,6 @@ export default function AppShell({ path }) {
         {route.page === 'new' && <Upload onScan={handleScan} scanning={scanning} error={uploadError} currentScan={scan} />}
         {route.page === 'scan' && (current ? (
           <>
-            {route.view === 'guide' && (
-              <Guide scan={current} audit={audit} base={base} onScanUpdated={handleScanUpdated}
-                     onScanExpired={(id) => handleScansExpired([id])} />
-            )}
             {route.view === 'overview' && <Results {...shared} go={go} onTeach={openTeach} />}
             {route.view === 'fix' && <Fix {...shared} onTeach={() => openTeach()} />}
             {route.view === 'teach' && <LearningFlow scanHref={scanHref('teach')} here="teach" />}

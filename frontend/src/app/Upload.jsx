@@ -68,7 +68,7 @@ export default function Upload({ onScan, scanning, error, currentScan }) {
         <p className="lede">Upload a network configuration to begin an audit.</p>
       </header>
 
-      {/* the same three steps the guided path shows, so the wording never changes under the user */}
+      {/* the three steps of an audit */}
       <ol className="steps-inline" aria-label="How this works">
         <li className="is-current"><span className="mono">01</span> Upload your file</li>
         <li><span className="mono">02</span> Answer the questions</li>
