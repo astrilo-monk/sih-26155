@@ -16,6 +16,7 @@ import Frameworks from './Frameworks';
 import History from './History';
 import Learned from './Learned';
 import FindingDrawer from './FindingDrawer';
+import LearningFlow from './LearningFlow';
 import '../styles/app.css';
 
 export const SCAN_VIEWS = ['guide', 'overview', 'fix', 'teach', 'checks', 'devices', 'frameworks'];
@@ -120,7 +121,7 @@ export default function AppShell({ path }) {
       setRevision((r) => r + 1);
       setOpenError(null);
       saveScanToHistory(result);
-      navigate(`/app/scan/${result.scan_id}/guide`);
+      navigate(`/app/scan/${result.scan_id}`);
     } catch (err) {
       setUploadError(err.message);
     } finally {
@@ -148,48 +149,55 @@ export default function AppShell({ path }) {
   const closeDrawer = useCallback(() => setOpenKey(null), []);
   const shared = { scan: current, audit, labels, onOpen: (item) => setOpenKey(item.key) };
 
-  const SUBNAV = [
-    ['guide', 'Step by step'],
-    ['overview', 'Overview'],
+  const scanHref = (view) => (scan ? `#${view === 'overview' ? base : `${base}/${view}`}` : null);
+  // Adaptive learning is this scan's questions when a scan is open, otherwise what has been learned so far
+  const learning = route.page === 'learned' || here('scan', 'teach');
+  const NAV = [
+    ['New scan', '#/app', here('new')],
+    ['Overview', scanHref('overview'), here('scan', 'overview')],
+    ['Step by step', scanHref('guide'), here('scan', 'guide')],
+    ['Devices', scanHref('devices'), here('scan', 'devices')],
+    ['Findings', scanHref('checks'), here('scan', 'checks')],
     // every problem still open, so the badge cannot contradict the problem count on Results
-    ['fix', 'Fix', counts && counts.problems - counts.fixed],
-    ['teach', 'Teach', counts?.review],
-    ['checks', 'All checks'],
-    ['devices', 'Devices'],
-    ['frameworks', 'Frameworks'],
+    ['Remediation', scanHref('fix'), here('scan', 'fix'), counts && counts.problems - counts.fixed],
   ];
+  const INTEL = [
+    ['Adaptive learning', scan ? scanHref('teach') : '#/app/learned', learning ? 'page' : undefined, counts?.review],
+    ['Frameworks', scanHref('frameworks'), here('scan', 'frameworks')],
+    ['History', '#/app/history', here('history')],
+  ];
+  const navItem = ([label, href, current, n]) => (
+    <li key={label}>
+      {href ? (
+        <a href={href} aria-current={current}>
+          <span>{label}</span>{n > 0 && <span className="side-n tnum" aria-label={`, ${n} waiting`}>{n}</span>}
+        </a>
+      ) : (
+        <span className="side-off" aria-disabled="true" title="Run a scan first">{label}</span>
+      )}
+    </li>
+  );
 
   return (
     <div className="app">
       <button type="button" className="skip-link" onClick={() => document.getElementById('main')?.focus()}>Skip to content</button>
-      <header className="appbar">
-        <div className="appbar-inner">
-          <a className="brand" href="#/" aria-label="NetAuditAI home">
-            <span className="brand-mark" aria-hidden="true"><span /></span>
-            <span className="brand-name">NetAudit<span>AI</span></span>
-          </a>
-          <nav aria-label="Main" className="appnav">
-            <a href="#/app" aria-current={here('new')}>Scan</a>
-            {scan && <a href={`#${base}`} aria-current={route.page === 'scan' && !['fix', 'guide'].includes(route.view) ? 'page' : undefined}>Results</a>}
-            {scan && <a href={`#${base}/fix`} aria-current={here('scan', 'fix')}>Fix</a>}
-            <a href="#/app/history" aria-current={here('history')}>History</a>
-            {/* Global, like History: the knowledge base, not a view of the current scan. Labelled to
-                match the page's own heading ("What NetAuditAI knows") rather than a bare "Learned". */}
-            <a href="#/app/learned" aria-current={here('learned')}>Knowledge</a>
-          </nav>
-        </div>
-        {current && (
-          <nav aria-label="This scan" className="subnav">
-            <div className="subnav-inner">
-              {SUBNAV.map(([view, label, n]) => (
-                <a key={view} href={`#${view === 'overview' ? base : `${base}/${view}`}`} aria-current={here('scan', view)}>
-                  {label}{n > 0 && <span className="subnav-n tnum" aria-label={`, ${n} waiting`}>{n}</span>}
-                </a>
-              ))}
-            </div>
-          </nav>
-        )}
-      </header>
+      <aside className="sidebar">
+        <a className="brand side-brand" href="#/" aria-label="NetAuditAI home">
+          <span className="brand-mark" aria-hidden="true"><span /></span>
+          <span className="brand-name">NetAudit<span>AI</span></span>
+        </a>
+        <nav aria-label="Main" className="side-nav">
+          <ul>{NAV.map(navItem)}</ul>
+          <p className="side-k">Intelligence</p>
+          <ul>{INTEL.map(navItem)}</ul>
+        </nav>
+      </aside>
+
+      <div className="app-body">
+        <header className="appbar">
+          <p className="appbar-title">Network security configuration analyzer</p>
+          <a className="btn btn-sm btn-outline" href="#/">Exit</a>
+        </header>
 
       <main id="main" tabIndex={-1} className="app-main" key={route.page === 'scan' ? route.view : route.page}>
         {route.page === 'new' && <Upload onScan={handleScan} scanning={scanning} error={uploadError} currentScan={scan} />}
@@ -201,6 +209,7 @@ export default function AppShell({ path }) {
             )}
             {route.view === 'overview' && <Results {...shared} go={go} onTeach={openTeach} />}
             {route.view === 'fix' && <Fix {...shared} onTeach={() => openTeach()} />}
+            {route.view === 'teach' && <LearningFlow scanHref={scanHref('teach')} here="teach" />}
             {route.view === 'teach' && (
               <Teach scan={current} audit={audit} focusKey={teachFocus} onScanUpdated={handleScanUpdated}
                      onScanExpired={(id) => handleScansExpired([id])} />
@@ -221,8 +230,10 @@ export default function AppShell({ path }) {
           <ScanUnavailable opening={opening} openError={openError?.scanId === routeScanId ? openError : null} />
         ))}
         {route.page === 'history' && <History onScansExpired={handleScansExpired} />}
+        {route.page === 'learned' && <LearningFlow scanHref={scanHref('teach')} here="learned" />}
         {route.page === 'learned' && <Learned />}
       </main>
+      </div>
 
       {openItem && (
         <FindingDrawer item={openItem} scan={current} audit={audit} labels={labels} onClose={closeDrawer} onTeach={() => openTeach(openItem.key)} />

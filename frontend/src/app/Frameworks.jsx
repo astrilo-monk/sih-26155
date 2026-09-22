@@ -43,7 +43,7 @@ export default function Frameworks({ frameworks = [] }) {
             Built from the scanned control results -nothing is re-evaluated. Only requirements auditable from device
             configuration are mapped; this is not a compliance certification. Product benchmarks appear only for confirmed
             vendors. Readings still waiting for your confirmation never make a requirement pass or fail.
-            ISO/IEC 27001, CIS Controls v8 and DISA STIG are not mapped.
+            CIS Controls v8 and PCI DSS are not mapped.
           </p>
         </div>
         <div className="fw-coverage">

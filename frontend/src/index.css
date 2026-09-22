@@ -15,7 +15,7 @@
   --line: #262626;        /* barely-there dividers */
   --line-hover: #404040;  /* card/row hover */
   --input: #1a1a1a;
-  --accent: #ff3d00;      /* vermillion -5.6:1 on bg */
+  --accent: #ff4b0b;      /* orange -5.9:1 on bg */
   --accent-fg: #0a0a0a;
   /* NOTE: Part 2 specifies mutedForeground #737373 and claims 5.3:1. The real ratio on #0A0A0A is
      4.17:1, which fails WCAG AA for body text and contradicts Part 3.6 ("no gray text that fails AA").
@@ -180,9 +180,11 @@ button { font: inherit; color: inherit; letter-spacing: inherit; }
 .btn-outline, .btn-accent {
   padding: var(--s-3) var(--s-5); border: var(--bw) solid var(--fg); color: var(--fg);
 }
+/* the orange call to action */
+.btn-accent { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 .btn-outline::after, .btn-accent::after { display: none; }
-.btn-outline:hover:not(:disabled), .btn-accent:hover:not(:disabled) { background: var(--fg); color: var(--bg); }
-.btn-outline:disabled, .btn-accent:disabled { border-color: var(--line); color: var(--muted-fg); opacity: 1; }
+.btn-outline:hover:not(:disabled), .btn-accent:hover:not(:disabled) { background: var(--fg); border-color: var(--fg); color: var(--bg); }
+.btn-outline:disabled, .btn-accent:disabled { background: none; border-color: var(--line); color: var(--muted-fg); opacity: 1; }
 /* ghost: quiet until hovered, thinner underline */
 .btn-quiet { color: var(--muted-fg); }
 .btn-quiet:hover:not(:disabled) { color: var(--fg); }

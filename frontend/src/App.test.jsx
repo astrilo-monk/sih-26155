@@ -38,13 +38,13 @@ afterEach(() => {
 
 it('opens on the public homepage, states support honestly, and Try now enters the application', async () => {
   const { container } = render(<App />);
-  expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/the line that proves it/);
+  expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/and why\./);
   expect(screen.getAllByRole('link', { name: 'Try now' })[0].getAttribute('href')).toBe('#/app');
   expect(container.textContent).toContain('PCI DSS and CIS Controls v8 are not mapped today.');
   expect(container.textContent).not.toMatch(/(works with|supports) every vendor|100% accurate|fully autonomous|understands every/i);
 
   go('#/app');
-  expect(await screen.findByText('Upload a device configuration')).toBeTruthy();
+  expect(await screen.findByText('Upload a network configuration to begin an audit.')).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Start scan' }).disabled).toBe(true);
 });
 

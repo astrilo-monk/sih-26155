@@ -64,9 +64,8 @@ export default function Upload({ onScan, scanning, error, currentScan }) {
   return (
     <div className="wrap upload-page enter">
       <header className="page-head">
-        <p className="eyebrow">New scan</p>
-        <h1 className="display page-title">Upload a device configuration</h1>
-        <p className="lede">NetAuditAI checks it against every security control and shows you the configuration line behind each result.</p>
+        <h1 className="display page-title">New scan</h1>
+        <p className="lede">Upload a network configuration to begin an audit.</p>
       </header>
 
       {/* the same three steps the guided path shows, so the wording never changes under the user */}
@@ -101,8 +100,10 @@ export default function Upload({ onScan, scanning, error, currentScan }) {
               onChange={(e) => { add(e.target.files); e.target.value = ''; }}
             />
             <span className="dz-glyph" aria-hidden="true"><span /><span /><span /></span>
-            <span className="dz-title">Drop configuration files here</span>
-            <span className="dz-sub">or <span className="dz-choose">choose files</span> -plain-text exports (.cfg, .conf, .txt), up to 2 MB each</span>
+            <span className="dz-title">Upload network configuration</span>
+            <span className="dz-sub">Drag &amp; drop a .cfg, .conf or .txt file here</span>
+            <span className="btn btn-accent dz-choose">Choose file</span>
+            <span className="small muted">Plain-text exports, up to 2 MB each. Several files can be scanned together.</span>
           </label>
 
           {files.length > 0 && (

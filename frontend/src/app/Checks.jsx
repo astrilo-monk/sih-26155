@@ -25,7 +25,7 @@ export default function Checks({ scan, audit, labels, onOpen }) {
   return (
     <div className="wrap checks-page enter">
       <header className="page-head">
-        <p className="eyebrow">All checks</p>
+        <p className="eyebrow">Findings</p>
         <h1 className="page-title">Every check, with its evidence</h1>
         <p className="lede">NetAuditAI runs every check against every configuration. Open one to see the lines behind it.</p>
       </header>

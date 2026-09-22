@@ -147,6 +147,16 @@ export default function Results({ scan, audit, onOpen, onTeach, go }) {
         </div>
       </header>
 
+      {/* risk: the most severe open problem, from the same counts the severity panel shows */}
+      <dl className="kpis">
+        <div><dt>Security score</dt><dd className="tnum">{scan.posture ?? '-'}{scan.posture != null && <small>/100</small>}</dd></div>
+        <div><dt>Findings</dt><dd className="tnum">{counts.problems}</dd></div>
+        <div><dt>Devices</dt><dd className="tnum">{scan.devices.length}</dd></div>
+        <div className={`kpi-risk sev-${SEVERITIES.find((s) => counts.severity[s]) || 'none'}`}>
+          <dt>Risk</dt><dd>{SEVERITIES.find((s) => counts.severity[s]) || (nothingToAssess ? 'Unknown' : 'None found')}</dd>
+        </div>
+      </dl>
+
       <div className="status-grid">
         <PostureSummary posture={scan.posture} coverage={scan.coverage} bounds={scan.posture_bounds}
           criticalUnassessed={scan.critical_unassessed || []}

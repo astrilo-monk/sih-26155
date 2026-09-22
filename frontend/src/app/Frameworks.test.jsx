@@ -29,7 +29,7 @@ it('shows requirement statuses, readings that need review, unmapped frameworks a
   expect(screen.getByText('50% of requirements decided')).toBeTruthy();
   expect(screen.getByText('Needs review')).toBeTruthy();
   expect(screen.getByText(/not a compliance certification/)).toBeTruthy();
-  expect(screen.getByText(/ISO\/IEC 27001, CIS Controls v8 and DISA STIG are not mapped/)).toBeTruthy();
+  expect(screen.getByText(/CIS Controls v8 and PCI DSS are not mapped/)).toBeTruthy();
 
   fireEvent.click(screen.getByText('SC-45'));
   expect(screen.getByText('Needs review -not counted')).toBeTruthy();

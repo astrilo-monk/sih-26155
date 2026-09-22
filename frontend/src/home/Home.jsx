@@ -290,7 +290,7 @@ export default function Home() {
             <div className="hero-copy enter">
               <p className="eyebrow">Network configuration audit</p>
               <h1 className="display hero-title">
-                Know exactly what’s wrong with a network configuration -<em>and the line that proves it.</em>
+                Know exactly what’s wrong with a network configuration <em>and why.</em>
               </h1>
               <p className="lede">
                 NetAuditAI evaluates device configurations against security controls and cites the configuration

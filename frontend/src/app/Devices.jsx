@@ -1,4 +1,4 @@
-import { checkItems, deviceLabels, isDecisive, isProblem, vendorState } from '../lib/domain';
+import { checkItems, deviceLabels, isDecisive, isProblem, SEVERITIES, vendorName, vendorState } from '../lib/domain';
 
 // How NetAuditAI read each uploaded configuration: platform, how much it could decide, AI help, and fixes
 export default function Devices({ scan, audit }) {
@@ -13,6 +13,31 @@ export default function Devices({ scan, audit }) {
         <h1 className="page-title">How each configuration was read</h1>
         <p className="lede">NetAuditAI identifies the vendor without guessing. A dedicated parser is used only when the vendor is confirmed.</p>
       </header>
+      <table className="device-table">
+        <thead><tr><th>Device</th><th>Platform</th><th>Findings</th><th>Risk</th><th>Status</th></tr></thead>
+        <tbody>
+          {scan.devices.map((device, index) => {
+            const ident = (scan.vendor_identification || []).find((v) => v.config_index === index);
+            const found = items.filter((i) => i.configIndex === index && isProblem(i));
+            const risk = SEVERITIES.find((s) => found.some((i) => i.severity === s));
+            const open = () => {
+              const card = document.getElementById(`device-${index}`);
+              card?.scrollIntoView?.({ block: 'start' });
+              card?.focus({ preventScroll: true });
+            };
+            return (
+              <tr key={index} onClick={open}>
+                <td><button type="button" className="btn-link mono" onClick={(e) => { e.stopPropagation(); open(); }}>{labels[index]}</button></td>
+                <td>{vendorName(ident?.detected_vendor)}</td>
+                <td className="mono tnum">{found.length}</td>
+                <td><span className={`sev-word sev-${risk || 'none'}`}>{risk || 'None'}</span></td>
+                <td><span className={`tag ${vendorState(ident).key === 'confirmed' ? 'tag-pass' : 'tag-review'}`}>{vendorState(ident).key}</span></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
       <ul className="device-cards">
         {scan.devices.map((device, index) => {
           const ident = (scan.vendor_identification || []).find((v) => v.config_index === index);
@@ -23,7 +48,7 @@ export default function Devices({ scan, audit }) {
           const reasons = ai?.provisional_reasons || [];
           const evidence = ai?.vendor_evidence;
           return (
-            <li key={index} className="device-card">
+            <li key={index} id={`device-${index}`} tabIndex={-1} className="device-card">
               <header className="device-card-head">
                 <h2 className="device-name mono">{labels[index]}</h2>
                 <span className={`tag ${vs.key === 'confirmed' ? 'tag-pass' : 'tag-review'}`}>{vs.label}</span>
