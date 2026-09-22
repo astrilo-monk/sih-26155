@@ -14,7 +14,7 @@ into the seed file at runtime. The file is version-controlled and reviewed like 
 
 | | Seed knowledge | Runtime learning |
 |---|---|---|
-| Written by | the project, reviewed in a pull request | the administrator, on the Teach page |
+| Written by | the project, reviewed in a pull request | the administrator, under Adaptive learning |
 | Lives in | `backend/data/seed_recognizers.json` | SQLite `learned_mappings` only |
 | `source` column | `seed` | `runtime` |
 | Loaded | automatically, on every database open | on every scan |
@@ -69,8 +69,8 @@ undetermined destination leaves the control undecided instead of guessing one.
 Most booleans are toggles, and a line carrying a value says nothing about them: `server 10.0.0.1` names an
 NTP server and states nothing about authenticating it, so it cannot teach "NTP authenticated".
 
-Two are different, and are listed in `PRESENCE_PREDICATES` (`app/facts/recognizers.py`): **management
-source restriction** and **central AAA**. No dialect writes "source restriction: on" -it writes
+Three are different, and are listed in `PRESENCE_PREDICATES` (`app/facts/recognizers.py`): **management
+source restriction**, **central AAA** and **login banner**. No dialect writes "source restriction: on" -it writes
 `permitted-ip 10.0.0.0/24`, `allow-address …` or `trusthost1 …`, and the line being there *is* the
 restriction. For these, the address or name becomes `{any}` and `{neg}` reads the polarity, so one
 recognizer covers every subnet:
@@ -109,25 +109,48 @@ not know is refused until the word is added. Extending `CONCEPT_WORDS` is the fi
 Junos spelling `tacplus` was found -the shipped Junos TACACS+ recognizer was being rejected by its
 own gate.
 
-A login banner is *not* in the list: `banner login` and `header login information` are valueless
-statements that already teach by presence, while `set login-banner "…"` carries the message as several
-tokens, and a template built from it would only match banners of the same word count.
+A login banner joined the list with the second `teach/` pass: `set login-banner "…"`, `message "…"` and
+`header login information "…"` carry the message, and the message being there *is* the banner. `{any}`
+reads a quoted string as one value however many words it holds, so one template covers every banner.
+
+### One word, when the word is the feature
+
+The two-keyword gate has one narrow exception (`_one_word_feature`): `disable telnet`, `lldp enable`,
+`set lldp enabled false`, `set source-routing disabled` and `logging 192.0.2.20` are whole statements
+about one feature. One keyword is enough when nothing else varies (no `{any}`) and either the switch is
+spelled out in words, the word is a feature compound (`source-routing`, `telnet-server`), or an `{ip}`
+slot follows a word that names the concept. `set telnet {polarity}` is none of these -inside a block it
+may be a client or per-interface setting- and is still refused.
+
+### Password storage without a password
+
+A password-storage line always holds the secret, so its template puts slots there:
+`username {any} privilege {any} secret {enum:type} {any}`. The store refuses any text that redaction
+would change *unless* everything redaction removes is a slot or an existing `<SECRET:…>` placeholder
+(`_holds_secret` in `app/db/mappings.py`), so the type is read and no value is ever stored. Example lines
+use the placeholder: `secret 0 <SECRET:type0>`. The cited line does hold a secret, exactly as a vendor
+parser's password fact does; every path to the AI redacts evidence first.
 
 ## What is covered
 
-61 recognizers over eight dialects that have **no dedicated parser** and stay generic/unconfirmed. The `vendor`
+92 recognizers over eight dialects that have **no dedicated parser** and stay generic/unconfirmed. The `vendor`
 field is a label for readability, never a claim of parser support and never used to select a code path.
 
 | Dialect | Concepts read |
 |---|---|
-| Juniper Junos | Telnet, HTTP management, SSH version, session idle timeout, remote syslog, NTP server, LLDP, RADIUS / TACACS+ servers, `allow-address` source restriction |
-| Palo Alto PAN-OS | Telnet (service and interface profile), HTTP management (service and interface profile), SSH version, session idle timeout, remote syslog (two spellings), NTP server, `permitted-ip` on an interface management profile |
-| Arista EOS | Telnet, HTTP management (both polarities), SSH version, session idle timeout, remote syslog, NTP server, NTP authentication, IP source routing, LLDP, login banner, management ACL applied under `management ssh`, permissive any-any rule |
-| Huawei VRP | Telnet (`enable` and `undo`), HTTP management (`enable` and `undo`), remote syslog, NTP server, NTP authentication, session idle timeout, IP source routing |
-| MikroTik RouterOS | Telnet, HTTP management (`www`), NTP server (two spellings), remote syslog |
-| HPE Aruba AOS-CX | Telnet, HTTP management, NTP authentication, login banner, permissive any-any rule |
-| Check Point Gaia | remote syslog, NTP server, NTP authentication, SNMP source restriction |
-| Extreme Networks EXOS | remote syslog, NTP server, LLDP, login banner, permissive any-any rule |
+| Juniper Junos | Telnet, HTTP management, SSH version, session idle timeout, remote syslog, NTP server, LLDP, RADIUS / TACACS+ servers, `authentication-order`, `allow-address` source restriction, login banner |
+| Palo Alto PAN-OS | Telnet (service and interface profile), HTTP management (service and interface profile), SSH version, session idle timeout (two spellings), remote syslog (two spellings), NTP server, NTP authentication, `permitted-ip` (system and interface profile), login banner |
+| Arista EOS | Telnet, HTTP management (both polarities), SSH version, session idle timeout, remote syslog, NTP server, NTP authentication, IP source routing, LLDP, login banner, management ACL applied under `management ssh`, permissive any-any rule, local-only login, password storage |
+| Huawei VRP | Telnet (`enable` and `undo`), HTTP management (`enable` and `undo`), remote syslog, NTP server, NTP authentication, session idle timeout, IP source routing, LLDP, login banner, password storage, permissive ACL rule |
+| MikroTik RouterOS | Telnet, HTTP management (`www`), NTP server (two spellings), remote syslog, LLDP, login note, permissive input rule |
+| HPE Aruba AOS-CX | Telnet, HTTP management, NTP authentication, login banner, permissive any-any rule, remote syslog, LLDP, local-only login, password storage |
+| Check Point Gaia | Telnet, HTTP management, remote syslog, NTP server, NTP authentication, SNMP source restriction, LLDP, IP source routing, session idle timeout, login banner, permissive access rule |
+| Extreme Networks EXOS | Telnet, HTTP management (`web`), remote syslog, NTP server, LLDP, login banner, permissive any-any rule, session idle timeout, password storage, SSH `access-profile` source restriction |
+
+The second `teach/` pass read every setting the forty configurations state, where a control consumes it.
+Shared spellings are one entry: `lldp enable` (Huawei, Aruba) and `aaa authentication login default local`
+(Arista, Aruba). RouterOS one-line commands (`/system note set show-at-login=yes …`) are scoped to their
+menu path; before this pass the tokenizer dropped them as bare headers.
 
 One entry per concept per dialect: values, names and layout are read from slots, not memorized, so a second
 address or a differently indented file needs no second entry.
@@ -170,24 +193,19 @@ interface names. Passing the gates makes a recognizer safe to store, not worth s
 
 ## Limitations
 
-* **Coverage is partial by design.** Central AAA, password storage, login banners, SNMP communities, source
-  routing, permissive policies and IPsec proposals have no seed recognizer in these dialects: their syntax
-  states the setting by presence alone, without a polarity word or a readable value, and a recognizer built
-  on that would guess. Those controls stay `UNKNOWN` / `NOT_CONFIGURED` until an administrator teaches them.
+* **Coverage is partial by design.** SNMP communities and IPsec proposals cannot be answered by a recognizer
+  at all, and a setting a dialect's files never state has nothing to read. Those controls stay `UNKNOWN` /
+  `NOT_CONFIGURED` until an administrator teaches them.
+* **Read from `teach/` and deliberately left out:** `ssh server timeout` (Huawei, Aruba) is the SSH login
+  timeout, not an idle timeout; `/ip service set ssh address=…` (RouterOS) needs `address` as a
+  source-restriction word, which would let any interface address teach it; `snmp-agent acl` (Huawei) binds
+  SNMP, not management logins; `enable ssh2` (EXOS) names no version number; a RouterOS `/user add …
+  password=` states no storage type.
 * **Inverted switches are not seeded.** `management telnet` + `no shutdown` (Arista) means Telnet is *on*,
   so only the unambiguous `no management telnet` is seeded; the bare block header states nothing on its own.
-* **A line with only one keyword cannot be seeded.** `disable telnet` (EXOS), `set telnet-server enabled
-  false` (Gaia), `logging 192.0.2.20` (Aruba), `lldp enable` (Huawei) and `set source-routing disabled`
-  (Gaia) each leave one word after stopwords, which is below the two-keyword gate. They are left for a human
-  to teach with a scope or a wider template, rather than answered by a template that could match anything.
-* **A setting stated by presence alone is seeded only where the line names the setting.** `banner login`
-  (Arista), `banner motd` (Aruba), `configure banner before-login` (EXOS) and `set snmp allowed-source ...`
-  (Gaia) are read: the statement being there *is* the setting, and `{neg}` reads its removal. `set
-  login-banner "..."` (Gaia) is not -- it carries the message as several tokens, so a template built from it
-  would only match banners of the same word count.
-* **A unit nobody states is not invented.** `set ssh server session-timeout 600` (Gaia) and `configure ssh2
-  inactivity-timeout 600` (EXOS) name no unit, and the products do not agree on one, so no idle-timeout
-  entry is shipped for them.
+* **A unit is the product's.** `set ssh server session-timeout` (Gaia) and `configure ssh2
+  inactivity-timeout` (EXOS) name no unit and are read as seconds; PAN-OS `session-timeout` and Arista
+  `idle-timeout` as minutes. A timeout whose unit is not the product's own would be misread.
 * Recognizers read whole tokens, so a template cannot match part of a word -and a template matches a whole
   statement, so `ntp server 192.0.2.10 iburst` is not read by `ntp server {host}`: an optional trailing
   wildcard would let a template match lines it was never shown.

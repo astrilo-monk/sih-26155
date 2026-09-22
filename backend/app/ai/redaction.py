@@ -74,7 +74,7 @@ _COMPOUND_KEYWORDS = (
 # Storage-type and mode words that sit between a keyword and its value
 _STORAGE_TOKENS = frozenset({
     "enc", "encrypted", "hashed", "plaintext", "plain-text", "cleartext", "unencrypted",
-    "ascii", "ascii-text", "hex", "hexadecimal", "simple", "cipher", "irreversible-cipher",
+    "ascii", "ascii-text", "hex", "hexadecimal", "simple", "cipher", "ciphertext", "irreversible-cipher",
     "sha512", "sha384", "sha256", "sha1", "sha", "md5", "scrypt", "pbkdf2", "local", "remote", "level",
 })
 _COMMUNITY_SKIP = frozenset({"read", "write", "ro", "rw", "cipher", "simple", "plain", "encrypted", "ascii"})
@@ -84,7 +84,7 @@ _NOT_A_VALUE = frozenset({
     "encryption", "policy", "generate", "zeroize", "chain", "config-key", "config", "view",
     "mode", "required", "none", "enable", "disable", "enabled", "disabled", "rotation",
     "strength", "min-length", "lifetime", "recovery", "import", "export", "hostname",
-    "pubkey-chain", "address", "{", "}",
+    "pubkey-chain", "address", "{", "}", "[", "]", "];",
 })
 
 # Options that may follow a secret on the same line; the secret ends before them
@@ -124,6 +124,9 @@ _SNMP_HOST = re.compile(
     r"(?P<value>(?!community\b)(?!\d{1,3}(?:\.\d{1,3}){3}\b)(?!<SECRET:)[^\s;]+)",
     re.IGNORECASE,
 )
+# EXOS: configure account <user> [encrypted] <password> -the secret has no keyword of its own
+_EXOS_ACCOUNT = re.compile(r"^(?P<head>\s*configure\s+account\s+(?!add\b|delete\b)\S+\s+(?:encrypted\s+)?)"
+                           r"(?P<value>(?!<SECRET:)(?!(?:password-policy|encrypted)\b)[^\s;]+)", re.IGNORECASE)
 _AUTH_TEXT = re.compile(r"(?<![\w-])(?P<head>authentication\s+text\s+)(?P<value>(?!<SECRET:)[^\s;]+)", re.IGNORECASE)
 # Routing peers: bgp neighbor <addr> [...] md5 <key>
 _PEER_MD5 = re.compile(r"(?<![\w-])(?P<head>(?:neighbor|peer)\s+\S+\s+(?:\S+\s+)*?md5\s+)(?P<value>(?!<SECRET:)[^\s;]+)",
@@ -181,6 +184,7 @@ class Redactor:
             text = _SNMP_V3.sub(lambda m: self._swap(m, "password"), text)
         text = _SNMP_HOST.sub(lambda m: self._swap(m, "snmp-community"), text)
         text = _AUTH_TEXT.sub(lambda m: self._swap(m, "password"), text)
+        text = _EXOS_ACCOUNT.sub(lambda m: self._swap(m, "password"), text)
         text = _PEER_MD5.sub(lambda m: self._swap(m, "key"), text)
         if any(_SNMP_COMMUNITY_SCOPE.search(h) for h in scope):
             text = _SET_NAME.sub(lambda m: self._swap(m, "snmp-community"), text)

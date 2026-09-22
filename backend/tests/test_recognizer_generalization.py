@@ -382,14 +382,15 @@ def test_a_confirmed_vendor_is_still_answered_by_its_parser(seeded_adaptive_db, 
 
 
 def test_no_shipped_or_taught_recognizer_stores_a_secret(taught):
-    from app.ai.redaction import redact_line
+    from app.db.mappings import _holds_secret
 
     stored = MappingRepository().list_mappings()
     assert len(stored) > len(LESSONS)
+    # a slot may stand where a secret would (``secret {enum:type} {any}``); a value never does
     for mapping in stored:
         for text in (mapping.command_pattern, mapping.scope_template, mapping.example_line,
                      mapping.constant_value, *mapping.negatives):
-            assert text is None or redact_line(text) == text, mapping.command_pattern
+            assert text is None or not _holds_secret(text), mapping.command_pattern
 
 
 # ── 10. settings a configuration states by naming a thing ──────────────────

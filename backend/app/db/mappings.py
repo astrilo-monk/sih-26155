@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -43,7 +44,7 @@ from app.adaptive.matcher import (
     normalize_line,
     validate_pattern,
 )
-from app.ai.redaction import redact_line
+from app.ai.redaction import Redactor, redact_line
 from app.db.database import _database_url, get_connection
 from app.facts.predicates import FIELD_PREDICATES
 from app.facts.recognizers import RecognizerError, validate_recognizer
@@ -180,10 +181,23 @@ def rejection_key(raw_line: str) -> str:
     return normalize_line(redact_line(raw_line))
 
 
+_SLOT_TOKEN = re.compile(r"^\{[a-z]+(?::[\w-]+)?\}$")
+
+
+def _holds_secret(text: str) -> bool:
+    """True when redaction would remove a value. A value that is only template slots (``secret {enum:type}
+    {any}``) or an existing placeholder (``<SECRET:type0>``) holds no secret, so a recognizer can read how a
+    password is stored without ever storing one."""
+    redactor = Redactor()
+    if redactor.line(text) == text:
+        return False
+    return any(not all(_SLOT_TOKEN.match(t) for t in value.split()) for value in redactor.secrets)
+
+
 def _refuse_secrets(mapping: LearnedMapping) -> None:
     texts = [mapping.example_line, mapping.command_pattern, mapping.scope_template, mapping.constant_value,
              *mapping.negatives]
-    if any(text and redact_line(text) != text for text in texts):
+    if any(text and _holds_secret(text) for text in texts):
         raise MappingValidationError(
             "This line holds a secret (password, key or community string): it cannot be stored as a mapping "
             "or recognizer"

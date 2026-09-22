@@ -51,7 +51,8 @@ BOOL_PREDICATES = frozenset({
 # Every other boolean is a toggle, where a value says nothing about on or off: ``server 10.0.0.1``
 # names an NTP server and states nothing about authenticating it. Adding a predicate here makes a
 # line that only mentions the setting able to teach it, so the list stays short and deliberate.
-PRESENCE_PREDICATES = frozenset({SOURCE_RESTRICTED, CENTRAL_AAA})
+# A login banner is the third: ``set login-banner "…"`` carries the message, and the message is the banner.
+PRESENCE_PREDICATES = frozenset({SOURCE_RESTRICTED, CENTRAL_AAA, LOGIN_BANNER})
 # How a configuration writes each concept. A line that states nothing of its own is evidence only
 # when it is a line *about* the setting, and this is what says so; see ``_names_concept``.
 CONCEPT_WORDS = {
@@ -145,7 +146,7 @@ def validate_recognizer(r) -> None:
 
     keywords = _keywords(r.command_pattern)
     scoped = keywords + _keywords(r.scope_template or "")
-    if not keywords or len(scoped) < MIN_KEYWORDS:
+    if not keywords or len(scoped) < MIN_KEYWORDS and not _one_word_feature(r, keywords, kind):
         raise RecognizerError(f"The template needs at least {MIN_KEYWORDS} keywords besides stopwords, counting "
                               f"its scope (found: {', '.join(scoped) or 'none'})")
     try:
@@ -207,6 +208,32 @@ def validate_recognizer(r) -> None:
             raise RecognizerError(f"This setting is read from an {{{expected[0]}}} slot")
         if value is None:
             raise RecognizerError("The example line gives no usable value")
+
+
+def _one_word_feature(r, keywords: list[str], kind: Optional[str]) -> bool:
+    """``disable telnet``, ``lldp enable``, ``logging 192.0.2.20``: one word is enough when it is the
+    feature itself and the rest of the line is only its switch or an address.
+
+    Nothing else may vary (no ``{any}``), a switch has to be stated -a ``{polarity}`` slot, or ``{neg}``
+    with a literal polarity word- and an address slot has to name the concept, so ``logging {ip}`` is
+    read and ``buffered {ip}`` is not."""
+    tokens = r.command_pattern.split()
+    if len(keywords) != 1:
+        return False
+    # ``set login-banner "…"``: a setting stated by naming it, in a word that names nothing else
+    if kind == "neg" and r.predicate in PRESENCE_PREDICATES and _names_concept(r.predicate, r.subject, keywords):
+        return True
+    if ANY_TOKEN in tokens:
+        return False
+    if kind == "ip":
+        return _names_concept(r.predicate, r.subject, keywords)
+    if kind not in ("polarity", "neg"):
+        return False
+    # The switch is spelled out (``disable telnet``, ``lldp enable``, ``set lldp enabled {polarity}``), or the
+    # word is a feature compound (``set source-routing {polarity}``). ``set telnet {polarity}`` is neither: in a
+    # block it may be a client or a per-interface setting, so it needs a scope.
+    return (tokens[0] == "{polarity}" or any(t.lower() in POSITIVE | NEGATIVE for t in tokens)
+            or "-" in keywords[0])
 
 
 def _declares_presence(r, statement, value) -> bool:

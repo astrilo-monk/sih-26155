@@ -98,6 +98,10 @@ LEAK_CASES = [
     ("snmp-agent community read cipher %^%#HwComm%^%#", "%^%#HwComm%^%#"),
     ("super password level 3 cipher H3cSuper1", "H3cSuper1"),
     (" password simple H3cSimple1", "H3cSimple1"),
+    # Extreme EXOS / HPE Aruba AOS-CX
+    ("configure account admin encrypted $5$ExosHash$abc", "$5$ExosHash$abc"),
+    ("configure account ops ExosPlain1", "ExosPlain1"),
+    ("user admin group administrators password ciphertext AQBapArubaCt1==", "AQBapArubaCt1=="),
     # MikroTik / structured formats
     ("/user add name=ops password=MtPass1 group=full", "MtPass1"),
     ('    "password": "JsonPass1",', "JsonPass1"),

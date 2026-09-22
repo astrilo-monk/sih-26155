@@ -9,6 +9,30 @@
   ],
   "recognizers": [
     {
+      "concept": "Local-only login authentication",
+      "vendor": "Arista EOS",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "aaa authentication login default {enum:method}",
+      "constant_value": "{\"local\": false}",
+      "example_line": "aaa authentication login default local"
+    },
+    {
+      "concept": "Password storage",
+      "vendor": "Arista EOS",
+      "predicate": "auth.password.storage",
+      "command_pattern": "username {any} privilege {any} role {any} secret {enum:type} {any}",
+      "constant_value": "{\"0\": \"plaintext\", \"5\": \"type5_md5\", \"7\": \"type7\", \"sha512\": \"hashed\"}",
+      "example_line": "username admin privilege 15 role network-admin secret 0 <SECRET:type0>"
+    },
+    {
+      "concept": "Password storage",
+      "vendor": "Arista EOS",
+      "predicate": "auth.password.storage",
+      "command_pattern": "username {any} privilege {any} secret {enum:type} {any}",
+      "constant_value": "{\"0\": \"plaintext\", \"5\": \"type5_md5\", \"7\": \"type7\", \"sha512\": \"hashed\"}",
+      "example_line": "username admin privilege 15 secret 0 <SECRET:type0>"
+    },
+    {
       "concept": "Login banner",
       "vendor": "Arista EOS",
       "predicate": "banner.login.present",
@@ -56,6 +80,14 @@
       "example_line": "no management http-commands"
     },
     {
+      "concept": "HTTP management",
+      "vendor": "Arista EOS",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "http",
+      "command_pattern": "{neg} management http-commands",
+      "example_line": "management http-commands"
+    },
+    {
       "concept": "Telnet service",
       "vendor": "Arista EOS",
       "predicate": "mgmt.remote_access.protocol_enabled",
@@ -63,14 +95,6 @@
       "command_pattern": "no management telnet",
       "constant_value": "false",
       "example_line": "no management telnet"
-    },
-    {
-      "concept": "HTTP management",
-      "vendor": "Arista EOS",
-      "predicate": "mgmt.remote_access.protocol_enabled",
-      "subject": "http",
-      "command_pattern": "{neg} management http-commands",
-      "example_line": "management http-commands"
     },
     {
       "concept": "Management access source restriction",
@@ -110,6 +134,36 @@
       "example_line": "ntp server 192.0.2.10"
     },
     {
+      "concept": "Login banner",
+      "vendor": "Check Point Gaia",
+      "predicate": "banner.login.present",
+      "command_pattern": "{neg} set login-banner {any}",
+      "example_line": "set login-banner \"Authorized access only.\""
+    },
+    {
+      "concept": "LLDP discovery protocol",
+      "vendor": "Check Point Gaia",
+      "predicate": "boundary.discovery_protocol.enabled",
+      "subject": "lldp",
+      "command_pattern": "set lldp enabled {polarity}",
+      "example_line": "set lldp enabled false"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Check Point Gaia",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "set access-rule {any} source any destination any service any action {enum:action}",
+      "constant_value": "{\"accept\": true}",
+      "example_line": "set access-rule 10 source any destination any service any action accept"
+    },
+    {
+      "concept": "IP source routing",
+      "vendor": "Check Point Gaia",
+      "predicate": "boundary.source_routing.enabled",
+      "command_pattern": "set source-routing {polarity}",
+      "example_line": "set source-routing disabled"
+    },
+    {
       "concept": "Remote syslog destination",
       "vendor": "Check Point Gaia",
       "predicate": "log.remote.destination",
@@ -117,11 +171,34 @@
       "example_line": "set syslog remote 192.0.2.20"
     },
     {
+      "concept": "HTTP management",
+      "vendor": "Check Point Gaia",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "http",
+      "command_pattern": "set web-server enabled {polarity}",
+      "example_line": "set web-server enabled false"
+    },
+    {
+      "concept": "Telnet service",
+      "vendor": "Check Point Gaia",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "telnet",
+      "command_pattern": "set telnet-server enabled {polarity}",
+      "example_line": "set telnet-server enabled false"
+    },
+    {
       "concept": "Management access source restriction",
       "vendor": "Check Point Gaia",
       "predicate": "mgmt.remote_access.source_restricted",
       "command_pattern": "{neg} set snmp allowed-source {any}",
       "example_line": "set snmp allowed-source 192.0.2.20"
+    },
+    {
+      "concept": "Session idle timeout",
+      "vendor": "Check Point Gaia",
+      "predicate": "mgmt.session.idle_timeout",
+      "command_pattern": "set ssh server session-timeout {duration:s}",
+      "example_line": "set ssh server session-timeout 600"
     },
     {
       "concept": "NTP authentication",
@@ -136,6 +213,14 @@
       "predicate": "time.ntp.server",
       "command_pattern": "set ntp server {any} {host}",
       "example_line": "set ntp server primary 192.0.2.10"
+    },
+    {
+      "concept": "Password storage",
+      "vendor": "Extreme Networks EXOS",
+      "predicate": "auth.password.storage",
+      "command_pattern": "configure account {any} {enum:storage} {any}",
+      "constant_value": "{\"encrypted\": \"encrypted\"}",
+      "example_line": "configure account admin encrypted <SECRET:password>"
     },
     {
       "concept": "Login banner",
@@ -169,11 +254,49 @@
       "example_line": "configure syslog add 192.0.2.20 local0"
     },
     {
+      "concept": "HTTP management",
+      "vendor": "Extreme Networks EXOS",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "http",
+      "command_pattern": "{polarity} web",
+      "example_line": "disable web"
+    },
+    {
+      "concept": "Telnet service",
+      "vendor": "Extreme Networks EXOS",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "telnet",
+      "command_pattern": "{polarity} telnet",
+      "example_line": "disable telnet"
+    },
+    {
+      "concept": "Management access source restriction",
+      "vendor": "Extreme Networks EXOS",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "{neg} configure ssh2 access-profile {any}",
+      "example_line": "configure ssh2 access-profile MGMT-SSH"
+    },
+    {
+      "concept": "Session idle timeout",
+      "vendor": "Extreme Networks EXOS",
+      "predicate": "mgmt.session.idle_timeout",
+      "command_pattern": "configure ssh2 inactivity-timeout {duration:s}",
+      "example_line": "configure ssh2 inactivity-timeout 600"
+    },
+    {
       "concept": "NTP server",
       "vendor": "Extreme Networks EXOS",
       "predicate": "time.ntp.server",
       "command_pattern": "configure ntp-client add server {host}",
       "example_line": "configure ntp-client add server 192.0.2.10"
+    },
+    {
+      "concept": "Password storage",
+      "vendor": "HPE Aruba AOS-CX",
+      "predicate": "auth.password.storage",
+      "command_pattern": "user {any} group {any} password {enum:storage} {any}",
+      "constant_value": "{\"plaintext\": \"plaintext\", \"ciphertext\": \"encrypted\"}",
+      "example_line": "user admin group administrators password plaintext <SECRET:password>"
     },
     {
       "concept": "Login banner",
@@ -190,6 +313,13 @@
       "scope_template": "access-list ip {any}",
       "constant_value": "{\"any\": true}",
       "example_line": "10 permit any any"
+    },
+    {
+      "concept": "Remote syslog destination",
+      "vendor": "HPE Aruba AOS-CX",
+      "predicate": "log.remote.destination",
+      "command_pattern": "logging {ip}",
+      "example_line": "logging 192.0.2.20"
     },
     {
       "concept": "HTTP management",
@@ -215,6 +345,48 @@
       "example_line": "ntp authentication enable"
     },
     {
+      "concept": "Password storage",
+      "vendor": "Huawei VRP",
+      "predicate": "auth.password.storage",
+      "command_pattern": "local-user {any} password {enum:storage} {any}",
+      "scope_template": "aaa",
+      "constant_value": "{\"irreversible-cipher\": \"hashed\", \"cipher\": \"encrypted\", \"simple\": \"plaintext\"}",
+      "example_line": "local-user admin password irreversible-cipher <SECRET:password>"
+    },
+    {
+      "concept": "Login banner",
+      "vendor": "Huawei VRP",
+      "predicate": "banner.login.present",
+      "command_pattern": "{neg} header login information {any}",
+      "example_line": "header login information \"Authorized access only.\""
+    },
+    {
+      "concept": "LLDP discovery protocol",
+      "vendor": "Huawei VRP",
+      "predicate": "boundary.discovery_protocol.enabled",
+      "subject": "lldp",
+      "command_pattern": "{neg} lldp enable",
+      "example_line": "lldp enable"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Huawei VRP",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "rule {any} permit source {enum:source}",
+      "scope_template": "acl number {any}",
+      "constant_value": "{\"any\": true}",
+      "example_line": "rule 5 permit source any"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Huawei VRP",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "rule {any} {enum:action}",
+      "scope_template": "acl number {any}",
+      "constant_value": "{\"permit\": true}",
+      "example_line": "rule 10 permit"
+    },
+    {
       "concept": "IP source routing",
       "vendor": "Huawei VRP",
       "predicate": "boundary.source_routing.enabled",
@@ -237,20 +409,20 @@
       "example_line": "http server enable"
     },
     {
-      "concept": "Telnet service",
-      "vendor": "Huawei VRP",
-      "predicate": "mgmt.remote_access.protocol_enabled",
-      "subject": "telnet",
-      "command_pattern": "telnet server {polarity}",
-      "example_line": "telnet server enable"
-    },
-    {
       "concept": "HTTP management",
       "vendor": "Huawei VRP",
       "predicate": "mgmt.remote_access.protocol_enabled",
       "subject": "http",
       "command_pattern": "{neg} http server enable",
       "example_line": "undo http server enable"
+    },
+    {
+      "concept": "Telnet service",
+      "vendor": "Huawei VRP",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "telnet",
+      "command_pattern": "telnet server {polarity}",
+      "example_line": "telnet server enable"
     },
     {
       "concept": "Telnet service",
@@ -299,6 +471,23 @@
       "scope_template": "system",
       "constant_value": "true",
       "example_line": "tacplus-server {"
+    },
+    {
+      "concept": "Central authentication order",
+      "vendor": "Juniper Junos",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "authentication-order [ {enum:method} password ]",
+      "scope_template": "system",
+      "constant_value": "{\"radius\": true, \"tacplus\": true}",
+      "example_line": "authentication-order [ radius password ];"
+    },
+    {
+      "concept": "Login banner",
+      "vendor": "Juniper Junos",
+      "predicate": "banner.login.present",
+      "command_pattern": "{neg} message {any}",
+      "scope_template": "login",
+      "example_line": "message \"Authorized access only.\";"
     },
     {
       "concept": "LLDP discovery protocol",
@@ -371,22 +560,40 @@
       "example_line": "server 192.0.2.10;"
     },
     {
+      "concept": "Login banner",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "banner.login.present",
+      "command_pattern": "set show-at-login {enum:show} note {any}",
+      "scope_template": "{any} note",
+      "constant_value": "{\"yes\": true, \"no\": false}",
+      "example_line": "set show-at-login=yes note=\"Authorized access only.\""
+    },
+    {
+      "concept": "LLDP discovery protocol",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "boundary.discovery_protocol.enabled",
+      "subject": "lldp",
+      "command_pattern": "set [find] disabled {enum:disabled}",
+      "scope_template": "{any} lldp",
+      "constant_value": "{\"no\": true, \"yes\": false}",
+      "example_line": "set [find] disabled=yes"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "add chain {any} action {enum:action}",
+      "scope_template": "{any} firewall filter",
+      "constant_value": "{\"accept\": true}",
+      "example_line": "add chain=input action=accept"
+    },
+    {
       "concept": "Remote syslog destination",
       "vendor": "MikroTik RouterOS",
       "predicate": "log.remote.destination",
       "command_pattern": "add name {any} target remote remote {host}",
       "scope_template": "{any} logging action",
       "example_line": "add name=remote target=remote remote=192.0.2.20"
-    },
-    {
-      "concept": "Telnet service",
-      "vendor": "MikroTik RouterOS",
-      "predicate": "mgmt.remote_access.protocol_enabled",
-      "subject": "telnet",
-      "command_pattern": "set telnet disabled {enum:disabled}",
-      "scope_template": "{any} service",
-      "constant_value": "{\"no\": true, \"false\": true, \"yes\": false, \"true\": false}",
-      "example_line": "set telnet disabled=yes"
     },
     {
       "concept": "HTTP management",
@@ -397,6 +604,16 @@
       "scope_template": "{any} service",
       "constant_value": "{\"no\": true, \"false\": true, \"yes\": false, \"true\": false}",
       "example_line": "set www disabled=yes"
+    },
+    {
+      "concept": "Telnet service",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "telnet",
+      "command_pattern": "set telnet disabled {enum:disabled}",
+      "scope_template": "{any} service",
+      "constant_value": "{\"no\": true, \"false\": true, \"yes\": false, \"true\": false}",
+      "example_line": "set telnet disabled=yes"
     },
     {
       "concept": "NTP server",
@@ -413,6 +630,13 @@
       "command_pattern": "set primary-ntp {host}",
       "scope_template": "{any} ntp client",
       "example_line": "set primary-ntp=192.0.2.10"
+    },
+    {
+      "concept": "Login banner",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "banner.login.present",
+      "command_pattern": "{neg} set deviceconfig system login-banner {any}",
+      "example_line": "set deviceconfig system login-banner \"Authorized access only.\""
     },
     {
       "concept": "Remote syslog destination",
@@ -438,6 +662,14 @@
       "example_line": "set deviceconfig system service disable-http no"
     },
     {
+      "concept": "HTTP management",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "http",
+      "command_pattern": "set network profiles interface-management-profile {any} http {polarity}",
+      "example_line": "set network profiles interface-management-profile OUTSIDE-MGMT http no"
+    },
+    {
       "concept": "Telnet service",
       "vendor": "Palo Alto PAN-OS",
       "predicate": "mgmt.remote_access.protocol_enabled",
@@ -445,14 +677,6 @@
       "command_pattern": "set deviceconfig system service disable-telnet {enum:disabled}",
       "constant_value": "{\"no\": true, \"false\": true, \"yes\": false, \"true\": false}",
       "example_line": "set deviceconfig system service disable-telnet no"
-    },
-    {
-      "concept": "HTTP management",
-      "vendor": "Palo Alto PAN-OS",
-      "predicate": "mgmt.remote_access.protocol_enabled",
-      "subject": "http",
-      "command_pattern": "set network profiles interface-management-profile {any} http {polarity}",
-      "example_line": "set network profiles interface-management-profile OUTSIDE-MGMT http no"
     },
     {
       "concept": "Telnet service",
@@ -470,6 +694,13 @@
       "example_line": "set network profiles interface-management-profile MGMT-PROFILE permitted-ip 192.0.2.0/24"
     },
     {
+      "concept": "Management access source restriction",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "{neg} set deviceconfig system permitted-ip {any}",
+      "example_line": "set deviceconfig system permitted-ip 192.0.2.0/24"
+    },
+    {
       "concept": "Session idle timeout",
       "vendor": "Palo Alto PAN-OS",
       "predicate": "mgmt.session.idle_timeout",
@@ -477,11 +708,26 @@
       "example_line": "set deviceconfig setting management idle-timeout 30"
     },
     {
+      "concept": "Session idle timeout",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "mgmt.session.idle_timeout",
+      "command_pattern": "set deviceconfig system session-timeout {duration:min}",
+      "example_line": "set deviceconfig system session-timeout 10"
+    },
+    {
       "concept": "SSH protocol version",
       "vendor": "Palo Alto PAN-OS",
       "predicate": "mgmt.ssh.version",
       "command_pattern": "set deviceconfig system ssh service protocol-version {int}",
       "example_line": "set deviceconfig system ssh service protocol-version v2"
+    },
+    {
+      "concept": "NTP authentication",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "time.ntp.authenticated",
+      "command_pattern": "set deviceconfig system ntp-servers {any} authentication-type {enum:type}",
+      "constant_value": "{\"symmetric-key\": true, \"autokey\": true, \"none\": false}",
+      "example_line": "set deviceconfig system ntp-servers primary-ntp-server authentication-type symmetric-key"
     },
     {
       "concept": "NTP server",

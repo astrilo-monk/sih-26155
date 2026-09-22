@@ -7,7 +7,8 @@ tokens, its typed values and its polarity. No vendor grammar is involved.
 Scope comes from ``adaptive.context.structural_paths`` (braces,
 ``config``/``edit``/``next``/``end``, indentation) plus two flat dialects:
 
-* ``/section`` headers (``/ip service`` … until the next ``/`` header)
+* ``/section`` headers (``/ip service`` … until the next ``/`` header); a header carrying its own
+  command (``/system note set show-at-login=yes``) is that command, scoped to the header
 * flat prefix blocks: consecutive lines sharing a leading keyword
   (``remote-console state enabled`` / ``remote-console protocol telnet``)
 
@@ -37,6 +38,9 @@ _IGNORED = frozenset({"set", "{", "}", "};", ";"})
 _CLOSERS = frozenset({"end", "next", "exit", "quit"})
 
 IP = re.compile(r"^\d{1,3}(\.\d{1,3}){3}(/\d{1,2})?$|^[0-9a-f]*:[0-9a-f:]+(/\d{1,3})?$")
+# ``/ip service set ssh address=…``: the menu path, then a command run in it
+_INLINE_COMMAND = re.compile(r"^(/\S*(?:\s+(?!(?:set|add|remove|enable|disable)\b)[^\s=]+)*)\s+"
+                             r"((?:set|add|remove|enable|disable)\b.*)$", re.IGNORECASE)
 NUMBER = re.compile(r"^\d+(\.\d+)?[a-z]{0,7}$")
 
 
@@ -119,9 +123,12 @@ def tokenize(raw_lines: list[str]) -> list[Statement]:
                 banner_delimiter = None
             continue
         if stripped.startswith("/"):
-            section = (" ".join(stripped.split()),)
-            continue
-        statement = tokenize_line(raw, index + 1, section + paths[index])
+            if not (inline := _INLINE_COMMAND.match(stripped)):
+                section = (" ".join(stripped.split()),)
+                continue
+            statement = tokenize_line(inline.group(2), index + 1, (" ".join(inline.group(1).split()),))
+        else:
+            statement = tokenize_line(raw, index + 1, section + paths[index])
         if statement is None:
             continue
         if statement.key_tokens[0] == "banner":

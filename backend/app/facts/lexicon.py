@@ -80,6 +80,8 @@ SOURCE_RELATED = SOURCE_RESTRICTION | RESTRICTED | frozenset({
     "allowed", "permitted", "trusted", "allowlist", "whitelist", "access-class", "restrict", "restriction",
     # a rule names the sources it lets in: ``allow-address``, ``source-address``, ``permitted-ip``
     "allow", "allow-address", "source-address", "src-address", "trusthost1", "access-group",
+    # EXOS binds a service to an ACL: ``configure ssh2 access-profile MGMT-SSH``
+    "access-profile",
 })
 IDLE_RELATED = IDLE | TIMEOUT_KEYWORDS | frozenset({
     "timeout", "lock", "autolock", "logout", "autologout", "inactive",
@@ -89,7 +91,9 @@ LOG_RELATED = REMOTE_LOG | frozenset({"logs", "audit", "event", "events", "siem"
 TIME_RELATED = TIME_SYNC | frozenset({"time", "clock", "time-source", "timesource", "timeserver"})
 AUTH_RELATED = AUTHENTICATED | frozenset({"signed", "trusted", "auth-key", "authentication-key"})
 AAA_RELATED = AAA_SERVERS | CENTRAL | frozenset({"ldap", "remote-auth", "tacacs-plus"})
-BANNER_RELATED = frozenset({"banner", "motd", "pre-login", "prelogin", "login-message", "legal-notice"})
+BANNER_RELATED = frozenset({"banner", "motd", "pre-login", "prelogin", "login-message", "legal-notice",
+                            # Junos ``login { message "…"; }``, Huawei ``header login information "…"``
+                            "message", "header"})
 # A protocol named with one of these is not its management server: ``http-proxy``, ``telnet client``
 NOT_A_SERVER = frozenset({"proxy", "client", "redirect", "forward", "forwarding", "filter", "inspect", "inspection"})
 # Limits, counters and lockouts: a line naming one never states any of the related settings above

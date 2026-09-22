@@ -12,7 +12,7 @@ Template grammar (whitespace-separated tokens):
 
 * literal token   -matched case-insensitively, exactly
 * ``{value}``     -captures one token; the extracted value
-* ``{any}``       -matches one token that is ignored
+* ``{any}``       -matches one token (or one quoted string) that is ignored
 
 A statement terminator (``;``) is punctuation, not part of a token: it is dropped
 from template tokens and stays optional in the line, so ``server {ip};``,
@@ -62,7 +62,8 @@ SLOT_PATTERNS = {
     "duration": r"\d+(?:\.\d+)?[A-Za-z]*",
     # an address, or a hostname / FQDN; ``recognizer_value`` decides whether the text is usable
     "host": r"[A-Za-z0-9][\w.:-]*(?:/\d{1,3})?",
-    "enum": r"[A-Za-z][\w.+-]*",
+    # a storage type may be a number (``secret 0``), so a value may start with a digit
+    "enum": r"[A-Za-z0-9][\w.+-]*",
     "polarity": r"(?:enabled?|disabled?|on|off|true|false|yes|no)",
 }
 _SLOT = re.compile(r"^\{(int|ip|host|duration|enum|polarity|neg)(?::([A-Za-z][\w-]*))?\}$")
@@ -151,7 +152,8 @@ def compile_pattern(pattern: str, extraction_method: str) -> re.Pattern[str]:
         elif slot := _SLOT.match(tok):
             parts.append(f"(?P<slot>{SLOT_PATTERNS[slot.group(1)]})")
         elif tok == ANY_TOKEN:
-            parts.append(r"\S+")
+            # a quoted string is one value however many words it holds (``message "Authorized only"``)
+            parts.append(r"""(?:"[^"]*"|'[^']*'|\S+)""")
         else:
             parts.append(re.escape(tok))
     terminator = f"[{re.escape(TERMINATORS)}]?"

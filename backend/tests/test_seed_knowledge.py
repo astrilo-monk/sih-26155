@@ -190,9 +190,54 @@ def test_unrelated_lines_never_trigger_a_seed_recognizer(seeded_adaptive_db, con
      "mgmt.remote_access.source_restricted", True),
     ("set network profiles interface-management-profile MGMT permitted-ip 192.0.2.0/24\n",
      "mgmt.remote_access.source_restricted", True),
+    # second pass over teach/: every dialect, every setting its five files state
+    ("system {\n  login {\n    message \"Authorized access only.\";\n  }\n}\n", "banner.login.present", True),
+    ("system {\n  authentication-order [ tacplus password ];\n}\n", "auth.central_aaa.enabled", True),
+    ('set deviceconfig system login-banner "Authorized access only."\n', "banner.login.present", True),
+    ("set deviceconfig system session-timeout 10\n", "mgmt.session.idle_timeout", 10.0),
+    ("set deviceconfig system ntp-servers primary-ntp-server authentication-type symmetric-key\n",
+     "time.ntp.authenticated", True),
+    ("set deviceconfig system ntp-servers primary-ntp-server authentication-type none\n",
+     "time.ntp.authenticated", False),
+    ("set deviceconfig system permitted-ip 192.0.2.0/24\n", "mgmt.remote_access.source_restricted", True),
+    ("aaa authentication login default local\n", "auth.central_aaa.enabled", False),
+    ("username ops privilege 15 role network-admin secret 0 <SECRET:type0>\n", "auth.password.storage", "plaintext"),
+    ("username ops privilege 15 secret sha512 <SECRET:password>\n", "auth.password.storage", "hashed"),
+    ('header login information "Authorized access only."\n', "banner.login.present", True),
+    ("undo lldp enable\n", "boundary.discovery_protocol.enabled", False),
+    ("aaa\n local-user ops password irreversible-cipher <SECRET:password>\n", "auth.password.storage", "hashed"),
+    ("aaa\n local-user ops password simple <SECRET:password>\n", "auth.password.storage", "plaintext"),
+    ("acl number 2000\n rule 5 permit source any\n", "boundary.policy.permit_any", True),
+    ("acl number 2040\n rule 10 permit\n", "boundary.policy.permit_any", True),
+    ("logging 192.0.2.20\n", "log.remote.destination", ["192.0.2.20"]),
+    ("user ops group administrators password plaintext <SECRET:password>\n", "auth.password.storage", "plaintext"),
+    ("enable telnet\n", "mgmt.remote_access.protocol_enabled", True),
+    ("disable web\n", "mgmt.remote_access.protocol_enabled", False),
+    ("configure ssh2 inactivity-timeout 600\n", "mgmt.session.idle_timeout", 10.0),
+    ("configure account ops encrypted <SECRET:password>\n", "auth.password.storage", "encrypted"),
+    ("configure ssh2 access-profile MGMT-SSH\n", "mgmt.remote_access.source_restricted", True),
+    ("set telnet-server enabled true\n", "mgmt.remote_access.protocol_enabled", True),
+    ("set web-server enabled false\n", "mgmt.remote_access.protocol_enabled", False),
+    ("set lldp enabled true\n", "boundary.discovery_protocol.enabled", True),
+    ("set source-routing enabled\n", "boundary.source_routing.enabled", True),
+    ("set ssh server session-timeout 900\n", "mgmt.session.idle_timeout", 15.0),
+    ('set login-banner "Lab gateway"\n', "banner.login.present", True),
+    ("set access-rule 10 source any destination any service any action accept\n", "boundary.policy.permit_any", True),
+    ('/system note set show-at-login=yes note="Authorized only."\n', "banner.login.present", True),
+    ("/interface lldp set [find] disabled=no\n", "boundary.discovery_protocol.enabled", True),
+    ("/ip firewall filter\nadd chain=input action=accept\n", "boundary.policy.permit_any", True),
     # the same words where they configure something else state nothing
     ("interface Ethernet1\n   ip access-group EDGE-IN in\n", "mgmt.remote_access.source_restricted", None),
     ("ip access-list WAN-IN\n   10 permit ip 192.0.2.0/24 any\n", "boundary.policy.permit_any", None),
+    ("access {\n  profile SUBS {\n    authentication-order [ radius password ];\n  }\n}\n",
+     "auth.central_aaa.enabled", None),
+    ("system {\n  syslog {\n    message \"not a banner\";\n  }\n}\n", "banner.login.present", None),
+    ("system {\n  authentication-order [ ldaps password ];\n}\n", "auth.central_aaa.enabled", None),
+    ("logging buffered 192.0.2.20\n", "log.remote.destination", None),
+    ("set telnet enabled\n", "mgmt.remote_access.protocol_enabled", None),
+    ("acl number 2000\n rule 5 permit source 192.0.2.0 0.0.0.255\n", "boundary.policy.permit_any", None),
+    ("/ip firewall filter\nadd chain=input action=accept protocol=tcp dst-port=22\n", "boundary.policy.permit_any", None),
+    ("set access-rule 20 source any destination any service any action drop\n", "boundary.policy.permit_any", None),
 ])
 def test_the_taught_dialect_lines_are_read_and_only_where_they_apply(seeded_adaptive_db, config, predicate, expected):
     values = [f.value for f in _facts(config) if f.predicate == predicate]
@@ -209,10 +254,12 @@ def test_a_number_that_is_not_a_version_is_not_read_as_one(seeded_adaptive_db):
 
 def test_no_shipped_recognizer_holds_or_matches_a_secret(seeded_adaptive_db):
     from app.ai.redaction import redact_line
+    from app.db.mappings import _holds_secret
 
+    # a password-storage template puts a slot where the secret stands; it never holds a value
     for entry in read_seed_file():
         for text in (entry["command_pattern"], entry.get("scope_template"), entry.get("example_line")):
-            assert text is None or redact_line(text) == text, entry
+            assert text is None or not _holds_secret(text), entry
 
     secrets = (
         "system {\n"
@@ -275,9 +322,8 @@ def test_unknown_vendor_results_only_improve_where_the_seed_covers_the_syntax(se
 
 # ── 10–11: the demo -a fresh deployment, then teaching ─────────────────────
 
-SEEDED_CONTROLS = {"MGMT-001", "MGMT-002", "MGMT-006", "LOG-001", "LOG-002"}
-NEW_CONCEPTS = {"MGMT-007": "SSH version", "MGMT-003": "management source restriction",
-                "MGMT-009": "login banner"}
+SEEDED_CONTROLS = {"MGMT-001", "MGMT-002", "MGMT-006", "MGMT-009", "LOG-001", "LOG-002"}
+NEW_CONCEPTS = {"MGMT-007": "SSH version", "MGMT-003": "management source restriction"}
 
 
 def _scan(client: TestClient, path: Path) -> dict:
@@ -314,7 +360,8 @@ def test_a_fresh_deployment_reads_an_unfamiliar_dialect_before_anything_is_taugh
         result = _result(scan, control_id)
         assert result["assurance"] != "confirmed"
         assert result["status"] in ("unknown", "not_configured") or result["assurance"] == "heuristic"
-    assert _result(scan, "MGMT-009")["status"] == "not_configured"
+    # a quoted banner is read: the message being there is the banner
+    assert _result(scan, "MGMT-009")["status"] == "pass"
 
 
 def test_teaching_adds_to_the_seed_knowledge_instead_of_replacing_it(seeded_adaptive_db):
