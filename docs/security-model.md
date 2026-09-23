@@ -42,6 +42,25 @@ never evidence: a missing setting is NOT_CONFIGURED, not FAIL.
 | An AI explanation of a finding is labelled AI-written commentary, not evidence, and never changes a status, severity or count | `frontend/src/app/FindingDrawer.jsx`, `routes/assistant.py` | `app/FindingDrawer.test.jsx` |
 | The browser history stores no evidence or configuration lines | `frontend/src/utils/history.js` | `history.test.js` |
 
+## Live collection
+
+`POST /api/collect` takes a hostname from a request and opens an SSH session to it, which is a network-egress
+capability the rest of the product does not have. Three bounds make it defensible:
+
+* **Read only.** One session, the platform's "print the configuration" command, then close. Nothing is written to
+  the device, by this route or any other.
+* **Where it may reach.** `LIVE_COLLECTION_NETWORKS` defaults to `private`: the host is resolved and refused unless
+  every address it resolves to is RFC1918 or loopback. Link-local is refused **by name**, because `ipaddress`
+  reports `169.254.169.254`, the cloud metadata endpoint, as private, so the obvious check is the wrong one. The
+  driver is then handed the vetted address rather than the name, so a second DNS lookup cannot answer differently
+  from the one that was checked (rebinding).
+* **Credentials are request-scoped.** Used to open one session and never written to the scan store, the scan
+  archive or the logs. `Target.__repr__` is overridden, because a dataclass repr is the likeliest way for a
+  password to reach a traceback.
+
+`LIVE_COLLECTION_ENABLED=false` closes both routes. Set it on any backend others can reach: there, the endpoint is
+a pivot into whatever network the backend can see.
+
 ## Not protected (prototype)
 
 * Access control is one optional shared key: with `API_KEY` set, every `/api` route (not `/health`) requires a
@@ -57,7 +76,8 @@ never evidence: a missing setting is NOT_CONFIGURED, not FAIL.
   deploying (warnings flag lockout and VPN-peer risks).
 * A **verified candidate** is a weaker statement still: it says the proposed text removes the finding from the
   uploaded configuration *file*, as the generic engine reads it. It says nothing about the real CLI syntax, about
-  side effects on the device, or about whether the command is safe to run. NetAuditAI never connects to a device.
+  side effects on the device, or about whether the command is safe to run. NetAuditAI never *writes* to a device:
+  live collection opens a read-only session and runs only the command that prints the configuration.
 * The **verified corrected copy** (`POST /api/remediation/candidate/download`) is the administrator's own uploaded
   file with that one simulated change -it adds nothing and redacts nothing, exactly like `/download-fixed`, and it
   is labelled as a copy that has not been applied to a device. Only a verified candidate can produce one; the

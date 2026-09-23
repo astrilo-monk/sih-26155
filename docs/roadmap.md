@@ -1,6 +1,6 @@
 # Roadmap
 
-The implementation record is [plan.md](../plan.md). Summary:
+Summary:
 
 ## Done
 - [x] Cisco IOS and FortiGate parsers with grammar-coverage vendor confirmation (look-alikes stay unverified)

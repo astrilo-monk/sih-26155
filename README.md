@@ -9,18 +9,19 @@ fixes confirmed Cisco / FortiGate findings with deterministic changes that are v
 Where the vendor cannot be confirmed it does not invent commands: an administrator (or, on request, the
 AI) proposes one, NetAuditAI checks it against the uploaded configuration, and a person confirms it.
 AI is optional: it only proposes answers for controls the deterministic engine left undecided, and a
-human confirms them before they count. NetAuditAI never connects to a network device.
+human confirms them before they count. Configurations can be uploaded or pulled from a device over SSH;
+NetAuditAI only ever **reads** a device, and never executes a change on one.
 
 ## Status
 
-Working hackathon prototype. All phases of [plan.md](plan.md) (0–9) are implemented, plus candidate
-remediation for unconfirmed vendors. Backend: 1123 tests passed, 2 live-AI tests skipped. Frontend:
-82 tests passed, production build OK.
+Working hackathon prototype. Backend: 1227 tests passed, 2 live-AI tests skipped. Frontend: 119 tests
+passed, production build OK.
 
 ## Pipeline
 
 ```text
-Raw configuration (read into memory, never written to disk)
+Raw configuration: uploaded, or collected over SSH (Netmiko/NAPALM) .. app/collect/
+  (read into memory, never written to disk)
   ↓
 Vendor detection + parse coverage ..................... app/parsers/detector.py, coverage.py
   ↓ confirmed Cisco IOS / FortiGate            ↓ unknown or unverified vendor
@@ -61,9 +62,9 @@ Details: [docs/architecture.md](docs/architecture.md).
 
 The vendor is decided deterministically. An AI vendor guess is reported as evidence only and never selects a parser, defaults or remediation.
 
-**Shipped knowledge.** 61 reviewed recognizers for eight unparsed dialects (Arista EOS 13, Juniper Junos 10,
-Palo Alto PAN-OS 10, Huawei VRP 9, HPE Aruba AOS-CX 5, Extreme EXOS 5, MikroTik RouterOS 5, Check Point Gaia 4)
-ship in `backend/data/seed_recognizers.json` and load into an empty database on first start, so those dialects
+**Shipped knowledge.** 97 reviewed recognizers for eight unparsed dialects (Juniper Junos, Palo Alto PAN-OS,
+Arista EOS, Huawei VRP, HPE Aruba AOS-CX, Check Point Gaia, Extreme EXOS, MikroTik RouterOS) and AWS security
+groups ship in `backend/data/seed_recognizers.json` and load into an empty database on first start, so those dialects
 answer several controls before anyone teaches anything. Each entry is one concept per dialect, generalized over
 addresses, names, numbers and indentation through typed slots. They are ordinary recognizers -same templates,
 same validation, same decisive CONFIRMED facts -and are marked `source=seed` so shipped knowledge can be audited
@@ -102,7 +103,7 @@ A fixed left sidebar. **New scan · Overview · Devices · Findings · Remediati
 
 | Sidebar | Page | Route |
 |---|---|---|
-| New scan | Upload one or more configurations | `#/app` |
+| New scan | Upload one or more configurations, or collect them from live devices over SSH | `#/app` |
 | Overview | Posture, coverage, critical not assessed, what to do now, PDF report | `#/app/scan/{id}` |
 | Devices | How each configuration was read (vendor, parser or generic path, coverage) | `…/devices` |
 | Findings | Every control on every device, with evidence | `…/checks` |
@@ -114,6 +115,12 @@ A fixed left sidebar. **New scan · Overview · Devices · Findings · Remediati
 Clicking a finding opens a drawer with its cited lines, assurance and framework mappings. When AI is configured,
 **Explain this** asks for a plain-language explanation, labelled *AI-written, commentary, not evidence*; it never
 changes a status, severity or count.
+
+The left rail also holds an **assistant**: ask about the open scan and it answers from that scan's own redacted
+results. It is told the verdicts as facts, and that an undecided check is not a failure, so it explains coverage
+rather than inventing a pass. The panel can be resized, popped out and dragged anywhere; the rail keeps its width
+whether the panel is open or shut, so opening it never reflows the page. Answers are rendered from Markdown into
+React elements, never HTML, so nothing a model writes can inject markup.
 
 Severity is a four-square meter plus the severity word, and status is a label with a square marker, so no result
 is conveyed by colour alone. The palette is near-black, greys and one orange accent. Text is Inter; JetBrains Mono
@@ -149,16 +156,18 @@ Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `fr
 | `AI_JUDGE_MAX_CALLS_PER_SCAN` | `backend/.env` | AI judge requests per scan (default 2; cache hits are free). |
 | `VENDOR_PARSE_COVERAGE_THRESHOLD` | `backend/.env` | Share of lines that must follow the detected vendor's grammar (default 0.7). |
 | `ADAPTIVE_AI_FOR_KNOWN_VENDORS` | `backend/.env` | Legacy, default `false`: send lines the Cisco / FortiGate parsers do not read to the line interpreter; results only reach the review queue. |
+| `LIVE_COLLECTION_ENABLED` | `backend/.env` | Pull configurations off devices over SSH (default `true`). Set `false` on any backend others can reach: the endpoint opens a session to whatever host it is given. |
+| `LIVE_COLLECTION_NETWORKS` | `backend/.env` | Where collection may connect (default `private`): the host is resolved and refused unless it is RFC1918 or loopback, with link-local refused by name because that is the cloud metadata endpoint. `any` lifts it. |
 | `VITE_API_BASE_URL` | `frontend/.env` | Backend URL, default `http://localhost:8000/api`. |
 
 ## Testing
 
 ```bash
 cd backend
-venv\Scripts\python -m pytest tests -q     # 1123 passed, 2 skipped (live AI, needs NETAUDIT_LIVE_AI=1)
+venv\Scripts\python -m pytest tests -q     # 1227 passed, 2 skipped (live AI, needs NETAUDIT_LIVE_AI=1)
 
 cd frontend
-npm test                                    # 82 passed
+npm test                                    # 119 passed
 npm run build
 ```
 
@@ -185,14 +194,14 @@ A line holding a secret (password, key, community string) is never stored as a m
 - Parsers cover common Cisco IOS and FortiGate syntax; the IOS grammar is a curated root list, so an unusual real IOS config can come out unverified.
 - 15 controls. Remediation recipes exist only for Cisco IOS and FortiGate; weak stored passwords, AAA without a strong local account and any-to-any rules always need a human.
 - Unknown vendors rely on lexicon heuristics and confirmed recognizers; heuristics can misread a dialect until an administrator confirms or rejects the line.
-- Shipped seed knowledge covers eight dialects and 61 recognizers against 14 teachable settings, so it answers only part of each dialect. Everything it does not cover still has to be taught, and a dialect with no seeds behaves exactly as before.
+- Shipped seed knowledge covers eight dialects and 97 recognizers, so it answers only part of each dialect. Everything it does not cover still has to be taught, and a dialect with no seeds behaves exactly as before.
 - Redaction is pattern-based: a secret behind an unlisted keyword could still reach the AI.
 - The AI judge escalates only unknown / unverified vendors; UNKNOWN controls of confirmed vendors are not sent to AI.
 - Scan results live in memory; recognizer replay only checks scans held by the running backend. A candidate remediation lives in its scan only and is never persisted as knowledge.
 - A candidate can only be verified when it explicitly removes or switches off the lines the finding cites; anything else is kept for review as unverified.
 - Framework views cover NIST SP 800-53 Rev. 5, verified CIS items, the DISA Network Device Management SRG and ISO/IEC 27001:2022 Annex A (no PCI DSS or CIS Controls v8 mappings).
 - `/api/assistant/status` reports AI available whenever a key is configured, even if the quota is used up.
-- Text configurations only. No live device connections: no command, generated or proposed, is ever executed on a device.
+- Live collection **reads** a device (one SSH session, read-only commands, credentials never stored) and is bounded to private address space by default. No command, generated or proposed, is ever executed on a device.
 
 ## Documentation
 
@@ -208,4 +217,3 @@ A line holding a secret (password, key, community string) is never stored as a m
 | [docs/seed-knowledge.md](docs/seed-knowledge.md) | Shipped recognizers: what they are, how they load, how to add one |
 | [docs/demo.md](docs/demo.md) | SIH demo script |
 | [docs/setup.md](docs/setup.md), [docs/testing.md](docs/testing.md), [docs/deployment.md](docs/deployment.md) | Running and testing |
-| [plan.md](plan.md) | Phase-by-phase implementation record |

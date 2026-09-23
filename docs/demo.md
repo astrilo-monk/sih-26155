@@ -69,7 +69,7 @@ NetAuditAI does five separable things, and only the first four:
 | 2 | Candidate remediation -what command would change it? | yes, proposed by a person or the AI, never invented as fact |
 | 3 | Verification -does that change remove the finding from this configuration? | yes, on a copy, deterministically |
 | 4 | Human confirmation -does an administrator accept it? | yes, required |
-| 5 | Execution on the physical device | **no** -NetAuditAI never connects to a device |
+| 5 | Execution on the physical device | **no** -NetAuditAI reads a device (live collection) but never writes to one |
 
 Do not claim dedicated support for vendors other than Cisco IOS and FortiGate, AI-decided compliance, or automatic
 learning without confirmation.

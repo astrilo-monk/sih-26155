@@ -60,10 +60,10 @@ Two live Groq tests in `test_adaptive_generic.py` are skipped unless `NETAUDIT_L
 
 ```powershell
 cd backend
-venv\Scripts\python -m pytest tests -q     # 1123 passed, 2 skipped
+venv\Scripts\python -m pytest tests -q     # 1227 passed, 2 skipped
 
 cd ..\frontend
-npm test                                    # 82 passed
+npm test                                    # 119 passed
 npm run build
 ```
 

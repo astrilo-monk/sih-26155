@@ -44,18 +44,18 @@ frontend/src/
   utils/                      history (summaries only), form validation
 sample/                       Cisco, FortiGate, unknown-vendor, Palo Alto, Juniper and Arista sample configs
 docs/                         documentation
-plan.md                       phase-by-phase implementation record
 ```
 
 ## API
 
-`/api/scan`, `/api/scan/{id}`, `/api/remediate`, `/api/remediation/plan`, `/api/download-fixed`,
-`/api/assistant/*`, `/api/adaptive/*`, `/api/report`. Every `/api` route requires an `X-API-Key` header when
+`/api/scan`, `/api/scan/{id}`, `/api/collect` (+ `/api/collect/capabilities`), `/api/remediate`,
+`/api/remediation/plan`, `/api/download-fixed`, `/api/assistant/*`, `/api/adaptive/*`, `/api/report`. Every `/api` route requires an `X-API-Key` header when
 `API_KEY` is set. See [api.md](api.md).
 
 ## Frontend workflow
 
-A fixed sidebar: **New scan** (upload) → **Overview** (posture, coverage, critical not assessed, what to do now,
+A fixed sidebar carrying the assistant panel (ask about the open scan; answers come from its redacted
+results). **New scan** (upload, or collect from live devices over SSH) → **Overview** (posture, coverage, critical not assessed, what to do now,
 problems with evidence, PDF report) → **Devices** → **Findings** (every check; a drawer with evidence and, with AI
 on, *Explain this*) → **Remediation** (fix automatically, needs your input, manual action, cannot safely fix;
 verified download; candidate fixes for unconfirmed vendors). Under *Intelligence*: **Adaptive learning**
