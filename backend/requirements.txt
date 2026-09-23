@@ -12,6 +12,11 @@ psycopg[binary,pool]>=3.1
 # PDF reporting
 reportlab>=4.0
 
+# Live collection: pull running configurations off devices over SSH (app.collect).
+# Netmiko reads every platform in the table; NAPALM is an optional upgrade that is preferred
+# where it has a driver -see requirements-live.txt.
+netmiko>=4.2.0
+
 # AI
 groq>=0.9.0
 

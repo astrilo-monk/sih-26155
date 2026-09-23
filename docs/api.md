@@ -66,9 +66,10 @@ workflow describes. Collection is only a fetch in front of `POST /api/scan`: the
 same pipeline, with the same vendor detection, the same secret redaction and the same AI rules, so a collected device
 and an uploaded file produce the same `ScanResultResponse`.
 
-Both routes are **disabled unless `LIVE_COLLECTION_ENABLED=true`**, and need the optional drivers
-(`pip install -r backend/requirements-live.txt`). The default is off on purpose: an endpoint that opens an SSH session
-to whatever host it is handed is a way into the network the backend sits in.
+Collection is **on by default**. Netmiko is in `requirements.txt` and reads every supported platform, so this works
+on a normal install; `pip install -r backend/requirements-live.txt` adds NAPALM, which `auto` prefers where it has a
+driver. `LIVE_COLLECTION_ENABLED=false` closes both routes, and any internet-reachable deployment should set it: an
+endpoint that opens an SSH session to whatever host it is handed is a way into the network the backend sits in.
 
 Credentials are request-scoped. They are used to open one session and are never written to the scan store, the scan
 archive or the logs; `Target.__repr__` is overridden so a traceback cannot print one either.
@@ -89,7 +90,7 @@ Collect from each device, then audit what was collected.
 * **Partial success is normal.** A device that cannot be reached is reported in `failures` and the rest are still
   scanned: one unreachable device does not deny an audit of the others. A device absent from the audit has not passed
   it, and the UI says so rather than navigating straight to the results.
-* `403` when collection is disabled, `422` for an unknown framework, and `502` only when *every* device failed,
+* `403` when collection has been disabled, `422` for an unknown framework, and `502` only when *every* device failed,
   because then there is nothing to audit.
 
 ## Remediation

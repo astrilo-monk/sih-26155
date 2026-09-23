@@ -87,20 +87,22 @@ the fetch step: it hands `scan.run_scan` the same text an upload would have carr
 told -or needs to be told -which it was. A collected configuration is therefore never treated as more trusted
 than an uploaded one, and never as less redacted.
 
-Netmiko and NAPALM are **optional dependencies**, imported only when a collection actually runs, so a backend
-without them starts, serves and scans exactly as before and reports the feature unavailable instead of failing
-to install. `auto` prefers NAPALM where it has a driver for the platform, because `get_config` asks the device
-for its configuration rather than typing a command at it; Netmiko is the fallback and reaches far more
-platforms. The platform list is deliberately wider than the three parsers: a Junos or MikroTik device is worth
-collecting even though its verdicts come from recognizers and heuristics.
+Netmiko ships in `requirements.txt` and has a driver and a command for every platform in the table, so
+collection works on a normal install. NAPALM is the optional upgrade (`requirements-live.txt`): `auto` prefers
+it where it has a driver, because `get_config` asks the device for its configuration rather than typing a
+command at it, and falls back to Netmiko otherwise. Neither is imported until a collection runs, so a backend
+missing one still starts, serves and scans, and reports what it cannot do. The platform list is deliberately
+wider than the three parsers: a Junos or MikroTik device is worth collecting even though its verdicts come from
+recognizers and heuristics.
 
-Collection is **off unless `LIVE_COLLECTION_ENABLED=true`**. An endpoint that opens an SSH session to whatever
-host it is handed is a pivot into the network the backend sits in, so a deployment that did not ask for it does
-not get it. Credentials are request-scoped: used to open one session, never written to the scan store, the
-archive or the logs, and `Target.__repr__` is overridden because a dataclass repr is the likeliest way for a
-password to reach a traceback. A device that cannot be reached is reported per host and the rest are still
-scanned -one unreachable device does not deny an audit of the others, and the UI says which were missed rather
-than letting an absent device look like a pass.
+Collection is **on by default**: it is a deliverable the suggested workflow asks for, and an operator auditing
+their own network should not have to export configurations by hand. `LIVE_COLLECTION_ENABLED=false` closes it,
+and any internet-reachable deployment should do that -the endpoint opens an SSH session to whatever host it is
+handed, which is then a pivot into the network the backend sits in. Credentials are request-scoped: used to open
+one session, never written to the scan store, the archive or the logs, and `Target.__repr__` is overridden
+because a dataclass repr is the likeliest way for a password to reach a traceback. A device that cannot be
+reached is reported per host and the rest are still scanned -one unreachable device does not deny an audit of
+the others, and the UI says which were missed rather than letting an absent device look like a pass.
 
 ## 2. Vendor detection and parser support
 

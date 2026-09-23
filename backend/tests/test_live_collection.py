@@ -1,8 +1,8 @@
 """
 Live collection (``app.collect`` and the ``/api/collect`` route).
 
-No test opens a connection. Netmiko and NAPALM are optional dependencies that may not be installed
-at all, so the drivers are stubbed and what is asserted is everything around them: which driver is
+No test opens a connection. Netmiko ships in requirements.txt and NAPALM is an optional upgrade that
+may be absent, so the drivers are stubbed and what is asserted is everything around them: which driver is
 chosen, that a collected configuration reaches the ordinary scan pipeline unchanged, that a device
 that cannot be reached does not deny an audit of the ones that can, and that credentials do not
 escape the request.
@@ -76,11 +76,17 @@ def test_a_platform_without_a_napalm_driver_cannot_be_forced_onto_napalm():
             _chosen_method(_target(platform="fortinet", method="napalm"))
 
 
-def test_collection_explains_what_to_install_when_no_driver_is_present():
-    """The feature is optional: absent drivers are a message an operator can act on, not a crash."""
+def test_a_broken_install_is_a_message_an_operator_can_act_on_not_a_crash():
+    """Netmiko is a normal dependency now, so its absence means the install is incomplete."""
     with patch("app.collect.collector.available_methods", return_value=()):
-        with pytest.raises(CollectionError, match="requirements-live.txt"):
+        with pytest.raises(CollectionError, match=r"pip install -r requirements\.txt"):
             collect(_target())
+
+
+def test_asking_for_napalm_without_it_points_at_the_optional_requirements():
+    with patch("app.collect.collector.available_methods", return_value=("netmiko",)):
+        with pytest.raises(CollectionError, match="requirements-live.txt"):
+            collect(_target(method="napalm"))
 
 
 def test_an_unknown_platform_names_the_ones_that_exist():
@@ -205,16 +211,23 @@ def test_an_empty_configuration_is_reported_as_a_privilege_problem():
 
 # -- the feature is off unless asked for -------------------------------------------------------
 
-def test_collection_is_refused_when_the_backend_did_not_enable_it(monkeypatch):
-    """An endpoint that SSHes to any host it is given is a pivot; it stays closed by default."""
+def test_collection_can_be_switched_off(monkeypatch):
+    """On a backend others can reach, an endpoint that SSHes to any host it is given is a pivot."""
     monkeypatch.setattr(app_config.settings, "live_collection_enabled", False)
     resp = TestClient(app).post("/api/collect", json={"targets": [_body()]})
     assert resp.status_code == 403
     assert "LIVE_COLLECTION_ENABLED" in resp.json()["detail"]
 
 
-def test_the_default_configuration_has_collection_off():
-    assert app_config.Settings(_env_file=None).live_collection_enabled is False
+def test_the_default_configuration_has_collection_on():
+    """It is a deliverable the workflow asks for, and Netmiko ships in requirements.txt."""
+    assert app_config.Settings(_env_file=None).live_collection_enabled is True
+
+
+def test_every_platform_is_collectable_with_what_requirements_txt_installs():
+    """Netmiko is not optional any more, so no platform may need an extra install to be reachable."""
+    with patch("app.collect.collector.available_methods", return_value=("netmiko",)):
+        assert all(p["available"] for p in platform_choices())
 
 
 def test_capabilities_answers_even_when_collection_is_off(monkeypatch):

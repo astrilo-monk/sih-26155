@@ -1,13 +1,9 @@
-# Live collection (optional): pull running configurations off devices over SSH instead of
-# uploading them. Install alongside requirements.txt only where LIVE_COLLECTION_ENABLED=true.
+# Optional upgrade for live collection. Netmiko is already in requirements.txt and reads every
+# platform; NAPALM is preferred where it has a driver, because get_config asks the device for its
+# configuration rather than typing a command at it.
 #
-#   pip install -r requirements.txt -r requirements-live.txt
+#   pip install -r requirements-live.txt
 #
-# The backend runs without these: app.collect imports them lazily and reports the feature
-# unavailable when they are absent, so neither the app nor its test suite depends on them.
+# app.collect imports it lazily, so nothing breaks without it -`auto` simply falls back to Netmiko.
 
-# Runs the command an operator would type; reaches the widest range of platforms
-netmiko>=4.2.0
-
-# Asks the device for its configuration (get_config); preferred where it has a driver
 napalm>=4.1.0

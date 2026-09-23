@@ -60,10 +60,10 @@ export default function Collect({ onCollect, framework, currentScan }) {
       <Notice kind="info" label="Disabled">
         <strong>Live collection is switched off on this backend.</strong>
         <span>
-          It opens an SSH session to every device it is given, so it is enabled deliberately rather
-          than by default. Set <span className="mono">LIVE_COLLECTION_ENABLED=true</span> and install
-          the drivers with <span className="mono">pip install -r requirements-live.txt</span>.
-          Until then, upload configuration files instead.
+          It is on by default, so someone turned it off here -it opens an SSH session to every device
+          it is given, which is worth closing on a backend others can reach. Set{' '}
+          <span className="mono">LIVE_COLLECTION_ENABLED=true</span> to turn it back on. Until then,
+          upload configuration files instead.
         </span>
       </Notice>
     );
@@ -74,8 +74,9 @@ export default function Collect({ onCollect, framework, currentScan }) {
       <Notice kind="warning" label="No drivers">
         <strong>Neither Netmiko nor NAPALM is installed.</strong>
         <span>
-          Collection is enabled but has nothing to connect with. Install them with{' '}
-          <span className="mono">pip install -r requirements-live.txt</span>.
+          Collection is enabled but has nothing to connect with. Netmiko is a normal dependency, so
+          this install is incomplete: run{' '}
+          <span className="mono">pip install -r requirements.txt</span> in the backend.
         </span>
       </Notice>
     );

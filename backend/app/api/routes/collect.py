@@ -6,11 +6,13 @@ The route is a fetch in front of the ordinary scan. It pulls configuration text 
 produce the same scan object, the same redaction and the same AI behaviour. Nothing downstream is
 told where the text came from, and nothing needs to be.
 
-Two things are deliberately restrictive:
+Two things about how it is exposed:
 
-  * The feature is off unless ``LIVE_COLLECTION_ENABLED`` is set. An endpoint that opens an SSH
-    session to an arbitrary host on request is a pivot into the network the backend sits in, so it
-    stays closed on a deployment that did not ask for it.
+  * It is on by default, because it is a deliverable the suggested workflow asks for and an operator
+    auditing their own network should not have to export configurations by hand.
+    ``LIVE_COLLECTION_ENABLED=false`` closes it, and an internet-reachable deployment should set that:
+    an endpoint that opens an SSH session to an arbitrary host on request is a pivot into the network
+    the backend sits in.
   * Credentials are never persisted. They arrive in the request body, open one session, and go out of
     scope with it. They are not written to the scan store, not archived with the scan, and not logged
     -only the configuration text survives the call, and that is redacted by the scan pipeline exactly
@@ -41,8 +43,9 @@ def _require_enabled() -> None:
     if not app_config.settings.live_collection_enabled:
         raise HTTPException(
             403,
-            "Live collection is disabled on this backend. It opens SSH sessions to the devices it is "
-            "given, so it is enabled deliberately: set LIVE_COLLECTION_ENABLED=true to turn it on.",
+            "Live collection is disabled on this backend. It is on by default, so it was turned off "
+            "here -it opens SSH sessions to the devices it is given, which is worth closing on a "
+            "backend others can reach. Set LIVE_COLLECTION_ENABLED=true to turn it back on.",
         )
 
 

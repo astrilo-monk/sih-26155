@@ -57,11 +57,12 @@ class Settings(BaseSettings):
     # calls per scan (cache hits are free)
     ai_judge_max_calls_per_scan: int = 2
 
-    # Pull configurations off live devices over SSH (app.collect) instead of uploading them. Off by
-    # default and deliberately so: the endpoint opens a session to whatever host it is given, which on
-    # a reachable backend is a way into the network it sits in. Turning it on also needs the optional
-    # drivers: pip install -r requirements-live.txt
-    live_collection_enabled: bool = False
+    # Pull configurations off live devices over SSH (app.collect) instead of uploading them. On by
+    # default: it is a deliverable the workflow asks for, and Netmiko ships in requirements.txt, so an
+    # operator running this locally can audit a device without exporting its configuration by hand.
+    # Set it to false on a backend others can reach -the endpoint opens a session to whatever host it
+    # is given, which is then a way into the network the backend sits in.
+    live_collection_enabled: bool = True
 
 
 settings = Settings()

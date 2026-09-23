@@ -40,6 +40,7 @@ describe('Collect', () => {
       caps({ methods: [], platforms: PLATFORMS.map((p) => ({ ...p, methods: [], available: false })) }));
     render(<Collect onCollect={vi.fn()} framework={null} currentScan={null} />);
     expect(await screen.findByText(/Neither Netmiko nor NAPALM is installed/i)).toBeTruthy();
+    expect(screen.getByText(/requirements\.txt/)).toBeTruthy();
   });
 
   it('sends the device and the chosen framework', async () => {

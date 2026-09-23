@@ -16,9 +16,10 @@ Two drivers, because they answer different questions:
   * Netmiko runs the command an operator would type. It reaches far more platforms, at the cost of
     naming that command here.
 
-Both are optional dependencies. Neither is imported until a collection actually runs, so a backend
-without them starts, serves and scans exactly as before -the feature reports itself unavailable
-instead of breaking the install.
+Netmiko ships in requirements.txt and reads every platform in the table below, so collection works
+on a normal install. NAPALM is the optional upgrade (requirements-live.txt). Neither is imported
+until a collection actually runs, so a backend missing one still starts, serves and scans -the
+feature reports what it cannot do instead of breaking the install.
 
 Credentials are arguments, never state: this module opens the session, reads the configuration and
 closes it. It stores nothing, returns nothing but the configuration text, and never logs a Target
@@ -76,6 +77,12 @@ PLATFORMS: dict[str, Platform] = {
 # Collection methods, in the order ``auto`` prefers them
 METHODS = ("napalm", "netmiko")
 
+# What to run when one is missing. Netmiko is a normal dependency; NAPALM is the optional upgrade.
+INSTALL = {
+    "netmiko": "pip install -r requirements.txt",
+    "napalm": "pip install -r requirements-live.txt",
+}
+
 
 @dataclass(frozen=True)
 class Target:
@@ -129,8 +136,8 @@ def _chosen_method(target: Target) -> str:
     spec, available = target.spec, available_methods()
     if not available:
         raise CollectionError(
-            "Live collection needs Netmiko or NAPALM, and neither is installed. "
-            "Install them with: pip install -r requirements-live.txt"
+            "Live collection needs Netmiko or NAPALM, and neither is installed. Netmiko is a normal "
+            f"dependency, so this install is incomplete: {INSTALL['netmiko']}"
         )
     if target.method == "auto":
         if spec.napalm and "napalm" in available:
@@ -139,13 +146,13 @@ def _chosen_method(target: Target) -> str:
             return "netmiko"
         raise CollectionError(
             f"{spec.label} has no NAPALM driver and Netmiko is not installed. "
-            "Install it with: pip install -r requirements-live.txt"
+            f"Install it with: {INSTALL['netmiko']}"
         )
     if target.method not in METHODS:
         raise CollectionError(f"Unknown method '{target.method}': choose auto, napalm or netmiko")
     if target.method not in available:
         raise CollectionError(f"{target.method} is not installed. Install it with: "
-                              "pip install -r requirements-live.txt")
+                              f"{INSTALL[target.method]}")
     if target.method == "napalm" and not spec.napalm:
         raise CollectionError(f"NAPALM has no driver for {spec.label} -collect it with Netmiko instead")
     return target.method
