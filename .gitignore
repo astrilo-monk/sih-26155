@@ -41,7 +41,6 @@ temp/
 
 # Build output
 frontend/dist/
-frontend/src/api/client.js
 
 # Logs
 *.log
@@ -68,3 +67,15 @@ flow-temp.md
 front-fix.md
 teach/
 ign NetAuditAI frontend*
+
+# Internal working notes -not part of the deliverable
+lastmin.md
+plan.md
+dimagighoda.txt
+sih.txt
+runlocal.txt
+verify_fix.py
+backend/REMEDIATION_AUDIT.md
+
+# Submission artefacts are uploaded to the portal, not carried in the repo
+*.pptx
