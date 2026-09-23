@@ -64,6 +64,13 @@ class Settings(BaseSettings):
     # is given, which is then a way into the network the backend sits in.
     live_collection_enabled: bool = True
 
+    # Which hosts live collection may open a session to. "private" (the default) resolves the host and
+    # allows it only inside RFC1918 space or loopback -the operator's own network, which is what the
+    # feature is for. It deliberately refuses link-local (169.254.0.0/16), because that is the cloud
+    # metadata endpoint and Python counts it as private. "any" lifts the restriction for an operator
+    # who really must reach a device across the internet.
+    live_collection_networks: str = "private"
+
 
 settings = Settings()
 settings.upload_dir.mkdir(exist_ok=True)

@@ -96,13 +96,18 @@ wider than the three parsers: a Junos or MikroTik device is worth collecting eve
 recognizers and heuristics.
 
 Collection is **on by default**: it is a deliverable the suggested workflow asks for, and an operator auditing
-their own network should not have to export configurations by hand. `LIVE_COLLECTION_ENABLED=false` closes it,
-and any internet-reachable deployment should do that -the endpoint opens an SSH session to whatever host it is
-handed, which is then a pivot into the network the backend sits in. Credentials are request-scoped: used to open
-one session, never written to the scan store, the archive or the logs, and `Target.__repr__` is overridden
-because a dataclass repr is the likeliest way for a password to reach a traceback. A device that cannot be
-reached is reported per host and the rest are still scanned -one unreachable device does not deny an audit of
-the others, and the UI says which were missed rather than letting an absent device look like a pass.
+their own network should not have to export configurations by hand. Two bounds make that defensible.
+`LIVE_COLLECTION_ENABLED=false` closes it entirely, which any internet-reachable deployment should set. And
+`LIVE_COLLECTION_NETWORKS` (default `private`) stops the endpoint being a server-side request forgery: a host
+that arrives in a request is resolved and refused unless it is RFC1918 or loopback, with link-local refused by
+name -`is_private` is true for `169.254.169.254`, the cloud metadata endpoint, so the obvious check is the wrong
+one. The driver is then handed the vetted address rather than the name, because checking a name and passing that
+name on leaves the driver to resolve it a second time, and a short-TTL record under the caller's control can
+answer differently each time. Credentials are request-scoped: used to open one session, never written to the
+scan store, the archive or the logs, and `Target.__repr__` is overridden because a dataclass repr is the
+likeliest way for a password to reach a traceback. A device that cannot be reached is reported per host and the
+rest are still scanned -one unreachable device does not deny an audit of the others, and the UI says which were
+missed rather than letting an absent device look like a pass.
 
 ## 2. Vendor detection and parser support
 

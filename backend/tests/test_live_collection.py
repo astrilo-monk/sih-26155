@@ -209,6 +209,66 @@ def test_an_empty_configuration_is_reported_as_a_privilege_problem():
             collect(_target(method="netmiko"))
 
 
+# -- where collection may reach -----------------------------------------------------------------
+
+def test_the_cloud_metadata_endpoint_is_refused(client):
+    """169.254.169.254 is the first address an attacker tries, and Python calls it private."""
+    resp = client.post("/api/collect", json={"targets": [_body("169.254.169.254")]})
+    assert resp.status_code == 502
+    assert "outside the private network" in resp.json()["detail"]["errors"]["169.254.169.254"]
+
+
+@pytest.mark.parametrize("host", ["8.8.8.8", "93.184.216.34"])
+def test_a_public_address_is_refused_by_default(client, host):
+    """An endpoint that takes a hostname and connects to it is SSRF unless it is bounded."""
+    resp = client.post("/api/collect", json={"targets": [_body(host)]})
+    assert resp.status_code == 502
+    assert "outside the private network" in resp.json()["detail"]["errors"][host]
+
+
+@pytest.mark.parametrize("host", ["10.0.0.1", "192.168.1.50", "172.16.4.4", "127.0.0.1"])
+def test_the_operators_own_network_is_allowed(host):
+    """The feature exists to audit your own devices, so private space must still work."""
+    from app.collect.collector import _vetted_address
+
+    assert _vetted_address(host, "private") == host
+
+
+def test_the_restriction_can_be_lifted_deliberately():
+    from app.collect.collector import _vetted_address
+
+    assert _vetted_address("8.8.8.8", "any") == "8.8.8.8"
+
+
+def test_the_driver_is_given_the_vetted_address_not_the_name():
+    """Checking the name and then handing the name over leaves a second lookup to disagree with the
+    first: a short-TTL record can pass the check and connect somewhere else. The driver gets a literal."""
+    import app.collect.collector as collector
+
+    seen = {}
+
+    def record(t):
+        seen["host"] = t.host
+        return "hostname R1\n"
+
+    with patch.object(collector.socket, "getaddrinfo",
+                      lambda *a, **k: [(None, None, None, "", ("10.4.4.4", 0))]), \
+         patch.object(collector, "available_methods", return_value=("netmiko",)), \
+         patch.object(collector, "_collect_netmiko", record):
+        collector.collect(_target(host="device.lab.internal", method="netmiko"))
+    assert seen["host"] == "10.4.4.4"
+
+
+def test_a_host_is_checked_by_what_it_resolves_to_not_by_its_name(client, monkeypatch):
+    """A name that resolves into private space is allowed; one that does not is refused."""
+    import app.collect.collector as collector
+
+    monkeypatch.setattr(collector.socket, "getaddrinfo",
+                        lambda *a, **k: [(None, None, None, "", ("169.254.169.254", 0))])
+    resp = client.post("/api/collect", json={"targets": [_body("harmless-looking.internal")]})
+    assert resp.status_code == 502
+
+
 # -- the feature is off unless asked for -------------------------------------------------------
 
 def test_collection_can_be_switched_off(monkeypatch):

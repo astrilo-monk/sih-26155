@@ -25,4 +25,6 @@ If we were to take this to production:
 * Set `API_KEY` in `backend/.env`: every `/api` request then needs an `X-API-Key` header or gets `401`. `/health` stays open. The bundled frontend does not send this header, so only set it for API-only use or behind a proxy that adds it.
 * Set `CORS_ORIGINS` to the frontend's origin(s), comma-separated, instead of the default `*`.
 * Set `LIVE_COLLECTION_ENABLED=false` on any internet-reachable deployment. It defaults to on, which is right for an operator running this on their own network, but the endpoint opens SSH sessions to the hosts it is given -on a public host that is a pivot into whatever network the backend can see. If you do leave it on, pair it with `API_KEY` and a restricted `CORS_ORIGINS`.
+* `LIVE_COLLECTION_NETWORKS` defaults to `private`, which is what stops the collection endpoint being a server-side request forgery: a host is resolved and refused unless it is RFC1918 or loopback, and link-local is refused outright because that is the cloud metadata address. Do not set it to `any` on a public host.
+
 * Set `DATABASE_URL` on any host that loses its disk on restart, or everything administrators taught is lost.

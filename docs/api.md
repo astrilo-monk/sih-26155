@@ -69,7 +69,12 @@ and an uploaded file produce the same `ScanResultResponse`.
 Collection is **on by default**. Netmiko is in `requirements.txt` and reads every supported platform, so this works
 on a normal install; `pip install -r backend/requirements-live.txt` adds NAPALM, which `auto` prefers where it has a
 driver. `LIVE_COLLECTION_ENABLED=false` closes both routes, and any internet-reachable deployment should set it: an
-endpoint that opens an SSH session to whatever host it is handed is a way into the network the backend sits in.
+endpoint that opens an SSH session to whatever host it is handed is a way into the network the backend sits
+in. Where it stays on, `LIVE_COLLECTION_NETWORKS` (default `private`) bounds it: the host is resolved and
+refused unless it is RFC1918 or loopback, with link-local refused outright because `169.254.169.254` is the
+cloud metadata endpoint. The driver is given the vetted address rather than the name, so a second DNS lookup
+cannot answer differently from the one that was checked. A refused host comes back in `failures`, like any
+other unreachable device.
 
 Credentials are request-scoped. They are used to open one session and are never written to the scan store, the scan
 archive or the logs; `Target.__repr__` is overridden so a traceback cannot print one either.

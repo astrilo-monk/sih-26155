@@ -28,7 +28,9 @@ closes it. It stores nothing, returns nothing but the configuration text, and ne
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import ipaddress
+import socket
+from dataclasses import dataclass, field, replace
 
 
 class CollectionError(RuntimeError):
@@ -158,6 +160,45 @@ def _chosen_method(target: Target) -> str:
     return target.method
 
 
+def _reachable_addresses(host: str) -> list:
+    """Every address the host resolves to, so the check cannot be dodged by naming one."""
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except socket.gaierror:
+        raise CollectionError(f"'{host}' does not resolve") from None
+    return [ipaddress.ip_address(info[4][0]) for info in infos]
+
+
+def _vetted_address(host: str, policy: str) -> str:
+    """The address to actually connect to: resolved once here, checked, and returned as a literal.
+
+    Live collection takes a hostname from a request and opens a connection to it, which is
+    server-side request forgery unless something bounds where it may go: on a reachable backend it
+    would otherwise reach any address the server can, including ones a client cannot.
+
+    ``is_private`` alone is not that bound. Python counts link-local as private, so 169.254.169.254
+    -the cloud metadata endpoint, and the first address anyone tries -would pass. It is excluded by
+    name, along with multicast and reserved space.
+
+    Checking the name and then handing the *name* to the driver would not be a bound either: the
+    driver resolves it a second time, and a DNS answer that changes between the two lookups (a short
+    TTL under the caller's control) passes the check and connects somewhere else. So every address
+    the name resolves to is checked, and the driver is given a vetted literal it cannot re-resolve.
+    """
+    if policy == "any":
+        return host
+    addresses = _reachable_addresses(host)
+    for address in addresses:
+        private = (address.is_private or address.is_loopback) and not (
+            address.is_link_local or address.is_multicast or address.is_reserved)
+        if not private:
+            raise CollectionError(
+                f"'{host}' resolves to {address}, which is outside the private network live collection "
+                "is limited to. Set LIVE_COLLECTION_NETWORKS=any to allow it."
+            )
+    return str(addresses[0])
+
+
 def _collect_napalm(target: Target) -> str:
     import napalm
 
@@ -210,9 +251,16 @@ def collect(target: Target) -> str:
     rather than re-raised, because driver exceptions quote the session (and sometimes the password
     prompt) in their message.
     """
+    from app import config as app_config
+
     method = _chosen_method(target)
-    if not target.host.strip():
+    named = target.host.strip()
+    if not named:
         raise CollectionError("No host given")
+    # Guarded here, not in the route: every caller reaches a device through this function. The driver
+    # is handed the vetted address rather than the name, so it cannot resolve to somewhere else.
+    # ``named`` stays the operator's spelling, because that is what they recognize in a message.
+    target = replace(target, host=_vetted_address(named, app_config.settings.live_collection_networks))
 
     collector = _collect_napalm if method == "napalm" else _collect_netmiko
     try:
@@ -221,12 +269,12 @@ def collect(target: Target) -> str:
         raise
     except Exception as e:
         raise CollectionError(
-            f"Could not collect from {target.host} over {method}: {type(e).__name__}"
+            f"Could not collect from {named} over {method}: {type(e).__name__}"
         ) from None
 
     if not config.strip():
         raise CollectionError(
-            f"{target.host} returned an empty configuration. The account may lack the privilege to "
+            f"{named} returned an empty configuration. The account may lack the privilege to "
             f"read it -'{target.spec.command}' printed nothing."
         )
     return config

@@ -4,6 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 from app.api.routes import scan, remediation, assistant, adaptive, report, collect
+from app import config as app_config
 from app.config import settings
 
 app = FastAPI(
@@ -23,8 +24,13 @@ app.add_middleware(
 
 
 def require_api_key(key: str | None = Security(APIKeyHeader(name="X-API-Key", auto_error=False))):
-    """Open when API_KEY is unset; otherwise the header must match it."""
-    if settings.api_key and not secrets.compare_digest((key or "").encode(), settings.api_key.encode()):
+    """Open when API_KEY is unset; otherwise the header must match it.
+
+    The key is read at call time, not bound at import: a config reload replaces the settings object,
+    and a stale reference here would keep authorising against the key the process started with.
+    """
+    configured = app_config.settings.api_key
+    if configured and not secrets.compare_digest((key or "").encode(), configured.encode()):
         raise HTTPException(401, "Missing or invalid API key")
 
 

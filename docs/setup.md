@@ -35,6 +35,8 @@ How to get the project running on your local machine.
    * `AI_JUDGE_MAX_CALLS_PER_SCAN`: AI judge requests per scan for unknown-vendor configs (default `2`; cache hits are free).
    * `VENDOR_PARSE_COVERAGE_THRESHOLD`: share of lines that must follow the detected vendor's grammar before its parser is trusted (default `0.7`).
    * `LIVE_COLLECTION_ENABLED`: default `true` -pull running configurations off devices over SSH (`POST /api/collect`) instead of uploading them. Netmiko is in `requirements.txt` and reads every supported platform, so this works on a normal install; `pip install -r requirements-live.txt` adds NAPALM, which is preferred where it has a driver. Set it to `false` on a backend others can reach: the endpoint opens a session to whatever host it is given. Credentials are used for one request and are never stored, archived or logged.
+   * `LIVE_COLLECTION_NETWORKS`: default `private` -live collection resolves the host and refuses anything outside RFC1918 or loopback, so the endpoint cannot be used to reach arbitrary addresses the server can see. Link-local (`169.254.0.0/16`, the cloud metadata endpoint) is refused even though Python counts it as private. Set to `any` to collect from a device across the internet.
+
    * `ADAPTIVE_AI_FOR_KNOWN_VENDORS`: legacy, default `false` -send lines the Cisco/FortiGate parsers do not read to the line interpreter; results only reach the review queue.
 5. Run the FastAPI dev server:
    ```bash
