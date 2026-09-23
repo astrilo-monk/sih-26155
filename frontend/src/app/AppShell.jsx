@@ -111,18 +111,40 @@ export default function AppShell({ path }) {
   // A drawer belongs to the page it was opened on
   useEffect(() => { setOpenKey(null); }, [path]);
 
+  // Adopt a finished scan however it was produced: uploaded files and devices collected over SSH
+  // reach the same pipeline, so the app has only one idea of what a current scan is.
+  const adopt = (result) => {
+    setScan(result);
+    setRevision((r) => r + 1);
+    setOpenError(null);
+    saveScanToHistory(result);
+  };
+
   const handleScan = async (files, framework = null) => {
     setScanning(true);
     setUploadError(null);
     try {
       const result = await apiClient.scanConfigs(files, framework);
-      setScan(result);
-      setRevision((r) => r + 1);
-      setOpenError(null);
-      saveScanToHistory(result);
+      adopt(result);
       navigate(`/app/scan/${result.scan_id}`);
     } catch (err) {
       setUploadError(err.message);
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  // Collection can succeed partly. When some device could not be read, stay on the page and return
+  // the outcome so it can be said which ones were missed -a device absent from an audit has not
+  // passed it, and navigating straight to the results would quietly imply it had.
+  const handleCollect = async (targets, framework = null) => {
+    setScanning(true);
+    setUploadError(null);
+    try {
+      const res = await apiClient.collectConfigs(targets, framework);
+      adopt(res.scan);
+      if (!res.failures.length) navigate(`/app/scan/${res.scan.scan_id}`);
+      return res;
     } finally {
       setScanning(false);
     }
@@ -198,7 +220,8 @@ export default function AppShell({ path }) {
         </header>
 
       <main id="main" tabIndex={-1} className="app-main" key={route.page === 'scan' ? route.view : route.page}>
-        {route.page === 'new' && <Upload onScan={handleScan} scanning={scanning} error={uploadError} currentScan={scan} />}
+        {route.page === 'new' && <Upload onScan={handleScan} onCollect={handleCollect} scanning={scanning}
+                                        error={uploadError} currentScan={scan} />}
         {route.page === 'scan' && (current ? (
           <>
             {current.archived && (

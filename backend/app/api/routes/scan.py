@@ -492,30 +492,21 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
     )
 
 
-@router.post("/scan", response_model=ScanResultResponse)
-async def scan_configs(files: list[UploadFile] = File(...), framework: Optional[str] = Form(None)):
-    """
-    Upload one or more config files for security analysis.
-    Returns findings, score, and device info.
-
-    Unknown-vendor configs get recognizer, mapping and heuristic facts; then,
-    when AI is available, the AI judge (``app.ai.judge``) -the only AI path for
-    them -reads only the scopes of controls still UNKNOWN or NOT_CONFIGURED,
-    within a per-scan call budget and a cache, and adds verified provisional
-    facts. If AI is unavailable and nothing could be read, the scan degrades
-    gracefully to display-only results.
-
-    Known-vendor configs use their parsers; confirmed learned mappings are
-    applied to lines those parsers do not understand. The legacy interpreter
-    (``adaptive_ai_for_known_vendors``, off by default) only fills the review queue.
-    """
-    if not files:
-        raise HTTPException(400, "No files uploaded")
-    # the benchmark the user chose at upload; controls always run in full, only the reporting is limited
+def validated_framework(framework: Optional[str]) -> Optional[str]:
+    """The benchmark chosen at upload; controls always run in full, only the reporting is limited."""
     framework = framework or None
     if framework is not None and framework not in FRAMEWORKS:
         raise HTTPException(422, f"Unknown framework '{framework}': choose one of {', '.join(FRAMEWORKS)}")
+    return framework
 
+
+def run_scan(sources: list[tuple[str, str]], framework: Optional[str] = None) -> ScanResultResponse:
+    """Analyse configurations that are already text, and return the scan they produce.
+
+    ``sources`` are ``(name, configuration)`` pairs. The name is only for error messages: nothing in
+    the pipeline reads it, so a configuration collected from a live device (``routes.collect``) takes
+    exactly the same path as an uploaded file, with the same redaction and the same AI rules.
+    """
     service = _new_adaptive_service()
     configs: list[NormalizedConfig] = []
     adaptive_runs: list[Optional[dict]] = []
@@ -523,19 +514,13 @@ async def scan_configs(files: list[UploadFile] = File(...), framework: Optional[
     had_unknown_vendor = False
     had_ai_available = False
 
-    for file in files:
-        content = await file.read()
-
-        if len(content) > settings.max_file_size:
-            raise HTTPException(413, f"File '{file.filename}' exceeds 2MB limit")
-
-        try:
-            raw_config = content.decode("utf-8")
-        except UnicodeDecodeError:
-            raise HTTPException(400, f"File '{file.filename}' is not a valid text file")
-
+    for name, raw_config in sources:
         if not raw_config.strip():
-            raise HTTPException(400, f"File '{file.filename}' is empty")
+            raise HTTPException(400, f"'{name}' is empty")
+        # guarded here rather than per caller: a device can answer with a configuration just as large
+        # as a file can be, and a collected one never passed through the upload check
+        if len(raw_config.encode("utf-8")) > settings.max_file_size:
+            raise HTTPException(413, f"'{name}' exceeds the 2MB limit")
 
         identification = identify_vendor(raw_config)
         identifications.append(identification)
@@ -546,7 +531,7 @@ async def scan_configs(files: list[UploadFile] = File(...), framework: Optional[
             # deterministic profile selects vendor-specific rules; AI vendor
             # opinions are reported as evidence in the adaptive info instead.
             had_unknown_vendor = True
-            normalized = _process_unknown_vendor(raw_config, file.filename)
+            normalized = _process_unknown_vendor(raw_config, name)
             # learned mappings and recognizers only: the AI judge below is the only AI for unknown vendors
             outcome = service.process(normalized, use_ai=False, report_unresolved=False)
         else:
@@ -611,6 +596,42 @@ async def scan_configs(files: list[UploadFile] = File(...), framework: Optional[
         archive_scan(scan_id)
 
     return build_scan_response(scan_id)
+
+
+@router.post("/scan", response_model=ScanResultResponse)
+async def scan_configs(files: list[UploadFile] = File(...), framework: Optional[str] = Form(None)):
+    """
+    Upload one or more config files for security analysis.
+    Returns findings, score, and device info.
+
+    Unknown-vendor configs get recognizer, mapping and heuristic facts; then,
+    when AI is available, the AI judge (``app.ai.judge``) -the only AI path for
+    them -reads only the scopes of controls still UNKNOWN or NOT_CONFIGURED,
+    within a per-scan call budget and a cache, and adds verified provisional
+    facts. If AI is unavailable and nothing could be read, the scan degrades
+    gracefully to display-only results.
+
+    Known-vendor configs use their parsers; confirmed learned mappings are
+    applied to lines those parsers do not understand. The legacy interpreter
+    (``adaptive_ai_for_known_vendors``, off by default) only fills the review queue.
+    """
+    if not files:
+        raise HTTPException(400, "No files uploaded")
+    framework = validated_framework(framework)
+
+    sources: list[tuple[str, str]] = []
+    for file in files:
+        content = await file.read()
+
+        if len(content) > settings.max_file_size:
+            raise HTTPException(413, f"File '{file.filename}' exceeds 2MB limit")
+
+        try:
+            sources.append((file.filename, content.decode("utf-8")))
+        except UnicodeDecodeError:
+            raise HTTPException(400, f"File '{file.filename}' is not a valid text file")
+
+    return run_scan(sources, framework)
 
 
 @router.get("/scan/{scan_id}", response_model=ScanResultResponse)

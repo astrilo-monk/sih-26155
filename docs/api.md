@@ -59,6 +59,39 @@ Retrieve a previous scan from the in-memory store (`404` after a backend restart
 Whether the backend still holds a scan: `{"scan_id": "123-abc", "held": false}` (always `200`). The History page uses it
 to mark entries expired after a restart.
 
+## Live collection
+
+Pull running configurations off devices over SSH instead of uploading them, as the problem statement's suggested
+workflow describes. Collection is only a fetch in front of `POST /api/scan`: the text it retrieves goes through the
+same pipeline, with the same vendor detection, the same secret redaction and the same AI rules, so a collected device
+and an uploaded file produce the same `ScanResultResponse`.
+
+Both routes are **disabled unless `LIVE_COLLECTION_ENABLED=true`**, and need the optional drivers
+(`pip install -r backend/requirements-live.txt`). The default is off on purpose: an endpoint that opens an SSH session
+to whatever host it is handed is a way into the network the backend sits in.
+
+Credentials are request-scoped. They are used to open one session and are never written to the scan store, the scan
+archive or the logs; `Target.__repr__` is overridden so a traceback cannot print one either.
+
+### `GET /api/collect/capabilities`
+What this backend can collect, so the form can say so before a credential is typed. Always `200` -"collection is off
+here" and "Netmiko is not installed" are answers, not errors.
+* **Response:** `enabled` (the setting), `methods[]` (the drivers installed: `napalm`, `netmiko`), and `platforms[]`
+  with `platform`, `label`, `command` (what will actually be run), `napalm_driver`, `methods[]` and `available`.
+
+### `POST /api/collect`
+Collect from each device, then audit what was collected.
+* **Request:** `{"targets": [...], "framework": null}`. Each target takes `host`, `platform` (a key from
+  `/api/collect/capabilities`), `username`, `password`, optional `port` (22), `enable`, `timeout` (30s) and `method`
+  (`auto` | `napalm` | `netmiko`). `auto` prefers NAPALM where it has a driver for the platform -it asks the device
+  for its configuration rather than typing a command at it -and falls back to Netmiko, which reaches more platforms.
+* **Response:** `{"scan": ScanResultResponse, "collected": ["10.0.0.1"], "failures": [{"host", "error"}]}`.
+* **Partial success is normal.** A device that cannot be reached is reported in `failures` and the rest are still
+  scanned: one unreachable device does not deny an audit of the others. A device absent from the audit has not passed
+  it, and the UI says so rather than navigating straight to the results.
+* `403` when collection is disabled, `422` for an unknown framework, and `502` only when *every* device failed,
+  because then there is nothing to audit.
+
 ## Remediation
 
 Remediation is deterministic (`backend/app/remediation/`). It runs only for a **decisive FAIL** (parser, confirmed recognizer or documented default) on a **confirmed Cisco IOS / FortiGate** configuration. It is reported `fixed` only after the generated configuration was rescanned and verified. No request field carries command text, and AI output is never used.

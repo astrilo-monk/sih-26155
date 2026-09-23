@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Notice } from '../components/ui/primitives';
+import Collect from './Collect';
 
 const MAX_BYTES = 2 * 1024 * 1024;
 
@@ -14,7 +15,7 @@ const STAGES = [
 
 const fmtSize = (n) => (n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(2)} MB`);
 
-function Scanning({ files }) {
+function Scanning({ files, collecting }) {
   const [seconds, setSeconds] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setSeconds((s) => s + 1), 1000);
@@ -24,7 +25,9 @@ function Scanning({ files }) {
     <section className="wrap scanning enter" aria-live="polite" aria-busy="true">
       <p className="eyebrow">Scan in progress</p>
       <h1 className="display page-title">
-        Scanning {files.length === 1 ? <span className="mono scanning-file">{files[0].name}</span> : `${files.length} configurations`}
+        {collecting
+          ? 'Collecting from devices'
+          : <>Scanning {files.length === 1 ? <span className="mono scanning-file">{files[0].name}</span> : `${files.length} configurations`}</>}
       </h1>
       <div className="scan-bar" aria-hidden="true"><span /></div>
       <ol className="stages">
@@ -52,17 +55,19 @@ const FRAMEWORK_CHOICES = [
   ['ISO_27001', 'ISO/IEC 27001'],
 ];
 
-export default function Upload({ onScan, scanning, error, currentScan }) {
+export default function Upload({ onScan, onCollect, scanning, error, currentScan }) {
   const [files, setFiles] = useState([]);
   const [framework, setFramework] = useState('');
   const [drag, setDrag] = useState(false);
+  // Where the configurations come from: a file the operator exported, or the devices themselves
+  const [source, setSource] = useState('file');
 
   const add = (list) => {
     const next = Array.from(list || []);
     if (next.length) setFiles((prev) => [...prev, ...next]);
   };
 
-  if (scanning) return <Scanning files={files} />;
+  if (scanning) return <Scanning files={files} collecting={source === 'device'} />;
 
   const tooLarge = files.some((f) => f.size > MAX_BYTES);
   const empty = files.some((f) => f.size === 0);
@@ -75,12 +80,12 @@ export default function Upload({ onScan, scanning, error, currentScan }) {
     <div className="wrap upload-page enter">
       <header className="page-head">
         <h1 className="display page-title">New scan</h1>
-        <p className="lede">Upload a network configuration to begin an audit.</p>
+        <p className="lede">Upload a network configuration, or collect one from the devices themselves, to begin an audit.</p>
       </header>
 
       {/* the three steps of an audit */}
       <ol className="steps-inline" aria-label="How this works">
-        <li className="is-current"><span className="mono">01</span> Upload your file</li>
+        <li className="is-current"><span className="mono">01</span> {source === 'file' ? 'Upload your file' : 'Collect from devices'}</li>
         <li><span className="mono">02</span> Answer the questions</li>
         <li><span className="mono">03</span> Download the fixed file</li>
       </ol>
@@ -94,6 +99,15 @@ export default function Upload({ onScan, scanning, error, currentScan }) {
             </Notice>
           )}
 
+          {/* Both sources end in the same scan: collection only replaces the operator's export step */}
+          <div className="segmented" role="group" aria-label="Where the configurations come from">
+            <button type="button" className="seg-btn" aria-pressed={source === 'file'}
+                    onClick={() => setSource('file')}>Upload files</button>
+            <button type="button" className="seg-btn" aria-pressed={source === 'device'}
+                    onClick={() => setSource('device')}>Collect from devices</button>
+          </div>
+
+          {source === 'file' && (
           <label
             htmlFor="config-files"
             className={`dropzone ${drag ? 'is-drag' : ''}`}
@@ -115,8 +129,9 @@ export default function Upload({ onScan, scanning, error, currentScan }) {
             <span className="btn btn-accent dz-choose">Choose file</span>
             <span className="small muted">CLI exports or JSON (cloud security groups), up to 2 MB each. Several files can be scanned together.</span>
           </label>
+          )}
 
-          {files.length > 0 && (
+          {source === 'file' && files.length > 0 && (
             <div className="file-list">
               <div className="file-list-head">
                 <span className="eyebrow">{files.length} selected</span>
@@ -146,15 +161,21 @@ export default function Upload({ onScan, scanning, error, currentScan }) {
             <span className="field-help">Optional. Every check still runs; results and the PDF report are mapped to this framework only.</span>
           </label>
 
-          <div className="upload-actions">
-            <button type="button" className="btn btn-accent btn-lg" disabled={!files.length || tooLarge || empty}
-                    onClick={() => onScan(files, framework || null)}>
-              Start scan
-            </button>
-            <span className="small muted">{hint}</span>
-          </div>
-          {currentScan && (
-            <p className="small muted">Or <a href={`#/app/scan/${currentScan.scan_id}`}>return to the current scan</a>.</p>
+          {source === 'file' ? (
+            <>
+              <div className="upload-actions">
+                <button type="button" className="btn btn-accent btn-lg" disabled={!files.length || tooLarge || empty}
+                        onClick={() => onScan(files, framework || null)}>
+                  Start scan
+                </button>
+                <span className="small muted">{hint}</span>
+              </div>
+              {currentScan && (
+                <p className="small muted">Or <a href={`#/app/scan/${currentScan.scan_id}`}>return to the current scan</a>.</p>
+              )}
+            </>
+          ) : (
+            <Collect onCollect={onCollect} framework={framework || null} currentScan={currentScan} />
           )}
         </div>
 

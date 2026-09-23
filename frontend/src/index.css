@@ -572,3 +572,12 @@ button.datarow-hit:hover { background: var(--muted); border-left-color: var(--ac
   }
   .reveal { opacity: 1; transform: none; }
 }
+
+/* Live collection: one card per device, fields laid out two-up where there is room */
+.collect-panel { display: flex; flex-direction: column; gap: var(--s-5); }
+.collect-device {
+  display: flex; flex-direction: column; gap: var(--s-4);
+  border: var(--bw) solid var(--line); padding: var(--s-5);
+}
+.collect-device legend { padding: 0 var(--s-2); }
+.collect-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--s-4); }

@@ -8,7 +8,7 @@ AI is an optional, budgeted escalation step whose output stays a proposal until 
 ## 1. Pipeline
 
 ```text
-Raw Configuration
+Raw Configuration  (an uploaded file, or collected from a live device over SSH)
       ↓
 Ingest (UTF-8, ≤ 2 MB, in memory) + redaction before any AI call
       ↓
@@ -54,6 +54,7 @@ Human Confirmation (still never executed on a device)
 ```mermaid
 flowchart TD
     Upload[Upload config] --> Detect[Vendor detection + parse coverage]
+    Collect[Collect over SSH: Netmiko / NAPALM] --> Detect
     Detect -->|confirmed Cisco IOS / FortiGate| Parser[Dedicated parser + documented defaults]
     Detect -->|unknown / unverified| Tokenizer[Generic tokenizer]
     Tokenizer --> Recognizers[Confirmed recognizers]
@@ -77,6 +78,29 @@ flowchart TD
     Simulate --> Controls
     Simulate -->|verified / unverified| Confirm[Administrator confirms]
 ```
+
+### 1.1 Where a configuration comes from
+
+Two sources, one pipeline. A configuration is either uploaded as a file, or pulled off a live device over SSH
+(`app.collect`, `POST /api/collect`) as the problem statement's suggested workflow describes. Collection is only
+the fetch step: it hands `scan.run_scan` the same text an upload would have carried, and nothing downstream is
+told -or needs to be told -which it was. A collected configuration is therefore never treated as more trusted
+than an uploaded one, and never as less redacted.
+
+Netmiko and NAPALM are **optional dependencies**, imported only when a collection actually runs, so a backend
+without them starts, serves and scans exactly as before and reports the feature unavailable instead of failing
+to install. `auto` prefers NAPALM where it has a driver for the platform, because `get_config` asks the device
+for its configuration rather than typing a command at it; Netmiko is the fallback and reaches far more
+platforms. The platform list is deliberately wider than the three parsers: a Junos or MikroTik device is worth
+collecting even though its verdicts come from recognizers and heuristics.
+
+Collection is **off unless `LIVE_COLLECTION_ENABLED=true`**. An endpoint that opens an SSH session to whatever
+host it is handed is a pivot into the network the backend sits in, so a deployment that did not ask for it does
+not get it. Credentials are request-scoped: used to open one session, never written to the scan store, the
+archive or the logs, and `Target.__repr__` is overridden because a dataclass repr is the likeliest way for a
+password to reach a traceback. A device that cannot be reached is reported per host and the rest are still
+scanned -one unreachable device does not deny an audit of the others, and the UI says which were missed rather
+than letting an absent device look like a pass.
 
 ## 2. Vendor detection and parser support
 

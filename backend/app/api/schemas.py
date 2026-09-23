@@ -664,3 +664,58 @@ class MappingUpdateRequest(BaseModel):
     extraction_method: Optional[str] = None
     constant_value: Optional[str] = None
     active: Optional[bool] = None
+
+
+class CollectTargetSchema(BaseModel):
+    """One device to pull a running configuration from.
+
+    Credentials are request-scoped: they are used to open one SSH session and are never stored,
+    archived or logged. ``password`` and ``enable`` are excluded from the model's repr so a validation
+    error or a traceback cannot print them.
+    """
+    host: str = Field(..., min_length=1)
+    platform: str = Field(..., min_length=1)
+    username: str = ""
+    password: str = Field(default="", repr=False)
+    port: int = Field(default=22, ge=1, le=65535)
+    enable: str = Field(default="", repr=False)
+    method: str = "auto"
+    timeout: int = Field(default=30, ge=5, le=300)
+
+
+class CollectRequest(BaseModel):
+    targets: list[CollectTargetSchema] = Field(..., min_length=1)
+    framework: Optional[str] = None
+
+
+class CollectFailureSchema(BaseModel):
+    """A device that could not be collected from, and why -in operator terms, without credentials."""
+    host: str
+    error: str
+
+
+class CollectResponse(BaseModel):
+    """The scan of whatever was collected, plus the devices that could not be reached.
+
+    A scan is present whenever at least one device answered: one unreachable device does not deny an
+    audit of the others.
+    """
+    scan: Optional[ScanResultResponse] = None
+    collected: list[str] = []
+    failures: list[CollectFailureSchema] = []
+
+
+class CollectPlatformSchema(BaseModel):
+    platform: str
+    label: str
+    command: str
+    napalm_driver: Optional[str] = None
+    methods: list[str] = []
+    available: bool
+
+
+class CollectCapabilitiesResponse(BaseModel):
+    """Whether this backend can collect at all, and from what."""
+    enabled: bool
+    methods: list[str] = []
+    platforms: list[CollectPlatformSchema] = []

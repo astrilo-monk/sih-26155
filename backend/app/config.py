@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     # calls per scan (cache hits are free)
     ai_judge_max_calls_per_scan: int = 2
 
+    # Pull configurations off live devices over SSH (app.collect) instead of uploading them. Off by
+    # default and deliberately so: the endpoint opens a session to whatever host it is given, which on
+    # a reachable backend is a way into the network it sits in. Turning it on also needs the optional
+    # drivers: pip install -r requirements-live.txt
+    live_collection_enabled: bool = False
+
 
 settings = Settings()
 settings.upload_dir.mkdir(exist_ok=True)

@@ -44,7 +44,7 @@ it('opens on the public homepage, states support honestly, and Try now enters th
   expect(container.textContent).not.toMatch(/(works with|supports) every vendor|100% accurate|fully autonomous|understands every/i);
 
   go('#/app');
-  expect(await screen.findByText('Upload a network configuration to begin an audit.')).toBeTruthy();
+  expect(await screen.findByText(/Upload a network configuration, or collect one from the devices/)).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Start scan' }).disabled).toBe(true);
 });
 

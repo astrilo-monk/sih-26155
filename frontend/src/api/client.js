@@ -81,6 +81,19 @@ export const apiClient = {
     return handleResponse(response);
   },
 
+  // What this backend can collect from, and whether collection is enabled at all. Never throws for
+  // "disabled" or "driver missing": those are answers the form shows, not failures.
+  async getCollectCapabilities() {
+    const response = await fetch(`${API_BASE_URL}/collect/capabilities`, { cache: 'no-cache' });
+    return handleResponse(response);
+  },
+
+  // Pull configurations off live devices and scan them. Credentials are sent for this one request
+  // and are never stored by the backend; they are not kept in the browser either.
+  async collectConfigs(targets, framework = null) {
+    return postJson('/collect', { targets, framework: framework || null });
+  },
+
   async getScan(scanId) {
     const response = await fetch(`${API_BASE_URL}/scan/${scanId}`, {
       cache: 'no-cache',

@@ -213,7 +213,7 @@ Named here so nobody "helpfully" adds them the night before.
 | Skipped | Why |
 |---|---|
 | A third dedicated parser | The generic path + recognizers *is* the architecture answer; a third parser argues against your own thesis |
-| Netmiko / NAPALM live collection | "Suggested workflow", not a deliverable -and "never touches a device" is the stronger security story |
+| ~~Netmiko / NAPALM live collection~~ | Built (`app.collect`, `POST /api/collect`), but **off unless `LIVE_COLLECTION_ENABLED=true`** -so the default deployment still never touches a device, and the security story is unchanged |
 | Zip / archive upload | Multi-file upload already works (`POST /api/scan` takes a file list) |
 | Assistant chat view, `summary` endpoint UI | Unchecked stretch items; the explain button in item 2 covers the AI demo |
 | Historical scan comparison | Unchecked stretch; nothing in the PS asks for it |
