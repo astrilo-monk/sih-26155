@@ -606,8 +606,19 @@ async def list_unresolved_controls(scan_id: str):
                                                             _ai_candidates(config, control_id))
             blocked = None
             if known_vendor:
-                blocked = (f"The {config.device.vendor.value} parser reads this configuration; recognizers are "
-                           "for configurations no confirmed parser reads")
+                # Teaching is for dialects no parser reads. This one was read, so the queue has to say
+                # what the operator can actually do about it -which is not "teach a recognizer". Saying
+                # only that recognizers do not apply here reads as though the engine gave up, when what
+                # it actually found is a setting the device does not have.
+                vendor = config.device.vendor.value
+                if result.status == Status.NOT_CONFIGURED:
+                    blocked = (f"The {vendor} parser read this configuration and found no such setting. "
+                               "Nothing can be taught here -the setting is absent on the device, so this is "
+                               "resolved by configuring it and scanning again.")
+                else:
+                    blocked = (f"The {vendor} parser read this configuration, but what it found does not "
+                               "settle this check. Teaching does not apply to a dialect a parser already "
+                               "reads; resolving it means changing the device or checking it by hand.")
             elif not teachable_predicates(control):
                 blocked = ("NetAuditAI cannot yet be taught the setting this check reads "
                            f"({', '.join(control.needs)})")

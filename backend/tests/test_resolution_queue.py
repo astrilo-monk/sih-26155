@@ -32,6 +32,20 @@ PROSE = (
 )
 
 
+# Read cleanly by the Cisco parser, but silent on source routing and SSH version: the parser
+# understood every line and there is nothing to teach -the device simply lacks the settings.
+CISCO_MISSING_SETTINGS = """hostname EDGE-01
+service password-encryption
+enable secret 5 $1$abc$xyz
+no ip http server
+line vty 0 4
+ transport input ssh
+ exec-timeout 10 0
+!
+end
+"""
+
+
 @pytest.fixture
 def client(seeded_adaptive_db):
     """A client on a fresh deployment: the shipped seed recognizers are loaded, nothing else is."""
@@ -101,6 +115,21 @@ def test_queue_offers_the_lines_it_has_and_claims_none_it_does_not(client):
     assert [line["line_number"] for line in items["LOG-002"]["suggested_lines"]]
     # nothing in this configuration mentions an idle timeout, and none is invented
     assert items["MGMT-006"]["suggested_lines"] == []
+
+
+def test_a_read_dialect_is_told_what_to_do_instead_of_being_told_about_recognizers(client):
+    """A confirmed vendor cannot be taught, but "recognizers do not apply here" answers a question the
+    operator did not ask and reads as though the engine gave up. What it actually found is a setting
+    the device does not have, and the queue has to say so."""
+    scan = upload(client, "edge.cfg", CISCO_MISSING_SETTINGS)
+    items = {i["control_id"]: i for i in unresolved(client, scan["scan_id"])["items"]}
+    absent = items["BOUNDARY-002"]          # no 'ip source-route' line of either polarity
+
+    assert absent["action"] == "blocked" and absent["suggested_lines"] == []
+    assert "cisco_ios parser read this configuration" in absent["blocked_reason"]
+    assert "configuring it and scanning again" in absent["blocked_reason"]
+    # the old wording explained the teaching system rather than the device
+    assert "recognizers are for configurations" not in absent["blocked_reason"]
 
 
 # ── 4. opening an unresolved control ─────────────────────────────────────────
