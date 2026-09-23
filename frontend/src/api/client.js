@@ -157,11 +157,13 @@ export const apiClient = {
     return handleResponse(response);
   },
 
-  async chat(scanId, message) {
+  // The backend reads the scan's own redacted results as context; history lets a follow-up
+  // ("why?", "and the other one?") refer back. It is sent, never stored server-side.
+  async chat(scanId, message, history = []) {
     const response = await fetch(`${API_BASE_URL}/assistant/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scan_id: scanId, message }),
+      body: JSON.stringify({ scan_id: scanId, message, history }),
       cache: 'no-cache',
     });
     return handleResponse(response);

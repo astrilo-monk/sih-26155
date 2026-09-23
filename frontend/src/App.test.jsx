@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 
 vi.mock('./api/client', () => ({
   apiClient: {
     isScanHeld: vi.fn().mockResolvedValue(true),
     getScan: vi.fn(),
     listLearnedMappings: vi.fn().mockResolvedValue([]),
+    // the assistant rail asks on mount, from every page of the shell
+    getAssistantStatus: vi.fn().mockResolvedValue({ ai_available: false }),
   },
 }));
 
@@ -20,6 +22,8 @@ vi.stubGlobal('localStorage', {
   removeItem: (k) => store.delete(k),
   clear: () => store.clear(),
 });
+
+const railWidth = () => document.querySelector('.app')?.style.getPropertyValue('--side');
 
 const go = (hash) => {
   window.location.hash = hash;
@@ -61,4 +65,17 @@ it('shows what NetAuditAI has learned, with an honest empty state (old recognize
   render(<App />);
   expect(await screen.findByText('NetAuditAI hasn’t learned anything yet')).toBeTruthy();
   expect(apiClient.listLearnedMappings).toHaveBeenCalledWith(true);
+});
+
+it('holds the rail width when the assistant opens, so the page underneath never reflows', async () => {
+  go('#/app');
+  render(<App />);
+  await screen.findByText(/Upload a network configuration/);
+
+  const shut = railWidth();
+  expect(shut).toBeTruthy();
+
+  fireEvent.click(screen.getByRole('button', { name: /ask about this scan/i }));
+  // the rail was reserved at its full width all along: opening the chat moves nothing
+  expect(railWidth()).toBe(shut);
 });

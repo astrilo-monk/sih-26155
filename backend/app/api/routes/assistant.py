@@ -21,10 +21,72 @@ def _score_text(score) -> str:
 
 
 CHAT_SYSTEM_PROMPT = """You are NetAuditAI, a network security compliance assistant.
-You help network engineers understand security findings from configuration audits.
-You have access to the user's scan results. Be helpful, specific, and practical.
-When referencing findings, use their rule IDs. Keep answers concise.
-If asked about something outside your scope, say so politely."""
+You help network engineers understand the results of a configuration audit.
+
+You are given the audit's own conclusions. Treat them as the facts. Never contradict a verdict, and
+never invent a setting, serial, version or line the context does not contain. If the context does not
+answer the question, say what is missing and what would settle it -that is a useful answer here.
+
+Two distinctions the engine makes, which you must keep:
+  * A check is decided (pass/fail) only from decisive evidence. "Not configured" and "unknown" are
+    NOT failures: they mean the setting was absent or could not be read, and the engine refuses to
+    guess. Explain them that way rather than implying the device failed.
+  * A provisional verdict (heuristic, ai_verified) is a suspicion awaiting confirmation. Say so when
+    one comes up; it does not move the posture score.
+
+Cite checks by their control id and findings by their rule id. Be concise and practical."""
+
+# A conversation is context, not storage: only the recent turns are sent, and each is capped
+MAX_HISTORY_TURNS = 8
+MAX_TURN_CHARS = 600
+
+
+def _scan_context(scan_id: str) -> str:
+    """What the assistant is allowed to know, taken from the response the browser already has.
+
+    Built from ``build_scan_response`` rather than the raw result on purpose: that response is the
+    redacted view, so every configuration quote in it has already had its secrets removed. The
+    assistant therefore cannot be handed a password by a path that forgot to scrub one.
+    """
+    from app.api.routes.scan import build_scan_response  # assistant is imported from scan's module
+
+    scan = build_scan_response(scan_id)
+    devices = ", ".join(
+        f"{d.get('hostname', 'unknown')} ({d.get('vendor', 'unknown')})" for d in scan.devices
+    ) or "none"
+
+    lines = [
+        "AUDIT RESULT",
+        f"Devices: {devices}",
+        f"Posture: {scan.posture if scan.posture is not None else 'not assessed'}"
+        f"  Coverage: {scan.coverage if scan.coverage is not None else 'n/a'}%"
+        f"  (posture scores the checks that were decided; coverage is how many could be)",
+        f"Findings: {scan.total_findings} -{scan.critical} critical, {scan.high} high, "
+        f"{scan.medium} medium, {scan.low} low",
+    ]
+    if scan.framework:
+        lines.append(f"Reported against: {scan.framework}")
+
+    if scan.findings:
+        lines.append("\nFINDINGS")
+        lines += [f"- [{f.severity.upper()}] {f.rule_id}: {f.title} (on {f.device_hostname})"
+                  for f in scan.findings]
+
+    if scan.results:
+        lines.append("\nEVERY CHECK, INCLUDING THE ONES NOT DECIDED")
+        for r in scan.results:
+            assurance = f", {r.assurance}" if r.assurance else ""
+            lines.append(f"- {r.control_id} [{r.status}{assurance}] {r.title}: {r.reason}")
+    return "\n".join(lines)
+
+
+def _history_text(history) -> str:
+    recent = [t for t in history if t.content.strip()][-MAX_HISTORY_TURNS:]
+    if not recent:
+        return ""
+    turns = "\n".join(f"{'Operator' if t.role != 'assistant' else 'You'}: "
+                      f"{t.content.strip()[:MAX_TURN_CHARS]}" for t in recent)
+    return f"\nEARLIER IN THIS CONVERSATION\n{turns}\n"
 
 
 @router.post("/assistant/chat", response_model=AssistantResponse)
@@ -39,29 +101,23 @@ async def chat(req: AssistantRequest):
     store = get_scan_store()
     stored = store.get(req.scan_id)
 
-    context = ""
-    if stored and stored.get("result") is not None:
-        result = stored["result"]
-        findings_summary = "\n".join(
-            f"- [{f.severity.value.upper()}] {f.rule_id}: {f.title} (on {f.device_hostname})"
-            for f in result.findings
+    if stored is None:
+        return AssistantResponse(
+            response="This backend no longer holds that scan, so I cannot see its results. Scans are "
+                     "kept in memory and cleared on restart -upload the configuration again to ask "
+                     "about it.",
+            scan_id=req.scan_id,
         )
-        context = f"""
-Current scan context:
-- Score: {_score_text(result.score)}
-- Total findings: {result.total_findings}
-- Critical: {result.critical_count}, High: {result.high_count}, Medium: {result.medium_count}, Low: {result.low_count}
-- Devices: {', '.join(d.get('hostname', 'unknown') for d in result.devices)}
 
-Findings:
-{findings_summary}
-"""
+    context = _scan_context(req.scan_id) if stored.get("result") is not None else (
+        "AUDIT RESULT\nThis scan produced no compliance result yet, so there is nothing to report on.")
 
-    # The question may quote secrets: redact keyword forms (as prose) and any
-    # secret value known from the scanned configs
-    redactor = _config_redactor(stored.get("configs") if stored else None)
-    question = redactor.scrub(redactor.text(req.message, prose=True))
-    prompt = f"{context}\n\nUser question: {question}"
+    # The question and the conversation may quote secrets: redact keyword forms (as prose) and any
+    # secret value known from the scanned configs. The context is already redacted by construction.
+    redactor = _config_redactor(stored.get("configs"))
+    scrub = lambda text: redactor.scrub(redactor.text(text, prose=True))
+    question = scrub(req.message)
+    prompt = f"{context}\n{scrub(_history_text(req.history))}\nOperator's question: {question}"
     response = generate(prompt, CHAT_SYSTEM_PROMPT)
 
     if response is None:

@@ -390,9 +390,18 @@ class RemediationPlanResponse(BaseModel):
     devices: list[DeviceRemediationPlanSchema]
 
 
+class ChatTurnSchema(BaseModel):
+    # "you" (the operator) or "assistant"
+    role: str
+    content: str
+
+
 class AssistantRequest(BaseModel):
     scan_id: str
     message: str
+    # Earlier turns, so a follow-up ("why?", "and the second one?") has something to refer to.
+    # Trimmed server-side: a conversation is context, not storage.
+    history: list[ChatTurnSchema] = []
 
 
 class AssistantResponse(BaseModel):

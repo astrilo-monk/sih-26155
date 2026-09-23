@@ -6,6 +6,8 @@ import { navigate } from '../lib/hooks';
 import { useAudit } from '../lib/useAudit';
 import { auditCounts, checkItems, deviceLabels } from '../lib/domain';
 import Upload from './Upload';
+import Assistant from './Assistant';
+import { NAV_WIDTH, clampPanel, keepOnScreen, loadPanel, savePanel } from '../lib/panel';
 import Results from './Results';
 import Fix from './Fix';
 import Teach from './Teach';
@@ -65,6 +67,16 @@ export default function AppShell({ path }) {
   // Bumped whenever the scan is replaced or re-evaluated: the plan and review queue are fetched again
   const [revision, setRevision] = useState(0);
   const [scanning, setScanning] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  // Where the assistant sits and how wide. Restored on load, so a panel dragged somewhere stays there.
+  const [panel, setPanelState] = useState(() => keepOnScreen(loadPanel(),
+    typeof window === 'undefined' ? 1280 : window.innerWidth,
+    typeof window === 'undefined' ? 800 : window.innerHeight));
+  const setPanel = useCallback((update) => setPanelState((prev) => {
+    const next = clampPanel(typeof update === 'function' ? update(prev) : update);
+    savePanel(next);
+    return next;
+  }), []);
   const [uploadError, setUploadError] = useState(null);
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState(null);
@@ -198,8 +210,15 @@ export default function AppShell({ path }) {
     </li>
   );
 
+  // The rail holds its width open or shut: opening the assistant must not reflow the page underneath
+  // it. Popping the panel out is the one case that gives the space back, because the chat has left.
+  const railWidth = panel.mode === 'docked' ? panel.width : NAV_WIDTH;
+
   return (
-    <div className="app">
+    <div
+      className={`app${chatOpen && panel.mode === 'docked' ? ' chat-is-open' : ''}`}
+      style={{ '--side': `${railWidth}px` }}
+    >
       <button type="button" className="skip-link" onClick={() => document.getElementById('main')?.focus()}>Skip to content</button>
       <aside className="sidebar">
         <a className="brand side-brand" href="#/" aria-label="NetAuditAI home">
@@ -211,6 +230,9 @@ export default function AppShell({ path }) {
           <p className="side-k">Intelligence</p>
           <ul>{INTEL.map(navItem)}</ul>
         </nav>
+        {/* Answers come from the scan's redacted results, so the rail is only useful with a scan open */}
+        <Assistant scan={scan} open={chatOpen} onToggle={() => setChatOpen((v) => !v)}
+                   panel={panel} onPanel={setPanel} />
       </aside>
 
       <div className="app-body">

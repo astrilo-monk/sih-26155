@@ -575,3 +575,100 @@ button.history-header:hover, .history-header:hover { background: none; border-le
   .teach-card::before { display: none; }
   .drawer-head, .drawer-body { padding-inline: var(--s-4); }
 }
+
+/* ── Assistant: a rail that widens the sidebar rather than covering the page ──────────────── */
+/* --side already drives both the sidebar width and the body offset, so opening the chat is one
+   variable: the layout follows and nothing overlaps the results being discussed. */
+/* Width is set inline from the panel state and held whether the chat is open or shut, so opening
+   the assistant never reflows the page. The class is only a styling hook. */
+/* Shut, the rail is still wide: give the prompt room so it reads as reserved, not empty */
+.chat-rail { margin-top: auto; padding: var(--s-5) var(--s-4); border-top: var(--bw) solid var(--line); }
+.chat-open {
+  width: 100%; display: flex; align-items: center; gap: var(--s-2); justify-content: center;
+  padding: var(--s-3); background: none; color: var(--muted-fg); cursor: pointer;
+  border: var(--bw) solid var(--line); font: 500 var(--fs-sm)/1 var(--sans);
+}
+.chat-open:hover:not(:disabled) { color: var(--fg); border-color: var(--line-hover); }
+.chat-open:disabled { opacity: .45; cursor: not-allowed; }
+
+.chat {
+  margin-top: auto; display: flex; flex-direction: column; min-height: 0; flex: 1;
+  border-top: var(--bw) solid var(--line);
+}
+.chat-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
+  padding: var(--s-3) var(--s-4); border-bottom: var(--bw) solid var(--line);
+}
+.chat-head .eyebrow { margin: 0; }
+.chat-empty { padding: var(--s-4); }
+.chat-log { flex: 1; overflow-y: auto; padding: var(--s-4); display: flex; flex-direction: column; gap: var(--s-3); }
+.chat-intro { display: flex; flex-direction: column; gap: var(--s-2); }
+.chat-opener {
+  text-align: left; padding: var(--s-2) var(--s-3); background: none; cursor: pointer;
+  border: var(--bw) solid var(--line); color: var(--fg); font: 400 var(--fs-sm)/1.4 var(--sans);
+}
+.chat-opener:hover { border-color: var(--accent); }
+.chat-turn { margin: 0; font-size: var(--fs-sm); line-height: 1.55; overflow-wrap: anywhere; min-width: 0; }
+.chat-who { display: block; font-size: var(--fs-xs); color: var(--muted-fg); margin-bottom: 2px; }
+.chat-you { padding-left: var(--s-3); border-left: 2px solid var(--line); }
+.chat-error { color: var(--accent); }
+.chat-wait { color: var(--muted-fg); }
+.chat-form { display: flex; gap: var(--s-2); padding: var(--s-4); border-top: var(--bw) solid var(--line); }
+.chat-input { min-height: 0; resize: vertical; font-size: var(--fs-sm); }
+.chat-form .btn { align-self: flex-end; }
+
+/* Rendered answers: the assistant writes Markdown, so it is shown as structure, not asterisks */
+.md { min-width: 0; }
+.md-p { margin: 0 0 var(--s-2); }
+.md > *:last-child { margin-bottom: 0; }
+.md-h { margin: var(--s-3) 0 var(--s-2); font: 600 var(--fs-sm)/1.3 var(--sans); color: var(--fg); }
+.md-list { margin: 0 0 var(--s-2); padding-left: var(--s-5); display: flex; flex-direction: column; gap: 2px; }
+.md-rule { border: 0; border-top: var(--bw) solid var(--line); margin: var(--s-3) 0; }
+.md-code {
+  font: 400 var(--fs-xs)/1.4 var(--mono); background: var(--muted);
+  padding: 1px 4px; overflow-wrap: anywhere;
+}
+.md-table-wrap { overflow-x: auto; margin: 0 0 var(--s-2); }
+.md-table { border-collapse: collapse; width: 100%; font-size: var(--fs-xs); }
+.md-table th, .md-table td {
+  border: var(--bw) solid var(--line); padding: var(--s-2); text-align: left; vertical-align: top;
+}
+.md-table th { font-weight: 600; background: var(--muted); }
+
+/* Resize: the rail edge, and the floating panel's corner */
+.chat-resize {
+  position: absolute; inset: 0 -3px 0 auto; width: 7px; cursor: col-resize; touch-action: none;
+}
+.chat-resize:hover, .chat-resize:focus-visible { background: var(--accent); outline: none; }
+.chat { position: relative; }
+.chat-resize-corner {
+  position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize;
+  touch-action: none; background: linear-gradient(135deg, transparent 50%, var(--line) 50%);
+}
+.chat-resize-corner:hover { background: linear-gradient(135deg, transparent 50%, var(--accent) 50%); }
+
+/* Popped out: floats above the page, stays where it was left, and can be dragged by its header */
+.chat-float {
+  position: fixed; z-index: 60; background: var(--bg); border: var(--bw) solid var(--line);
+  box-shadow: 0 12px 40px rgb(0 0 0 / .28); display: flex; flex-direction: column; min-height: 0;
+  margin-top: 0;
+}
+.chat-grab { cursor: grab; touch-action: none; user-select: none; }
+.chat-grab:active { cursor: grabbing; }
+.chat-head-actions { display: flex; gap: var(--s-3); }
+
+/* The empty dock, visible only while a floating panel is dragged near it */
+.chat-dock-hint {
+  position: fixed; inset: 64px auto var(--s-4) 0; width: var(--side); z-index: 55;
+  display: none; align-items: center; justify-content: center; pointer-events: none;
+  border: 1px dashed var(--line); margin: var(--s-4);
+}
+.chat-dock-hint.is-live { display: flex; border-color: var(--accent); background: var(--muted); }
+.chat-dock-hint span { font: 500 var(--fs-xs)/1 var(--sans); color: var(--fg); }
+
+@media (max-width: 900px) {
+  /* too little room to reserve a wide rail: the inline width is overridden back to the nav */
+  .app { --side: 248px !important; }
+  .chat-log { max-height: 40vh; }
+  .chat-resize { display: none; }
+}
