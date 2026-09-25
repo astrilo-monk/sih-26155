@@ -15,7 +15,9 @@ every meaningful line is checked against that vendor's grammar:
   ``ip access-list``). ``no`` forms are checked the same way. Children of
   ``interface`` and ``line`` blocks are validated; children of other block
   roots are accepted; indented lines under a non-block command are foreign.
-  Banner bodies are free text and covered for every banner type.
+  Banner bodies are free text and covered for every banner type. A line that names or proves
+  another platform (a RANCID or ``ASA Version`` header, ``feature``, ``ipv4 address``) is a
+  profile mismatch, like a FortiOS config without a FortiGate section.
 
 Besides the overall ratio the report records the longest run of consecutive
 foreign top-level statements, which exposes a foreign block pasted into an
@@ -300,6 +302,35 @@ def _banner_delimiter(stripped: str) -> Optional[str]:
     return "" if delimiter in rest else delimiter
 
 
+# Lines by which a configuration names, or proves, a platform other than IOS / IOS-XE. A short
+# config can follow the IOS grammar line for line (``hostname``, ``interface``, ``router ospf``) and
+# still be an NX-OS, IOS-XR, ASA or EOS device; confirming it as IOS would let the IOS parser read
+# every setting it cannot see as absent. Comments count here: a header is how an export says what
+# it is. Each statement is one IOS never writes, so a single line is enough.
+_OTHER_PLATFORMS = (
+    # RANCID names the device type it collected from; "cisco" is IOS / IOS-XE
+    (re.compile(r"^!RANCID-CONTENT-TYPE:\s*(?!cisco\s*$)(\S+)", re.IGNORECASE), None),
+    (re.compile(r"^(?:ASA|PIX|FWSM) Version\b"), "Cisco ASA"),
+    (re.compile(r"^\s+nameif\s"), "Cisco ASA"),
+    (re.compile(r"^!! IOS XR Configuration"), "Cisco IOS-XR"),
+    (re.compile(r"^\s+ipv4 address\s"), "Cisco IOS-XR"),
+    (re.compile(r"^route-policy\s"), "Cisco IOS-XR"),
+    (re.compile(r"^feature\s"), "Cisco NX-OS"),
+    (re.compile(r"^vrf context\s"), "Cisco NX-OS"),
+    (re.compile(r"^!\s*device:.*\bEOS-"), "Arista EOS"),
+    (re.compile(r"^interface Port-Channel\d"), "Arista EOS"),  # IOS writes Port-channel
+)
+
+
+def _other_platform(raw_lines: list[str]) -> Optional[str]:
+    for i, raw in enumerate(raw_lines, 1):
+        for pattern, platform in _OTHER_PLATFORMS:
+            if match := pattern.match(raw):
+                named = platform or f"'{match.group(1)}' (RANCID)"
+                return f"line {i} ({raw.strip()}) is {named} syntax, not IOS"
+    return None
+
+
 def _cisco_report(config: NormalizedConfig) -> CoverageReport:
     parser_banner_lines = set(config.banners.source_lines)
     covered: set[int] = set()
@@ -347,7 +378,7 @@ def _cisco_report(config: NormalizedConfig) -> CoverageReport:
             run += 1
             longest = max(longest, run)
 
-    return _report(config.raw_lines, covered, longest)
+    return _report(config.raw_lines, covered, longest, _other_platform(config.raw_lines))
 
 
 def parse_coverage(config: NormalizedConfig) -> CoverageReport:

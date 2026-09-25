@@ -122,6 +122,34 @@ def test_a_few_foreign_lines_in_a_small_cisco_config_do_not_reject_it():
     assert identification.status == STATUS_CONFIRMED
 
 
+# Short configs every other line of which IOS also accepts (shapes from Batfish's test configs):
+# only the line naming, or proving, another platform tells them apart, and it must.
+_IOS_BODY = "hostname r1\n!\ninterface Loopback0\n ip address 1.1.1.1 255.255.255.255\n!\n"
+SHORT_LOOKALIKES = {
+    "rancid arista": "!RANCID-CONTENT-TYPE: arista\n",
+    "rancid nx-os": "!RANCID-CONTENT-TYPE: cisco-nx\n",
+    "asa version": "ASA Version 9.9\n",
+    "asa nameif": "interface GigabitEthernet0/1\n nameif inside\n",
+    "ios-xr header": "!! IOS XR Configuration 6.3.1\n",
+    "ios-xr ipv4": "interface GigabitEthernet0/0/0/1\n ipv4 address 10.0.1.1 255.255.255.252\n",
+    "nx-os feature": "feature bgp\n",
+    "eos device header": "! device: l1 (DCS-7050SX3, EOS-4.28.3M)\n",
+    "eos port-channel": "interface Port-Channel1\n description uplink\n",
+}
+
+
+@pytest.mark.parametrize("marker", SHORT_LOOKALIKES.values(), ids=SHORT_LOOKALIKES.keys())
+def test_a_short_config_naming_another_platform_is_not_ios(marker):
+    identification = identify_vendor(marker + _IOS_BODY)
+    assert identification.detected_vendor == Vendor.CISCO_IOS
+    assert identification.status == STATUS_UNVERIFIED
+    assert "not IOS" in identification.reason
+
+
+def test_a_rancid_cisco_header_is_ios():
+    assert identify_vendor("!RANCID-CONTENT-TYPE: cisco\n" + _IOS_BODY).status == STATUS_CONFIRMED
+
+
 def test_a_pasted_foreign_block_is_rejected_even_with_a_high_ratio():
     identification = identify_vendor(_text("mixed_ios_foreign_block.cfg"))
     assert identification.coverage.ratio >= 0.7
@@ -130,7 +158,7 @@ def test_a_pasted_foreign_block_is_rejected_even_with_a_high_ratio():
 
 
 def test_threshold_is_a_setting(monkeypatch):
-    text = _text("arista_eos.cfg")
+    text = _text("brocade_icx.cfg")  # rejected on the ratio alone: it names no other platform
     monkeypatch.setattr(app_config.settings, "vendor_parse_coverage_threshold", 0.0)
     assert identify_vendor(text).status == STATUS_CONFIRMED
     assert identify_vendor(text, threshold=0.99).status == STATUS_UNVERIFIED

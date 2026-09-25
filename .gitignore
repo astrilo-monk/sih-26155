@@ -79,3 +79,6 @@ backend/REMEDIATION_AUDIT.md
 
 # Submission artefacts are uploaded to the portal, not carried in the repo
 *.pptx
+
+# Third-party config corpora (Batfish, Apache-2.0): local measurement input, not shipped
+datasets/
