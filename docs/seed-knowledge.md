@@ -55,6 +55,7 @@ a unit for durations, a template that matches its example line, and no secret in
 | `{enum:<name>}` | one word, looked up in a value table | `disable-telnet no` |
 | `{polarity}` | a polarity word anywhere in the line | `telnet server enable` |
 | `{neg}` | an **optional leading negator** (`no` / `unset` / `delete` / `undo`) | `no telnet server` |
+| `{rest}` | any trailing options, last token only, destinations and AAA servers only (see Limitations) | `ntp server 192.0.2.10 key 1` |
 
 `{neg}` is what lets one entry read both forms of a concept: `{neg} telnet server` says Telnet is on for
 `telnet server` and off for `no telnet server`, and `{neg} telnet` scoped to `services` does the same for a
@@ -208,8 +209,13 @@ interface names. Passing the gates makes a recognizer safe to store, not worth s
   inactivity-timeout` (EXOS) name no unit and are read as seconds; PAN-OS `session-timeout` and Arista
   `idle-timeout` as minutes. A timeout whose unit is not the product's own would be misread.
 * Recognizers read whole tokens, so a template cannot match part of a word -and a template matches a whole
-  statement, so `ntp server 192.0.2.10 iburst` is not read by `ntp server {host}`: an optional trailing
-  wildcard would let a template match lines it was never shown.
+  statement, so `ntp server 192.0.2.10 iburst` is not read by `ntp server {host}`. The one exception is
+  `{rest}`, which may end a template for a **remote log destination, an NTP server or a central AAA
+  server** only: `ntp server {host} {rest}` reads `ntp server 192.0.2.10 key 1 prefer`, because what
+  follows a server says how to reach it, never whether it exists. A toggle cannot end in `{rest}` (a
+  trailing word may be the switch), a one-keyword template cannot either, and before `{rest}` a `{host}`
+  slot reads only an address or a dotted name -in `logging host inside 10.0.0.1`, `inside` is an
+  interface, not a host.
 * A seed recognizer is decisive, so a wrong one is a real defect. Treat the file as production code.
 
 ## Adding a seed recognizer safely

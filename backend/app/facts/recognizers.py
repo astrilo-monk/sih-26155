@@ -24,8 +24,8 @@ import re
 from typing import Any, Iterable, Optional
 
 from app.adaptive.matcher import (
-    ANY_TOKEN, EXTRACTION_RECOGNIZER, NEGATION_SLOT, PatternError, compile_pattern, match_recognizer, normalize_line,
-    recognizer_slot, strip_terminator,
+    ANY_TOKEN, EXTRACTION_RECOGNIZER, NEGATION_SLOT, REST_TOKEN, PatternError, compile_pattern, match_recognizer,
+    normalize_line, recognizer_slot, strip_terminator,
 )
 from app.facts import lexicon as L
 from app.facts.heuristics import _Candidate, _polarity, _version, combine, heuristic_candidates, state_lines
@@ -72,6 +72,10 @@ SLOT_PREDICATES = {
     NTP_SERVER: ("host", "ip"), PASSWORD_STORAGE: ("enum",),
 }
 RECOGNIZER_PREDICATES = BOOL_PREDICATES | frozenset(SLOT_PREDICATES)
+# Settings whose statement may end in ``{rest}``: a destination or an authentication server. What
+# follows it (``514 protocol udp``, ``vrf mgmt``, ``key 1``, ``prefer``) says how to reach the server,
+# never whether there is one. A toggle is different -a trailing word may be the one that switches it.
+REST_PREDICATES = frozenset({LOG_REMOTE_DESTINATION, NTP_SERVER, CENTRAL_AAA})
 STOPWORDS = POSITIVE | NEGATIVE | NEGATORS | {"set", "config", "edit", "next", "end", "exit", "state", "status"}
 # A recognizer must be this specific. A hierarchical dialect keeps the nouns in the block header
 # (``ntp { server 1.2.3.4; }``), so the scope template counts too -but never on its own: the
@@ -116,6 +120,10 @@ def recognizer_value(recognizer, slot: tuple) -> Any:
     if kind == "ip":
         return [word] if IP.match(word) else None
     if kind == "host":
+        # before trailing options a bare word may be one of them (``logging host inside 10.0.0.1``,
+        # where "inside" names an interface): only an address or a dotted name is read as the host
+        if REST_TOKEN in recognizer.command_pattern.split() and not (IP.match(word) or _FQDN.match(word)):
+            return None
         return _host(word)
     number, unit = _DURATION.match(word).groups()
     unit = unit or (argument or "").lower()
@@ -143,6 +151,9 @@ def validate_recognizer(r) -> None:
             compile_pattern(r.scope_template, EXTRACTION_RECOGNIZER)
     except PatternError as e:
         raise RecognizerError(str(e)) from e
+    if REST_TOKEN in r.command_pattern.split() and r.predicate not in REST_PREDICATES:
+        raise RecognizerError(f"Only a destination or an authentication server may end in {REST_TOKEN}: "
+                              "for any other setting a trailing word can change what the line says")
 
     keywords = _keywords(r.command_pattern)
     scoped = keywords + _keywords(r.scope_template or "")
@@ -218,7 +229,7 @@ def _one_word_feature(r, keywords: list[str], kind: Optional[str]) -> bool:
     with a literal polarity word- and an address slot has to name the concept, so ``logging {ip}`` is
     read and ``buffered {ip}`` is not."""
     tokens = r.command_pattern.split()
-    if len(keywords) != 1:
+    if len(keywords) != 1 or REST_TOKEN in tokens:
         return False
     # ``set login-banner "…"``: a setting stated by naming it, in a word that names nothing else
     if kind == "neg" and r.predicate in PRESENCE_PREDICATES and _names_concept(r.predicate, r.subject, keywords):

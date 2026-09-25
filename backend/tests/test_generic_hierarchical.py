@@ -144,6 +144,51 @@ def test_the_same_leaf_keyword_in_two_scopes_does_not_collide():
     }  # the DNS server matched neither scope
 
 
+# -- {rest}: a destination's trailing options, and nothing else ---------------
+
+@pytest.mark.parametrize("line, host", [
+    ("ntp server 192.0.2.10", "192.0.2.10"),
+    ("ntp server 192.0.2.10 key 1 prefer", "192.0.2.10"),
+    ("ntp server 192.0.2.3 use-vrf management key 12345 minpoll 10;", "192.0.2.3"),
+    ("ntp peer 192.0.2.10", None),         # the literals still have to match
+    ("ntp server", None),                  # and the slot still needs its value
+])
+def test_rest_matches_any_trailing_options_of_a_statement(line, host):
+    matched = match_recognizer("ntp server {host} {rest}", line)
+    assert (matched[2] if matched else None) == host
+
+
+@pytest.mark.parametrize("line, value", [
+    ("logging host 192.0.2.1 514 protocol udp", ["192.0.2.1"]),
+    ("logging host logs.example.com vrf mgmt", ["logs.example.com"]),
+    ("logging host inside 192.0.2.1", None),  # ASA: "inside" is the interface, not the host
+])
+def test_before_trailing_options_a_bare_word_is_never_the_host(line, value):
+    r = _ntp_recognizer(predicate=LOG_REMOTE_DESTINATION, scope_template=None,
+                        command_pattern="logging host {host} {rest}", example_line=line)
+    facts, _ = recognizer_facts([line], extra=[r])
+    assert (facts[0].value if facts else None) == value
+
+
+def test_rest_only_ends_a_recognizer_template():
+    with pytest.raises(PatternError, match="end"):
+        recognizer_slot("ntp {rest} server {host}")
+    with pytest.raises(RecognizerError, match="end"):
+        validate_recognizer(_ntp_recognizer(command_pattern="{rest} server {ip}"))
+
+
+def test_rest_is_refused_for_a_toggle_and_for_a_one_word_template():
+    validate_recognizer(_ntp_recognizer(command_pattern="server {ip} {rest}", example_line="server 192.0.2.1 prefer"))
+    telnet = _ntp_recognizer(predicate=PROTOCOL_ENABLED, subject="telnet", scope_template=None,
+                             command_pattern="telnet server {polarity} {rest}", example_line="telnet server enable")
+    with pytest.raises(RecognizerError, match="trailing word"):
+        validate_recognizer(telnet)  # "telnet server enable ... disable" must never read as on
+    with pytest.raises(RecognizerError, match="keywords"):
+        validate_recognizer(_ntp_recognizer(predicate=LOG_REMOTE_DESTINATION, scope_template=None,
+                                            command_pattern="logging {ip} {rest}",
+                                            example_line="logging 192.0.2.1 vrf mgmt"))
+
+
 # -- presence states an enabled feature; absence still states nothing --------
 
 @pytest.mark.parametrize("statement, expected", [

@@ -25,6 +25,10 @@ Recognizer templates (Phase 6) use typed slots instead of ``{value}``, at most o
 ``{host}`` reads an address *or* a hostname / FQDN, so one recognizer covers
 ``ntp server 192.0.2.10``, ``ntp server 2001:db8::10`` and ``ntp server ntp1.example.com``.
 
+``{rest}`` may only end a recognizer template: it matches whatever options follow (none included), so
+``ntp server {host} {rest}`` reads ``ntp server 192.0.2.10 key 1 prefer``. ``validate_recognizer`` decides
+which settings may carry one.
+
 ``{neg}`` is an *optional* leading negator (``no`` / ``unset`` / ``delete`` / ``undo``) and may only be
 the template's first token. It reads the statement's polarity from its own presence, so ``{neg} telnet
 server`` is one recognizer for both ``telnet server`` (on) and ``no telnet server`` (off). Leading
@@ -49,6 +53,7 @@ if TYPE_CHECKING:
 
 VALUE_TOKEN = "{value}"
 ANY_TOKEN = "{any}"
+REST_TOKEN = "{rest}"
 
 EXTRACTION_TEMPLATE_CAPTURE = "template_capture"
 EXTRACTION_CONSTANT = "constant"
@@ -122,7 +127,9 @@ def validate_pattern(pattern: str, extraction_method: str) -> list[str]:
         raise PatternError("A recognizer template may contain at most one typed slot")
     if NEGATION_SLOT in tokens[1:]:
         raise PatternError(f"{NEGATION_SLOT} reads a leading negator, so it can only be the first token")
-    literals = [t for t in tokens if t not in (VALUE_TOKEN, ANY_TOKEN) and t not in slots]
+    if REST_TOKEN in tokens and (not recognizer or tokens.index(REST_TOKEN) != len(tokens) - 1):
+        raise PatternError(f"{REST_TOKEN} can only end a recognizer template")
+    literals = [t for t in tokens if t not in (VALUE_TOKEN, ANY_TOKEN, REST_TOKEN) and t not in slots]
     allowed = "typed slots, {any}" if recognizer else f"{VALUE_TOKEN} and {ANY_TOKEN} placeholders"
     for tok in literals:
         if "{" in tok or "}" in tok:
@@ -145,8 +152,9 @@ def compile_pattern(pattern: str, extraction_method: str) -> re.Pattern[str]:
     # ``{neg}`` is an optional prefix, not a token: it carries its own separator so the rest of the
     # template still has to start the line when no negator is there.
     prefix = _NEGATION_PREFIX if tokens[:1] == [NEGATION_SLOT] else ""
+    rest = tokens[-1] == REST_TOKEN
     parts = []
-    for tok in tokens[1:] if prefix else tokens:
+    for tok in (tokens[1:] if prefix else tokens)[:-1 if rest else None]:
         if tok == VALUE_TOKEN:
             parts.append(r"(?P<value>\S+)")
         elif slot := _SLOT.match(tok):
@@ -159,7 +167,8 @@ def compile_pattern(pattern: str, extraction_method: str) -> re.Pattern[str]:
     terminator = f"[{re.escape(TERMINATORS)}]?"
     # ``=`` separates a token from its value in key=value dialects (RouterOS ``disabled=yes``), exactly as
     # the tokenizer splits it; a trailing ``{`` is a block opener, punctuation like the terminator.
-    return re.compile(r"^\s*" + prefix + r"[\s=]+".join(p + terminator for p in parts) + r"(?:\s*\{)?\s*$",
+    tail = r"(?:[\s=]+.*?)?" if rest else ""
+    return re.compile(r"^\s*" + prefix + r"[\s=]+".join(p + terminator for p in parts) + tail + r"(?:\s*\{)?\s*$",
                       re.IGNORECASE)
 
 
