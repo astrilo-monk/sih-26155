@@ -6,6 +6,8 @@ Words are matched against whole tokens or their hyphen parts
 (``syslog-server`` → ``syslog``), never against substrings.
 """
 
+import re
+
 # Places remote management is configured: a protocol named after one of these is a management protocol
 REMOTE_ACCESS = frozenset({
     "remote-console", "remote-access", "vty", "line", "admin-access", "allowaccess", "management",
@@ -70,6 +72,25 @@ PASSWORD_RELATED = frozenset({
 })
 
 SNMP = frozenset({"snmp", "snmp-server", "snmpd"})
+# A zone or interface named for the outside world. Only a name that says so marks a place external: a zone
+# called "dmz" or "vlan20" says nothing, and nothing is concluded from it.
+EXTERNAL_ZONES = frozenset({"untrust", "untrusted", "outside", "internet", "external", "wan", "public"})
+# How a configuration says which management services an interface or zone accepts
+MGMT_EXPOSURE_RELATED = frozenset({
+    "host-inbound-traffic", "system-services", "allowaccess", "interface-management-profile",
+    "management-profile", "management-access", "permitted-services",
+})
+# How a configuration states a limit on failed logins
+LOCKOUT_RELATED = frozenset({
+    "lockout", "lockout-threshold", "admin-lockout-threshold", "retry-options", "tries-before-disconnect",
+    "max-auth-attempts", "max-fail", "attempts", "block-for", "failed-attempts",
+})
+# How a configuration names a local account
+ACCOUNT_RELATED = frozenset({"user", "users", "username", "account", "local-user", "mgt-config"})
+# Account names vendors ship or attackers try first
+DEFAULT_ACCOUNT_NAMES = frozenset({"admin", "administrator", "root", "cisco", "manager"})
+# The services MGMT-010 counts as management (ping is a diagnostic: reachable, not manageable)
+MGMT_SERVICES = frozenset({"ssh", "https", "http", "telnet", "snmp", "all"})
 READ_WRITE = frozenset({"rw", "read-write", "write"})
 READ_ONLY = frozenset({"ro", "read-only", "read"})
 
@@ -113,3 +134,25 @@ DENY = frozenset({"deny", "discard", "drop", "reject", "block"})
 # A rule naming any of these is narrower than "all traffic"
 NARROWING = frozenset({"tcp", "udp", "icmp", "sctp", "gre", "esp", "eq", "range", "host", "port", "dst-port",
                        "src-port", "application", "service"})
+
+# ── management cryptography (CRYPTO-002) ────────────────────────────────────
+# Words that introduce an SSH / TLS algorithm list
+ALGORITHM_WORDS = frozenset({
+    "cipher", "ciphers", "encryption", "mac", "macs", "hmac", "kex", "key-exchange", "algorithm", "algorithms",
+    "ciphersuite", "secure-ciphersuite",
+})
+# An algorithm name that is weak for management sessions: DES / 3DES / RC4 / Blowfish ciphers, any CBC mode,
+# MD5 MACs, and SHA-1 Diffie-Hellman group 1 key exchange
+_WEAK_ALGORITHM = re.compile(
+    r"^(?:3?des|arcfour\d*|rc4[\w-]*|blowfish[\w-]*)$|(?:^|[-_])(?:3des|des|rc4)(?:[-_]|$)|[-_]cbc(?:[-_@]|$)"
+    r"|(?:^|-)md5(?:-|$)|diffie-hellman-group1-", re.IGNORECASE)
+
+
+def is_weak_algorithm(token: str) -> bool:
+    return bool(_WEAK_ALGORITHM.search(token.strip("\"',;")))
+# Settings that switch weak management cryptography on or off (``strong-crypto``, ``ssh-cbc-cipher`` …)
+CRYPTO_SETTING_RELATED = ALGORITHM_WORDS | frozenset({"strong-crypto", "ssh-cbc-cipher", "ssh-hmac-md5", "ssh-kex-sha1"})
+# How a traffic rule says it logs
+RULE_LOG_WORDS = frozenset({"log", "log-end", "log-start", "logtraffic", "log-setting"})
+# Router interface services BOUNDARY-004 wants off
+ROUTER_SERVICE_WORDS = frozenset({"redirects", "proxy-arp", "directed-broadcast"})

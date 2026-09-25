@@ -5,12 +5,12 @@ Summary:
 ## Done
 - [x] Cisco IOS and FortiGate parsers with grammar-coverage vendor confirmation (look-alikes stay unverified)
 - [x] Secret redaction before every AI call
-- [x] Control catalog (15 controls) with PASS / FAIL / UNKNOWN / NOT_CONFIGURED results and versioned NIST / CIS mappings
+- [x] Control catalog (23 controls) with PASS / FAIL / UNKNOWN / NOT_CONFIGURED results and versioned NIST / CIS mappings
 - [x] Posture + coverage scoring with bounds and critical controls not assessed
 - [x] Security facts with assurance; every control runs on every configuration
 - [x] Generic tokenizer and lexicon heuristics for unknown vendors (provisional, no AI needed)
 - [x] Administrator-confirmed recognizers persisted (SQLite, or Postgres via `DATABASE_URL`) and reused across restarts
-- [x] Shipped seed knowledge: 141 generalized recognizers for eleven unparsed dialects and AWS security groups
+- [x] Shipped seed knowledge: 161 generalized recognizers for eleven unparsed dialects and AWS security groups
 - [x] Structured (JSON) configurations flattened to one statement per object, so cloud rules are read and teachable
 - [x] Serial number / model / OS version reported when the uploaded text states them
 - [x] Scan history survives a restart: a redacted copy of each scan and its plans (`scans` table)

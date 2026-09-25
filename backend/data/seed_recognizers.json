@@ -323,6 +323,14 @@
       "example_line": "configure ntp-client add server 192.0.2.10"
     },
     {
+      "concept": "Default account",
+      "vendor": "Extreme Networks EXOS",
+      "predicate": "auth.account.name",
+      "command_pattern": "configure account {enum:user} encrypted {any}",
+      "constant_value": "{\"admin\": \"admin\", \"administrator\": \"administrator\", \"root\": \"root\", \"cisco\": \"cisco\", \"manager\": \"manager\"}",
+      "example_line": "configure account admin encrypted <SECRET:password>"
+    },
+    {
       "concept": "Password storage",
       "vendor": "HPE Aruba AOS-CX",
       "predicate": "auth.password.storage",
@@ -375,6 +383,21 @@
       "predicate": "time.ntp.authenticated",
       "command_pattern": "ntp authentication {polarity}",
       "example_line": "ntp authentication enable"
+    },
+    {
+      "concept": "Failed-login limit",
+      "vendor": "HPE Aruba AOS-CX",
+      "predicate": "auth.login.max_attempts",
+      "command_pattern": "ssh server max-auth-attempts {int}",
+      "example_line": "ssh server max-auth-attempts 3"
+    },
+    {
+      "concept": "Default account",
+      "vendor": "HPE Aruba AOS-CX",
+      "predicate": "auth.account.name",
+      "command_pattern": "user {enum:user} group {any} password {any} {any}",
+      "constant_value": "{\"admin\": \"admin\", \"administrator\": \"administrator\", \"root\": \"root\", \"cisco\": \"cisco\", \"manager\": \"manager\"}",
+      "example_line": "user admin group administrators password plaintext <SECRET:password>"
     },
     {
       "concept": "Password storage",
@@ -499,6 +522,15 @@
       "predicate": "snmp.community",
       "command_pattern": "snmp-agent community write {community:RW}",
       "example_line": "snmp-agent community write <SECRET:snmp-community>"
+    },
+    {
+      "concept": "Default account",
+      "vendor": "Huawei VRP",
+      "predicate": "auth.account.name",
+      "command_pattern": "local-user {enum:user} privilege level {any}",
+      "scope_template": "aaa",
+      "constant_value": "{\"admin\": \"admin\", \"administrator\": \"administrator\", \"root\": \"root\", \"cisco\": \"cisco\", \"manager\": \"manager\"}",
+      "example_line": "local-user admin privilege level 15"
     },
     {
       "concept": "Central authentication order",
@@ -687,6 +719,24 @@
       "example_line": "set primary-ntp=192.0.2.10"
     },
     {
+      "concept": "Strong SSH cryptography",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "mgmt.crypto.weak_allowed",
+      "command_pattern": "set strong-crypto {enum:strong}",
+      "scope_template": "{any} ssh",
+      "constant_value": "{\"yes\": false, \"no\": true}",
+      "example_line": "set strong-crypto=yes"
+    },
+    {
+      "concept": "Strong SSH cryptography",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "mgmt.crypto.weak_allowed",
+      "command_pattern": "set strong-crypto {enum:strong} forwarding-enabled {any}",
+      "scope_template": "{any} ssh",
+      "constant_value": "{\"yes\": false, \"no\": true}",
+      "example_line": "set strong-crypto=yes forwarding-enabled=no"
+    },
+    {
       "concept": "Login banner",
       "vendor": "Palo Alto PAN-OS",
       "predicate": "banner.login.present",
@@ -843,6 +893,28 @@
       "example_line": "set deviceconfig system snmp-setting access-setting version v2c snmp-community-string <SECRET:snmp-community>"
     },
     {
+      "concept": "Minimum password length",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "auth.password.min_length",
+      "command_pattern": "set mgt-config password-complexity minimum-length {int}",
+      "example_line": "set mgt-config password-complexity minimum-length 12"
+    },
+    {
+      "concept": "Default account",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "auth.account.name",
+      "command_pattern": "set mgt-config users {enum:user} permissions role-based superuser yes",
+      "constant_value": "{\"admin\": \"admin\", \"administrator\": \"administrator\", \"root\": \"root\", \"cisco\": \"cisco\", \"manager\": \"manager\"}",
+      "example_line": "set mgt-config users admin permissions role-based superuser yes"
+    },
+    {
+      "concept": "Rule logging",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "boundary.policy.logging",
+      "command_pattern": "set rulebase security rules {any} log-end {polarity}",
+      "example_line": "set rulebase security rules ALLOW-WEB log-end yes"
+    },
+    {
       "concept": "Remote syslog destination",
       "vendor": "Arista EOS",
       "predicate": "log.remote.destination",
@@ -869,6 +941,22 @@
       "predicate": "snmp.community",
       "command_pattern": "snmp-server community {community:RW} rw",
       "example_line": "snmp-server community <SECRET:snmp-community> rw"
+    },
+    {
+      "concept": "Default account",
+      "vendor": "Arista EOS",
+      "predicate": "auth.account.name",
+      "command_pattern": "username {enum:user} privilege {any} secret {any} {any}",
+      "constant_value": "{\"admin\": \"admin\", \"administrator\": \"administrator\", \"root\": \"root\", \"cisco\": \"cisco\", \"manager\": \"manager\"}",
+      "example_line": "username admin privilege 15 secret 0 <SECRET:type0>"
+    },
+    {
+      "concept": "Default account",
+      "vendor": "Arista EOS",
+      "predicate": "auth.account.name",
+      "command_pattern": "username {enum:user} privilege {any} role {any} secret {any} {any}",
+      "constant_value": "{\"admin\": \"admin\", \"administrator\": \"administrator\", \"root\": \"root\", \"cisco\": \"cisco\", \"manager\": \"manager\"}",
+      "example_line": "username admin privilege 15 role network-admin secret 0 <SECRET:type0>"
     },
     {
       "concept": "Remote syslog destination",
@@ -1027,6 +1115,53 @@
       "example_line": "set snmp community <SECRET:snmp-community> authorization read-only"
     },
     {
+      "concept": "Management services on an external zone",
+      "vendor": "Juniper Junos",
+      "predicate": "mgmt.remote_access.exposed_externally",
+      "command_pattern": "set security zones security-zone {enum:zone} host-inbound-traffic system-services {any}",
+      "constant_value": "{\"untrust\": true, \"untrusted\": true, \"outside\": true, \"internet\": true, \"external\": true, \"wan\": true, \"public\": true}",
+      "example_line": "set security zones security-zone untrust host-inbound-traffic system-services ssh"
+    },
+    {
+      "concept": "Management services on an external zone",
+      "vendor": "Juniper Junos",
+      "predicate": "mgmt.remote_access.exposed_externally",
+      "command_pattern": "set security zones security-zone {enum:zone} interfaces {any} host-inbound-traffic system-services {any}",
+      "constant_value": "{\"untrust\": true, \"untrusted\": true, \"outside\": true, \"internet\": true, \"external\": true, \"wan\": true, \"public\": true}",
+      "example_line": "set security zones security-zone untrust interfaces ge-0/0/0.0 host-inbound-traffic system-services ssh"
+    },
+    {
+      "concept": "Failed-login limit",
+      "vendor": "Juniper Junos",
+      "predicate": "auth.login.max_attempts",
+      "command_pattern": "set system login retry-options tries-before-disconnect {int}",
+      "example_line": "set system login retry-options tries-before-disconnect 3"
+    },
+    {
+      "concept": "Minimum password length",
+      "vendor": "Juniper Junos",
+      "predicate": "auth.password.min_length",
+      "command_pattern": "set system login password minimum-length {int}",
+      "example_line": "set system login password minimum-length 12"
+    },
+    {
+      "concept": "Default account",
+      "vendor": "Juniper Junos",
+      "predicate": "auth.account.name",
+      "command_pattern": "set system login user {enum:user} class {any}",
+      "constant_value": "{\"admin\": \"admin\", \"administrator\": \"administrator\", \"root\": \"root\", \"cisco\": \"cisco\", \"manager\": \"manager\"}",
+      "example_line": "set system login user admin class super-user"
+    },
+    {
+      "concept": "Default account",
+      "vendor": "Juniper Junos",
+      "predicate": "auth.account.name",
+      "command_pattern": "user {enum:user}",
+      "scope_template": "login",
+      "constant_value": "{\"admin\": \"admin\", \"administrator\": \"administrator\", \"root\": \"root\", \"cisco\": \"cisco\", \"manager\": \"manager\"}",
+      "example_line": "user admin {"
+    },
+    {
       "concept": "Session idle timeout",
       "vendor": "Cisco NX-OS",
       "predicate": "mgmt.session.idle_timeout",
@@ -1088,6 +1223,33 @@
       "scope_template": "ip access-list {any}",
       "constant_value": "{\"any\": true}",
       "example_line": "permit ip any any"
+    },
+    {
+      "concept": "ICMP redirects",
+      "vendor": "Arista EOS / Cisco NX-OS",
+      "predicate": "boundary.interface.unsafe_service",
+      "subject": "redirects",
+      "command_pattern": "{neg} ip redirects",
+      "scope_template": "interface {any}",
+      "example_line": "no ip redirects"
+    },
+    {
+      "concept": "Proxy-ARP",
+      "vendor": "Arista EOS / Cisco NX-OS",
+      "predicate": "boundary.interface.unsafe_service",
+      "subject": "proxy-arp",
+      "command_pattern": "{neg} ip proxy-arp",
+      "scope_template": "interface {any}",
+      "example_line": "ip proxy-arp"
+    },
+    {
+      "concept": "Directed broadcast",
+      "vendor": "Arista EOS / Cisco NX-OS",
+      "predicate": "boundary.interface.unsafe_service",
+      "subject": "directed-broadcast",
+      "command_pattern": "{neg} ip directed-broadcast",
+      "scope_template": "interface {any}",
+      "example_line": "ip directed-broadcast"
     },
     {
       "concept": "Permissive any-any rule",

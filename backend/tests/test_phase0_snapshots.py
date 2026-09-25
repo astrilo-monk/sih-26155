@@ -32,13 +32,21 @@ def _scan_offline(client: TestClient, path: Path) -> dict:
     return resp.json()
 
 
+# The controls the snapshot was recorded with. Controls added later answer new questions: they may add findings,
+# but never change these (the deprecated ``score`` counts every finding, so it moves with the catalog).
+PHASE0_CONTROLS = {
+    "MGMT-001", "MGMT-002", "MGMT-003", "MGMT-004", "MGMT-005", "MGMT-006", "MGMT-007", "MGMT-008", "MGMT-009",
+    "BOUNDARY-001", "BOUNDARY-002", "BOUNDARY-003", "LOG-001", "LOG-002", "CRYPTO-001",
+}
+
+
 @pytest.mark.parametrize("entry", SNAPSHOT["entries"], ids=lambda e: e["file"])
 def test_known_vendor_findings_match_phase0_snapshot(entry):
     data = _scan_offline(TestClient(app), REPO / entry["file"])
 
     assert data["devices"][0]["vendor"] == entry["vendor"]
-    assert data["score"] == entry["score"]
-    findings = sorted([f["rule_id"], f["severity"], f["line_numbers"]] for f in data["findings"])
+    findings = sorted([f["rule_id"], f["severity"], f["line_numbers"]] for f in data["findings"]
+                      if f["rule_id"] in PHASE0_CONTROLS)
     assert findings == entry["findings"]
 
 

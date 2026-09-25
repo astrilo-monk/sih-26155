@@ -10,7 +10,7 @@ updates", and parsers "fail because they cannot predict the configuration struct
 A parser per vendor is a losing race against Palo Alto, Cisco, Arista, SONiC, Azure NSGs and whatever is bought
 next quarter.
 
-NetAuditAI inverts it. Instead of *N* parsers it asks **15 security questions** (is Telnet enabled? which SSH
+NetAuditAI inverts it. Instead of *N* parsers it asks **23 security questions** (is Telnet enabled? which SSH
 version? an idle timeout, a remote syslog, an any-to-any rule?) and extracts only the **security facts** those
 questions need. A fact is one cited, typed statement: `mgmt.ssh.version = 1`, line 42, assurance `confirmed`.
 Controls read facts and never vendor syntax, so **every control runs on every configuration**.
@@ -29,11 +29,11 @@ Ingest ... uploaded file (single or bulk, CLI text or JSON export)
   -> Vendor identification: fingerprint + grammar coverage (a look-alike is never "confirmed")
   -> Confirmed vendor ..... dedicated parser (Cisco IOS, FortiGate)
   -> Anything else ........ generic tokenizer (braces, indentation, set-style, /menu paths)
-                            -> recognizers, 141 shipped + whatever was taught   [pattern recognition]
+                            -> recognizers, 161 shipped + whatever was taught   [pattern recognition]
                             -> lexicon heuristics                              [provisional]
                             -> AI judge on what is still undecided             [budgeted, must cite]
   -> Security Baseline Model: facts with value, scope, evidence lines, assurance
-  -> Deviation analysis: 15 controls -> PASS / FAIL / UNKNOWN / NOT_CONFIGURED / N_A
+  -> Deviation analysis: 23 controls -> PASS / FAIL / UNKNOWN / NOT_CONFIGURED / N_A
   -> Posture (pass / decided) + Coverage (decided / applicable) + critical controls not assessed
   -> Framework views: NIST SP 800-53 Rev. 5 · CIS · DISA NDM SRG · ISO/IEC 27001:2022 Annex A
   -> Remediation: vendor CLI for confirmed vendors, verified by re-parse; candidates simulated on a copy
@@ -66,7 +66,7 @@ Safety gates (`validate_recognizer`) reject anything that would match too much: 
 a value table, a unit for durations, and no secret is ever stored. The recognizer saves to SQLite or Postgres and
 answers the **very next scan**: decisive, deterministic, no AI call, **no redeployment**, reversible later.
 
-Shipped seed knowledge is the same mechanism reviewed in Git rather than taught at runtime: **141 recognizers**
+Shipped seed knowledge is the same mechanism reviewed in Git rather than taught at runtime: **161 recognizers**
 across Juniper Junos, Palo Alto PAN-OS, Arista EOS, Huawei VRP, HPE Aruba AOS-CX, Check Point Gaia, Extreme EXOS,
 MikroTik RouterOS, Cisco NX-OS, ASA and IOS-XR, and AWS security groups. A fresh deployment reads those dialects before anyone teaches it.
 

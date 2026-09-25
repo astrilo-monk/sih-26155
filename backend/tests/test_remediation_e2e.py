@@ -77,6 +77,9 @@ def test_cisco_vulnerable_plan_fixes_what_is_safe_and_explains_the_rest():
         "BOUNDARY-001": S.MANUAL_REVIEW,  # any-any ACL needs operator intent
         "BOUNDARY-002": S.FIXED, "BOUNDARY-003": S.FIXED, "LOG-001": S.FIXED, "LOG-002": S.FIXED,
         "CRYPTO-001": S.FIXED,
+        "MGMT-011": S.NOT_FAILING,  # the MGMT-004 fix already removed every community, earlier in the plan
+        "AUTH-001": S.FIXED, "AUTH-002": S.FIXED, "BOUNDARY-004": S.FIXED,
+        "AUTH-003": S.MANUAL_REVIEW,  # a named account needs new credentials
     }
     assert all(c.passed for c in plan.checks)
     fixed = analyze_text(plan.fixed_config)
@@ -118,7 +121,10 @@ def test_fortigate_plan_output_verifies_as_fortios(path):
     assert ident.status == STATUS_CONFIRMED, ident.reason
     assert ident.coverage.longest_foreign_run == 0 and ident.coverage.uncovered_count == 0
     remaining = {f.rule_id for f in analyze(ident.config).findings}
-    assert remaining == {c for c, s in _statuses(plan).items() if s != S.FIXED} == {"BOUNDARY-001"}
+    # NOT_FAILING: an earlier fix in the plan already resolved it (MGMT-003 clears the WAN port MGMT-010 reads,
+    # MGMT-004 removes the communities MGMT-011 reads)
+    unresolved = {c for c, s in _statuses(plan).items() if s not in (S.FIXED, S.NOT_FAILING)}
+    assert remaining == unresolved == {"BOUNDARY-001", "AUTH-003"}
 
 
 def test_fortigate_snmp_default_community_block_commented_as_a_whole():
@@ -447,7 +453,9 @@ def test_api_remediation_then_real_rescan_matches_the_plan():
     device = plan.json()["devices"][0]
     assert device["before"]["posture"] == scan["posture"] and device["before"]["coverage"] == scan["coverage"]
     statuses = {r["rule_id"]: r["status"] for r in device["remediations"]}
-    assert {c for c, s in statuses.items() if s != "fixed"} == {"MGMT-005", "MGMT-008", "BOUNDARY-001"}
+    # not_failing: an earlier fix in the plan already resolved it (MGMT-004 removes the communities MGMT-011 reads)
+    assert {c for c, s in statuses.items() if s not in ("fixed", "not_failing")} == {
+        "MGMT-005", "MGMT-008", "BOUNDARY-001", "AUTH-003"}
     assert all(c["passed"] for c in device["checks"])
 
     download = client.post("/api/download-fixed", json={"scan_id": scan["scan_id"], "inputs": RAW_INPUTS})
@@ -464,7 +472,7 @@ def test_api_remediation_then_real_rescan_matches_the_plan():
     assert rescan["posture"] == device["after"]["posture"] > scan["posture"]
     assert rescan["coverage"] == device["after"]["coverage"]
     assert rescan["critical_unassessed"] == device["after"]["critical_unassessed"]
-    assert {f["rule_id"] for f in rescan["findings"]} == {"MGMT-005", "MGMT-008", "BOUNDARY-001"}
+    assert {f["rule_id"] for f in rescan["findings"]} == {"MGMT-005", "MGMT-008", "BOUNDARY-001", "AUTH-003"}
     passed = {r["control_id"] for r in rescan["results"] if r["status"] == "pass"}
     assert set(device["fixed_controls"]) <= passed
 
@@ -479,7 +487,7 @@ def test_api_fortigate_download_rescans_as_confirmed_fortinet():
     assert rescan["vendor_identification"][0]["status"] == "confirmed"
     assert rescan["devices"][0]["vendor"] == "fortinet"
     # without operator inputs, syslog and NTP stay failing; the any-any policy needs a human
-    assert {f["rule_id"] for f in rescan["findings"]} == {"BOUNDARY-001", "LOG-001", "LOG-002"}
+    assert {f["rule_id"] for f in rescan["findings"]} == {"BOUNDARY-001", "LOG-001", "LOG-002", "AUTH-003"}
     assert rescan["posture"] > scan["posture"]
     assert not rescan["adaptive_configs"]
 

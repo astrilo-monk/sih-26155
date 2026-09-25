@@ -3,7 +3,7 @@
 Configuration security auditor for network devices, built for Smart India Hackathon 2026
 (SIH26155 -AI-Driven Multi-Vendor Network Security Compliance Auditor, NTRO, Cybersecurity).
 
-NetAuditAI answers 15 security questions (**controls**) about every uploaded configuration, cites the
+NetAuditAI answers 23 security questions (**controls**) about every uploaded configuration, cites the
 configuration lines behind every answer, keeps what it could decide separate from what it could not, and
 fixes confirmed Cisco / FortiGate findings with deterministic changes that are verified by a rescan.
 Where the vendor cannot be confirmed it does not invent commands: an administrator (or, on request, the
@@ -62,7 +62,7 @@ Details: [docs/architecture.md](docs/architecture.md).
 
 The vendor is decided deterministically. An AI vendor guess is reported as evidence only and never selects a parser, defaults or remediation.
 
-**Shipped knowledge.** 141 reviewed recognizers for eleven unparsed dialects (Juniper Junos, Palo Alto PAN-OS,
+**Shipped knowledge.** 161 reviewed recognizers for eleven unparsed dialects (Juniper Junos, Palo Alto PAN-OS,
 Arista EOS, Huawei VRP, HPE Aruba AOS-CX, Check Point Gaia, Extreme EXOS, MikroTik RouterOS, Cisco NX-OS, ASA, IOS-XR) and AWS security
 groups ship in `backend/data/seed_recognizers.json` and load into an empty database on first start, so those dialects
 answer several controls before anyone teaches anything. Each entry is one concept per dialect, generalized over
@@ -197,9 +197,9 @@ A line holding a secret (password, key, community string) is never stored as a m
 
 - Prototype, not a production security tool. Access control is one optional shared `API_KEY`: no users, no roles. With the defaults the API is open and CORS allows every origin.
 - Parsers cover common Cisco IOS and FortiGate syntax; the IOS grammar is a curated root list, so an unusual real IOS config can come out unverified.
-- 15 controls. Remediation recipes exist only for Cisco IOS and FortiGate; weak stored passwords, AAA without a strong local account and any-to-any rules always need a human.
+- 23 controls. Remediation recipes exist only for Cisco IOS and FortiGate; weak stored passwords, AAA without a strong local account and any-to-any rules always need a human.
 - Unknown vendors rely on lexicon heuristics and confirmed recognizers; heuristics can misread a dialect until an administrator confirms or rejects the line.
-- Shipped seed knowledge covers eleven dialects and 141 recognizers, so it answers only part of each dialect. Everything it does not cover still has to be taught, and a dialect with no seeds behaves exactly as before.
+- Shipped seed knowledge covers eleven dialects and 161 recognizers, so it answers only part of each dialect. Everything it does not cover still has to be taught, and a dialect with no seeds behaves exactly as before.
 - Redaction is pattern-based: a secret behind an unlisted keyword could still reach the AI.
 - The AI judge escalates only unknown / unverified vendors; UNKNOWN controls of confirmed vendors are not sent to AI.
 - Scan results live in memory; recognizer replay only checks scans held by the running backend. A candidate remediation lives in its scan only and is never persisted as knowledge.
@@ -217,7 +217,7 @@ A line holding a secret (password, key, community string) is never stored as a m
 | [docs/security-model.md](docs/security-model.md) | Trust boundaries and safety guarantees |
 | [docs/ai-design.md](docs/ai-design.md) | AI judge, remediation candidates, verification, cache, legacy interpreter |
 | [docs/api.md](docs/api.md) | Endpoints and response fields |
-| [docs/detection-rules.md](docs/detection-rules.md) | The 15 controls, per-vendor facts and remediation |
+| [docs/detection-rules.md](docs/detection-rules.md) | The 23 controls, per-vendor facts and remediation |
 | [docs/data-model.md](docs/data-model.md) | Core objects |
 | [docs/seed-knowledge.md](docs/seed-knowledge.md) | Shipped recognizers: what they are, how they load, how to add one |
 | [docs/demo.md](docs/demo.md) | SIH demo script |

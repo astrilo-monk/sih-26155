@@ -85,6 +85,9 @@ _NOT_A_VALUE = frozenset({
     "mode", "required", "none", "enable", "disable", "enabled", "disabled", "rotation",
     "strength", "min-length", "lifetime", "recovery", "import", "export", "hostname",
     "pubkey-chain", "address", "{", "}", "[", "]", "];",
+    # Junos password *policy* keywords (``set system login password minimum-length 12``): a rule, not a password
+    "minimum-length", "maximum-length", "minimum-lifetime", "maximum-lifetime", "minimum-changes",
+    "minimum-character-changes", "change-type",
 })
 
 # Options that may follow a secret on the same line; the secret ends before them

@@ -17,13 +17,15 @@ from typing import Any, Iterator, Optional
 from app.facts import lexicon as L
 from app.facts.predicates import (
     CENTRAL_AAA, DISCOVERY_PROTOCOL, IDLE_TIMEOUT, IPSEC_PROPOSAL, LOG_REMOTE_DESTINATION, LOGIN_BANNER,
-    NTP_AUTHENTICATED, NTP_SERVER, PERMIT_ANY, PROTOCOL_ENABLED, SNMP_COMMUNITY, SOURCE_RESTRICTED, SOURCE_ROUTING,
+    ADMIN_ACCOUNT, MGMT_EXPOSED, MGMT_WEAK_CRYPTO, NTP_AUTHENTICATED, RULE_LOGGING, NTP_SERVER, PERMIT_ANY, PROTOCOL_ENABLED, SNMP_COMMUNITY, SOURCE_RESTRICTED, SOURCE_ROUTING,
     SSH_VERSION, SecurityFact,
 )
 from app.models.results import Assurance, Evidence
 from app.structure.tokenizer import IP, Statement, tokenize
 
 LIST_PREDICATES = frozenset({LOG_REMOTE_DESTINATION, NTP_SERVER})
+# Facts read across several statements joined by the names they share, never from one line
+_JOINS = frozenset({MGMT_EXPOSED})
 _ENCRYPTION = re.compile(r"^(esp-)?(aes|3des|des)(\d|-|$)")
 _HASH = re.compile(r"(sha|md5)(\d|-|$)")
 _DH = re.compile(r"^(dh-?)?group(\d+)$")
@@ -106,8 +108,10 @@ def stated_identity(raw_lines: list[str]) -> dict[str, str]:
 def heuristic_candidates(raw_lines: list[str], skip: frozenset[int] = frozenset()) -> list["_Candidate"]:
     statements = tokenize(raw_lines)
     candidates = [c for extract in _EXTRACTORS for c in extract(statements)]
-    # A skipped line still lends its block state to other lines: only candidates stated on it are dropped
-    return [c for c in candidates if not (set(c.lines) - state_lines(c, statements)) & skip]
+    # A skipped line still lends its block state to other lines: only candidates stated on it are dropped.
+    # A join is not stated on any one line: a recognizer that answered one of them (``telnet yes`` in a
+    # profile) answered that line's own setting, not the relation the join reads across lines.
+    return [c for c in candidates if c.predicate in _JOINS or not (set(c.lines) - state_lines(c, statements)) & skip]
 
 
 def state_lines(candidate: "_Candidate", statements: list[Statement]) -> set[int]:
@@ -416,17 +420,8 @@ _RULE_EXCLUDED = ("source-address-excluded", "destination-address-excluded")
 _RULE_FIELD_NAMES = {"source-address": "source", "destination-address": "destination", "then": "action"}
 
 
-def _flat_rule_permit_any(statements) -> Iterator[_Candidate]:
-    """A rule written one field per line, keyed by its name (set-style exports):
-
-        set rulebase security rules ALLOW-ALL source any                      (PAN-OS)
-        set rulebase security rules ALLOW-ALL action allow
-        set security policies from-zone A to-zone B policy P match source-address any    (Junos)
-        set security policies from-zone A to-zone B policy P then permit
-
-    Lines with the same key up to the rule name are one rule, wherever they sit in the file. It is
-    all traffic only when source and destination are both stated as wildcards, the action permits,
-    every narrowing field it states is a wildcard, and it is not disabled, negated or excluding."""
+def _flat_rules(statements) -> dict[tuple[str, ...], dict[str, list[tuple[list[str], Statement]]]]:
+    """Rules written one field per line, by rule key (everything up to the rule name): field → (values, line)."""
     rules: dict[tuple[str, ...], dict[str, list[tuple[list[str], Statement]]]] = {}
     for s in statements:
         keys = s.key_tokens
@@ -443,6 +438,21 @@ def _flat_rule_permit_any(statements) -> Iterator[_Candidate]:
         values = rest if rest[0] == "then" else rest[1:] + s.values
         rules.setdefault(tuple(keys[:at + 2]), {}).setdefault(field, []).append(
             ([t for t in values if t not in "[]"], s))
+    return rules
+
+
+def _flat_rule_permit_any(statements) -> Iterator[_Candidate]:
+    """A rule written one field per line, keyed by its name (set-style exports):
+
+        set rulebase security rules ALLOW-ALL source any                      (PAN-OS)
+        set rulebase security rules ALLOW-ALL action allow
+        set security policies from-zone A to-zone B policy P match source-address any    (Junos)
+        set security policies from-zone A to-zone B policy P then permit
+
+    Lines with the same key up to the rule name are one rule, wherever they sit in the file. It is
+    all traffic only when source and destination are both stated as wildcards, the action permits,
+    every narrowing field it states is a wildcard, and it is not disabled, negated or excluding."""
+    rules = _flat_rules(statements)
 
     def wildcard(field: str, fields) -> bool:
         stated = fields.get(field, [])
@@ -459,9 +469,108 @@ def _flat_rule_permit_any(statements) -> Iterator[_Candidate]:
         yield _Candidate(PERMIT_ANY, True, sorted(cited + [s.line for s in permits]), scope=" ".join(name))
 
 
+def _flat_rule_logging(statements) -> Iterator[_Candidate]:
+    """Whether a permitting rule logs: ``log-end no`` switches it off (PAN-OS), ``then log …`` switches it on
+    (Junos). A rule that says nothing about logging states nothing: its platform's default decides."""
+    for name, fields in _flat_rules(statements).items():
+        actions = fields.get("action", [])
+        if not any(set(v) & L.PERMIT for v, _ in actions):
+            continue
+        logs = [s for v, s in actions if "log" in v]
+        for s in [s for _, s in fields.get("log-end", [])]:
+            if s.text.lower().split()[-1] in ("no", "false"):
+                yield _Candidate(RULE_LOGGING, False, [s.line], scope=" ".join(name))
+                break
+        else:
+            if logs or any(s.text.lower().split()[-1] in ("yes", "true") for _, s in fields.get("log-end", [])):
+                cited = logs or [s for _, s in fields.get("log-end", [])]
+                yield _Candidate(RULE_LOGGING, True, [s.line for s in cited], scope=" ".join(name))
+
+
+_ALGORITHM_NAME = re.compile(r"^(?:aes|chacha|hmac|sha|ecdh|diffie|curve|3des|des|arcfour|rc4|blowfish|umac|"
+                             r"ssh-|rsa|ecdsa|ed25519|kex)", re.IGNORECASE)
+
+
+def _ssh_algorithms(statements) -> Iterator[_Candidate]:
+    """An SSH algorithm list: weak when it names any weak algorithm, strong when every algorithm it names is.
+
+        ssh server cipher aes256_ctr aes128_ctr 3des_cbc      → weak
+        set system services ssh ciphers aes256-ctr            → strong"""
+    for s in statements:
+        if not _has(_context(s), L.SSH):
+            continue
+        tokens = s.key_tokens + s.values
+        at = next((i for i, t in enumerate(tokens) if t in L.ALGORITHM_WORDS), None)
+        if at is None:
+            continue
+        names = [t.strip("[]\"'") for t in tokens[at + 1:] if _ALGORITHM_NAME.match(t.strip("[]\"'"))]
+        if not names:
+            continue
+        weak = [n for n in names if L.is_weak_algorithm(n)]
+        yield _Candidate(MGMT_WEAK_CRYPTO, bool(weak), [s.line], scope=f"ssh algorithms at line {s.line}")
+
+
+def _default_account(statements) -> Iterator[_Candidate]:
+    """A local account with a vendor-default name (``username admin …``, ``set system login user root …``).
+
+    Only the default names are read: any other name is just an account, and says nothing either way."""
+    for s in statements:
+        keys = s.key_tokens
+        if _has(_context(s), L.SNMP):
+            continue  # an SNMPv3 user is not a login account
+        for i, token in enumerate(keys[:-1]):
+            if token in L.ACCOUNT_RELATED and keys[i + 1].strip("\"'") in L.DEFAULT_ACCOUNT_NAMES:
+                name = keys[i + 1].strip("\"'")
+                yield _Candidate(ADMIN_ACCOUNT, name, [s.line], scope=f"account {name}")
+                break
+
+
+# An interface name: letters, then numbers joined by / . : (ethernet1/1, ge-0/0/0.0, ae1, tunnel.1)
+_INTERFACE = re.compile(r"^[a-z][a-z-]*\.?\d+(?:[/:.]\d+)*$")
+_NOT_INTERFACES = frozenset({"layer2", "layer3", "ipv4", "ipv6", "v1", "v2", "v2c", "v3"})
+
+
+def _interfaces(tokens) -> list[str]:
+    return [t for t in tokens if _INTERFACE.match(t) and t not in _NOT_INTERFACES]
+
+
+def _exposed_management(statements) -> Iterator[_Candidate]:
+    """A management profile with a service switched on, bound to an interface in an external zone:
+
+        set zone untrust network layer3 ethernet1/1
+        set network interface ethernet ethernet1/1 layer3 interface-management-profile OUTSIDE
+        set network profiles interface-management-profile OUTSIDE https yes
+
+    Three statements joined by the names they share (interface, profile). A zone is external only when its
+    name says so (``untrust``, ``outside``, ``internet`` …); nothing is concluded about any other zone."""
+    external: dict[str, Statement] = {}
+    bound: dict[str, tuple[str, Statement]] = {}
+    services: dict[str, list[Statement]] = {}
+    for s in statements:
+        keys = s.key_tokens
+        for i, token in enumerate(keys[:-1]):
+            if token in ("zone", "security-zone") and keys[i + 1] in L.EXTERNAL_ZONES:
+                for name in _interfaces(keys[i + 2:]):
+                    external.setdefault(name, s)
+            if token in ("interface-management-profile", "management-profile"):
+                profile, rest = keys[i + 1], keys[i + 2:]
+                named = _interfaces(keys[:i])
+                if named and not rest:
+                    bound[named[0]] = (profile, s)
+                elif rest and rest[0] in L.MGMT_SERVICES and s.polarity is True:
+                    services.setdefault(profile, []).append(s)
+    for name, zone in external.items():
+        profile, binding = bound.get(name, (None, None))
+        enabled = services.get(profile, [])
+        if enabled:
+            lines = sorted({zone.line, binding.line, *(s.line for s in enabled)})
+            yield _Candidate(MGMT_EXPOSED, True, lines, scope=f"interface {name}")
+
+
 _EXTRACTORS = (
     _protocols, _source_restriction, _ssh_version, _idle_timeout, _remote_log, _ntp, _central_aaa, _ipsec,
-    _snmp_community, _source_routing, _discovery, _banner, _permit_any, _flat_rule_permit_any,
+    _snmp_community, _source_routing, _discovery, _banner, _permit_any, _flat_rule_permit_any, _exposed_management,
+    _default_account, _flat_rule_logging, _ssh_algorithms,
 )
 
 

@@ -21,7 +21,8 @@ from __future__ import annotations
 from typing import Any, Iterable
 
 from app.facts.predicates import (
-    IDLE_TIMEOUT, LOGIN_BANNER, NOT_SET, SNMP_COMMUNITY, SOURCE_ROUTING, SSH_VERSION, SecurityFact,
+    ADMIN_ACCOUNT, IDLE_TIMEOUT, LOGIN_BANNER, LOGIN_MAX_ATTEMPTS, MGMT_WEAK_CRYPTO, NOT_SET, SNMP_COMMUNITY,
+    SOURCE_ROUTING, SSH_VERSION, SecurityFact,
 )
 from app.models.normalized import Vendor
 from app.models.results import Assurance
@@ -35,6 +36,10 @@ DEFAULTS: dict[tuple[Vendor, str], tuple[Any, str | None, str]] = {
     # No community configured: SNMPv1/v2c cannot be reached with a community string at all
     (Vendor.CISCO_IOS, SNMP_COMMUNITY): (NOT_SET, None, "IOS default: no 'snmp-server community' is configured"),
     (Vendor.FORTINET, SNMP_COMMUNITY): (NOT_SET, None, "FortiOS default: no 'config system snmp community' entry"),
+    (Vendor.FORTINET, LOGIN_MAX_ATTEMPTS): (3, None, "FortiOS default 'set admin-lockout-threshold 3'"),
+    # a configuration without a 'config system admin' section still has the account every FortiGate ships with
+    (Vendor.FORTINET, ADMIN_ACCOUNT): ("admin", None, "FortiOS ships with the 'admin' account"),
+    (Vendor.FORTINET, MGMT_WEAK_CRYPTO): (False, None, "FortiOS default 'set strong-crypto enable'"),
 }
 
 

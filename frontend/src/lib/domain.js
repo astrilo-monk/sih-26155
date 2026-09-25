@@ -250,6 +250,13 @@ const STORAGE = { plaintext: 'plain text', type7: 'weak reversible encryption (t
 export const MEANING = {
   'mgmt.remote_access.protocol_enabled': { say: (s, v) => onOff(v, `turns on ${PROTOCOLS[s] || s} remote access`, `turns off ${PROTOCOLS[s] || s} remote access`) },
   'mgmt.remote_access.source_restricted': { say: (s, v) => onOff(v, 'limits which addresses can manage the device', 'lets any address manage the device') },
+  'mgmt.crypto.weak_allowed': { say: (s, v) => onOff(v, 'allows weak ciphers or MACs for management sessions', 'allows only strong ciphers and MACs for management sessions') },
+  'boundary.interface.unsafe_service': { say: (s, v) => onOff(v, `turns on ${{ redirects: 'ICMP redirects', 'proxy-arp': 'proxy-ARP', 'directed-broadcast': 'directed broadcasts' }[s] || 'redirects, proxy-ARP or directed broadcasts'} on an interface`, `turns off ${{ redirects: 'ICMP redirects', 'proxy-arp': 'proxy-ARP', 'directed-broadcast': 'directed broadcasts' }[s] || 'redirects, proxy-ARP and directed broadcasts'} on an interface`) },
+  'boundary.policy.logging': { say: (s, v) => onOff(v, 'logs the traffic a rule permits', 'turns off logging for a rule') },
+  'auth.login.max_attempts': { say: (s, v) => (v != null ? `limits failed logins to ${v} attempts` : null) },
+  'auth.password.min_length': { say: (s, v) => (v != null ? `requires passwords of at least ${v} characters` : null) },
+  'auth.account.name': { say: (s, v) => (v ? `defines the local account '${v}'` : null) },
+  'mgmt.remote_access.exposed_externally': { say: (s, v) => onOff(v, 'opens management services on an internet-facing interface', 'keeps management services off internet-facing interfaces') },
   'mgmt.ssh.version': { say: (s, v) => (v != null ? `sets the SSH version to ${v}` : null) },
   'mgmt.session.idle_timeout': { say: (s, v) => (v != null ? `sets an idle session timeout (${v})` : null) }, // the reading carries no unit: none is claimed
   'auth.central_aaa.enabled': { say: (s, v) => onOff(v, 'turns on central authentication (AAA)', 'turns off central authentication (AAA)') },

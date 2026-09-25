@@ -1,6 +1,6 @@
 # NetAuditAI Project Overview
 
-NetAuditAI audits network device configurations against 15 security controls, with cited evidence, honest
+NetAuditAI audits network device configurations against 23 security controls, with cited evidence, honest
 UNKNOWN / NOT_CONFIGURED results, posture and coverage, framework views, human-confirmed recognizers for unfamiliar
 vendors, and deterministic remediation verified by rescan. Built for Smart India Hackathon 2026, problem SIH26155.
 

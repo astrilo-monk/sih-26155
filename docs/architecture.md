@@ -62,7 +62,7 @@ flowchart TD
     Parser --> Facts[SecurityFacts]
     Recognizers --> Facts
     Heuristics --> Facts
-    Facts --> Controls[15 controls]
+    Facts --> Controls[23 controls]
     Controls --> Score[Posture + coverage]
     Controls --> Frameworks[Framework views]
     Controls -->|UNKNOWN / NOT_CONFIGURED, unknown vendor| Judge[AI judge]
@@ -187,7 +187,7 @@ Sources and assurance:
 
 ## 5. Controls and ControlResult
 
-`app/controls/catalog.py` declares 15 controls (MGMT-001…009, BOUNDARY-001…003, LOG-001…002, CRYPTO-001) with
+`app/controls/catalog.py` declares 23 controls (MGMT-001…011, AUTH-001…003, BOUNDARY-001…004, LOG-001…003, CRYPTO-001…002) with
 question, kind (prohibition, requirement, threshold, relational), severity, needed predicates and versioned
 framework mappings. `app/controls/judges.py` says what one fact means for one control; the generic evaluator
 (`app/controls/evaluate.py`) combines them. No vendor decides whether a control runs.
@@ -249,7 +249,7 @@ completes.
 
 ## 8. Human-in-the-loop: recognizers
 
-A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships 141 reviewed recognizers for
+A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships 161 reviewed recognizers for
 eleven dialects that have no dedicated parser (Junos, PAN-OS, Arista EOS, Huawei VRP, RouterOS, Aruba AOS-CX,
 Check Point Gaia, Extreme EXOS, Cisco NX-OS, ASA, IOS-XR) and AWS security groups -one generalized entry per concept per dialect, never one
 per line;

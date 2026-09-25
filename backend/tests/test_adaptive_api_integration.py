@@ -405,7 +405,7 @@ def test_g2_remediation_compatibility_shims_never_apply_caller_commands():
 
     assert not any(line.strip() in ("ip http server", "snmp-server community public RW") for line in modified.raw_lines)
     assert {f.rule_id for f in fixed_result.findings} == {
-        "MGMT-003", "MGMT-005", "MGMT-008", "BOUNDARY-001", "LOG-001", "LOG-002",
+        "MGMT-003", "MGMT-005", "MGMT-008", "BOUNDARY-001", "LOG-001", "LOG-002", "AUTH-003",
     }
 
 

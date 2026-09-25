@@ -353,7 +353,7 @@ def test_e2e_remediation_round_trip():
     # known-safe deterministic fix remain: weak stored passwords, AAA without a strong local
     # account (lockout risk), and the any-any ACL
     assert rescan_data["vendor_identification"][0]["status"] == "confirmed"
-    assert {f["rule_id"] for f in rescan_data["findings"]} == {"MGMT-005", "MGMT-008", "BOUNDARY-001"}
+    assert {f["rule_id"] for f in rescan_data["findings"]} == {"MGMT-005", "MGMT-008", "BOUNDARY-001", "AUTH-003"}
     assert rescan_data["posture"] > scan_data["posture"]
 
     print(f"\nPASS [10]: Remediation round-trip complete "

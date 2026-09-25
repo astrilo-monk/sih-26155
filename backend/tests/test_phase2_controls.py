@@ -34,6 +34,11 @@ ORIGINAL_RULE_IDS = {
     "MGMT-001", "MGMT-002", "MGMT-003", "MGMT-004", "MGMT-005", "MGMT-006", "MGMT-007", "MGMT-008",
     "MGMT-009", "BOUNDARY-001", "BOUNDARY-002", "BOUNDARY-003", "LOG-001", "LOG-002", "CRYPTO-001",
 }
+# Controls added after the original catalog: new questions, held to the same description rules
+ADDED_RULE_IDS = {
+    "MGMT-010", "MGMT-011", "AUTH-001", "AUTH-002", "AUTH-003", "LOG-003", "CRYPTO-002", "BOUNDARY-004",
+}
+RULE_IDS = ORIGINAL_RULE_IDS | ADDED_RULE_IDS
 
 # NIST SP 800-53 Rev. 5 ids and titles as published in the official OSCAL
 # catalog, release 5.2.0 (usnistgov/oscal-content).
@@ -41,6 +46,9 @@ NIST_REV5_TITLES = {
     "AC-2": "Account Management",
     "AC-3": "Access Enforcement",
     "AC-4": "Information Flow Enforcement",
+    "AC-7": "Unsuccessful Logon Attempts",
+    "AU-2": "Event Logging",
+    "AU-12": "Audit Record Generation",
     "AC-8": "System Use Notification",
     "AC-11": "Device Lock",
     "AC-12": "Session Termination",
@@ -67,11 +75,11 @@ NIST_REV5_WITHDRAWN = {"AU-8(1)", "AU-8(2)"}
 # ── catalog ──────────────────────────────────────────────────────────────────
 
 def test_catalog_has_exactly_one_control_per_rule():
-    assert set(CONTROLS) == ORIGINAL_RULE_IDS
-    assert set(JUDGES) == ORIGINAL_RULE_IDS
+    assert set(CONTROLS) == RULE_IDS
+    assert set(JUDGES) == RULE_IDS
 
 
-@pytest.mark.parametrize("control_id", sorted(ORIGINAL_RULE_IDS))
+@pytest.mark.parametrize("control_id", sorted(RULE_IDS))
 def test_every_control_is_fully_described(control_id):
     control = CONTROLS[control_id]
     # Phase 8: remediation keys name the deterministic recipes (control, vendor)
@@ -79,7 +87,7 @@ def test_every_control_is_fully_described(control_id):
 
     assert control.title and control.question.endswith("?")
     assert isinstance(control.kind, ControlKind)
-    assert control.category in {"management", "boundary", "logging", "cryptography"}
+    assert control.category in {"management", "authentication", "boundary", "logging", "cryptography"}
     assert any(m.framework == NIST for m in control.mappings)
     assert all(m.version for m in control.mappings)
     assert control.remediation_keys and all(key in templates for key in control.remediation_keys)
@@ -137,7 +145,7 @@ def test_every_control_answers_every_config(path):
     for result in results:
         by_control[result.control_id].append(result)
 
-    assert set(by_control) == ORIGINAL_RULE_IDS
+    assert set(by_control) == RULE_IDS
     for control_id, answers in by_control.items():
         if any(r.status == Status.FAIL for r in answers):
             # one FAIL per failing scope, never mixed with other statuses
@@ -168,7 +176,9 @@ def test_findings_are_exactly_the_fail_results(entry):
     fails = [r for r in result.results if r.status == Status.FAIL]
 
     assert [f.rule_id for f in result.findings] == [r.control_id for r in fails]
-    assert sorted([f.rule_id, f.severity.value, f.line_numbers] for f in result.findings) == entry["findings"]
+    # the snapshot holds the original controls' findings; added controls may only add findings of their own
+    assert sorted([f.rule_id, f.severity.value, f.line_numbers] for f in result.findings
+                  if f.rule_id in ORIGINAL_RULE_IDS) == entry["findings"]
     assert all(finding_from_result(r).severity.value in {"critical", "high", "medium", "low"} for r in fails)
 
 
@@ -254,7 +264,7 @@ def test_a_broken_control_yields_unknown_and_the_scan_continues():
         results = evaluate_controls(_config_for(TESTS / "fixtures" / "cisco_vulnerable.cfg"))
     broken = [r for r in results if r.control_id == "MGMT-007"]
     assert len(broken) == 1 and broken[0].status == Status.UNKNOWN and "boom" in broken[0].reason
-    assert {r.control_id for r in results} == ORIGINAL_RULE_IDS
+    assert {r.control_id for r in results} == RULE_IDS
 
 
 # ── API ──────────────────────────────────────────────────────────────────────
@@ -271,7 +281,7 @@ def test_api_returns_results_alongside_unchanged_findings(fixture):
     data = _scan(fixture)
     results = data["results"]
 
-    assert {r["control_id"] for r in results} == ORIGINAL_RULE_IDS
+    assert {r["control_id"] for r in results} == RULE_IDS
     assert {r["status"] for r in results} <= {s.value for s in Status}
     assert sum(r["status"] == "fail" for r in results) == data["total_findings"]
     for r in results:

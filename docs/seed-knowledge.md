@@ -135,12 +135,12 @@ parser's password fact does; every path to the AI redacts evidence first.
 
 ## What is covered
 
-141 recognizers over twelve dialects that have **no dedicated parser** and stay generic/unconfirmed. The `vendor`
+161 recognizers over twelve dialects that have **no dedicated parser** and stay generic/unconfirmed. The `vendor`
 field is a label for readability, never a claim of parser support and never used to select a code path.
 
 | Dialect | Concepts read |
 |---|---|
-| Juniper Junos | Brace and `set` forms: Telnet, HTTP management, SSH version, session idle timeout, remote syslog, NTP server, LLDP (on, or `lldp disable`), RADIUS / TACACS+ servers, `authentication-order` (one method or a bracketed list), `allow-address` and `allow-sources` source restriction, login `message` banner, `encrypted-password` storage (set form) |
+| Juniper Junos | Brace and `set` forms: Telnet, HTTP management, SSH version, session idle timeout, remote syslog, NTP server, LLDP (on, or `lldp disable`), RADIUS / TACACS+ servers, `authentication-order` (one method or a bracketed list), `allow-address` and `allow-sources` source restriction, login `message` banner, `encrypted-password` storage (set form), `host-inbound-traffic system-services` on an `untrust`/`outside`/`internet` zone (MGMT-010) |
 | Palo Alto PAN-OS | Telnet (service and interface profile), HTTP management (service and interface profile), SSH version, session idle timeout (two spellings), remote syslog (`log-settings syslog` server profiles, shared and per vsys, plus two `deviceconfig` spellings), NTP server, NTP authentication, `permitted-ip` (system and interface profile; `0.0.0.0/0` reads as unrestricted), login banner, `phash` password storage, LLDP per interface, TACACS+ and RADIUS server profiles |
 | Arista EOS | Telnet, HTTP management (both polarities), SSH version, session idle timeout, remote syslog, NTP server, NTP authentication, IP source routing, LLDP, login banner, management ACL applied under `management ssh`, permissive any-any rule, local-only login, password storage |
 | Huawei VRP | Telnet (`enable` and `undo`), HTTP management (`enable` and `undo`), remote syslog, NTP server, NTP authentication, session idle timeout, IP source routing, LLDP, login banner, password storage, permissive ACL rule |
@@ -210,6 +210,15 @@ interface names. Passing the gates makes a recognizer safe to store, not worth s
 * **Coverage is partial by design.** IPsec proposals cannot be answered by a recognizer at all, and a setting a
   dialect's files never state has nothing to read. Those controls stay `UNKNOWN` / `NOT_CONFIGURED` until an
   administrator teaches them.
+* **Checks added later (MGMT-010, AUTH-001…003, CRYPTO-002, LOG-003, BOUNDARY-004)** read the same way. RouterOS
+  `/ip ssh set strong-crypto=`, PAN-OS rule `log-end`, and Arista / NX-OS interface `ip redirects` / `ip proxy-arp` /
+  `ip directed-broadcast` (stated only: other vendors' defaults are not assumed). Seeded: Junos `host-inbound-traffic
+  system-services` on an `untrust`/`outside`/`internet` zone, `retry-options tries-before-disconnect`, `password
+  minimum-length`, `login user … class`; PAN-OS `password-complexity minimum-length`, `mgt-config users …
+  superuser yes`; Aruba `ssh server max-auth-attempts`, `user … group`; Arista `username … privilege`; EXOS
+  `configure account`; Huawei `local-user … privilege level`. A default account is read through a value table
+  of default names (`admin`, `administrator`, `root`, `cisco`, `manager`), so only those names produce a fact:
+  any other name says nothing, and the account check is seed-only (teaching does not draft value tables).
 * **SNMP communities are seed-only.** The line holds the community string, so a `{community:RO}` /
   `{community:RW}` slot reads it at scan time and nothing stores it; a taught example could only be kept by
   storing the secret, so MGMT-004 cannot be taught. The access level is the template's own words, never

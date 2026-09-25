@@ -31,7 +31,8 @@ from app.adaptive.matcher import EXTRACTION_RECOGNIZER, compile_pattern, recogni
 from app.controls.catalog import CONTROLS
 from app.facts import lexicon as L
 from app.facts.predicates import (
-    DISCOVERY_PROTOCOL, IDLE_TIMEOUT, PROTOCOL_ENABLED, SOURCE_RESTRICTED, SOURCE_ROUTING, SSH_VERSION,
+    DISCOVERY_PROTOCOL, IDLE_TIMEOUT, LOGIN_MAX_ATTEMPTS, PASSWORD_MIN_LENGTH, PROTOCOL_ENABLED, SOURCE_RESTRICTED,
+    SOURCE_ROUTING, SSH_VERSION,
 )
 from app.facts.recognizers import _scope_matches, _stored_knowledge, recognizer_value, stated_value
 from app.models.results import DECISIVE_ASSURANCE, Status
@@ -63,6 +64,8 @@ TARGETS = {
     (DISCOVERY_PROTOCOL, "cdp"): Target("BOUNDARY-003", lambda v: v is False, want=False),
     (SOURCE_ROUTING, None): Target("BOUNDARY-002", lambda v: v is False, want=False),
     (SOURCE_RESTRICTED, None): Target("MGMT-003", lambda v: v is True, input="management_subnet"),
+    (LOGIN_MAX_ATTEMPTS, None): Target("AUTH-001", lambda v: isinstance(v, (int, float)) and 0 < v <= 10, want=3),
+    (PASSWORD_MIN_LENGTH, None): Target("AUTH-002", lambda v: isinstance(v, (int, float)) and v >= 8, want=12),
 }
 _ANTONYM = {"yes": "no", "no": "yes", "enable": "disable", "disable": "enable", "enabled": "disabled",
             "disabled": "enabled", "true": "false", "false": "true", "on": "off", "off": "on"}
@@ -74,7 +77,7 @@ class _NeedsInput(Exception):
         self.name = name
 
 
-def _slot_options(recognizer, kind: str, current: str) -> list[str]:
+def _slot_options(recognizer, kind: str, current: str, want=None) -> list[str]:
     """Slot texts to try, the dialect's own spelling first; the self-check picks the one that reads right."""
     if kind == "enum":
         table = json.loads(recognizer.constant_value or "{}")
@@ -84,7 +87,8 @@ def _slot_options(recognizer, kind: str, current: str) -> list[str]:
         return ([flipped] if flipped else []) + sorted(POSITIVE | NEGATIVE)
     if kind == "int":
         prefix = current[:len(current) - len(current.lstrip("vV"))] if current[:1] in "vV" else ""
-        return [f"{prefix}2", "2"]
+        number = f"{want:g}" if isinstance(want, (int, float)) else "2"
+        return [f"{prefix}{number}", number]
     if kind == "duration":
         return [str(SECURE_IDLE_MINUTES), str(SECURE_IDLE_MINUTES * 60), f"{SECURE_IDLE_MINUTES}m"]
     return []
@@ -122,7 +126,7 @@ def secure_line(recognizer, target: Target, line: str, inputs: dict) -> Optional
     if kind in (None, "neg", "any") or "slot" not in match.groupdict() or match.group("slot") is None:
         return None
     start, end = match.span("slot")
-    for option in _slot_options(recognizer, kind, match.group("slot")):
+    for option in _slot_options(recognizer, kind, match.group("slot"), target.want):
         new = line[:start] + option + line[end:]
         if new != line and target.secure(_reads(recognizer, new)):
             return new

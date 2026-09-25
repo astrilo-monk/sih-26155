@@ -1,7 +1,16 @@
 # Demo configs for the SIH video
 
-Two intentionally insecure configurations, 10 vulnerabilities each. Both were run through the real scan pipeline
-(no AI key) and the results below are what the app actually returned.
+Two intentionally insecure configurations, 10 planted vulnerabilities each. Both were run through the real scan
+pipeline (no AI key) and the results below are what the app actually returned.
+
+**With the 23 checks** (8 added after these files were written) the app finds more than was planted:
+
+| File | FAILs | New checks that fail |
+|---|---|---|
+| `cisco_edge_vulnerable.cfg` | **15** | MGMT-011 SNMPv2c, AUTH-001 no login lockout, AUTH-002 no password length, AUTH-003 `username admin`, BOUNDARY-004 redirects / proxy-ARP on both interfaces (IOS defaults) |
+| `paloalto_fw_vulnerable.cfg` | **12** | MGMT-010 management profile on the `untrust` interface (heuristic), MGMT-011 SNMPv2c, AUTH-003 `admin` superuser |
+
+The tables below describe the 10 planted issues.
 
 ## cisco_edge_vulnerable.cfg: Cisco ISR (dedicated parser)
 

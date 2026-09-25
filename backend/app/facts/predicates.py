@@ -27,6 +27,9 @@ from app.models.results import Assurance, Evidence
 # subject: telnet | http
 PROTOCOL_ENABLED = "mgmt.remote_access.protocol_enabled"
 SOURCE_RESTRICTED = "mgmt.remote_access.source_restricted"
+# True: a management service (SSH, HTTP/S, Telnet, ping, SNMP) is reachable on an external interface or zone;
+# scope: the interface or zone
+MGMT_EXPOSED = "mgmt.remote_access.exposed_externally"
 SSH_VERSION = "mgmt.ssh.version"
 # unit: min
 IDLE_TIMEOUT = "mgmt.session.idle_timeout"
@@ -34,6 +37,19 @@ CENTRAL_AAA = "auth.central_aaa.enabled"
 # subject: enable | user <name> | console; value: storage type (plaintext, type7, type9_scrypt …)
 PASSWORD_STORAGE = "auth.password.storage"
 PASSWORD_ENCRYPTION_SERVICE = "auth.password.encryption_service"
+# value: failed logins allowed before the device locks out, blocks or disconnects the attempt
+LOGIN_MAX_ATTEMPTS = "auth.login.max_attempts"
+# value: minimum password length the device enforces
+PASSWORD_MIN_LENGTH = "auth.password.min_length"
+# value: a local administrative account's name; scope: the account
+ADMIN_ACCOUNT = "auth.account.name"
+# True: management SSH / HTTPS accepts a weak algorithm (DES, 3DES, RC4, CBC ciphers, MD5 MACs, DH group 1)
+MGMT_WEAK_CRYPTO = "mgmt.crypto.weak_allowed"
+# True: a traffic rule logs what it matches; scope: the rule
+RULE_LOGGING = "boundary.policy.logging"
+# True: a routed interface sends ICMP redirects, answers proxy-ARP or forwards directed broadcasts;
+# subject: redirects | proxy-arp | directed-broadcast (None when one fact covers the interface); scope: interface
+ROUTER_UNSAFE_SERVICE = "boundary.interface.unsafe_service"
 # value: {"name", "permission", "acl"}
 SNMP_COMMUNITY = "snmp.community"
 # value: list of hosts
@@ -50,9 +66,10 @@ PERMIT_ANY = "boundary.policy.permit_any"
 IPSEC_PROPOSAL = "crypto.ipsec.proposal"
 
 PREDICATES = frozenset({
-    PROTOCOL_ENABLED, SOURCE_RESTRICTED, SSH_VERSION, IDLE_TIMEOUT, CENTRAL_AAA, PASSWORD_STORAGE,
+    PROTOCOL_ENABLED, SOURCE_RESTRICTED, MGMT_EXPOSED, SSH_VERSION, IDLE_TIMEOUT, CENTRAL_AAA, PASSWORD_STORAGE,
     PASSWORD_ENCRYPTION_SERVICE, SNMP_COMMUNITY, LOG_REMOTE_DESTINATION, NTP_SERVER, NTP_AUTHENTICATED,
     LOGIN_BANNER, SOURCE_ROUTING, DISCOVERY_PROTOCOL, PERMIT_ANY, IPSEC_PROPOSAL,
+    LOGIN_MAX_ATTEMPTS, PASSWORD_MIN_LENGTH, ADMIN_ACCOUNT, MGMT_WEAK_CRYPTO, RULE_LOGGING, ROUTER_UNSAFE_SERVICE,
 })
 
 

@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
+from app.facts import lexicon as L
 from app.facts.predicates import (
     CENTRAL_AAA, DISCOVERY_PROTOCOL, IDLE_TIMEOUT, IPSEC_PROPOSAL, LOG_REMOTE_DESTINATION, LOGIN_BANNER,
     NOT_SET, NTP_AUTHENTICATED, NTP_SERVER, PASSWORD_ENCRYPTION_SERVICE, PASSWORD_STORAGE, PERMIT_ANY,
@@ -379,6 +380,163 @@ def ipsec_proposal(fact, facts, vendor):
     return _pass("No proposal uses weak encryption, hashing or DH groups")
 
 
+def exposed_management(fact, facts, vendor):
+    if fact.value is NOT_SET:
+        return None
+    if fact.value is None:
+        return _unknown(fact, "Whether management services are reachable from an external interface could not "
+                              "be determined")
+    if not fact.value:
+        return _pass("No management service is reachable on an external interface")
+    return _fail(
+        Severity.CRITICAL,
+        f"{fact.provenance or 'A management service is reachable'}{_on(fact) if not fact.provenance else ''}. "
+        "The device can be managed, or probed, from the internet side.",
+        "Management services on an internet-facing interface are exposed to scanning, brute force and exploits "
+        "against the management plane.",
+        _advice(vendor, "Remove every management service from external interfaces and zones; manage the device "
+                        "from an internal or dedicated management network only.",
+                fortinet=f"Remove all management services from allowaccess{_on(fact)} (CIS FortiGate 1.3)."),
+    )
+
+
+def snmp_version(fact, facts, vendor):
+    if fact.value is NOT_SET:
+        return _pass("No SNMPv1/v2c community is configured")
+    # a community exists only in SNMPv1/v2c, whatever its string or access level
+    return _fail(
+        Severity.HIGH,
+        "An SNMPv1/v2c community is configured. Community-based SNMP sends the community string, "
+        "and every value it reads or writes, in cleartext, with no per-user authentication.",
+        "Anyone on the network path can capture the community string and query (or reconfigure) the device.",
+        _advice(vendor, "Remove every SNMP community and use SNMPv3 with authentication and privacy (authPriv).",
+                cisco="Remove 'snmp-server community' lines and configure an SNMPv3 group with 'priv' and users.",
+                fortinet="Delete the communities under 'config system snmp community' and use 'config system snmp "
+                         "user' with auth and priv protocols (CIS FortiGate 2.3.1)."),
+    )
+
+
+_ROUTER_SERVICES = {"redirects": "ICMP redirects", "proxy-arp": "proxy-ARP", "directed-broadcast": "directed broadcasts"}
+
+
+def router_services(fact, facts, vendor):
+    if fact.value is NOT_SET:
+        return None
+    what = _ROUTER_SERVICES.get(fact.subject, "ICMP redirects, proxy-ARP and directed broadcasts")
+    if fact.value is None:
+        return _unknown(fact, f"Whether {what} are enabled{_on(fact)} could not be determined")
+    if not fact.value:
+        return _pass(f"{what[0].upper()}{what[1:]} are disabled{_on(fact)}")
+    return _fail(
+        Severity.MEDIUM,
+        f"{fact.provenance or f'{what[0].upper()}{what[1:]} are enabled'}"
+        f"{_on(fact) if not fact.provenance else ''}. These services help attackers map, redirect or amplify "
+        "traffic through the router.",
+        "ICMP redirects can reroute hosts through an attacker; proxy-ARP hides where networks really end; directed "
+        "broadcasts are the amplifier in smurf-style denial-of-service attacks.",
+        _advice(vendor, "Disable ICMP redirects, proxy-ARP and directed broadcasts on every routed interface.",
+                cisco=f"Add 'no ip redirects', 'no ip proxy-arp' and 'no ip directed-broadcast'{_on(fact)}."),
+    )
+
+
+def rule_logging(fact, facts, vendor):
+    if fact.value is NOT_SET:
+        return None
+    if fact.value is None:
+        return _unknown(fact, "Whether the rule logs could not be determined")
+    if fact.value:
+        return _pass("Every permitting rule logs the traffic it matches")
+    return _fail(
+        Severity.MEDIUM,
+        f"Logging is turned off{_on(fact)}. Traffic this rule permits leaves no record.",
+        "Without traffic logs an intrusion, or data leaving through this rule, cannot be detected or investigated.",
+        _advice(vendor, "Enable logging on every rule that permits traffic, and forward the logs to a remote server.",
+                fortinet=f"Set 'set logtraffic all'{_on(fact)}."),
+    )
+
+
+def weak_management_crypto(fact, facts, vendor):
+    if fact.value is NOT_SET:
+        return None
+    if fact.value is None:
+        return _unknown(fact, "Which algorithms SSH / HTTPS management accepts could not be determined")
+    if not fact.value:
+        return _pass("Management SSH / HTTPS accepts no weak algorithm")
+    return _fail(
+        Severity.HIGH,
+        f"{fact.provenance or 'Management cryptography accepts a weak algorithm'}"
+        f"{_on(fact) if not fact.provenance else ''}. Weak ciphers, MACs and key exchange let an attacker on the "
+        "path decrypt or tamper with management sessions.",
+        "A downgrade to a weak algorithm exposes administrator credentials and commands despite using SSH / HTTPS.",
+        _advice(vendor, "Allow only strong algorithms: AES-CTR or AES-GCM ciphers, SHA-2 MACs, and DH group 14 or "
+                        "stronger key exchange.",
+                cisco="Set 'ip ssh server algorithm encryption aes256-ctr aes192-ctr aes128-ctr' and "
+                      "'ip ssh server algorithm mac hmac-sha2-512 hmac-sha2-256'.",
+                fortinet="Set 'set strong-crypto enable' and disable 'ssh-cbc-cipher', 'ssh-hmac-md5' and "
+                         "'ssh-kex-sha1' in system global."),
+    )
+
+
+# ── authentication ──────────────────────────────────────────────────────────
+
+MAX_LOGIN_ATTEMPTS = 10
+MIN_PASSWORD_LENGTH = 8
+DEFAULT_ACCOUNTS = L.DEFAULT_ACCOUNT_NAMES
+
+
+def login_attempts(fact, facts, vendor):
+    if fact.value is None:
+        return _unknown(fact, "The failed-login limit could not be determined")
+    if fact.value is not NOT_SET and 0 < fact.value <= MAX_LOGIN_ATTEMPTS:
+        return _pass(f"Failed logins are limited to {fact.value:g} before a lockout or disconnect")
+    missing = fact.value is NOT_SET or fact.value == 0
+    return _fail(
+        Severity.HIGH,
+        "Failed logins are not limited: nothing locks out, blocks or slows an attacker guessing passwords."
+        if missing else f"Failed logins are limited to {fact.value:g} attempts, more than {MAX_LOGIN_ATTEMPTS}.",
+        "Management accounts can be brute-forced online until a password is found.",
+        _advice(vendor, f"Limit failed logins to {MAX_LOGIN_ATTEMPTS} or fewer, with a lockout or back-off.",
+                cisco="Add 'login block-for 900 attempts 3 within 120' (or 'aaa local authentication attempts "
+                      "max-fail 3').",
+                fortinet="Set 'set admin-lockout-threshold 3' and an 'admin-lockout-duration' in system global."),
+    )
+
+
+def password_length(fact, facts, vendor):
+    if fact.value is None:
+        return _unknown(fact, "The enforced minimum password length could not be determined")
+    if fact.value is not NOT_SET and fact.value >= MIN_PASSWORD_LENGTH:
+        return _pass(f"Passwords must be at least {fact.value:g} characters")
+    return _fail(
+        Severity.MEDIUM,
+        "No minimum password length is enforced." if fact.value is NOT_SET
+        else f"The minimum password length is {fact.value:g}, below {MIN_PASSWORD_LENGTH}.",
+        "Short passwords can be guessed or cracked quickly, online or from a captured hash.",
+        _advice(vendor, f"Enforce a minimum password length of at least {MIN_PASSWORD_LENGTH} (12 or more is better).",
+                cisco="Add 'security passwords min-length 12'.",
+                fortinet="Enable 'config system password-policy' with 'set status enable' and "
+                         "'set minimum-length 12'."),
+    )
+
+
+def default_account(fact, facts, vendor):
+    if fact.value is NOT_SET:
+        return _pass("No local account uses a vendor-default name")
+    if fact.value is None:
+        return _unknown(fact, "The account name could not be read")
+    if str(fact.value).lower() not in DEFAULT_ACCOUNTS:
+        return _pass("No local account uses a vendor-default name")
+    return _fail(
+        Severity.MEDIUM,
+        f"The local account '{fact.value}' uses a vendor-default name.",
+        "A default account name is the first one attackers try, so a password guess is all that stands between "
+        "them and administrative access.",
+        _advice(vendor, "Create a named administrator account for each person, then remove or disable the default "
+                        "account.",
+                fortinet="Create a named admin account, then rename or delete 'admin' under 'config system admin'."),
+    )
+
+
 JUDGES: dict[str, Judge] = {
     "MGMT-001": telnet,
     "MGMT-002": http,
@@ -389,10 +547,18 @@ JUDGES: dict[str, Judge] = {
     "MGMT-007": ssh_version,
     "MGMT-008": central_aaa,
     "MGMT-009": login_banner,
+    "MGMT-010": exposed_management,
+    "MGMT-011": snmp_version,
+    "AUTH-001": login_attempts,
+    "AUTH-002": password_length,
+    "AUTH-003": default_account,
     "BOUNDARY-001": permit_any,
     "BOUNDARY-002": source_routing,
     "BOUNDARY-003": discovery_protocol,
     "LOG-001": remote_log,
     "LOG-002": ntp,
     "CRYPTO-001": ipsec_proposal,
+    "LOG-003": rule_logging,
+    "CRYPTO-002": weak_management_crypto,
+    "BOUNDARY-004": router_services,
 }

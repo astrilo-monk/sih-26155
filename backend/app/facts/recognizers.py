@@ -30,7 +30,8 @@ from app.adaptive.matcher import (
 from app.facts import lexicon as L
 from app.facts.heuristics import _Candidate, _polarity, _version, combine, heuristic_candidates, state_lines
 from app.facts.predicates import (
-    CENTRAL_AAA, DISCOVERY_PROTOCOL, IDLE_TIMEOUT, LOG_REMOTE_DESTINATION, LOGIN_BANNER, NTP_AUTHENTICATED,
+    ADMIN_ACCOUNT, CENTRAL_AAA, DISCOVERY_PROTOCOL, IDLE_TIMEOUT, LOG_REMOTE_DESTINATION, LOGIN_BANNER, LOGIN_MAX_ATTEMPTS,
+    MGMT_EXPOSED, MGMT_WEAK_CRYPTO, NTP_AUTHENTICATED, PASSWORD_MIN_LENGTH, ROUTER_UNSAFE_SERVICE, RULE_LOGGING,
     NTP_SERVER, PASSWORD_ENCRYPTION_SERVICE, PASSWORD_STORAGE, PERMIT_ANY, PROTOCOL_ENABLED, SOURCE_RESTRICTED,
     SNMP_COMMUNITY, SOURCE_ROUTING, SSH_VERSION, SecurityFact,
 )
@@ -41,7 +42,8 @@ logger = logging.getLogger(__name__)
 
 BOOL_PREDICATES = frozenset({
     PROTOCOL_ENABLED, SOURCE_RESTRICTED, CENTRAL_AAA, NTP_AUTHENTICATED, LOGIN_BANNER, SOURCE_ROUTING,
-    DISCOVERY_PROTOCOL, PERMIT_ANY, PASSWORD_ENCRYPTION_SERVICE,
+    DISCOVERY_PROTOCOL, PERMIT_ANY, PASSWORD_ENCRYPTION_SERVICE, MGMT_EXPOSED, MGMT_WEAK_CRYPTO, RULE_LOGGING,
+    ROUTER_UNSAFE_SERVICE,
 })
 # Settings a configuration states by *naming a thing*: the line exists only to configure them, so the
 # address or name it carries is which instance, not whether the setting is on. No dialect writes
@@ -61,6 +63,10 @@ CONCEPT_WORDS = {
     LOGIN_BANNER: (L.BANNER_RELATED,), SOURCE_ROUTING: (L.SOURCE_ROUTING,),
     PERMIT_ANY: (L.RULE_WORDS | L.PERMIT | L.DENY,), PASSWORD_STORAGE: (L.PASSWORD_RELATED,),
     PASSWORD_ENCRYPTION_SERVICE: (L.PASSWORD_RELATED,), SNMP_COMMUNITY: (L.SNMP,),
+    MGMT_EXPOSED: (L.MGMT_EXPOSURE_RELATED,), LOGIN_MAX_ATTEMPTS: (L.LOCKOUT_RELATED,),
+    PASSWORD_MIN_LENGTH: (L.PASSWORD_RELATED,), ADMIN_ACCOUNT: (L.ACCOUNT_RELATED,),
+    MGMT_WEAK_CRYPTO: (L.CRYPTO_SETTING_RELATED,), RULE_LOGGING: (L.RULE_WORDS | L.RULE_LOG_WORDS,),
+    ROUTER_UNSAFE_SERVICE: (L.ROUTER_SERVICE_WORDS,),
     # both sets must appear: a version is an SSH version, authentication is of the time source
     SSH_VERSION: (L.SSH, L.SSH_VERSION_RELATED), NTP_AUTHENTICATED: (L.TIME_RELATED, L.AUTH_RELATED),
 }
@@ -70,12 +76,17 @@ CONCEPT_WORDS = {
 SLOT_PREDICATES = {
     SSH_VERSION: ("int",), IDLE_TIMEOUT: ("duration",), LOG_REMOTE_DESTINATION: ("host", "ip"),
     NTP_SERVER: ("host", "ip"), PASSWORD_STORAGE: ("enum",), SNMP_COMMUNITY: ("community",),
+    LOGIN_MAX_ATTEMPTS: ("int",), PASSWORD_MIN_LENGTH: ("int",), ADMIN_ACCOUNT: ("enum",),
 }
 RECOGNIZER_PREDICATES = BOOL_PREDICATES | frozenset(SLOT_PREDICATES)
 # Read by shipped seeds only, never taught: the line that states an SNMP community holds the community string
-# itself, so a taught example could only be stored by storing the secret.
-SEED_ONLY_PREDICATES = frozenset({SNMP_COMMUNITY})
+# itself, so a taught example could only be stored by storing the secret; an account is named by a value table
+# of default names, which teaching does not draft.
+SEED_ONLY_PREDICATES = frozenset({SNMP_COMMUNITY, ADMIN_ACCOUNT})
 TEACHABLE_PREDICATES = RECOGNIZER_PREDICATES - SEED_ONLY_PREDICATES
+# Predicates whose every statement is a separate object, never a second opinion on one setting
+PER_STATEMENT = {SNMP_COMMUNITY: "snmp community", MGMT_EXPOSED: "management access", ADMIN_ACCOUNT: "account",
+                 RULE_LOGGING: "rule", ROUTER_UNSAFE_SERVICE: "interface service"}
 # The access a {community:<level>} slot's template states
 COMMUNITY_ACCESS = frozenset({"RO", "RW"})
 # Settings whose statement may end in ``{rest}``: a destination or an authentication server. What
@@ -339,8 +350,8 @@ def recognizer_facts(raw_lines: list[str], extra: Iterable = ()) -> tuple[list[S
                 continue
             value = stated_value(r, value, s)
             recognized.add(s.line)
-            # every community is its own fact: two communities are not a conflict about one setting
-            scope = f"snmp community at line {s.line}" if r.predicate == SNMP_COMMUNITY else None
+            # every community (every exposed zone) is its own fact: two of them are not a conflict about one setting
+            scope = f"{PER_STATEMENT[r.predicate]} at line {s.line}" if r.predicate in PER_STATEMENT else None
             candidates.append(_Candidate(r.predicate, value, lines or [s.line], subject=r.subject, scope=scope,
                                          unit="min" if r.predicate == IDLE_TIMEOUT else None))
 

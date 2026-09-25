@@ -20,7 +20,7 @@ from app.controls.evaluate import evaluate_control, evaluate_controls
 from app.facts.from_normalized import facts_from_config
 from app.facts.predicates import (
     CENTRAL_AAA, IDLE_TIMEOUT, IPSEC_PROPOSAL, LOG_REMOTE_DESTINATION, NOT_SET, PREDICATES, PROTOCOL_ENABLED,
-    SOURCE_RESTRICTED, SecurityFact,
+    ROUTER_UNSAFE_SERVICE, SOURCE_RESTRICTED, SecurityFact,
 )
 from app.main import app
 from app.models.normalized import AIFieldMapping, DeviceInfo, NormalizedConfig, Vendor
@@ -67,7 +67,10 @@ def test_parser_facts_are_cited_parser_facts_from_the_vocabulary(fixture):
     assert facts
     for fact in facts:
         assert fact.predicate in PREDICATES
-        assert fact.assurance == Assurance.PARSER
+        # the one exception: an interface service IOS leaves on unless told otherwise is the platform default
+        # speaking, not a parsed line (BOUNDARY-004), and it says so
+        assert fact.assurance == Assurance.PARSER or (
+            fact.predicate == ROUTER_UNSAFE_SERVICE and fact.assurance == Assurance.DEFAULT and "IOS defaults" in fact.provenance)
         assert all(config.raw_lines[n - 1] == t for n, t in zip(fact.evidence.line_numbers, fact.evidence.text))
 
 

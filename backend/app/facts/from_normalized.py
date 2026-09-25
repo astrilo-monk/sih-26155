@@ -16,10 +16,13 @@ from __future__ import annotations
 import re
 from typing import Iterable, Optional
 
+from app.facts import lexicon as L
 from app.facts.heuristics import heuristic_facts
 from app.facts.recognizers import recognizer_facts
 from app.facts.predicates import (
     CENTRAL_AAA, DISCOVERY_PROTOCOL, FIELD_PREDICATES, IDLE_TIMEOUT, IPSEC_PROPOSAL, LOG_REMOTE_DESTINATION, LOGIN_BANNER,
+    MGMT_EXPOSED, LOGIN_MAX_ATTEMPTS, PASSWORD_MIN_LENGTH, ADMIN_ACCOUNT, MGMT_WEAK_CRYPTO, RULE_LOGGING,
+    ROUTER_UNSAFE_SERVICE,
     NOT_SET, NTP_AUTHENTICATED, NTP_SERVER, PASSWORD_ENCRYPTION_SERVICE, PASSWORD_STORAGE, PERMIT_ANY,
     PREDICATES, PROTOCOL_ENABLED, SNMP_COMMUNITY, SOURCE_RESTRICTED, SOURCE_ROUTING, SSH_VERSION, SecurityFact,
 )
@@ -45,6 +48,8 @@ PARSER_COVERAGE: dict[Vendor, frozenset[str]] = {
 }
 
 _MGMT_SERVICES = {"ssh", "https", "http", "telnet"}
+# services that manage the device (fgfm: FortiManager access); ping is a diagnostic, not a management service
+_EXPOSED_SERVICES = _MGMT_SERVICES | {"snmp", "fgfm"}
 _ANY_ADDRESS = {"any", "all", "0.0.0.0", "0.0.0.0/0"}
 
 
@@ -194,6 +199,54 @@ class _ParserFacts:
         present = bool(c.banners.login_banner or c.banners.motd_banner)
         self.add(LOGIN_BANNER, True if present else NOT_SET, c.banners.source_lines)
 
+        # IOS has no failed-login limit and no password length rule unless one is configured
+        limits = [(n, int(m.group(1))) for n, line in enumerate(c.raw_lines, 1) if (m := _IOS_LOGIN_LIMIT.match(line))]
+        if limits:
+            number, attempts = min(limits, key=lambda item: item[1])
+            self.add(LOGIN_MAX_ATTEMPTS, attempts, [number])
+        else:
+            self.add(LOGIN_MAX_ATTEMPTS, NOT_SET, ())
+        lengths = [(n, int(m.group(1))) for n, line in enumerate(c.raw_lines, 1) if (m := _IOS_MIN_LENGTH.match(line))]
+        if lengths:
+            self.add(PASSWORD_MIN_LENGTH, lengths[-1][1], [lengths[-1][0]])
+        else:
+            self.add(PASSWORD_MIN_LENGTH, NOT_SET, ())
+        # IOS sends ICMP redirects and answers proxy-ARP on a routed interface unless told not to; directed
+        # broadcasts are off unless turned on. A verdict that rests on those defaults says so (assurance DEFAULT).
+        for iface in c.interfaces:
+            if not iface.ip_address or iface.shutdown or re.match(r"(?i)(loopback|null)", iface.name):
+                continue
+            texts = [" ".join(c.raw_lines[n - 1].split()).lower() for n in iface.source_lines
+                     if 1 <= n <= len(c.raw_lines)]
+            on, by_default = [], False
+            for feature, off in (("ICMP redirects", "no ip redirects"), ("proxy-ARP", "no ip proxy-arp")):
+                if off not in texts:
+                    on.append(feature)
+                    by_default = by_default or feature.split()[-1].lower() not in " ".join(texts)
+            if "ip directed-broadcast" in texts:
+                on.append("directed broadcasts")
+            numbers = [n for n in iface.source_lines if 1 <= n <= len(c.raw_lines)]
+            self.facts.append(SecurityFact(
+                ROUTER_UNSAFE_SERVICE, bool(on), Assurance.DEFAULT if by_default else Assurance.PARSER,
+                Evidence(line_numbers=numbers, text=[c.raw_lines[n - 1] for n in numbers]),
+                scope=f"interface {iface.name}",
+                provenance=(f"{' and '.join(on)} are enabled on interface {iface.name}"
+                            + (" (IOS defaults: nothing turns them off)" if by_default else "")) if on else "",
+            ))
+
+        # An algorithm list is the whole allowed set; with none, the IOS release's defaults decide (not claimed)
+        for number, line in enumerate(c.raw_lines, 1):
+            if match := _IOS_ALGORITHMS.match(line):
+                weak = [t for t in match.group(2).split() if L.is_weak_algorithm(t)]
+                what = "HTTPS cipher suites" if match.group(1).lower().startswith("http") else \
+                    f"SSH {match.group(1).split()[-1].lower()} algorithms"
+                self.add(MGMT_WEAK_CRYPTO, bool(weak), [number], scope=what,
+                         provenance=f"The {what} include {', '.join(weak)}" if weak else "")
+        for user in auth.local_users:
+            self.add(ADMIN_ACCOUNT, user.username, user.source_lines, scope=f"user {user.username}")
+        if not auth.local_users:
+            self.add(ADMIN_ACCOUNT, NOT_SET, ())
+
         for acl in c.access_lists:
             for entry in acl.entries:
                 permit_any = (entry.action == "permit" and _is_any(entry.source) and _is_any(entry.destination)
@@ -228,10 +281,16 @@ class _ParserFacts:
         if not wan:
             self.add(PROTOCOL_ENABLED, None, (), "http", provenance=no_wan)
             self.add(SOURCE_RESTRICTED, None, (), provenance=no_wan)
+            self.add(MGMT_EXPOSED, None, (), provenance=no_wan)
             self.add(DISCOVERY_PROTOCOL, None, (), "lldp", provenance=no_wan)
         for iface in wan:
             scope = f"interface {iface.name}"
             self.add(PROTOCOL_ENABLED, "http" in iface.allowed_services, iface.source_lines, "http", scope)
+            # CIS FortiGate 1.3: every management-related service counts, not only the login protocols
+            reachable = sorted(_EXPOSED_SERVICES.intersection(iface.allowed_services))
+            self.add(MGMT_EXPOSED, bool(reachable), iface.source_lines, scope=scope,
+                     provenance=f"Management services ({', '.join(reachable)}) are allowed on WAN {scope}"
+                     if reachable else "")
             exposed = sorted(_MGMT_SERVICES.intersection(iface.allowed_services))
             self.add(SOURCE_RESTRICTED, not exposed, iface.source_lines, scope=scope,
                      provenance=f"Management services ({', '.join(exposed)}) are accessible on WAN {scope}" if exposed else "")
@@ -242,6 +301,46 @@ class _ParserFacts:
         mgmt = c.management
         if mgmt.admin_timeout is not None:
             self.add(IDLE_TIMEOUT, mgmt.admin_timeout, mgmt.source_lines, unit="min")
+
+        # Settings the parser model does not keep, read from their own sections. Absent: the FortiOS defaults
+        # in app/facts/defaults.py (admin-lockout-threshold 3, the shipped 'admin' account) apply.
+        raw = c.raw_lines
+        found = [(n, int(m.group(1))) for n in _forti_section(raw, "config system global")
+                 if (m := _FORTI_LOCKOUT.match(raw[n - 1]))]
+        if found:
+            self.add(LOGIN_MAX_ATTEMPTS, found[-1][1], [found[-1][0]])
+        policy = _forti_section(raw, "config system password-policy")
+        enabled = [n for n in policy if re.match(r"^\s*set\s+status\s+enable\s*$", raw[n - 1], re.IGNORECASE)]
+        lengths = [(n, int(m.group(1))) for n in policy if (m := _FORTI_MIN_LENGTH.match(raw[n - 1]))]
+        if enabled:
+            # FortiOS enforces 8 characters when the policy is on and no minimum-length is set
+            self.add(PASSWORD_MIN_LENGTH, lengths[-1][1] if lengths else 8, [*enabled, *(n for n, _ in lengths[-1:])])
+        else:
+            self.add(PASSWORD_MIN_LENGTH, NOT_SET, policy)
+        weak = [(n, m.group(1).lower()) for n in _forti_section(raw, "config system global")
+                if (m := _FORTI_WEAK_CRYPTO.match(raw[n - 1]))]
+        if weak:
+            self.add(MGMT_WEAK_CRYPTO, True, [n for n, _ in weak],
+                     provenance=f"System global allows weak management cryptography ({', '.join(s for _, s in weak)})")
+        elif _forti_section(raw, "config system global"):
+            strong = [n for n in _forti_section(raw, "config system global")
+                      if re.match(r"^\s*set\s+strong-crypto\s+enable\s*$", raw[n - 1], re.IGNORECASE)]
+            if strong:
+                self.add(MGMT_WEAK_CRYPTO, False, strong)
+        for policy in c.firewall_policies:
+            if policy.action != "accept":
+                continue
+            stated = [n for n in policy.source_lines if re.match(r"^\s*set\s+logtraffic\s", raw[n - 1], re.IGNORECASE)]
+            # unset, FortiOS logs security events ('logtraffic utm'); only 'disable' turns logging off
+            self.add(RULE_LOGGING, policy.logging_enabled if stated else True, stated or policy.source_lines,
+                     scope=f"firewall policy {policy.policy_id}",
+                     provenance="" if stated else "FortiOS default 'set logtraffic utm'")
+        admins = _forti_section(raw, "config system admin")
+        edits = [(n, m.group(1)) for n in admins if (m := _FORTI_EDIT.match(raw[n - 1]))]
+        top = min((len(raw[n - 1]) - len(raw[n - 1].lstrip()) for n, _ in edits), default=0)
+        for number, name in edits:
+            if len(raw[number - 1]) - len(raw[number - 1].lstrip()) == top:
+                self.add(ADMIN_ACCOUNT, name, [number], scope=f"admin {name}")
         if c.banners.pre_login_banner_enabled is not None:
             self.add(LOGIN_BANNER, c.banners.pre_login_banner_enabled, c.banners.source_lines)
 
@@ -293,6 +392,32 @@ def _timeout(line) -> object:
     if line.exec_timeout_minutes is None:
         return NOT_SET
     return line.exec_timeout_minutes + (line.exec_timeout_seconds or 0) / 60
+
+
+_IOS_LOGIN_LIMIT = re.compile(
+    r"^\s*(?:login\s+block-for\s+\d+\s+attempts|aaa\s+local\s+authentication\s+attempts\s+max-fail)\s+(\d+)",
+    re.IGNORECASE)
+_IOS_MIN_LENGTH = re.compile(r"^\s*security\s+passwords\s+min-length\s+(\d+)", re.IGNORECASE)
+_FORTI_LOCKOUT = re.compile(r"^\s*set\s+admin-lockout-threshold\s+(\d+)", re.IGNORECASE)
+_FORTI_MIN_LENGTH = re.compile(r"^\s*set\s+minimum-length\s+(\d+)", re.IGNORECASE)
+_IOS_ALGORITHMS = re.compile(
+    r"^\s*ip\s+(ssh\s+server\s+algorithm\s+(?:encryption|mac|kex)|http\s+secure-ciphersuite)\s+(.+)$", re.IGNORECASE)
+# FortiOS switches that allow weak management crypto: strong-crypto off, CBC ciphers, MD5 MACs, SHA-1 key exchange
+_FORTI_WEAK_CRYPTO = re.compile(
+    r"^\s*set\s+(strong-crypto\s+disable|ssh-cbc-cipher\s+enable|ssh-hmac-md5\s+enable|ssh-kex-sha1\s+enable)\s*$",
+    re.IGNORECASE)
+_FORTI_EDIT = re.compile(r"""^\s*edit\s+["']?([^"'\s]+)["']?\s*$""", re.IGNORECASE)
+
+
+def _forti_section(raw: list[str], header: str) -> list[int]:
+    """Line numbers of a top-level FortiOS ``config`` section, header and closing ``end`` included."""
+    for index, line in enumerate(raw):
+        if line.strip().lower() == header and not line[:1].isspace():
+            for close in range(index + 1, len(raw)):
+                if raw[close].strip().lower() == "end" and not raw[close][:1].isspace():
+                    return list(range(index + 1, close + 2))
+            return list(range(index + 1, len(raw) + 1))
+    return []
 
 
 def _is_any(address: Optional[str]) -> bool:

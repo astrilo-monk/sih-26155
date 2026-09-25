@@ -11,7 +11,7 @@ weaknesses. NetAuditAI:
    vendor's grammar.
 2. **Extracts security facts** with a dedicated parser (Cisco IOS, FortiGate) or, for any other vendor, a generic
    tokenizer and keyword heuristics.
-3. **Answers 15 security controls** with PASS / FAIL / UNKNOWN / NOT_CONFIGURED and the exact lines as evidence.
+3. **Answers 23 security controls** with PASS / FAIL / UNKNOWN / NOT_CONFIGURED and the exact lines as evidence.
 4. **Reports posture and coverage separately**, so "we could not check it" never looks like "it is secure".
 5. **Uses AI only for what stayed undecided**, verifies every AI citation in code, and keeps the answer provisional
    until an administrator confirms it. A confirmation becomes a recognizer reused on every future scan.
@@ -34,7 +34,7 @@ weaknesses. NetAuditAI:
 
 ## 3. Likely questions
 
-**Is this "multi-vendor"?** Two vendors have dedicated parsers. Every other vendor gets the same 15 controls through
+**Is this "multi-vendor"?** Two vendors have dedicated parsers. Every other vendor gets the same 23 controls through
 the generic path, marked provisional until an administrator confirms recognizers. We do not claim parser-level
 assurance for them.
 

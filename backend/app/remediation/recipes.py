@@ -26,6 +26,7 @@ from app.controls.judges import (
     DEFAULT_SNMP_COMMUNITIES, MAX_IDLE_TIMEOUT_MINUTES, STRONG_PASSWORD_STORAGE, WEAK_DH_GROUPS, WEAK_ENCRYPTION,
     WEAK_HASH,
 )
+from app.facts import lexicon as L
 from app.facts.predicates import PASSWORD_STORAGE
 from app.models.normalized import NormalizedConfig, Vendor
 from app.models.results import ControlResult
@@ -406,6 +407,89 @@ def permit_any(ctx: Context) -> list[str]:
     )
 
 
+LOGIN_BLOCK = "login block-for 900 attempts 3 within 120"
+PASSWORD_MIN_LENGTH_LINE = "security passwords min-length 12"
+
+
+def _ios_replace_global(ctx: Context, pattern: str, text: str) -> list[str]:
+    """Remove every global line matching ``pattern`` and add ``text`` once."""
+    edits = Edits(ctx.lines)
+    for index, line in enumerate(ctx.lines):
+        if not line[:1].isspace() and re.match(pattern, line.strip(), re.IGNORECASE):
+            edits.delete(index)
+    _ios_insert_global(edits, [text])
+    return edits.apply()
+
+
+def ios_login_block(ctx: Context) -> list[str]:
+    return _ios_replace_global(ctx, r"login\s+block-for\s", LOGIN_BLOCK)
+
+
+def ios_password_length(ctx: Context) -> list[str]:
+    return _ios_replace_global(ctx, r"security\s+passwords\s+min-length\s", PASSWORD_MIN_LENGTH_LINE)
+
+
+def forti_password_policy(ctx: Context) -> list[str]:
+    edits = Edits(ctx.lines)
+    _forti_global(edits, _FortiTree(ctx.lines), "config system password-policy",
+                  [("status", "enable"), ("minimum-length", "12")])
+    return edits.apply()
+
+
+IOS_STRONG_ALGORITHMS = {
+    "encryption": "aes256-ctr aes192-ctr aes128-ctr",
+    "mac": "hmac-sha2-512 hmac-sha2-256",
+    "kex": "ecdh-sha2-nistp384 ecdh-sha2-nistp256 diffie-hellman-group14-sha256",
+}
+
+
+def ios_management_crypto(ctx: Context) -> list[str]:
+    """Replace each SSH algorithm list that allows a weak algorithm with a strong one of the same kind."""
+    edits = Edits(ctx.lines)
+    for index, line in enumerate(ctx.lines):
+        match = re.match(r"^ip\s+ssh\s+server\s+algorithm\s+(encryption|mac|kex)\s+(.+)$", line.strip(), re.IGNORECASE)
+        if match and any(L.is_weak_algorithm(t) for t in match.group(2).split()):
+            edits.set(index, f"ip ssh server algorithm {match.group(1).lower()} {IOS_STRONG_ALGORITHMS[match.group(1).lower()]}")
+        elif re.match(r"^ip\s+http\s+secure-ciphersuite\s", line.strip(), re.IGNORECASE):
+            raise ManualReview("An HTTPS cipher-suite list depends on the browsers and tools that manage the device; "
+                               "choose its strong suites by hand")
+    return edits.apply()
+
+
+def forti_management_crypto(ctx: Context) -> list[str]:
+    edits = Edits(ctx.lines)
+    settings = [("strong-crypto", "enable")]
+    for switch in ("ssh-cbc-cipher", "ssh-hmac-md5", "ssh-kex-sha1"):
+        if any(re.match(rf"^\s*set\s+{switch}\s+enable\s*$", line, re.IGNORECASE) for line in ctx.lines):
+            settings.append((switch, "disable"))
+    _forti_global(edits, _FortiTree(ctx.lines), "config system global", settings)
+    return edits.apply()
+
+
+def forti_policy_logging(ctx: Context) -> list[str]:
+    edits, tree = Edits(ctx.lines), _FortiTree(ctx.lines)
+    failing = ctx.scopes("firewall policy ")
+    for policy in ctx.config.firewall_policies:
+        if policy.policy_id in failing and policy.source_lines:
+            _forti_set(edits, tree, tree.parent[policy.source_lines[0] - 1], "logtraffic", "all")
+    return edits.apply()
+
+
+def default_account_review(ctx: Context) -> list[str]:
+    raise ManualReview(
+        "Replacing a default account needs a new named administrator with its own password, created and tested "
+        "before the default one is removed; doing it from here could lock every administrator out"
+    )
+
+
+def snmp_v3_migration(ctx: Context) -> list[str]:
+    raise ManualReview(
+        "Moving to SNMPv3 needs users with authentication and privacy keys that only the operator can choose, "
+        "and every SNMP manager has to be reconfigured to match; removing the communities alone would cut "
+        "monitoring without replacing it"
+    )
+
+
 def ios_source_route(ctx: Context) -> list[str]:
     edits = Edits(ctx.lines)
     for index in _top_level(ctx.lines, "ip source-route", [n - 1 for r in ctx.fails for n in r.evidence.line_numbers]):
@@ -419,6 +503,18 @@ def ios_cdp(ctx: Context) -> list[str]:
         header = _header(ctx.lines, iface.source_lines, "interface")
         if iface.is_wan and iface.cdp_enabled is not False and header is not None:
             _ios_set_child(edits, header, r"(no\s+)?cdp\s+enable\b", "no cdp enable")
+    return edits.apply()
+
+
+def ios_router_services(ctx: Context) -> list[str]:
+    edits = Edits(ctx.lines)
+    failing = ctx.scopes("interface ")
+    for iface in ctx.config.interfaces:
+        header = _header(ctx.lines, iface.source_lines, "interface")
+        if iface.name in failing and header is not None:
+            _ios_set_child(edits, header, r"(no\s+)?ip\s+redirects\b", "no ip redirects")
+            _ios_set_child(edits, header, r"(no\s+)?ip\s+proxy-arp\b", "no ip proxy-arp")
+            _ios_set_child(edits, header, r"(no\s+)?ip\s+directed-broadcast\b", "no ip directed-broadcast")
     return edits.apply()
 
 
@@ -508,6 +604,11 @@ def forti_http(ctx: Context) -> list[str]:
 
 def forti_wan_management(ctx: Context) -> list[str]:
     return _forti_allowaccess(ctx, ctx.scopes("interface "), {"telnet", "http", "https", "ssh"})
+
+
+def forti_wan_exposure(ctx: Context) -> list[str]:
+    # CIS FortiGate 1.3: every management-related service, not only the login protocols
+    return _forti_allowaccess(ctx, ctx.scopes("interface "), {"telnet", "http", "https", "ssh", "snmp", "fgfm"})
 
 
 def remove_default_snmp_communities(config_text: str) -> str:
@@ -697,6 +798,10 @@ RECIPES: dict[tuple[str, Vendor], Recipe] = {
     ("MGMT-003", Vendor.FORTINET): Recipe(
         forti_wan_management, "Removes management services (telnet, http, https, ssh) from allowaccess on WAN interfaces.",
         warnings=(_LOCKOUT,)),
+    ("MGMT-010", Vendor.FORTINET): Recipe(
+        forti_wan_exposure, "Removes every management service (telnet, http, https, ssh, snmp, fgfm) from "
+                            "allowaccess on the failing WAN interfaces.",
+        warnings=(_LOCKOUT,)),
     ("MGMT-004", Vendor.CISCO_IOS): Recipe(
         ios_snmp, "Comments out SNMP communities that use a default string or grant read-write access without an ACL.",
         warnings=("SNMP managers using these communities lose access; configure SNMPv3 for monitoring.",)),
@@ -721,6 +826,36 @@ RECIPES: dict[tuple[str, Vendor], Recipe] = {
     ("MGMT-009", Vendor.CISCO_IOS): Recipe(ios_banner, "Adds a login banner with a legal warning."),
     ("MGMT-009", Vendor.FORTINET): Recipe(_forti_global_recipe("config system global", "pre-login-banner", "enable"),
                                           "Sets 'set pre-login-banner enable' in system global."),
+    ("MGMT-011", Vendor.CISCO_IOS): Recipe(snmp_v3_migration, "SNMPv3 users and keys are the operator's to choose."),
+    ("MGMT-011", Vendor.FORTINET): Recipe(snmp_v3_migration, "SNMPv3 users and keys are the operator's to choose."),
+    ("AUTH-001", Vendor.CISCO_IOS): Recipe(
+        ios_login_block, f"Adds '{LOGIN_BLOCK}': three failed logins within two minutes block logins for 15 minutes.",
+        warnings=("During a block, legitimate administrators cannot log in either; define a 'login quiet-mode "
+                  "access-class' for the management network if needed.",)),
+    ("AUTH-001", Vendor.FORTINET): Recipe(_forti_global_recipe("config system global", "admin-lockout-threshold", "3"),
+                                          "Sets 'set admin-lockout-threshold 3' in system global."),
+    ("AUTH-002", Vendor.CISCO_IOS): Recipe(
+        ios_password_length, f"Adds '{PASSWORD_MIN_LENGTH_LINE}'.",
+        warnings=("Applies to passwords set from now on; existing shorter passwords keep working until changed.",)),
+    ("AUTH-002", Vendor.FORTINET): Recipe(
+        forti_password_policy, "Enables 'config system password-policy' with a minimum length of 12.",
+        warnings=("Applies to passwords set from now on; existing shorter passwords keep working until changed.",)),
+    ("AUTH-003", Vendor.CISCO_IOS): Recipe(default_account_review, "Named accounts need new credentials."),
+    ("AUTH-003", Vendor.FORTINET): Recipe(default_account_review, "Named accounts need new credentials."),
+    ("BOUNDARY-004", Vendor.CISCO_IOS): Recipe(
+        ios_router_services, "Adds 'no ip redirects', 'no ip proxy-arp' and 'no ip directed-broadcast' to the failing "
+                             "interfaces.",
+        warnings=("Hosts that relied on proxy-ARP (a missing default gateway or a wrong subnet mask) lose "
+                  "connectivity until they are configured correctly.",)),
+    ("CRYPTO-002", Vendor.CISCO_IOS): Recipe(
+        ios_management_crypto, "Replaces each weak SSH algorithm list with AES-CTR ciphers, SHA-2 MACs and ECDH / "
+                               "DH group 14 key exchange.",
+        warnings=("Old SSH clients that only speak the removed algorithms can no longer connect.",)),
+    ("CRYPTO-002", Vendor.FORTINET): Recipe(
+        forti_management_crypto, "Sets 'set strong-crypto enable' and disables the weak SSH switches in system global.",
+        warnings=("Old SSH / HTTPS clients that only speak the removed algorithms can no longer connect.",)),
+    ("LOG-003", Vendor.FORTINET): Recipe(forti_policy_logging, "Sets 'set logtraffic all' on the failing policies.",
+                                         warnings=("Logging all traffic raises log volume; size the log server for it.",)),
     ("BOUNDARY-001", Vendor.CISCO_IOS): Recipe(permit_any, "Any-to-any rules need an operator-defined replacement."),
     ("BOUNDARY-001", Vendor.FORTINET): Recipe(permit_any, "Any-to-any policies need an operator-defined replacement."),
     ("BOUNDARY-002", Vendor.CISCO_IOS): Recipe(ios_source_route, "Replaces 'ip source-route' with 'no ip source-route'."),

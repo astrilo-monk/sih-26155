@@ -74,9 +74,11 @@ def unresolved(client, scan_id: str) -> dict:
 
 def test_initial_juniper_score_is_unchanged(client):
     scan, _ = juniper(client)
-    assert (scan["posture"], scan["coverage"]) == (27, 24)
-    assert scan["assessed_count"] == 3
-    assert scan["unresolved_count"] == 12
+    # was (27, 24) before MGMT-010/011, AUTH-001…003, LOG-003, CRYPTO-002, BOUNDARY-004: 'user admin' is a decided AUTH-003
+    # FAIL (posture 24), and more questions apply that this file does not answer
+    assert (scan["posture"], scan["coverage"]) == (24, 19)
+    assert scan["assessed_count"] == 4
+    assert scan["unresolved_count"] == 19
 
 
 def test_initial_score_comes_from_the_scoring_engine(client):
@@ -242,7 +244,7 @@ def test_undecided_controls_are_never_counted_as_passed_or_failed(client):
     decided = {r["control_id"] for r in scan["results"] if r["status"] in ("pass", "fail")}
     assert undecided & decided == set()
     # the posture is computed over the decided controls alone
-    assert scan["posture"] == 27 and len(decided) == 3
+    assert scan["posture"] == 24 and len(decided) == 4
 
 
 # ── 14-15. the rest of the product is unaffected ─────────────────────────────
@@ -285,8 +287,8 @@ def test_control_outcomes_agree_with_the_posture(seeded_adaptive_db):
     results = evaluate_controls(config)
     outcomes = control_outcomes([results])
     posture = calculate_posture([results])
-    assert posture.coverage == 24
-    assert sum(1 for o in outcomes.values() if o == "undecided") == 12
+    assert posture.coverage == 19
+    assert sum(1 for o in outcomes.values() if o == "undecided") == 19
     assert set(posture.critical_unassessed) <= {c for (_, c), o in outcomes.items() if o == "undecided"}
 
 
