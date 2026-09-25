@@ -32,7 +32,7 @@ from app.facts.heuristics import _Candidate, _polarity, _version, combine, heuri
 from app.facts.predicates import (
     CENTRAL_AAA, DISCOVERY_PROTOCOL, IDLE_TIMEOUT, LOG_REMOTE_DESTINATION, LOGIN_BANNER, NTP_AUTHENTICATED,
     NTP_SERVER, PASSWORD_ENCRYPTION_SERVICE, PASSWORD_STORAGE, PERMIT_ANY, PROTOCOL_ENABLED, SOURCE_RESTRICTED,
-    SOURCE_ROUTING, SSH_VERSION, SecurityFact,
+    SNMP_COMMUNITY, SOURCE_ROUTING, SSH_VERSION, SecurityFact,
 )
 from app.models.results import Assurance
 from app.structure.tokenizer import IP, NEGATIVE, NEGATORS, NUMBER, POSITIVE, Statement, tokenize, tokenize_line
@@ -60,7 +60,7 @@ CONCEPT_WORDS = {
     LOG_REMOTE_DESTINATION: (L.LOG_RELATED,), NTP_SERVER: (L.TIME_RELATED,), CENTRAL_AAA: (L.AAA_RELATED,),
     LOGIN_BANNER: (L.BANNER_RELATED,), SOURCE_ROUTING: (L.SOURCE_ROUTING,),
     PERMIT_ANY: (L.RULE_WORDS | L.PERMIT | L.DENY,), PASSWORD_STORAGE: (L.PASSWORD_RELATED,),
-    PASSWORD_ENCRYPTION_SERVICE: (L.PASSWORD_RELATED,),
+    PASSWORD_ENCRYPTION_SERVICE: (L.PASSWORD_RELATED,), SNMP_COMMUNITY: (L.SNMP,),
     # both sets must appear: a version is an SSH version, authentication is of the time source
     SSH_VERSION: (L.SSH, L.SSH_VERSION_RELATED), NTP_AUTHENTICATED: (L.TIME_RELATED, L.AUTH_RELATED),
 }
@@ -69,9 +69,15 @@ CONCEPT_WORDS = {
 # written before ``{host}`` existed (including shipped seeds).
 SLOT_PREDICATES = {
     SSH_VERSION: ("int",), IDLE_TIMEOUT: ("duration",), LOG_REMOTE_DESTINATION: ("host", "ip"),
-    NTP_SERVER: ("host", "ip"), PASSWORD_STORAGE: ("enum",),
+    NTP_SERVER: ("host", "ip"), PASSWORD_STORAGE: ("enum",), SNMP_COMMUNITY: ("community",),
 }
 RECOGNIZER_PREDICATES = BOOL_PREDICATES | frozenset(SLOT_PREDICATES)
+# Read by shipped seeds only, never taught: the line that states an SNMP community holds the community string
+# itself, so a taught example could only be stored by storing the secret.
+SEED_ONLY_PREDICATES = frozenset({SNMP_COMMUNITY})
+TEACHABLE_PREDICATES = RECOGNIZER_PREDICATES - SEED_ONLY_PREDICATES
+# The access a {community:<level>} slot's template states
+COMMUNITY_ACCESS = frozenset({"RO", "RW"})
 # Settings whose statement may end in ``{rest}``: a destination or an authentication server. What
 # follows it (``514 protocol udp``, ``vrf mgmt``, ``key 1``, ``prefer``) says how to reach the server,
 # never whether there is one. A toggle is different -a trailing word may be the one that switches it.
@@ -109,6 +115,10 @@ def recognizer_value(recognizer, slot: tuple) -> Any:
     if kind == "neg":
         # the slot is the leading negator itself: absent means the statement is in force
         return text is None
+    if kind == "community":
+        # the access level is the template's own words (``authorization read-only``), never guessed; the ACL
+        # is not read, so only a template whose line cannot carry one may state RW
+        return {"name": text.strip("\"'"), "permission": (argument or "").upper() or None, "acl": None}
     word = text.strip("\"'").lower()
     if kind == "polarity":
         return word in POSITIVE
@@ -226,6 +236,9 @@ def validate_recognizer(r) -> None:
         expected = SLOT_PREDICATES[r.predicate]
         if kind not in expected:
             raise RecognizerError(f"This setting is read from an {{{expected[0]}}} slot")
+        if kind == "community" and (argument or "").upper() not in COMMUNITY_ACCESS:
+            raise RecognizerError("A community slot states the access its line grants: {community:RO} or "
+                                  "{community:RW}")
         if value is None:
             raise RecognizerError("The example line gives no usable value")
 
@@ -326,7 +339,9 @@ def recognizer_facts(raw_lines: list[str], extra: Iterable = ()) -> tuple[list[S
                 continue
             value = stated_value(r, value, s)
             recognized.add(s.line)
-            candidates.append(_Candidate(r.predicate, value, lines or [s.line], subject=r.subject,
+            # every community is its own fact: two communities are not a conflict about one setting
+            scope = f"snmp community at line {s.line}" if r.predicate == SNMP_COMMUNITY else None
+            candidates.append(_Candidate(r.predicate, value, lines or [s.line], subject=r.subject, scope=scope,
                                          unit="min" if r.predicate == IDLE_TIMEOUT else None))
 
     from app.db.mappings import rejection_key  # the store imports this module for its gates
@@ -358,7 +373,7 @@ def provisional_lines(raw_lines: list[str], needs: Iterable[str],
     statements = tokenize(raw_lines)
     found: dict[int, _Candidate] = {}
     for c in [*heuristic_candidates(raw_lines, skip), *extra]:
-        if c.predicate in needs and c.predicate in RECOGNIZER_PREDICATES:
+        if c.predicate in needs and c.predicate in TEACHABLE_PREDICATES:
             for n in set(c.lines) - state_lines(c, statements) - skip:
                 found.setdefault(n, c)
     return sorted(found.items(), key=lambda item: item[0])

@@ -291,6 +291,18 @@ def test_unrelated_lines_never_trigger_a_seed_recognizer(seeded_adaptive_db, con
     ("no feature lldp\n", "boundary.discovery_protocol.enabled", False),
     ("aaa authentication ssh console authServer LOCAL\n", "auth.central_aaa.enabled", True),
     ("aaa authentication ssh console LOCAL\n", "auth.central_aaa.enabled", False),
+    # SNMP communities: the access level is the template's own words
+    ("set snmp community public authorization read-only\n", "snmp.community",
+     {"name": "public", "permission": "RO", "acl": None}),
+    ("snmp-server community NOC-RO group network-operator\n", "snmp.community",
+     {"name": "NOC-RO", "permission": "RO", "acl": None}),
+    ("snmp-agent community write private\n", "snmp.community", {"name": "private", "permission": "RW", "acl": None}),
+    ("set deviceconfig system snmp-setting access-setting version v2c snmp-community-string public\n",
+     "snmp.community", {"name": "public", "permission": "RO", "acl": None}),
+    # an encrypted community, a read-write one with its ACL beside it, a Junos community without its access
+    ("snmp-agent community read cipher %^%#abc\n", "snmp.community", None),
+    ("snmp-server community NOC rw NOC-ACL\n", "snmp.community", None),
+    ("set snmp community NOC clients 192.0.2.0/24\n", "snmp.community", None),
     # present, but open to every address: not a restriction
     ("set network profiles interface-management-profile MGMT permitted-ip 0.0.0.0/0\n",
      "mgmt.remote_access.source_restricted", False),
@@ -382,10 +394,15 @@ def test_no_shipped_recognizer_holds_or_matches_a_secret(seeded_adaptive_db):
         "}\n"
         "snmp-agent community read FakeSeedCommunity\n"
     )
-    cited = {n for f in _facts(secrets) for n in f.evidence.line_numbers}
+    facts = _facts(secrets)
     secret_lines = {n for n, line in enumerate(secrets.splitlines(), 1)
                     if redact_line(line) != line}
+    # the one exception is by design: an SNMP community's line holds the community string, and a seed-only
+    # {community} slot reads it at scan time (never stored; every display of it is redacted)
+    cited = {n for f in facts if f.predicate != "snmp.community" for n in f.evidence.line_numbers}
+    community = {n for f in facts if f.predicate == "snmp.community" for n in f.evidence.line_numbers}
     assert secret_lines and not (cited & secret_lines)
+    assert community == {12}
 
 
 # ── 8–9: nothing else changed ───────────────────────────────────────────────
@@ -531,3 +548,22 @@ def _json_file(text: str) -> Path:
     path = Path(tempfile.mkdtemp()) / "sg.json"
     path.write_text(text, encoding="utf-8")
     return path
+
+
+def test_each_snmp_community_is_its_own_finding(seeded_adaptive_db):
+    text = "snmp-server community public ro\nsnmp-server community NOC-7f3k ro SNMP-ACL\n"
+    communities = [f for f in _facts(text) if f.predicate == "snmp.community"]
+    assert sorted(f.value["name"] for f in communities) == ["NOC-7f3k", "public"]
+    result = _results(text)["MGMT-004"]
+    assert (result.status, result.assurance) == (Status.FAIL, Assurance.CONFIRMED)
+
+
+def test_a_non_default_read_only_community_passes(seeded_adaptive_db):
+    result = _results("set snmp community NOC-7f3k authorization read-only\n")["MGMT-004"]
+    assert (result.status, result.assurance) == (Status.PASS, Assurance.CONFIRMED)
+
+
+def test_snmp_communities_are_read_by_seeds_but_never_taught(seeded_adaptive_db):
+    from app.controls.catalog import CONTROLS
+    from app.facts.teaching import teachable_predicates
+    assert teachable_predicates(CONTROLS["MGMT-004"]) == []

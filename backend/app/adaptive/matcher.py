@@ -70,8 +70,10 @@ SLOT_PATTERNS = {
     # a storage type may be a number (``secret 0``), a source may be a prefix (``CidrIp 0.0.0.0/0``, ``::/0``)
     "enum": r"[A-Za-z0-9:][\w.+/:-]*",
     "polarity": r"(?:enabled?|disabled?|on|off|true|false|yes|no)",
+    # an SNMP community string: read at scan time only, never stored (the template holds the slot)
+    "community": r"""(?:"[^"]*"|'[^']*'|\S+)""",
 }
-_SLOT = re.compile(r"^\{(int|ip|host|duration|enum|polarity|neg)(?::([A-Za-z][\w-]*))?\}$")
+_SLOT = re.compile(r"^\{(int|ip|host|duration|enum|polarity|neg|community)(?::([A-Za-z][\w-]*))?\}$")
 NEGATION_SLOT = "{neg}"
 # An optional leading negator: absent = the statement is in force, present = it is negated.
 _NEGATION_PREFIX = r"(?P<slot>(?:no|unset|delete|undo)[\s=]+)?"

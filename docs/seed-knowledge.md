@@ -56,6 +56,7 @@ a unit for durations, a template that matches its example line, and no secret in
 | `{polarity}` | a polarity word anywhere in the line | `telnet server enable` |
 | `{neg}` | an **optional leading negator** (`no` / `unset` / `delete` / `undo`) | `no telnet server` |
 | `{rest}` | any trailing options, last token only, destinations and AAA servers only (see Limitations) | `ntp server 192.0.2.10 key 1` |
+| `{community:RO}` / `{community:RW}` | an SNMP community string, read at scan time and never stored; seed-only (see Limitations) | `snmp-server community <SECRET> ro` |
 
 `{neg}` is what lets one entry read both forms of a concept: `{neg} telnet server` says Telnet is on for
 `telnet server` and off for `no telnet server`, and `{neg} telnet` scoped to `services` does the same for a
@@ -134,7 +135,7 @@ parser's password fact does; every path to the AI redacts evidence first.
 
 ## What is covered
 
-133 recognizers over twelve dialects that have **no dedicated parser** and stay generic/unconfirmed. The `vendor`
+141 recognizers over twelve dialects that have **no dedicated parser** and stay generic/unconfirmed. The `vendor`
 field is a label for readability, never a claim of parser support and never used to select a code path.
 
 | Dialect | Concepts read |
@@ -206,9 +207,17 @@ interface names. Passing the gates makes a recognizer safe to store, not worth s
 
 ## Limitations
 
-* **Coverage is partial by design.** SNMP communities and IPsec proposals cannot be answered by a recognizer
-  at all, and a setting a dialect's files never state has nothing to read. Those controls stay `UNKNOWN` /
-  `NOT_CONFIGURED` until an administrator teaches them.
+* **Coverage is partial by design.** IPsec proposals cannot be answered by a recognizer at all, and a setting a
+  dialect's files never state has nothing to read. Those controls stay `UNKNOWN` / `NOT_CONFIGURED` until an
+  administrator teaches them.
+* **SNMP communities are seed-only.** The line holds the community string, so a `{community:RO}` /
+  `{community:RW}` slot reads it at scan time and nothing stores it; a taught example could only be kept by
+  storing the secret, so MGMT-004 cannot be taught. The access level is the template's own words, never
+  guessed, and the ACL is not read: a read-write form is seeded only where the dialect writes the ACL on the
+  same line, so `rw` with nothing after it really is open write access. Seeded: Junos `authorization read-only`,
+  NX-OS `group network-operator`, Arista `ro` / `ro <acl>` / `rw`, Huawei `read` / `write`, PAN-OS
+  `snmp-community-string` (PAN-OS SNMP is read-only). Left out: an encrypted community (`read cipher …`), and
+  Junos `clients …` lines, which name no access level.
 * **Read from `teach/` and deliberately left out:** `ssh server timeout` (Huawei, Aruba) is the SSH login
   timeout, not an idle timeout; `/ip service set ssh address=…` (RouterOS) needs `address` as a
   source-restriction word, which would let any interface address teach it; `snmp-agent acl` (Huawei) binds

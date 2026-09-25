@@ -21,7 +21,7 @@ from app.controls.catalog import Control
 from app.facts import lexicon as L
 from app.facts.heuristics import _Candidate, _context, _parts
 from app.facts.predicates import DISCOVERY_PROTOCOL, PROTOCOL_ENABLED
-from app.facts.recognizers import BOOL_PREDICATES, RECOGNIZER_PREDICATES, provisional_lines, recognizer_facts
+from app.facts.recognizers import BOOL_PREDICATES, TEACHABLE_PREDICATES, provisional_lines, recognizer_facts
 from app.structure.tokenizer import Statement, tokenize
 
 # Lines offered per control: enough to find the right one, few enough to read
@@ -32,7 +32,7 @@ SUBJECTS = {"MGMT-001": "telnet", "MGMT-002": "http"}
 
 def teachable_predicates(control: Control) -> list[str]:
     """The control's settings a recognizer can answer."""
-    return [p for p in control.needs if p in RECOGNIZER_PREDICATES]
+    return [p for p in control.needs if p in TEACHABLE_PREDICATES]
 
 
 def suggested_lines(raw_lines: list[str], control: Control,

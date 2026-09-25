@@ -33,7 +33,7 @@ The vendor is **unknown**, so the file goes through the generic path. PAN-OS is 
 | 1 | Telnet enabled (system + interface mgmt profile) | `disable-telnet no`, `UNTRUST-MGMT telnet yes` | **FAIL** MGMT-001 |
 | 2 | HTTP management enabled | `disable-http no`, `UNTRUST-MGMT http yes` | **FAIL** MGMT-002 |
 | 3 | Management open to every address | `UNTRUST-MGMT permitted-ip 0.0.0.0/0` | **FAIL** MGMT-003 |
-| 4 | SNMP v2c community `public` | `snmp-community-string public` | **FAIL** MGMT-004 (heuristic) |
+| 4 | SNMP v2c community `public` | `snmp-community-string public` | **FAIL** MGMT-004 |
 | 5 | Idle timeout disabled | `idle-timeout 0` | **FAIL** MGMT-006 |
 | 6 | SSH protocol v1 | `ssh service protocol-version v1` | **FAIL** MGMT-007 |
 | 7 | Any-to-any allow rule | `rulebase security rules Allow-All ...` (7 lines) | **FAIL** BOUNDARY-001 (heuristic) |

@@ -487,6 +487,20 @@
       "example_line": "ntp-service unicast-server 192.0.2.10"
     },
     {
+      "concept": "SNMP community",
+      "vendor": "Huawei VRP",
+      "predicate": "snmp.community",
+      "command_pattern": "snmp-agent community read {community:RO}",
+      "example_line": "snmp-agent community read <SECRET:snmp-community>"
+    },
+    {
+      "concept": "SNMP community",
+      "vendor": "Huawei VRP",
+      "predicate": "snmp.community",
+      "command_pattern": "snmp-agent community write {community:RW}",
+      "example_line": "snmp-agent community write <SECRET:snmp-community>"
+    },
+    {
       "concept": "Central authentication order",
       "vendor": "Juniper Junos",
       "predicate": "auth.central_aaa.enabled",
@@ -822,11 +836,39 @@
       "example_line": "set mgt-config users admin phash <SECRET:password>"
     },
     {
+      "concept": "SNMP community",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "snmp.community",
+      "command_pattern": "set deviceconfig system snmp-setting access-setting version v2c snmp-community-string {community:RO}",
+      "example_line": "set deviceconfig system snmp-setting access-setting version v2c snmp-community-string <SECRET:snmp-community>"
+    },
+    {
       "concept": "Remote syslog destination",
       "vendor": "Arista EOS",
       "predicate": "log.remote.destination",
       "command_pattern": "logging vrf {any} host {host} {rest}",
       "example_line": "logging vrf MGMT host 192.0.2.20 514 protocol udp"
+    },
+    {
+      "concept": "SNMP community",
+      "vendor": "Arista EOS",
+      "predicate": "snmp.community",
+      "command_pattern": "snmp-server community {community:RO} ro",
+      "example_line": "snmp-server community <SECRET:snmp-community> ro"
+    },
+    {
+      "concept": "SNMP community",
+      "vendor": "Arista EOS",
+      "predicate": "snmp.community",
+      "command_pattern": "snmp-server community {community:RO} ro {any}",
+      "example_line": "snmp-server community <SECRET:snmp-community> ro SNMP-ACL"
+    },
+    {
+      "concept": "SNMP community",
+      "vendor": "Arista EOS",
+      "predicate": "snmp.community",
+      "command_pattern": "snmp-server community {community:RW} rw",
+      "example_line": "snmp-server community <SECRET:snmp-community> rw"
     },
     {
       "concept": "Remote syslog destination",
@@ -978,6 +1020,13 @@
       "example_line": "set system login user admin authentication encrypted-password <SECRET:password>"
     },
     {
+      "concept": "SNMP community",
+      "vendor": "Juniper Junos",
+      "predicate": "snmp.community",
+      "command_pattern": "set snmp community {community:RO} authorization read-only",
+      "example_line": "set snmp community <SECRET:snmp-community> authorization read-only"
+    },
+    {
       "concept": "Session idle timeout",
       "vendor": "Cisco NX-OS",
       "predicate": "mgmt.session.idle_timeout",
@@ -1023,6 +1072,13 @@
       "subject": "lldp",
       "command_pattern": "{neg} feature lldp",
       "example_line": "feature lldp"
+    },
+    {
+      "concept": "SNMP community",
+      "vendor": "Cisco NX-OS",
+      "predicate": "snmp.community",
+      "command_pattern": "snmp-server community {community:RO} group network-operator",
+      "example_line": "snmp-server community <SECRET:snmp-community> group network-operator"
     },
     {
       "concept": "Permissive any-any rule",
