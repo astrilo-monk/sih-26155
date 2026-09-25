@@ -95,7 +95,7 @@ def test_seed_loading_never_touches_what_an_administrator_confirmed(seeded_adapt
     seed = next(m for m in repository.list_mappings() if m.command_pattern == "telnet server {polarity}")
     repository.disable_mapping(seed.id, actor="admin")
     edited = repository.update_mapping(
-        next(m for m in repository.list_mappings() if m.command_pattern == "logging host {host}").id,
+        next(m for m in repository.list_mappings() if m.command_pattern == "logging host {host} {rest}").id,
         {"concept": "Syslog (site wording)"}, actor="admin")
 
     assert load_seed_recognizers(seeded_adaptive_db) == 0
@@ -107,15 +107,15 @@ def test_seed_loading_never_touches_what_an_administrator_confirmed(seeded_adapt
 
 def test_a_seed_entry_colliding_with_a_learned_pattern_is_skipped(seeded_adaptive_db):
     repository = MappingRepository()
-    shipped = next(m for m in repository.list_mappings() if m.command_pattern == "ntp server {host}")
+    shipped = next(m for m in repository.list_mappings() if m.command_pattern == "ntp server {host} {rest}")
     repository.disable_mapping(shipped.id, actor="admin")
     # the site now owns that pattern with its own wording
     repository.save_mapping(_runtime_recognizer(
-        concept="Site NTP", predicate="time.ntp.server", subject=None, command_pattern="ntp server {host}",
+        concept="Site NTP", predicate="time.ntp.server", subject=None, command_pattern="ntp server {host} {rest}",
         constant_value=None, example_line="ntp server 192.0.2.10"))
 
     assert load_seed_recognizers(seeded_adaptive_db) == 0
-    owners = [m.source for m in MappingRepository().list_mappings() if m.command_pattern == "ntp server {host}"]
+    owners = [m.source for m in MappingRepository().list_mappings() if m.command_pattern == "ntp server {host} {rest}"]
     assert owners == [SOURCE_RUNTIME]
 
 
@@ -144,7 +144,8 @@ def test_one_concept_is_read_from_materially_different_dialects(seeded_adaptive_
 
 
 @pytest.mark.parametrize("name", ["junos.conf", "panos.conf", "arista.conf", "huawei.conf", "routeros.rsc",
-                                  "gaia.conf", "exos.conf", "aruba.conf"])
+                                  "gaia.conf", "exos.conf", "aruba.conf",
+                                  "nxos.conf", "asa.conf", "iosxr.conf", "junos_set.conf"])
 def test_every_shipped_dialect_contributes_decisive_facts(seeded_adaptive_db, name):
     facts = _facts(_text(DIALECTS / name))
     assert len(facts) >= 3
@@ -230,7 +231,30 @@ def test_unrelated_lines_never_trigger_a_seed_recognizer(seeded_adaptive_db, con
     ('/system note set show-at-login=yes note="Authorized only."\n', "banner.login.present", True),
     ("/interface lldp set [find] disabled=no\n", "boundary.discovery_protocol.enabled", True),
     ("/ip firewall filter\nadd chain=input action=accept\n", "boundary.policy.permit_any", True),
+    # from Batfish's test configs: servers with trailing options ({rest}), NX-OS, ASA, IOS-XR, set-style Junos
+    ("logging host 192.0.2.20 514 protocol udp\n", "log.remote.destination", ["192.0.2.20"]),
+    ("logging vrf MGMT host 192.0.2.20 514 protocol udp\n", "log.remote.destination", ["192.0.2.20"]),
+    ("logging server 192.0.2.20 5 use-vrf management\n", "log.remote.destination", ["192.0.2.20"]),
+    ("logging host inside 192.0.2.20 udp/514\n", "log.remote.destination", ["192.0.2.20"]),
+    ("logging 192.0.2.20 vrf mgmt severity info\n", "log.remote.destination", ["192.0.2.20"]),
+    ("set system syslog host 192.0.2.20 any notice\n", "log.remote.destination", ["192.0.2.20"]),
+    ("ntp server 192.0.2.10 key 1 prefer\n", "time.ntp.server", ["192.0.2.10"]),
+    ("system {\n  ntp {\n    server 192.0.2.10 key 1;\n  }\n}\n", "time.ntp.server", ["192.0.2.10"]),
+    ("set system ntp server 192.0.2.10 key 1\n", "time.ntp.server", ["192.0.2.10"]),
+    ("tacacs-server host 192.0.2.30 key 7 <SECRET:type7>\n", "auth.central_aaa.enabled", True),
+    ("no tacacs-server host 192.0.2.30\n", "auth.central_aaa.enabled", False),
+    ("set system tacplus-server 192.0.2.30 timeout 5\n", "auth.central_aaa.enabled", True),
+    ("set system login class OPS idle-timeout 10\n", "mgmt.session.idle_timeout", 10.0),
+    ("line vty\n  exec-timeout 10\n", "mgmt.session.idle_timeout", 10.0),
+    ("ip access-list ANY-IN\n  permit ip any any\n", "boundary.policy.permit_any", True),
+    ("access-list OUTSIDE_IN extended permit ip any any\n", "boundary.policy.permit_any", True),
     # the same words where they configure something else state nothing
+    ("logging host inside\n", "log.remote.destination", None),                  # an interface is not a host
+    ("ntp server 192.0.2.10 key 1\n", "time.ntp.authenticated", None),          # a key alone is not authentication
+    ("line vty\n exec-timeout 5 0\n", "mgmt.session.idle_timeout", None),       # IOS minutes + seconds: its parser's
+    ("router bgp 65000\n  neighbor PG idle-restart-timer 99\n", "mgmt.session.idle_timeout", None),
+    ("ip access-list A\n  permit ip 192.0.2.0/24 any\n", "boundary.policy.permit_any", None),
+    ("access-list OUTSIDE_IN extended permit ip any host 192.0.2.1\n", "boundary.policy.permit_any", None),
     ("interface Ethernet1\n   ip access-group EDGE-IN in\n", "mgmt.remote_access.source_restricted", None),
     ("ip access-list WAN-IN\n   10 permit ip 192.0.2.0/24 any\n", "boundary.policy.permit_any", None),
     ("access {\n  profile SUBS {\n    authentication-order [ radius password ];\n  }\n}\n",

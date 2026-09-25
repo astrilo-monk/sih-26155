@@ -1,6 +1,7 @@
 /* NetAuditAI design system -Bold Typography.
    Black, white, grays and ONE accent (vermillion). Radius 0. No shadows, no glows, no tinted fills.
-   Colour never carries meaning: severity is a filled-square meter, status is a mono label with a marker.
+   Severity is a filled-square meter coloured by level (critical red, high orange, medium yellow, low green);
+   status is a mono label with a marker.
    Components use these tokens only; no raw colours outside this block. */
 
 :root {
@@ -68,6 +69,12 @@
   --gutter: clamp(24px, 5vw, 64px);
   --max: 1200px;
   --measure: 34rem;   /* max-w-2xl -the readable line length for explanatory prose */
+
+  /* severity: one colour per level */
+  --sev-critical: #ef4444;
+  --sev-high: #f97316;
+  --sev-medium: #eab308;
+  --sev-low: #22c55e;
 
   /* severity meter */
   --sq: 7px;
@@ -274,15 +281,18 @@ button { font: inherit; color: inherit; letter-spacing: inherit; }
 .status-review .status-glyph, .status-unknown .status-glyph,
 .status-nc .status-glyph, .status-na .status-glyph, .status-partial .status-glyph { background: none; }
 
-/* ── Severity: filled squares, never colour. CRITICAL 4 · HIGH 3 · MEDIUM 2 · LOW 1 ──────── */
+/* ── Severity: filled squares in the level's colour. CRITICAL 4 · HIGH 3 · MEDIUM 2 · LOW 1 ── */
+.sev-critical { --sev: var(--sev-critical); }
+.sev-high { --sev: var(--sev-high); }
+.sev-medium { --sev: var(--sev-medium); }
+.sev-low { --sev: var(--sev-low); }
 .sevmeter { display: inline-flex; align-items: center; gap: var(--sq-gap); flex: none; }
 .sevmeter i { width: var(--sq); height: var(--sq); border: var(--bw) solid var(--line); background: none; }
-.sevmeter i.on { background: var(--fg); border-color: var(--fg); }
+.sevmeter i.on { background: var(--sev, var(--fg)); border-color: var(--sev, var(--fg)); }
 .sev {
   display: inline-flex; align-items: center; gap: var(--s-2); padding: 0; background: none; border: 0;
-  font: 500 var(--fs-xs)/1 var(--sans); text-transform: uppercase; letter-spacing: var(--tr-wider); color: var(--fg);
+  font: 500 var(--fs-xs)/1 var(--sans); text-transform: uppercase; letter-spacing: var(--tr-wider); color: var(--sev, var(--fg));
 }
-.sev-low, .sev-medium { color: var(--muted-fg); }
 
 .tag {
   display: inline-flex; align-items: center; gap: var(--s-2); padding: 0;

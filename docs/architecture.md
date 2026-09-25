@@ -249,9 +249,9 @@ completes.
 
 ## 8. Human-in-the-loop: recognizers
 
-A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships 97 reviewed recognizers for
-eight dialects that have no dedicated parser (Junos, PAN-OS, Arista EOS, Huawei VRP, RouterOS, Aruba AOS-CX,
-Check Point Gaia, Extreme EXOS) and AWS security groups -one generalized entry per concept per dialect, never one
+A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships 109 reviewed recognizers for
+eleven dialects that have no dedicated parser (Junos, PAN-OS, Arista EOS, Huawei VRP, RouterOS, Aruba AOS-CX,
+Check Point Gaia, Extreme EXOS, Cisco NX-OS, ASA, IOS-XR) and AWS security groups -one generalized entry per concept per dialect, never one
 per line;
 `app/facts/seed.py` loads them into the knowledge store the first time a process opens the database. They pass the same gates
 listed below, are decisive in the same way, and are marked `source = "seed"` so shipped knowledge and what this

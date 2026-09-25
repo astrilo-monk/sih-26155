@@ -99,8 +99,8 @@
       "concept": "Remote syslog destination",
       "vendor": "Arista EOS",
       "predicate": "log.remote.destination",
-      "command_pattern": "logging host {host}",
-      "example_line": "logging host 192.0.2.20"
+      "command_pattern": "logging host {host} {rest}",
+      "example_line": "logging host 192.0.2.20 514 protocol udp"
     },
     {
       "concept": "HTTP management",
@@ -162,8 +162,8 @@
       "concept": "NTP server",
       "vendor": "Arista EOS",
       "predicate": "time.ntp.server",
-      "command_pattern": "ntp server {host}",
-      "example_line": "ntp server 192.0.2.10"
+      "command_pattern": "ntp server {host} {rest}",
+      "example_line": "ntp server 192.0.2.10 prefer"
     },
     {
       "concept": "Login banner",
@@ -596,9 +596,9 @@
       "concept": "NTP server",
       "vendor": "Juniper Junos",
       "predicate": "time.ntp.server",
-      "command_pattern": "server {host}",
+      "command_pattern": "server {host} {rest}",
       "scope_template": "ntp",
-      "example_line": "server 192.0.2.10;"
+      "example_line": "server 192.0.2.10 prefer;"
     },
     {
       "concept": "Login banner",
@@ -776,6 +776,94 @@
       "predicate": "time.ntp.server",
       "command_pattern": "set deviceconfig system ntp-servers {any} ntp-server-address {host}",
       "example_line": "set deviceconfig system ntp-servers primary-ntp-server ntp-server-address 192.0.2.10"
+    },
+    {
+      "concept": "Remote syslog destination",
+      "vendor": "Arista EOS",
+      "predicate": "log.remote.destination",
+      "command_pattern": "logging vrf {any} host {host} {rest}",
+      "example_line": "logging vrf MGMT host 192.0.2.20 514 protocol udp"
+    },
+    {
+      "concept": "Remote syslog destination",
+      "vendor": "Cisco NX-OS",
+      "predicate": "log.remote.destination",
+      "command_pattern": "logging server {host} {rest}",
+      "example_line": "logging server 192.0.2.1 5 use-vrf management"
+    },
+    {
+      "concept": "Remote syslog destination",
+      "vendor": "Cisco ASA",
+      "predicate": "log.remote.destination",
+      "command_pattern": "logging host {any} {ip} {rest}",
+      "example_line": "logging host inside 192.0.2.1 udp/514"
+    },
+    {
+      "concept": "Remote syslog destination",
+      "vendor": "Cisco IOS-XR",
+      "predicate": "log.remote.destination",
+      "command_pattern": "logging {ip} vrf {any} {rest}",
+      "example_line": "logging 192.0.2.1 vrf mgmt severity info"
+    },
+    {
+      "concept": "TACACS+ server",
+      "vendor": "Cisco NX-OS",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "{neg} tacacs-server host {any} {rest}",
+      "example_line": "tacacs-server host 192.0.2.1"
+    },
+    {
+      "concept": "TACACS+ server",
+      "vendor": "Juniper Junos",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "{neg} set system tacplus-server {any} {rest}",
+      "example_line": "set system tacplus-server 192.0.2.1 timeout 5"
+    },
+    {
+      "concept": "Remote syslog destination",
+      "vendor": "Juniper Junos",
+      "predicate": "log.remote.destination",
+      "command_pattern": "set system syslog host {host} {rest}",
+      "example_line": "set system syslog host 192.0.2.1 any notice"
+    },
+    {
+      "concept": "NTP server",
+      "vendor": "Juniper Junos",
+      "predicate": "time.ntp.server",
+      "command_pattern": "set system ntp server {host} {rest}",
+      "example_line": "set system ntp server 192.0.2.1 prefer"
+    },
+    {
+      "concept": "Session idle timeout",
+      "vendor": "Juniper Junos",
+      "predicate": "mgmt.session.idle_timeout",
+      "command_pattern": "set system login class {any} idle-timeout {duration:min}",
+      "example_line": "set system login class READONLY idle-timeout 30"
+    },
+    {
+      "concept": "Session idle timeout",
+      "vendor": "Cisco NX-OS",
+      "predicate": "mgmt.session.idle_timeout",
+      "command_pattern": "exec-timeout {duration:min}",
+      "scope_template": "line {any}",
+      "example_line": "exec-timeout 15"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Arista EOS / Cisco NX-OS",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "permit ip any {enum:any}",
+      "scope_template": "ip access-list {any}",
+      "constant_value": "{\"any\": true}",
+      "example_line": "permit ip any any"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Cisco ASA",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "access-list {any} extended permit ip any {enum:any}",
+      "constant_value": "{\"any\": true}",
+      "example_line": "access-list OUTSIDE_IN extended permit ip any any"
     }
   ]
 }

@@ -10,7 +10,7 @@ Summary:
 - [x] Security facts with assurance; every control runs on every configuration
 - [x] Generic tokenizer and lexicon heuristics for unknown vendors (provisional, no AI needed)
 - [x] Administrator-confirmed recognizers persisted (SQLite, or Postgres via `DATABASE_URL`) and reused across restarts
-- [x] Shipped seed knowledge: 97 generalized recognizers for eight unparsed dialects and AWS security groups
+- [x] Shipped seed knowledge: 109 generalized recognizers for eleven unparsed dialects and AWS security groups
 - [x] Structured (JSON) configurations flattened to one statement per object, so cloud rules are read and teachable
 - [x] Serial number / model / OS version reported when the uploaded text states them
 - [x] Scan history survives a restart: a redacted copy of each scan and its plans (`scans` table)

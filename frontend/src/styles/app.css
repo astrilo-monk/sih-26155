@@ -46,7 +46,7 @@
 .kpis dd { margin: var(--s-3) 0 0; font: 600 var(--fs-3xl)/1 var(--sans); letter-spacing: var(--tr-tight); }
 .kpis dd small { font-size: var(--fs-sm); color: var(--muted-fg); margin-left: 2px; }
 .kpi-risk dd { font: 600 var(--fs-xl)/1.4 var(--sans); text-transform: uppercase; }
-.kpi-risk.sev-critical dd, .kpi-risk.sev-high dd, .sev-word.sev-critical, .sev-word.sev-high { color: var(--accent); }
+.kpi-risk dd, .sev-word { color: var(--sev, var(--fg)); }
 .sev-word { font: 500 var(--fs-xs)/1 var(--sans); letter-spacing: var(--tr-wider); text-transform: uppercase; }
 .sev-word.sev-none { color: var(--muted-fg); }
 
@@ -207,8 +207,7 @@
 .sev-cell:first-child { padding-left: 0; border-left: 0; }
 .sev-count { font: 600 var(--fs-4xl)/var(--lh-none) var(--sans); letter-spacing: var(--tr-tight); color: var(--fg); }
 .sev-name { font: 500 var(--fs-xs)/1 var(--sans); text-transform: uppercase; letter-spacing: var(--tr-wider); color: var(--muted-fg); }
-.sev-cell.sev-critical .sev-count, .sev-cell.sev-high .sev-count,
-.sev-cell.sev-medium .sev-count, .sev-cell.sev-low .sev-count { color: var(--fg); }
+.sev-cell .sev-count { color: var(--sev, var(--fg)); }
 .sev-cell.is-zero .sev-count { color: var(--muted-fg); }
 .sev-cell.is-zero .sevmeter i.on { background: var(--line-hover); border-color: var(--line-hover); }
 .fixmix {

@@ -134,7 +134,7 @@ parser's password fact does; every path to the AI redacts evidence first.
 
 ## What is covered
 
-97 recognizers over nine dialects that have **no dedicated parser** and stay generic/unconfirmed. The `vendor`
+109 recognizers over twelve dialects that have **no dedicated parser** and stay generic/unconfirmed. The `vendor`
 field is a label for readability, never a claim of parser support and never used to select a code path.
 
 | Dialect | Concepts read |
@@ -148,6 +148,17 @@ field is a label for readability, never a claim of parser support and never used
 | Check Point Gaia | Telnet, HTTP management, remote syslog, NTP server, NTP authentication, SNMP source restriction, LLDP, IP source routing, session idle timeout, login banner, permissive access rule |
 | AWS security group (JSON) | any-protocol rule open to `0.0.0.0/0`, SSH / Telnet / RDP open to the world (or restricted to a prefix) |
 | Extreme Networks EXOS | Telnet, HTTP management (`web`), remote syslog, NTP server, LLDP, login banner, permissive any-any rule, session idle timeout, password storage, SSH `access-profile` source restriction |
+| Cisco NX-OS | remote syslog (`logging server`), TACACS+ server, session idle timeout under `line`, permissive any-any rule, NTP server |
+| Cisco ASA | remote syslog (`logging host <interface> <address>`), permissive `extended` any-any rule, NTP server |
+| Cisco IOS-XR | remote syslog (`logging <address> vrf …`), NTP server, TACACS+ server |
+
+The third pass mined Batfish's multi-vendor test configurations (Apache-2.0, kept out of the repository):
+servers written with trailing options (`{rest}`), NX-OS, ASA and IOS-XR spellings, and set-style Junos
+(`set system tacplus-server`, `syslog host`, `ntp server`, `login class … idle-timeout`). Rejected from the
+same pass: a BGP `idle-restart-timer` and an application `inactivity-timeout` read as session timeouts,
+PAN-OS `from any;` read as an any-any rule on its own, a VLAN filter and a policy-routing entry read as
+access rules, a PAN-OS syslog *profile* read as logs being sent, and a `key` on an NTP server read as NTP
+authentication.
 
 The second `teach/` pass read every setting the forty configurations state, where a control consumes it.
 Shared spellings are one entry: `lldp enable` (Huawei, Aruba) and `aaa authentication login default local`

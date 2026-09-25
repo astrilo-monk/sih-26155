@@ -1,6 +1,6 @@
 // Shared presentation primitives. Every screen composes these -no page-specific one-off styling.
 // Rules they enforce, so no caller has to remember them:
-//   · severity is a filled-square meter plus a mono word, never a colour;
+//   · severity is a filled-square meter plus a mono word, coloured by level (CSS .sev-*);
 //   · status is one mono label with a square marker, and an item shows at most one;
 //   · provenance ("AI-generated", "confidence: medium") is metadata, never a status;
 //   · a Copy control lives inside the block it copies.

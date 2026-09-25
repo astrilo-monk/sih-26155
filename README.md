@@ -62,8 +62,8 @@ Details: [docs/architecture.md](docs/architecture.md).
 
 The vendor is decided deterministically. An AI vendor guess is reported as evidence only and never selects a parser, defaults or remediation.
 
-**Shipped knowledge.** 97 reviewed recognizers for eight unparsed dialects (Juniper Junos, Palo Alto PAN-OS,
-Arista EOS, Huawei VRP, HPE Aruba AOS-CX, Check Point Gaia, Extreme EXOS, MikroTik RouterOS) and AWS security
+**Shipped knowledge.** 109 reviewed recognizers for eleven unparsed dialects (Juniper Junos, Palo Alto PAN-OS,
+Arista EOS, Huawei VRP, HPE Aruba AOS-CX, Check Point Gaia, Extreme EXOS, MikroTik RouterOS, Cisco NX-OS, ASA, IOS-XR) and AWS security
 groups ship in `backend/data/seed_recognizers.json` and load into an empty database on first start, so those dialects
 answer several controls before anyone teaches anything. Each entry is one concept per dialect, generalized over
 addresses, names, numbers and indentation through typed slots. They are ordinary recognizers -same templates,
@@ -194,7 +194,7 @@ A line holding a secret (password, key, community string) is never stored as a m
 - Parsers cover common Cisco IOS and FortiGate syntax; the IOS grammar is a curated root list, so an unusual real IOS config can come out unverified.
 - 15 controls. Remediation recipes exist only for Cisco IOS and FortiGate; weak stored passwords, AAA without a strong local account and any-to-any rules always need a human.
 - Unknown vendors rely on lexicon heuristics and confirmed recognizers; heuristics can misread a dialect until an administrator confirms or rejects the line.
-- Shipped seed knowledge covers eight dialects and 97 recognizers, so it answers only part of each dialect. Everything it does not cover still has to be taught, and a dialect with no seeds behaves exactly as before.
+- Shipped seed knowledge covers eleven dialects and 109 recognizers, so it answers only part of each dialect. Everything it does not cover still has to be taught, and a dialect with no seeds behaves exactly as before.
 - Redaction is pattern-based: a secret behind an unlisted keyword could still reach the AI.
 - The AI judge escalates only unknown / unverified vendors; UNKNOWN controls of confirmed vendors are not sent to AI.
 - Scan results live in memory; recognizer replay only checks scans held by the running backend. A candidate remediation lives in its scan only and is never persisted as knowledge.
