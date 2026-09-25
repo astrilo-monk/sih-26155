@@ -64,6 +64,8 @@ DH_KEYWORDS = frozenset({"group", "dh-group", "dhgroup", "dhgrp", "pfs", "pfs-gr
 # How a configuration writes "stored password" -a line must use one of these to teach password storage
 PASSWORD_RELATED = frozenset({
     "password", "passwd", "password-encryption", "encrypted-password", "passphrase", "credential",
+    # PAN-OS stores an administrator password as a hash: `mgt-config users <name> phash <hash>`
+    "phash",
     "secret", "hash", "hashed", "encrypted", "plaintext", "cipher", "irreversible-cipher", "algorithm-type",
 })
 

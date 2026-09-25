@@ -135,7 +135,7 @@ export const CANNOT_FIX_REASON = {
 
 // Why an unconfirmed vendor gets a reviewed candidate instead of a generated fix
 export const NEEDS_ADMIN_REASON =
-  'NetAuditAI found the security problem, but this device’s vendor and command syntax are not confirmed, so it never writes a vendor command on its own. It can derive the change from your own configuration -the lines this finding cites, removed from the block they sit in -and check it by re-reading the edited copy. You can also type the command yourself or have AI draft one. Nothing counts until you confirm it, and nothing is ever sent to a device.';
+  'NetAuditAI found the security problem, but this device’s vendor is not confirmed and no reviewed recognizer can write this fix in its syntax, so it does not write a command on its own. It can derive the change from your own configuration -the lines this finding cites, removed from the block they sit in -and check it by re-reading the edited copy. You can also type the command yourself or have AI draft one. Nothing counts until you confirm it, and nothing is ever sent to a device.';
 
 // ── Candidate remediation (unconfirmed vendors) ────────────────────────────────────────────────────────────────
 // Proposed command text -typed by an administrator or drafted by AI. It is never executed and never becomes a

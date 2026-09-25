@@ -131,6 +131,15 @@ def recognizer_value(recognizer, slot: tuple) -> Any:
     return float(number) * factor if factor else None
 
 
+def stated_value(recognizer, value: Any, statement: Statement) -> Any:
+    """What the whole statement says, where the slot alone would say more: ``permitted-ip 0.0.0.0/0``
+    is there, and restricts nothing."""
+    if recognizer.predicate == SOURCE_RESTRICTED and value is True \
+            and (ips := [v for v in statement.values if IP.match(v)]) and all(ip in L.ANY_ADDRESS for ip in ips):
+        return False
+    return value
+
+
 def _host(word: str) -> Optional[list[str]]:
     """``[destination]`` for an address or a hostname, None for anything that names no host.
 
@@ -315,6 +324,7 @@ def recognizer_facts(raw_lines: list[str], extra: Iterable = ()) -> tuple[list[S
                 value = False
             if value is None:
                 continue
+            value = stated_value(r, value, s)
             recognized.add(s.line)
             candidates.append(_Candidate(r.predicate, value, lines or [s.line], subject=r.subject,
                                          unit="min" if r.predicate == IDLE_TIMEOUT else None))

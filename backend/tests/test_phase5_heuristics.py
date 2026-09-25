@@ -202,3 +202,57 @@ def test_confirmed_vendors_never_use_heuristics():
     identification = identify_vendor(text)
     assert identification.confirmed
     assert all(r.assurance != Assurance.HEURISTIC for r in evaluate_controls(identification.config))
+
+
+_PANOS_RULE = [f"set rulebase security rules ALLOW-ALL {field}" for field in (
+    "from any", "to any", "source any", "destination any", "application any", "service any", "action allow")]
+
+
+@pytest.mark.parametrize("extra, expected", [
+    ([], True),
+    (["set rulebase security rules ALLOW-ALL disabled no"], True),
+    (["set rulebase security rules ALLOW-ALL disabled yes"], None),
+    (["set rulebase security rules ALLOW-ALL negate-source yes"], None),
+    (["set rulebase security rules ALLOW-ALL application ssh"], None),
+    (["set rulebase security rules ALLOW-ALL service application-default"], None),
+])
+def test_a_rule_written_one_field_per_line_is_read_as_one_rule(extra, expected):
+    lines = [line for line in _PANOS_RULE if not any(line.rsplit(" ", 1)[0] == e.rsplit(" ", 1)[0] for e in extra)]
+    values = [f.value for f in heuristic_facts(lines + extra) if f.predicate == PERMIT_ANY]
+    assert values == ([expected] if expected is not None else [])
+
+
+def test_fields_of_two_rules_are_never_merged():
+    lines = ["set rulebase security rules A source any", "set rulebase security rules A destination 10.0.0.1",
+             "set rulebase security rules A action allow", "set rulebase security rules B source 10.0.0.2",
+             "set rulebase security rules B destination any", "set rulebase security rules B action allow"]
+    assert not [f for f in heuristic_facts(lines) if f.predicate == PERMIT_ANY]
+
+
+def test_a_community_named_by_a_compound_keyword_is_read():
+    line = "set deviceconfig system snmp-setting access-setting version v2c snmp-community-string public"
+    facts = [f for f in heuristic_facts([line]) if f.predicate == "snmp.community"]
+    assert [f.value["name"] for f in facts] == ["public"]
+    # a BGP community list is not SNMP
+    assert not [f for f in heuristic_facts(["set policy-options community-list LIST members 65000:1"])
+                if f.predicate == "snmp.community"]
+
+
+_JUNOS_POLICY = [f"set security policies from-zone trust to-zone untrust policy ANY {field}" for field in (
+    "match source-address any", "match destination-address any", "match application any", "then permit")]
+
+
+@pytest.mark.parametrize("change, expected", [
+    ({}, True),
+    ({3: "then deny"}, None),
+    ({2: "match application junos-ssh"}, None),
+    ({0: "match source-address ADDR1"}, None),
+    ({4: "match source-address-excluded"}, None),
+    ({4: "then log session-init"}, True),
+])
+def test_a_junos_security_policy_is_read_as_one_rule(change, expected):
+    lines = list(_JUNOS_POLICY) + [""]
+    for index, field in change.items():
+        lines[index] = f"set security policies from-zone trust to-zone untrust policy ANY {field}"
+    values = [f.value for f in heuristic_facts([line for line in lines if line]) if f.predicate == PERMIT_ANY]
+    assert values == ([expected] if expected is not None else [])

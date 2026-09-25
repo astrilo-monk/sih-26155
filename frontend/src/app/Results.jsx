@@ -217,7 +217,7 @@ export default function Results({ scan, audit, onOpen, onTeach, go }) {
       {unfamiliar && unreadable.length < scan.devices.length && (
         <Notice label="Generic analysis">
           <strong>NetAuditAI has no dedicated reader for {multi ? 'some of these devices' : 'this device'}.</strong>
-          <span>It checked what it could. Lines it isn’t sure about aren’t counted until you confirm them, and it never generates vendor commands for an unconfirmed vendor.</span>
+          <span>It checked what it could. Lines it isn’t sure about aren’t counted until you confirm them, and it only writes a fix when a reviewed recognizer can state it in this configuration’s own syntax.</span>
         </Notice>
       )}
 

@@ -40,6 +40,7 @@ from app.adaptive.context import structural_paths
 from app.controls.catalog import CONTROLS, ControlKind
 from app.models.results import DECISIVE_ASSURANCE, Status
 from app.remediation.engine import Analysis, Check, _join, analyze_generic_text, no_regression
+from app.remediation.writeback import applied_command, verify as verify_applied
 from app.structure.tokenizer import Statement, tokenize
 
 MAX_COMMAND_CHARS = 2000
@@ -91,6 +92,9 @@ class Candidate:
     # CONFIRMED-after-verification. It is scan memory only: never persisted, never the stored config,
     # never applied to a device. Any other status clears it, so nothing unverified can be handed out.
     verified_config: Optional[str] = None
+    # "applied": every line read by a reviewed recognizer and the control now passes; "removal": the cited
+    # lines removed from a copy (the finding is gone, the setting is not proven secure)
+    effect: str = ""
     created_at: str = ""
     confirmed_at: Optional[str] = None
 
@@ -292,6 +296,11 @@ def verify(candidate: Candidate, text: str) -> Candidate:
     candidate.evidence = failing_evidence(before, candidate.control_id)
     candidate.checks, candidate.diff, candidate.control_status_after = [], "", None
     candidate.verified_config = None  # a re-check starts with nothing downloadable
+    candidate.effect = ""
+
+    applied = applied_command(text, candidate.command, candidate.control_id)
+    if applied is not None:
+        return _verify_applied(candidate, text, applied, before)
 
     lines = removed_lines(text, candidate.command, (n for n, _ in candidate.evidence))
     if lines is None:
@@ -327,11 +336,36 @@ def verify(candidate: Candidate, text: str) -> Candidate:
         candidate.reason = "The candidate did not hold up: " + "; ".join(failed)
         return candidate
     candidate.status = CandidateStatus.VERIFIED
+    candidate.effect = "removal"
     candidate.verified_config = after_text
     candidate.reason = (
         f"Verified against the uploaded configuration: {candidate.control_id} "
         f"{candidate.control_status_before} → {candidate.control_status_after} on a copy of it. This does not "
         "establish that the command is safe to run on the physical device."
+    )
+    return candidate
+
+
+def _verify_applied(candidate: Candidate, text: str, applied: str, before: Analysis) -> Candidate:
+    """A command a reviewed recognizer reads line by line: applied to a copy, it must make the control pass.
+
+    Stricter than a removal: the finding being gone is not enough, the setting must now be read as secure.
+    """
+    after = analyze_generic_text(applied)
+    candidate.control_status_after = _status_text(after, candidate.control_id)
+    candidate.diff = "\n".join(difflib.unified_diff(text.splitlines(), applied.splitlines(),
+                                                    "before", "after", n=2, lineterm=""))
+    candidate.checks = verify_applied(before, after, candidate.control_id)
+    failed = [c.detail for c in candidate.checks if not c.passed]
+    if failed:
+        candidate.status = CandidateStatus.REJECTED
+        candidate.reason = "The candidate did not hold up: " + "; ".join(failed)
+        return candidate
+    candidate.status, candidate.effect, candidate.verified_config = CandidateStatus.VERIFIED, "applied", applied
+    candidate.reason = (
+        f"Verified against the uploaded configuration: a reviewed recognizer reads every line of this command, and "
+        f"{candidate.control_id} {candidate.control_status_before} → {candidate.control_status_after} on a copy of "
+        "it. Once you confirm it, it is part of the corrected configuration."
     )
     return candidate
 

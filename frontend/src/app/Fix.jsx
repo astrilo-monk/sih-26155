@@ -172,6 +172,12 @@ export function CandidateFix({ item, audit }) {
           {candidate.control_status_before} → {candidate.control_status_after} on a copy of your configuration
         </p>
       )}
+      {candidate.effect === 'applied' && (
+        <p className="small muted">A reviewed recognizer reads every line of this command, so once you confirm it, it is part of the corrected configuration.</p>
+      )}
+      {candidate.effect === 'removal' && (
+        <p className="small muted">Checked by removing the lines it cites: the finding is gone, but the setting is not proven secure, so it stays out of the corrected configuration.</p>
+      )}
       {notAlreadySaid(meta.note, candidate.reason) && (
         <p className="small muted">{notAlreadySaid(meta.note, candidate.reason)}</p>
       )}
@@ -567,7 +573,7 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
 
       {unconfirmed.length > 0 && (
         <p className="small muted prose">
-          NetAuditAI never writes vendor commands for {joinWords(unconfirmed.map((d) => labels[d.config_index] ?? d.device_hostname))} by itself: the vendor isn’t confirmed. It can derive the change from the configuration you uploaded, and you can propose a command or have AI draft one -each is checked against that configuration before you confirm it. It never connects to the device.
+          The vendor of {joinWords(unconfirmed.map((d) => labels[d.config_index] ?? d.device_hostname))} isn’t confirmed. NetAuditAI writes a fix by itself only where the reviewed recognizer that read the failing line can write its secure form, in this configuration’s own syntax, and a rescan verifies it. For anything else you can propose a command or have AI draft one -each is checked against the configuration you uploaded before you confirm it. It never connects to the device.
         </p>
       )}
 

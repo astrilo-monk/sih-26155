@@ -134,13 +134,13 @@ parser's password fact does; every path to the AI redacts evidence first.
 
 ## What is covered
 
-109 recognizers over twelve dialects that have **no dedicated parser** and stay generic/unconfirmed. The `vendor`
+133 recognizers over twelve dialects that have **no dedicated parser** and stay generic/unconfirmed. The `vendor`
 field is a label for readability, never a claim of parser support and never used to select a code path.
 
 | Dialect | Concepts read |
 |---|---|
-| Juniper Junos | Telnet, HTTP management, SSH version, session idle timeout, remote syslog, NTP server, LLDP, RADIUS / TACACS+ servers, `authentication-order` (one method or a bracketed list), `allow-address` source restriction, login banner |
-| Palo Alto PAN-OS | Telnet (service and interface profile), HTTP management (service and interface profile), SSH version, session idle timeout (two spellings), remote syslog (two spellings), NTP server, NTP authentication, `permitted-ip` (system and interface profile), login banner |
+| Juniper Junos | Brace and `set` forms: Telnet, HTTP management, SSH version, session idle timeout, remote syslog, NTP server, LLDP (on, or `lldp disable`), RADIUS / TACACS+ servers, `authentication-order` (one method or a bracketed list), `allow-address` and `allow-sources` source restriction, login `message` banner, `encrypted-password` storage (set form) |
+| Palo Alto PAN-OS | Telnet (service and interface profile), HTTP management (service and interface profile), SSH version, session idle timeout (two spellings), remote syslog (`log-settings syslog` server profiles, shared and per vsys, plus two `deviceconfig` spellings), NTP server, NTP authentication, `permitted-ip` (system and interface profile; `0.0.0.0/0` reads as unrestricted), login banner, `phash` password storage, LLDP per interface, TACACS+ and RADIUS server profiles |
 | Arista EOS | Telnet, HTTP management (both polarities), SSH version, session idle timeout, remote syslog, NTP server, NTP authentication, IP source routing, LLDP, login banner, management ACL applied under `management ssh`, permissive any-any rule, local-only login, password storage |
 | Huawei VRP | Telnet (`enable` and `undo`), HTTP management (`enable` and `undo`), remote syslog, NTP server, NTP authentication, session idle timeout, IP source routing, LLDP, login banner, password storage, permissive ACL rule |
 | MikroTik RouterOS | Telnet, HTTP management (`www`), NTP server (two spellings), remote syslog, LLDP, login note, permissive input rule |
@@ -148,8 +148,8 @@ field is a label for readability, never a claim of parser support and never used
 | Check Point Gaia | Telnet, HTTP management, remote syslog, NTP server, NTP authentication, SNMP source restriction, LLDP, IP source routing, session idle timeout, login banner, permissive access rule |
 | AWS security group (JSON) | any-protocol rule open to `0.0.0.0/0`, SSH / Telnet / RDP open to the world (or restricted to a prefix) |
 | Extreme Networks EXOS | Telnet, HTTP management (`web`), remote syslog, NTP server, LLDP, login banner, permissive any-any rule, session idle timeout, password storage, SSH `access-profile` source restriction |
-| Cisco NX-OS | remote syslog (`logging server`), TACACS+ server, session idle timeout under `line`, permissive any-any rule, NTP server |
-| Cisco ASA | remote syslog (`logging host <interface> <address>`), permissive `extended` any-any rule, NTP server |
+| Cisco NX-OS | remote syslog (`logging server`), TACACS+ server, session idle timeout under `line`, permissive any-any rule, NTP server, `username … password 0` or `5` storage, `aaa authentication login default group`, `access-class … in` under `line vty`, `feature telnet` and `feature lldp` (on or off) |
+| Cisco ASA | remote syslog (`logging host <interface> <address>`), permissive `extended` any-any rule, NTP server, `aaa authentication <service> console <group>` (`LOCAL` alone is not central) |
 | Cisco IOS-XR | remote syslog (`logging <address> vrf …`), NTP server, TACACS+ server |
 
 The third pass mined Batfish's multi-vendor test configurations (Apache-2.0, kept out of the repository):
@@ -214,6 +214,16 @@ interface names. Passing the gates makes a recognizer safe to store, not worth s
   source-restriction word, which would let any interface address teach it; `snmp-agent acl` (Huawei) binds
   SNMP, not management logins; `enable ssh2` (EXOS) names no version number; a RouterOS `/user add …
   password=` states no storage type.
+* **Read from Batfish's Junos configs and deliberately left out:** `set system ntp trusted-key N` names a key,
+  and the gate will not read naming a key as "NTP is authenticated"; `set system services telnet
+  connection-limit 5` does switch Telnet on in Junos, but the line states a value for another setting, so the
+  gate refuses it (only the bare `set system services telnet` is seeded); the brace form of
+  `encrypted-password` has no keyword of its own to anchor a template. Any-any security policies
+  (`… policy P match source-address any` / `then permit`) are read by the lexicon heuristics, not a seed.
+* **Read from Batfish's NX-OS and ASA configs and deliberately left out:** `nxapi http port 80` states a port,
+  not the switch; ASA `telnet <address> <mask> <interface>` has one keyword, below the gate's minimum; ASA
+  `http <address> <mask> <interface>` opens ASDM, which is HTTPS, so it is not cleartext HTTP management. The
+  Batfish Nokia SR OS configs hold no management settings to seed from.
 * **Inverted switches are not seeded.** `management telnet` + `no shutdown` (Arista) means Telnet is *on*,
   so only the unambiguous `no management telnet` is seeded; the bare block header states nothing on its own.
 * **A unit is the product's.** `set ssh server session-timeout` (Gaia) and `configure ssh2

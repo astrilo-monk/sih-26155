@@ -132,6 +132,8 @@ export function useAudit(scan, revision, onScanExpired) {
     const res = await apiClient.remediationCandidate(action, scanId, item.controlId,
       item.primary.device_hostname, item.configIndex, body);
     setCandidates((prev) => ({ ...prev, [item.key]: res }));
+    // a confirmed command the recognizers read joins the corrected configuration: the plan now includes it
+    if (action === 'confirm' && res.effect === 'applied') await loadPlan();
     return res;
   };
 

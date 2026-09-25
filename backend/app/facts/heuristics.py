@@ -331,9 +331,11 @@ def _snmp_community(statements) -> Iterator[_Candidate]:
     index = 0
     for s in statements:
         keys = s.key_tokens
-        if s.polarity is False or not (_has(_context(s), L.SNMP) and "community" in keys):
+        # ``community``, or a compound naming it (``snmp-community-string``)
+        at = next((n for n, t in enumerate(keys) if "community" in _parts(t)), None)
+        if s.polarity is False or at is None or not _has(_context(s), L.SNMP):
             continue
-        after = keys[keys.index("community") + 1:]
+        after = keys[at + 1:]
         name = after[0] if after else (s.values[0] if s.values else None)
         if name is None:
             continue
@@ -405,9 +407,61 @@ def _composed_permit_any(action: Statement, statements: list[Statement]) -> Iter
             return
 
 
+_RULE_WILDCARDS = ("source", "destination")
+# set on the rule, these must be wildcards too, or the rule is narrower than "all traffic"
+_RULE_NARROWING = ("application", "service", "source-user", "category")
+_RULE_OFF = ("disabled", "negate-source", "negate-destination")
+# stated at all, these carve addresses out of the rule (Junos ``match source-address-excluded``)
+_RULE_EXCLUDED = ("source-address-excluded", "destination-address-excluded")
+_RULE_FIELD_NAMES = {"source-address": "source", "destination-address": "destination", "then": "action"}
+
+
+def _flat_rule_permit_any(statements) -> Iterator[_Candidate]:
+    """A rule written one field per line, keyed by its name (set-style exports):
+
+        set rulebase security rules ALLOW-ALL source any                      (PAN-OS)
+        set rulebase security rules ALLOW-ALL action allow
+        set security policies from-zone A to-zone B policy P match source-address any    (Junos)
+        set security policies from-zone A to-zone B policy P then permit
+
+    Lines with the same key up to the rule name are one rule, wherever they sit in the file. It is
+    all traffic only when source and destination are both stated as wildcards, the action permits,
+    every narrowing field it states is a wildcard, and it is not disabled, negated or excluding."""
+    rules: dict[tuple[str, ...], dict[str, list[tuple[list[str], Statement]]]] = {}
+    for s in statements:
+        keys = s.key_tokens
+        at = next((n for n, t in enumerate(keys) if t in ("rule", "rules", "policy")), None)
+        if at is None or len(keys) < at + 2:
+            continue
+        rest = keys[at + 2:]
+        if rest[:1] == ["match"]:
+            rest = rest[1:]
+        if not rest:
+            # ``disabled yes`` is all polarity words, so the field is read from the line itself
+            rest = s.text.lower().split()[-2:]
+        field = _RULE_FIELD_NAMES.get(rest[0], rest[0])
+        values = rest if rest[0] == "then" else rest[1:] + s.values
+        rules.setdefault(tuple(keys[:at + 2]), {}).setdefault(field, []).append(
+            ([t for t in values if t not in "[]"], s))
+
+    def wildcard(field: str, fields) -> bool:
+        stated = fields.get(field, [])
+        return bool(stated) and all(v and all(t in L.UNRESTRICTED or t in L.ANY_ADDRESS for t in v) for v, _ in stated)
+
+    for name, fields in rules.items():
+        permits = [s for v, s in fields.get("action", []) if set(v) & L.PERMIT]
+        if (not permits or not all(wildcard(f, fields) for f in _RULE_WILDCARDS)
+                or any(f in fields and not wildcard(f, fields) for f in _RULE_NARROWING)
+                or any(s.text.lower().split()[-1] == "yes" for f in _RULE_OFF for _, s in fields.get(f, []))
+                or any(f in fields for f in _RULE_EXCLUDED)):
+            continue
+        cited = [s.line for f in _RULE_WILDCARDS + _RULE_NARROWING for _, s in fields.get(f, [])]
+        yield _Candidate(PERMIT_ANY, True, sorted(cited + [s.line for s in permits]), scope=" ".join(name))
+
+
 _EXTRACTORS = (
     _protocols, _source_restriction, _ssh_version, _idle_timeout, _remote_log, _ntp, _central_aaa, _ipsec,
-    _snmp_community, _source_routing, _discovery, _banner, _permit_any,
+    _snmp_community, _source_routing, _discovery, _banner, _permit_any, _flat_rule_permit_any,
 )
 
 

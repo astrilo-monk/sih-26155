@@ -382,15 +382,13 @@ def test_a_confirmed_vendor_is_still_answered_by_its_parser(seeded_adaptive_db, 
 
 
 def test_no_shipped_or_taught_recognizer_stores_a_secret(taught):
-    from app.db.mappings import _holds_secret
+    from app.db.mappings import _refuse_secrets
 
     stored = MappingRepository().list_mappings()
     assert len(stored) > len(LESSONS)
     # a slot may stand where a secret would (``secret {enum:type} {any}``); a value never does
     for mapping in stored:
-        for text in (mapping.command_pattern, mapping.scope_template, mapping.example_line,
-                     mapping.constant_value, *mapping.negatives):
-            assert text is None or not _holds_secret(text), mapping.command_pattern
+        _refuse_secrets(mapping)
 
 
 # ── 10. settings a configuration states by naming a thing ──────────────────
@@ -494,3 +492,17 @@ def test_the_same_rule_holds_for_a_hand_written_presence_template():
             concept="sneaky", normalized_field="", extraction_method=EXTRACTION_RECOGNIZER, confirmed=True,
             command_pattern="{neg} uid {any}", scope_template="user netops",
             predicate=SOURCE_RESTRICTED, example_line="uid 2001;"))
+
+
+def test_a_storage_table_may_name_storage_types_but_never_a_password():
+    from app.db.mappings import _refuse_secrets
+
+    def storage(table: str) -> LearnedMapping:
+        return LearnedMapping(concept="Password storage", normalized_field="", extraction_method=EXTRACTION_RECOGNIZER,
+                              predicate="auth.password.storage",
+                              command_pattern="set mgt-config users {any} {enum:storage} {any}",
+                              constant_value=table, example_line="set mgt-config users admin phash <SECRET:password>")
+
+    _refuse_secrets(storage('{"phash": "hashed"}'))
+    with pytest.raises(MappingValidationError):
+        _refuse_secrets(storage('{"phash": "hunter2"}'))

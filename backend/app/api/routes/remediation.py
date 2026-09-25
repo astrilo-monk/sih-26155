@@ -6,13 +6,16 @@ engine in ``app.remediation.engine`` does the work: a remediation runs only for 
 decisive FAIL, is generated from a fixed recipe, and is reported FIXED only after a
 full rescan verified it. No request field carries command text on that path.
 
-For an **unconfirmed** vendor there is no recipe and no trusted grammar, so
+For an **unconfirmed** vendor there is no recipe and no trusted grammar. Where a reviewed
+recognizer read the failing line, seed write-back (``app.remediation.writeback``) rewrites that
+line's value with the same recognizer and verifies it by a rescan: those fixes behave like a
+confirmed vendor's, and ``/download-fixed`` includes them. For everything else,
 ``/remediation/candidate*`` offers the reviewed alternative: command text an
 administrator typed or the AI proposed, validated and (where a deterministic effect
 can be derived) simulated on a copy of the configuration, and confirmed by a human.
 A candidate never becomes a fix, never changes the stored scan and is never executed.
 A verified one can be downloaded as a corrected *copy* of the uploaded configuration,
-from its own endpoint: ``/download-fixed`` stays confirmed-vendor only.
+from its own endpoint.
 See ``app.remediation.candidates``.
 """
 
@@ -45,6 +48,7 @@ from app.remediation import candidates as cand
 from app.remediation.engine import (
     INPUTS, Outcome, RemediationStatus, parse_inputs, remediate_all, remediate_control,
 )
+from app.remediation.writeback import writeback_all, writeback_control
 
 router = APIRouter()
 
@@ -171,7 +175,36 @@ async def remediate_finding(req: RemediationRequest):
     outcome = _gate(stored, index, req.rule_id)
     if outcome is None:
         outcome, _ = remediate_control(stored["configs"][index].raw_config, req.rule_id, inputs)
+    elif outcome.status == RemediationStatus.VENDOR_UNVERIFIED:
+        outcome = _written_back(stored, index, req.rule_id, inputs) or outcome
     return _response(outcome, index, _redactor(stored, inputs, index))
+
+
+# What seed write-back settles for an unconfirmed vendor; anything else keeps the candidate path
+_WRITTEN_BACK = (RemediationStatus.FIXED, RemediationStatus.NEEDS_INPUT, RemediationStatus.VERIFICATION_FAILED)
+
+
+def _confirmed_commands(stored: dict, index: int) -> dict[str, str]:
+    """Commands an administrator confirmed for this config that a reviewed recognizer reads line by line.
+
+    Only these join the corrected configuration: a removal-verified candidate proves the finding is gone,
+    not that the setting is secure, so it stays its own copy."""
+    return {c.control_id: c.command for c in _candidates(stored).values()
+            if c.config_index == index and c.status == cand.CandidateStatus.CONFIRMED and c.effect == "applied"}
+
+
+def _written_back(stored: dict, index: int, control_id: str, inputs: dict) -> Optional[Outcome]:
+    """Seed write-back for one control of an unconfirmed-vendor config, when it settles the control."""
+    text = stored["configs"][index].raw_config
+    command = _confirmed_commands(stored, index).get(control_id)
+    outcome, after = writeback_control(text, control_id, inputs, command=command) if command else (None, None)
+    if after is None:
+        outcome, _ = writeback_control(text, control_id, inputs)
+    if outcome.status not in _WRITTEN_BACK:
+        return None
+    config = stored["configs"][index]
+    outcome.hostname, outcome.vendor = config.device.hostname, config.device.vendor.value
+    return outcome
 
 
 def _device_plan(stored: dict, index: int, inputs: dict) -> DeviceRemediationPlanSchema:
@@ -182,12 +215,20 @@ def _device_plan(stored: dict, index: int, inputs: dict) -> DeviceRemediationPla
         flagged = [c for c in CONTROLS if any(r.control_id == c and (r.status == Status.FAIL or r.proposed_status)
                                               for r in results)]
         identification = (stored.get("identifications") or [None] * (index + 1))[index]
+        # seed write-back settles what a reviewed recognizer can write; the rest keeps the candidate path
+        plan = writeback_all(config.raw_config, inputs, commands=_confirmed_commands(stored, index))
+        written = {o.control_id: o for o in plan.outcomes if o.status in _WRITTEN_BACK}
+        for outcome in written.values():
+            outcome.hostname, outcome.vendor = config.device.hostname, config.device.vendor.value
         return DeviceRemediationPlanSchema(
             config_index=index, device_hostname=config.device.hostname, vendor=config.device.vendor.value,
             vendor_status=identification.status if identification is not None else "unknown",
-            remediations=[_response(_gate(stored, index, c), index, redactor) for c in flagged],
+            remediations=[_response(written.get(c) or _gate(stored, index, c), index, redactor) for c in flagged],
             candidates=[_candidate_schema(stored, item) for item in _candidates(stored).values()
                         if item.config_index == index],
+            fixed_controls=plan.fixed_controls, checks=_checks(plan.checks) if plan.fixed_controls else [],
+            before=_summary(plan.before), after=_summary(plan.after) if plan.fixed_controls else None,
+            fixed_config=redact_config_text(redactor, plan.fixed_config),
         )
     gates = _provisional(stored, index)
     plan = remediate_all(config.raw_config, inputs, skip=set(gates))
@@ -277,6 +318,7 @@ def _candidate_schema(stored: dict, item: cand.Candidate) -> RemediationCandidat
         checks=_checks(item.checks),
         diff="\n".join(redact_lines(redactor, item.diff.split("\n"))) if item.diff else "",
         download_available=cand.downloadable(item),
+        effect=item.effect,
         created_at=item.created_at,
         confirmed_at=item.confirmed_at,
     )
@@ -442,19 +484,22 @@ async def download_fixed_configs(req: DownloadFixedRequest):
     """
     stored = _stored(req.scan_id)
     inputs = _inputs(req.inputs)
-    confirmed = [i for i in range(len(stored["configs"])) if _confirmed(stored, i)]
-    if not confirmed:
-        raise HTTPException(
-            409,
-            "Remediation needs a confirmed vendor profile. This configuration's vendor is unknown "
-            "or unverified, so vendor commands cannot be generated, applied or verified.",
-        )
 
     fixed = []
-    for index in confirmed:
-        plan = remediate_all(stored["configs"][index].raw_config, inputs, skip=set(_provisional(stored, index)))
+    for index, config in enumerate(stored["configs"]):
+        if _confirmed(stored, index):
+            plan = remediate_all(config.raw_config, inputs, skip=set(_provisional(stored, index)))
+        else:
+            # only what a reviewed recognizer wrote and the rescan verified
+            plan = writeback_all(config.raw_config, inputs, commands=_confirmed_commands(stored, index))
         if plan.fixed_config is not None:
-            fixed.append((plan.hostname or "device", plan.fixed_config))
+            fixed.append((config.device.hostname or plan.hostname or "device", plan.fixed_config))
+    if not fixed and not any(_confirmed(stored, i) for i in range(len(stored["configs"]))):
+        raise HTTPException(
+            409,
+            "This configuration's vendor is unknown or unverified, and no reviewed recognizer could write a "
+            "verified fix for it. Propose a command for each finding instead.",
+        )
     if not fixed:
         raise HTTPException(400, "No verified fixes are available for this scan (see the remediation plan)")
 

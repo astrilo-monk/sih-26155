@@ -249,7 +249,7 @@ completes.
 
 ## 8. Human-in-the-loop: recognizers
 
-A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships 109 reviewed recognizers for
+A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships 133 reviewed recognizers for
 eleven dialects that have no dedicated parser (Junos, PAN-OS, Arista EOS, Huawei VRP, RouterOS, Aruba AOS-CX,
 Check Point Gaia, Extreme EXOS, Cisco NX-OS, ASA, IOS-XR) and AWS security groups -one generalized entry per concept per dialect, never one
 per line;
@@ -345,6 +345,36 @@ saves a recognizer in one Python process and proves a second process reuses it;
   coverage did not drop, the control PASSes decisively on every scope and no other control regressed; otherwise
   `verification_failed`, with the output kept for review. Before / after posture and coverage come from scoring v2.
 * Idempotent: a fixed configuration has no decisive FAIL, so running again changes nothing.
+
+### Seed write-back (unconfirmed vendors)
+
+`app/remediation/writeback.py`. A confirmed recognizer states how a dialect writes a setting and what each
+slot value means, so the recognizer that **read** a failing line can **write** its secure form: the same
+reviewed template with only the slot changed (`disable-telnet no` → `yes` from the value table,
+`protocol-version v1` → `v2`, `idle-timeout 0` → `10`, `telnet yes` → `no`). Nobody supplies command text,
+human or AI.
+
+* Runs only for a decisive FAIL whose cited line a recognizer read. The same recognizer must re-read the new
+  line as secure before it is kept.
+* A setting stated by naming a thing (`permitted-ip 0.0.0.0/0`) keeps its line and takes the operator's
+  `management_subnet` in place of the wildcard; missing → `needs_input`.
+* The corrected copy is rescanned like an unknown-vendor upload. **Fixed** only if the control is now a
+  **decisive PASS** (not `NOT_CONFIGURED`), no other control regressed and the copy is still read generically.
+  Fixes then behave exactly like a confirmed vendor's: the plan lists them as `fixed`, and `/download-fixed`
+  returns one corrected file.
+* Not written: a secure form that needs more than the slot (NTP authentication also needs a key the recognizer
+  does not describe), a `{neg}` toggle (the negator is `no`, `delete` or `undo` depending on the dialect), and
+  anything read only by heuristics (SNMP, any-any rules, IPsec). Those keep the candidate path below.
+* **A command someone else wrote** (typed, or drafted by the AI) is held to the same standard. If a reviewed
+  recognizer for a setting the control consumes reads **every line** of it, on its own and outside any block,
+  it is applied to a copy (a line with the same identity -the line without its value -is replaced, otherwise
+  added) and must make the control a decisive PASS (`effect: "applied"`). Once an administrator confirms it,
+  it joins the corrected configuration. A command in the wrong syntax, or with any line the engine cannot
+  read, is never applied this way; a negation (`no …`, `delete …`) goes to the removal check below, which
+  proves only that the finding is gone (`effect: "removal"`) and never joins the corrected configuration.
+* Ceiling: a recognizer reads one setting per line, so a fix that also needs lines no recognizer reads (the
+  NTP key beside `authentication-type symmetric-key`) cannot be applied complete. The part the recognizers
+  read verifies; the rest is the administrator's to add.
 
 ### Candidate remediation (unconfirmed vendors)
 

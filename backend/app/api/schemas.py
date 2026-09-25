@@ -323,8 +323,9 @@ class RemediationCandidateRequest(BaseModel):
     device_hostname: str
     # Picks the config when several uploads share a hostname
     config_index: Optional[int] = None
-    # The command the administrator proposes. Required for a manual candidate, ignored elsewhere:
-    # it is never executed and never written into a configuration NetAuditAI hands out.
+    # The command the administrator proposes. Required for a manual candidate, ignored elsewhere. It is
+    # never executed; it joins the corrected configuration only once confirmed, and only when a reviewed
+    # recognizer reads every line of it and the rescan shows the control passing.
     command: Optional[str] = None
     # Why an administrator rejected the candidate (reject only)
     reason: Optional[str] = None
@@ -359,6 +360,9 @@ class RemediationCandidateSchema(BaseModel):
     # Whether POST /remediation/candidate/download can hand out the verified corrected copy. The copy
     # itself is never sent in this schema: only the endpoint returns configuration text.
     download_available: bool = False
+    # how it was checked: "applied" (every line read by a reviewed recognizer, the control now passes) or
+    # "removal" (the cited lines removed from a copy); empty until it is checked
+    effect: str = ""
     created_at: str = ""
     confirmed_at: Optional[str] = None
 

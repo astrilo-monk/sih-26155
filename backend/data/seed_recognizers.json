@@ -778,6 +778,50 @@
       "example_line": "set deviceconfig system ntp-servers primary-ntp-server ntp-server-address 192.0.2.10"
     },
     {
+      "concept": "LLDP discovery protocol",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "boundary.discovery_protocol.enabled",
+      "subject": "lldp",
+      "command_pattern": "set network interface ethernet {any} layer3 lldp enable {polarity}",
+      "example_line": "set network interface ethernet ethernet1/1 layer3 lldp enable no"
+    },
+    {
+      "concept": "TACACS+ authentication server",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "{neg} set shared server-profile tacplus {any} server {any} address {any}",
+      "example_line": "set shared server-profile tacplus TACACS-MGMT server TAC1 address 192.0.2.30"
+    },
+    {
+      "concept": "RADIUS authentication server",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "{neg} set shared server-profile radius {any} server {any} ip-address {any}",
+      "example_line": "set shared server-profile radius RADIUS-MGMT server RAD1 ip-address 192.0.2.31"
+    },
+    {
+      "concept": "Remote syslog destination",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "log.remote.destination",
+      "command_pattern": "set shared log-settings syslog {any} server {any} server {host}",
+      "example_line": "set shared log-settings syslog SYSLOG-PROFILE server SYSLOG1 server 192.0.2.20"
+    },
+    {
+      "concept": "Remote syslog destination",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "log.remote.destination",
+      "command_pattern": "set vsys {any} log-settings syslog {any} server {any} server {host}",
+      "example_line": "set vsys vsys1 log-settings syslog SYSLOG-PROFILE server SYSLOG1 server 192.0.2.20"
+    },
+    {
+      "concept": "Password storage",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "auth.password.storage",
+      "command_pattern": "set mgt-config users {any} {enum:storage} {any}",
+      "constant_value": "{\"phash\": \"hashed\"}",
+      "example_line": "set mgt-config users admin phash <SECRET:password>"
+    },
+    {
       "concept": "Remote syslog destination",
       "vendor": "Arista EOS",
       "predicate": "log.remote.destination",
@@ -841,12 +885,144 @@
       "example_line": "set system login class READONLY idle-timeout 30"
     },
     {
+      "concept": "Telnet service",
+      "vendor": "Juniper Junos",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "telnet",
+      "command_pattern": "{neg} set system services telnet",
+      "example_line": "set system services telnet"
+    },
+    {
+      "concept": "HTTP management",
+      "vendor": "Juniper Junos",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "http",
+      "command_pattern": "{neg} set system services web-management http",
+      "example_line": "set system services web-management http"
+    },
+    {
+      "concept": "HTTP management",
+      "vendor": "Juniper Junos",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "http",
+      "command_pattern": "{neg} set system services web-management http interface {any}",
+      "example_line": "set system services web-management http interface fxp0.0"
+    },
+    {
+      "concept": "SSH protocol version",
+      "vendor": "Juniper Junos",
+      "predicate": "mgmt.ssh.version",
+      "command_pattern": "set system services ssh protocol-version {int}",
+      "example_line": "set system services ssh protocol-version v2"
+    },
+    {
+      "concept": "Management access source restriction",
+      "vendor": "Juniper Junos",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "{neg} set system login class {any} allow-sources {any}",
+      "example_line": "set system login class OPS allow-sources 192.0.2.0/24"
+    },
+    {
+      "concept": "Login banner",
+      "vendor": "Juniper Junos",
+      "predicate": "banner.login.present",
+      "command_pattern": "{neg} set system login message {any}",
+      "example_line": "set system login message \"Authorized access only.\""
+    },
+    {
+      "concept": "LLDP discovery protocol",
+      "vendor": "Juniper Junos",
+      "predicate": "boundary.discovery_protocol.enabled",
+      "subject": "lldp",
+      "command_pattern": "{neg} set protocols lldp interface {any}",
+      "example_line": "set protocols lldp interface all"
+    },
+    {
+      "concept": "LLDP discovery protocol",
+      "vendor": "Juniper Junos",
+      "predicate": "boundary.discovery_protocol.enabled",
+      "subject": "lldp",
+      "command_pattern": "set protocols lldp disable",
+      "constant_value": "false",
+      "example_line": "set protocols lldp disable"
+    },
+    {
+      "concept": "RADIUS authentication server",
+      "vendor": "Juniper Junos",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "{neg} set system radius-server {any} {rest}",
+      "example_line": "set system radius-server 192.0.2.31 secret <SECRET:radius>"
+    },
+    {
+      "concept": "Central authentication order",
+      "vendor": "Juniper Junos",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "set system authentication-order [ {enum:method} password ]",
+      "constant_value": "{\"radius\": true, \"tacplus\": true}",
+      "example_line": "set system authentication-order [ tacplus password ]"
+    },
+    {
+      "concept": "Central authentication order",
+      "vendor": "Juniper Junos",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "set system authentication-order {enum:method}",
+      "constant_value": "{\"radius\": true, \"tacplus\": true}",
+      "example_line": "set system authentication-order tacplus"
+    },
+    {
+      "concept": "Password storage",
+      "vendor": "Juniper Junos",
+      "predicate": "auth.password.storage",
+      "command_pattern": "set system login user {any} authentication {enum:storage} {any}",
+      "constant_value": "{\"encrypted-password\": \"hashed\"}",
+      "example_line": "set system login user admin authentication encrypted-password <SECRET:password>"
+    },
+    {
       "concept": "Session idle timeout",
       "vendor": "Cisco NX-OS",
       "predicate": "mgmt.session.idle_timeout",
       "command_pattern": "exec-timeout {duration:min}",
       "scope_template": "line {any}",
       "example_line": "exec-timeout 15"
+    },
+    {
+      "concept": "Password storage",
+      "vendor": "Cisco NX-OS",
+      "predicate": "auth.password.storage",
+      "command_pattern": "username {any} password {enum:type} {any} role {any}",
+      "constant_value": "{\"0\": \"plaintext\", \"5\": \"type5_md5\"}",
+      "example_line": "username admin password 5 <SECRET:type5> role network-admin"
+    },
+    {
+      "concept": "Central login authentication",
+      "vendor": "Cisco NX-OS",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "{neg} aaa authentication login default group {any} {rest}",
+      "example_line": "aaa authentication login default group TACACS-GROUP local"
+    },
+    {
+      "concept": "Management access source restriction",
+      "vendor": "Cisco NX-OS",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "{neg} access-class {any} in",
+      "scope_template": "line vty",
+      "example_line": "access-class VTY-ACL in"
+    },
+    {
+      "concept": "Telnet service",
+      "vendor": "Cisco NX-OS",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "telnet",
+      "command_pattern": "{neg} feature telnet",
+      "example_line": "feature telnet"
+    },
+    {
+      "concept": "LLDP discovery protocol",
+      "vendor": "Cisco NX-OS",
+      "predicate": "boundary.discovery_protocol.enabled",
+      "subject": "lldp",
+      "command_pattern": "{neg} feature lldp",
+      "example_line": "feature lldp"
     },
     {
       "concept": "Permissive any-any rule",
@@ -864,6 +1040,14 @@
       "command_pattern": "access-list {any} extended permit ip any {enum:any}",
       "constant_value": "{\"any\": true}",
       "example_line": "access-list OUTSIDE_IN extended permit ip any any"
+    },
+    {
+      "concept": "Central management authentication",
+      "vendor": "Cisco ASA",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "aaa authentication {any} console {enum:group} {rest}",
+      "constant_value": "{\"local\": false, \"*\": true}",
+      "example_line": "aaa authentication ssh console TACACS-GROUP LOCAL"
     }
   ]
 }

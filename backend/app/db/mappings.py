@@ -46,7 +46,8 @@ from app.adaptive.matcher import (
 )
 from app.ai.redaction import Redactor, redact_line
 from app.db.database import _database_url, get_connection
-from app.facts.predicates import FIELD_PREDICATES
+from app.controls.judges import STRONG_PASSWORD_STORAGE, WEAK_PASSWORD_STORAGE
+from app.facts.predicates import FIELD_PREDICATES, PASSWORD_STORAGE
 from app.facts.recognizers import RecognizerError, validate_recognizer
 
 
@@ -184,20 +185,24 @@ def rejection_key(raw_line: str) -> str:
 _SLOT_TOKEN = re.compile(r"^\{[a-z]+(?::[\w-]+)?\}$")
 
 
-def _holds_secret(text: str) -> bool:
+def _holds_secret(text: str, allowed: frozenset[str] = frozenset()) -> bool:
     """True when redaction would remove a value. A value that is only template slots (``secret {enum:type}
     {any}``) or an existing placeholder (``<SECRET:type0>``) holds no secret, so a recognizer can read how a
-    password is stored without ever storing one."""
+    password is stored without ever storing one. ``allowed`` values are known not to be secrets."""
     redactor = Redactor()
     if redactor.line(text) == text:
         return False
-    return any(not all(_SLOT_TOKEN.match(t) for t in value.split()) for value in redactor.secrets)
+    return any(value not in allowed and not all(_SLOT_TOKEN.match(t) for t in value.split())
+               for value in redactor.secrets)
 
 
 def _refuse_secrets(mapping: LearnedMapping) -> None:
-    texts = [mapping.example_line, mapping.command_pattern, mapping.scope_template, mapping.constant_value,
-             *mapping.negatives]
-    if any(text and _holds_secret(text) for text in texts):
+    texts = [mapping.example_line, mapping.command_pattern, mapping.scope_template, *mapping.negatives]
+    # a password storage table maps a keyword to how it stores (``{"phash": "hashed"}``): the storage
+    # type reads like a password value to the redactor, and is not one
+    storage = STRONG_PASSWORD_STORAGE | WEAK_PASSWORD_STORAGE if mapping.predicate == PASSWORD_STORAGE else set()
+    if (any(text and _holds_secret(text) for text in texts)
+            or mapping.constant_value and _holds_secret(mapping.constant_value, frozenset(storage))):
         raise MappingValidationError(
             "This line holds a secret (password, key or community string): it cannot be stored as a mapping "
             "or recognizer"

@@ -236,7 +236,7 @@ it('offers a candidate fix instead of a dead end when the vendor is not confirme
   // the problem is its own group, open, and says what is missing -never "can't fix"
   expect(await screen.findByRole('region', { name: /Needs administrator input/ })).toBeTruthy();
   expect(screen.getAllByText('Needs administrator input').length).toBeGreaterThan(0);
-  expect(screen.getByText(/vendor and command syntax are not confirmed/)).toBeTruthy();
+  expect(screen.getByText(/no reviewed recognizer can write this fix/)).toBeTruthy();
   expect(screen.getByText('Disable Telnet and use SSH for remote management.')).toBeTruthy();
   // one status for the finding, and only one: no candidate yet means it is still waiting on a person
   const finding = within(screen.getByRole('region', { name: /Needs administrator input/ }));
@@ -244,7 +244,7 @@ it('offers a candidate fix instead of a dead end when the vendor is not confirme
   expect(finding.getByText('Needs input')).toBeTruthy();
   expect(screen.queryByText('We can’t fix this automatically.')).toBeNull();
   // the page footnote explains the same thing, and never claims a device was touched
-  expect(screen.getByText(/never writes vendor commands for R1|never writes vendor commands for JUNIPER-EDGE-01/)).toBeTruthy();
+  expect(screen.getByText(/The vendor of (R1|JUNIPER-EDGE-01) isn’t confirmed/)).toBeTruthy();
   expect(screen.getByText(/It never connects to the device\./)).toBeTruthy();
 });
 
@@ -394,7 +394,7 @@ it('offers the verified corrected copy of a confirmed candidate, and never a dev
   expect(screen.queryByText('Nothing to download yet: no fix has been verified.')).toBeNull();
   // the warning says what the file is and what it is not
   expect(screen.getByText('Verified against a copy of your uploaded configuration. This file has not been applied to a device.')).toBeTruthy();
-  expect(screen.getByText(/never writes vendor commands for R1|never writes vendor commands for JUNIPER-EDGE-01/)).toBeTruthy();
+  expect(screen.getByText(/The vendor of (R1|JUNIPER-EDGE-01) isn’t confirmed/)).toBeTruthy();
 
   fireEvent.click(copy);
   await waitFor(() => expect(apiClient.downloadCandidateConfig)
