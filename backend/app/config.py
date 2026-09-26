@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     groq_api_key_3: str = ""
     groq_api_key_4: str = ""
 
+    # Offline AI: an OpenAI-compatible server on your own machine or network (Ollama, llama.cpp, vLLM), e.g.
+    # http://localhost:11434/v1. When set it replaces Groq entirely; nothing leaves the network. Empty = Groq.
+    local_ai_url: str = ""
+    local_ai_model: str = "llama3.1:8b"
+    # Local models are slower than Groq: every call gets at least this many seconds
+    local_ai_timeout: float = 120.0
+
     # Where uploaded configs are temporarily stored
     upload_dir: Path = _BACKEND_DIR / "uploads"
 

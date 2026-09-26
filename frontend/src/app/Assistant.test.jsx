@@ -23,6 +23,12 @@ function open(props = {}) {
 describe('Assistant', () => {
   afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
+  it('says so when the AI runs on a local model', async () => {
+    apiClient.getAssistantStatus.mockResolvedValue({ ai_available: true, provider: 'local' });
+    render(<Assistant scan={SCAN} open onToggle={vi.fn()} panel={PANEL} onPanel={vi.fn()} />);
+    expect(await screen.findByText(/nothing leaves your network/)).toBeTruthy();
+  });
+
   it('will not offer to answer before there is a scan to answer from', async () => {
     apiClient.getAssistantStatus.mockResolvedValue({ ai_available: true });
     render(<Assistant scan={null} open={false} onToggle={vi.fn()} panel={PANEL} onPanel={vi.fn()} />);

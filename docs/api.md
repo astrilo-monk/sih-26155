@@ -320,7 +320,7 @@ against the secrets of the configuration it was built from.
 ## Assistant (AI)
 
 ### `GET /api/assistant/status`
-Report whether AI features are configured: `{"ai_available": true}`. **Known issue:** this returns `true` whenever a key is set, even if the Groq quota is exhausted.
+Report whether AI features are configured and where they run: `{"ai_available": true, "provider": "groq"}`. `provider` is `"local"` when `LOCAL_AI_URL` points at a local model (offline), `"groq"`, or `null` without AI. **Known issue:** this returns `true` whenever a key is set, even if the Groq quota is exhausted.
 
 ### `GET /api/assistant/explain/{scan_id}/{rule_id}/{hostname}`
 Explain a specific finding (the finding drawer's *Explain this*). The prompt is built from the redacted

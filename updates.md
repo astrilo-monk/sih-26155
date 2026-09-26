@@ -270,8 +270,8 @@ build on what NetAuditAI already keeps. Branch `phase-6`.
   > Groq. Same redaction and fence; same prompts. Status endpoint says which provider is active. No new dependency
   > if the current client can target another base URL.
 - **Checklist:**
-  - [ ] provider setting + tests
-  - [ ] status shows provider; docs
+  - [x] provider setting + tests
+  - [x] status shows provider; docs
 
 #### 6.3 Checks across devices
 - **Why judges care:** problems one-device tools cannot see.
@@ -327,3 +327,4 @@ build on what NetAuditAI already keeps. Branch `phase-6`.
 | 2026-09-27 | Browser check + Phase 5 | (this commit) | Cisco + PAN-OS scan checked in the browser: 5 paths, risk critical, 23 compared fields, ledger verifies. README accuracy/highlights and the 2-minute judge path in `docs/demo.md`. Still open: architecture PDF in the repo, end-to-end browser test. |
 | 2026-09-27 | Phase 6 plan | (this commit) | 5 features added as Phase 6 on branch `phase-6`; `pytest-xdist` added earlier (`pytest -n auto`: 41 min → 9 min). |
 | 2026-09-27 | 6.1 Drift | (this commit) | `GET /api/scan/{id}/drift` + "Since the last audit" on Results. Matches by hostname + vendor against the redacted scan archive (last 200 scans; `ponytail` note on the query). FAIL → undecided is its own list, never counted as fixed. |
+| 2026-09-27 | 6.2 Offline AI | (this commit) | `LOCAL_AI_URL` / `LOCAL_AI_MODEL` send every AI call to a local OpenAI-compatible server. Change from the plan: the Groq SDK hard-codes its `/openai/v1` path, so a ~20-line httpx client (already installed) is used for the local server; no new dependency. Status returns `provider`; the assistant says when AI is local. Not tried against a real Ollama in this session. |

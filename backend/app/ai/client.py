@@ -1,7 +1,8 @@
 """
 AI client wrapper.
 
-Handles communication with the Groq API. Designed to fail
+Handles communication with the Groq API, or with a local OpenAI-compatible server (Ollama, llama.cpp) when
+``LOCAL_AI_URL`` is set, for networks that cannot reach the internet. Designed to fail
 gracefully when no API key is configured -the app works
 without AI, it just won't have explanations and chat.
 
@@ -26,9 +27,42 @@ _api_keys: list[str] = []
 _clients: list = []
 
 
+class _LocalClient:
+    """The one call this module makes (``client.chat.completions.create``) against a local OpenAI-compatible
+    server. The Groq SDK cannot be pointed there: it hard-codes its ``/openai/v1`` path."""
+
+    def __init__(self, base_url: str):
+        self.base_url = base_url.rstrip("/")
+        self.chat = self.completions = self
+
+    def create(self, *, timeout: float = 30.0, **params):
+        import httpx
+        from types import SimpleNamespace
+
+        params["model"] = settings.local_ai_model  # callers name Groq's model
+        params.pop("reasoning_effort", None)  # Groq-only
+        body = {k: v for k, v in params.items() if v is not None}
+        r = httpx.post(f"{self.base_url}/chat/completions", json=body,
+                       timeout=max(timeout, settings.local_ai_timeout))
+        if r.status_code >= 400:  # "Error code: N" is what _status_code() reads
+            raise RuntimeError(f"Error code: {r.status_code} - {r.text[:200]}")
+        content = r.json()["choices"][0]["message"]["content"]
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=content))])
+
+
+def provider() -> Optional[str]:
+    """``"local"``, ``"groq"``, or None when no AI is configured."""
+    if settings.local_ai_url.strip():
+        return "local"
+    return "groq" if is_available() else None
+
+
 def _init_keys():
-    """Build the list of Groq API keys from settings, deduplicated."""
+    """Build the list of Groq API keys from settings, deduplicated. A local server is the only "key" when set."""
     global _api_keys, _clients
+    if settings.local_ai_url.strip():
+        _api_keys, _clients = ["local"], [_LocalClient(settings.local_ai_url.strip())]
+        return
     keys = []
     for k in (
         settings.groq_api_key,

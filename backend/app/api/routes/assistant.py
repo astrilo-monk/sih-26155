@@ -10,7 +10,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from app.api.schemas import AssistantRequest, AssistantResponse
 from app.api.routes.scan import config_redactor as _config_redactor, get_scan_store, get_scan_result_or_409
-from app.ai.client import generate, is_available
+from app.ai.client import generate, is_available, provider
 from app.ai.prompts import explain_finding, generate_summary
 
 router = APIRouter()
@@ -195,5 +195,5 @@ async def summary(scan_id: str):
 
 @router.get("/assistant/status")
 async def ai_status():
-    """Check if AI features are available."""
-    return {"ai_available": is_available()}
+    """Check if AI features are available, and where they run: "groq" (internet) or "local" (offline)."""
+    return {"ai_available": is_available(), "provider": provider()}

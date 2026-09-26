@@ -63,6 +63,14 @@ hostile configurations (banner, description, forged end-of-data marker, comment,
 **0 of 6 succeeded**. Four target a check the engine had already decided, which never reaches the AI; the two
 aimed at an undecided check (LLDP exposure) reached the AI and were refused.
 
+## Offline AI
+
+Set `LOCAL_AI_URL` (e.g. `http://localhost:11434/v1` for Ollama) and `LOCAL_AI_MODEL`, and every AI call goes to that
+OpenAI-compatible server instead of Groq: nothing leaves the network, for air-gapped sites. Redaction and the prompt
+fence apply unchanged. The engine never needs the AI to decide a verdict, so a smaller local model only affects the
+optional parts (explanations, chat, suggestions for unfamiliar lines). The server must support `response_format`
+with a JSON schema (current Ollama and llama.cpp do).
+
 ## Live collection
 
 `POST /api/collect` takes a hostname from a request and opens an SSH session to it, which is a network-egress

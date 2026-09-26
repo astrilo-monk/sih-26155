@@ -45,6 +45,7 @@ export default function Assistant({ scan, open, onToggle, panel, onPanel }) {
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [aiAvailable, setAiAvailable] = useState(null);
+  const [provider, setProvider] = useState(null);
   // true while a floating panel is dragged near the rail: the dock lights up and release returns it
   const [willDock, setWillDock] = useState(false);
   const endRef = useRef(null);
@@ -52,7 +53,7 @@ export default function Assistant({ scan, open, onToggle, panel, onPanel }) {
   const floating = panel.mode === 'floating';
 
   useEffect(() => {
-    apiClient.getAssistantStatus().then((s) => setAiAvailable(s.ai_available)).catch(() => setAiAvailable(false));
+    apiClient.getAssistantStatus().then((s) => { setAiAvailable(s.ai_available); setProvider(s.provider); }).catch(() => setAiAvailable(false));
   }, []);
 
   // A conversation belongs to the scan it was about
@@ -152,6 +153,7 @@ export default function Assistant({ scan, open, onToggle, panel, onPanel }) {
                 <p className="small muted">
                   Answers come from this scan's own results, which are redacted before they are sent.
                   {aiAvailable === false && ' AI is not configured on this backend, so it cannot answer yet.'}
+                  {provider === 'local' && ' The AI runs on a local model: nothing leaves your network.'}
                 </p>
                 {aiAvailable !== false && OPENERS.map((q) => (
                   <button type="button" key={q} className="chat-opener" onClick={() => ask(q)}>{q}</button>
