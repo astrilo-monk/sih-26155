@@ -17,13 +17,13 @@ const ACTION = {
   verification_failed: 'Details', fixed: 'Fixed', problem: 'View',
 };
 
-// The compliance report: one PDF per device, built by the backend from this same scan
-function ReportButton({ scanId, devices }) {
+// A file built by the backend from this same scan: the PDF report, or the normalized baseline model
+function DownloadButton({ label, run, failed }) {
   const [state, setState] = useState('idle');
   const download = async () => {
     setState('working');
     try {
-      await apiClient.downloadReport(scanId);
+      await run();
       setState('idle');
     } catch {
       setState('failed');
@@ -32,9 +32,9 @@ function ReportButton({ scanId, devices }) {
   return (
     <div className="report-action">
       <button type="button" className="btn btn-sm" onClick={download} disabled={state === 'working'}>
-        {state === 'working' ? 'Preparing…' : devices > 1 ? `Download ${devices} PDF reports` : 'Download PDF report'}
+        {state === 'working' ? 'Preparing…' : label}
       </button>
-      {state === 'failed' && <span className="small text-fail" role="alert">The report couldn’t be generated.</span>}
+      {state === 'failed' && <span className="small text-fail" role="alert">{failed}</span>}
     </div>
   );
 }
@@ -143,7 +143,16 @@ export default function Results({ scan, audit, onOpen, onTeach, go }) {
           </ul>
         </div>
         <div className="ov-actions">
-          <ReportButton scanId={scan.scan_id} devices={scan.devices.length} />
+          <DownloadButton
+            label={scan.devices.length > 1 ? `Download ${scan.devices.length} PDF reports` : 'Download PDF report'}
+            run={() => apiClient.downloadReport(scan.scan_id)} failed="The report couldn’t be generated."
+          />
+          {!scan.archived && (
+            <DownloadButton
+              label="Download baseline (JSON)" failed="The baseline couldn’t be exported."
+              run={() => apiClient.downloadBaseline(scan.scan_id, scan.devices.length)}
+            />
+          )}
           <a className="btn btn-sm" href="#/app">New scan</a>
         </div>
       </header>

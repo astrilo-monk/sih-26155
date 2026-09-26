@@ -68,6 +68,10 @@ async function saveDownload(path, body) {
         : 'fixed_config.cfg';
 
   // Keep the response bytes intact so ZIP downloads are never decoded as text.
+  saveBlob(blob, filename);
+}
+
+function saveBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -292,6 +296,17 @@ export const apiClient = {
       cache: 'no-cache',
     });
     return handleResponse(response);
+  },
+
+  // The vendor-neutral Security Baseline Model of every device of the scan, saved as one JSON file
+  async downloadBaseline(scanId, devices = 1) {
+    const models = [];
+    for (let i = 0; i < devices; i += 1) {
+      const response = await fetch(`${API_BASE_URL}/scan/${scanId}/baseline?config_index=${i}`, { cache: 'no-cache' });
+      models.push(await handleResponse(response));
+    }
+    const body = JSON.stringify(devices === 1 ? models[0] : { devices: models }, null, 2);
+    saveBlob(new Blob([body], { type: 'application/json' }), `NetAuditAI_Baseline_${scanId.slice(0, 8)}.json`);
   },
 
   // The compliance report as PDF (one device, or every device of the scan as a .zip)

@@ -23,6 +23,7 @@ from app.parsers.detector import STATUS_UNVERIFIED, VendorIdentification, identi
 from app.analysis.engine import analyze, analyze_multiple, evaluate_controls
 from app.analysis.scoring import calculate_posture, control_outcomes
 from app.facts.from_normalized import facts_from_config
+from app.facts.predicates import NOT_SET, PREDICATES, SNMP_COMMUNITY
 from app.controls.catalog import CIS, CONTROLS, ISO, NIST, STIG
 from app.controls.frameworks import framework_views
 from app.models.results import ControlResult, Status
@@ -642,6 +643,53 @@ async def get_scan(scan_id: str):
             return archived
         raise HTTPException(404, "Scan not found")
     return build_scan_response(scan_id)
+
+
+@router.get("/scan/{scan_id}/baseline")
+async def security_baseline(scan_id: str, config_index: int = 0):
+    """The vendor-neutral Security Baseline Model of one configuration: every normalized field, what the
+    configuration says about it and the line that says so. Every control reads these fields, never vendor syntax.
+
+    Redacted like every response that quotes configuration: secret values never appear, in a value or a line.
+    """
+    entry = live_scan(scan_id)
+    if not 0 <= config_index < len(entry["configs"]):
+        raise HTTPException(404, f"This scan has no configuration {config_index}")
+    config: NormalizedConfig = entry["configs"][config_index]
+    redactor = config_redactor([config])
+    facts = facts_from_config(config)
+
+    def shown(value):
+        if value is NOT_SET:
+            return "not_set"
+        if isinstance(value, (list, tuple)):
+            return [shown(v) for v in value]
+        if isinstance(value, str):
+            return display_scrub(redactor, value)
+        return value
+
+    settings = [{
+        "field": f.predicate,
+        "subject": f.subject,
+        "scope": display_scrub(redactor, f.scope),
+        # SNMP community strings are credentials: which one is configured is never shown, only that one is
+        "value": placeholder("redacted") if f.predicate == SNMP_COMMUNITY and f.value is not NOT_SET else shown(f.value),
+        "unit": f.unit,
+        "assurance": f.assurance.value,
+        "lines": [{"number": n, "text": t} for n, t in
+                  zip(f.evidence.line_numbers, redact_lines(redactor, f.evidence.text))],
+        "note": display_scrub(redactor, f.provenance) or None,
+    } for f in facts if f.predicate in PREDICATES]
+    stated = {s["field"] for s in settings}
+    device = config.device
+    return {
+        "schema": "netauditai.security-baseline/1",
+        "device": {"hostname": display_scrub(redactor, device.hostname), "vendor": device.vendor.value,
+                   "os_version": device.os_version, "model": device.model, "serial": device.serial},
+        "settings": settings,
+        "not_stated": sorted(PREDICATES - stated),
+        "read_by": {p: sorted(c.control_id for c in CONTROLS.values() if p in c.needs) for p in sorted(PREDICATES)},
+    }
 
 
 @router.get("/scan/{scan_id}/status")

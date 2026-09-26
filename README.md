@@ -30,6 +30,7 @@ Dedicated parser → PARSER facts               Generic tokenizer ......... app/
                                                 → lexicon heuristics  → HEURISTIC facts (provisional)
   ↓
 SecurityFacts: predicate, value, scope, cited lines, assurance ...... app/facts/
+  (the vendor-neutral Security Baseline Model: GET /api/scan/{id}/baseline, "Download baseline (JSON)")
   ↓
 Control evaluation: every control on every configuration ............ app/controls/
   ↓

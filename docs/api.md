@@ -55,6 +55,33 @@ Upload one or more raw configuration files for analysis.
 ### `GET /api/scan/{scan_id}`
 Retrieve a previous scan from the in-memory store (`404` after a backend restart).
 
+### `GET /api/scan/{scan_id}/baseline?config_index=0`
+The **Security Baseline Model** of one configuration: the vendor-neutral fields every control reads, whatever the
+vendor. A Cisco IOS file and a Junos file produce the same fields. Redacted like every response that quotes
+configuration (no secret appears in a value or a line; an SNMP community's value is always `<SECRET:redacted>`).
+`409` for a scan restored from history (its configuration is not kept). The results page offers it as
+**Download baseline (JSON)**.
+
+```json
+{
+  "schema": "netauditai.security-baseline/1",
+  "device": {"hostname": "SRX-EDGE-01", "vendor": "unknown", "os_version": null, "model": null, "serial": null},
+  "settings": [
+    {"field": "mgmt.ssh.version", "subject": null, "scope": null, "value": 2, "unit": null,
+     "assurance": "confirmed", "lines": [{"number": 6, "text": "            protocol-version v2;"}], "note": null},
+    {"field": "auth.central_aaa.enabled", "subject": null, "scope": null, "value": "not_set", "unit": null,
+     "assurance": "confirmed", "lines": [],
+     "note": "no line states it; Juniper Junos states it as 'authentication-order [ … password ]'"}
+  ],
+  "not_stated": ["auth.login.max_attempts", "..."],
+  "read_by": {"mgmt.ssh.version": ["MGMT-007"], "...": []}
+}
+```
+
+`value` is the normalized value, `"not_set"` (read as absent) or `null` (stated but undetermined). `assurance` is
+`parser` | `confirmed` | `default` | `heuristic` | `ai_verified`. `not_stated` lists the fields nothing in the file
+answers; `read_by` says which checks read each field.
+
 ### `GET /api/scan/{scan_id}/status`
 Whether the backend still holds a scan: `{"scan_id": "123-abc", "held": false}` (always `200`). The History page uses it
 to mark entries expired after a restart.
