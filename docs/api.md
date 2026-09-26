@@ -135,6 +135,7 @@ does not follow the entry before it`, `its content was changed after it was reco
 ### `POST /api/ledger/verify-report`
 `multipart/form-data` with `file`: `{"match": true, "sha256": "...", "entry": {...}, "chain": {...}}`: whether the
 PDF is byte for byte a report NetAuditAI generated. Only the hash is compared; the file is not kept.
+Also takes the .zip a multi-device report downloads as: `match` is true only when every PDF in it matches, and `files[]` gives each one's `name`, `sha256` and `entry` (a damaged archive matches nothing).
 
 ## Live collection
 

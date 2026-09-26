@@ -17,7 +17,9 @@ it('lists the chain, verifies it and tells a genuine report from an edited one',
   ] });
   apiClient.verifyLedger.mockResolvedValue({ ok: false, entries: 2, broken_at: 1, reason: 'its content was changed after it was recorded' });
   apiClient.verifyReport.mockResolvedValueOnce({ match: true, entry: { seq: 2, at: '2026-09-27T10:00:00+00:00' } })
-    .mockResolvedValueOnce({ match: false });
+    .mockResolvedValueOnce({ match: false })
+    .mockResolvedValueOnce({ match: true, files: [{ name: 'a.pdf', entry: { seq: 2 } }, { name: 'b.pdf', entry: { seq: 3 } }] })
+    .mockResolvedValueOnce({ match: false, files: [{ name: 'a.pdf', entry: { seq: 2 } }, { name: 'b.pdf', entry: null }] });
   render(<Ledger />);
 
   await screen.findByText('PDF report');
@@ -30,4 +32,10 @@ it('lists the chain, verifies it and tells a genuine report from an edited one',
   await screen.findByText(/Genuine: r.pdf is exactly the report recorded as entry #2/);
   fireEvent.change(input, { target: { files: [new File(['%PDF!'], 'edited.pdf')] } });
   await screen.findByText(/Not found: edited.pdf does not match any report/);
+
+  // a multi-device scan downloads a .zip: every report in it must match
+  fireEvent.change(input, { target: { files: [new File(['PK'], 'reports.zip')] } });
+  await screen.findByText('Genuine: all 2 reports in reports.zip are exactly the ones recorded as entries #2, #3.');
+  fireEvent.change(input, { target: { files: [new File(['PK!'], 'reports.zip')] } });
+  await screen.findByText(/Not found: b.pdf in reports.zip does not match/);
 });

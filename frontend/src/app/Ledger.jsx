@@ -67,12 +67,16 @@ export default function Ledger() {
         <section className="ledger-card" aria-labelledby="report-title">
           <h2 className="fd-k" id="report-title">Check a report PDF</h2>
           <label className="btn btn-sm">
-            Choose a PDF
-            <input type="file" accept="application/pdf,.pdf" className="visually-hidden" onChange={(e) => check(e.target.files?.[0])} />
+            Choose a PDF or .zip
+            <input type="file" accept="application/pdf,.pdf,application/zip,.zip" className="visually-hidden" onChange={(e) => check(e.target.files?.[0])} />
           </label>
           <div aria-live="polite">
             {report.phase === 'working' && <p className="muted">Checking {report.name}…</p>}
-            {report.phase === 'done' && (report.match ? (
+            {report.phase === 'done' && (report.files?.length > 1 ? (report.match ? (
+              <p className="ledger-ok">Genuine: all {report.files.length} reports in {report.name} are exactly the ones recorded as entries {report.files.map((f) => `#${f.entry.seq}`).join(', ')}.</p>
+            ) : (
+              <p className="ledger-bad" role="alert">Not found: {report.files.filter((f) => !f.entry).map((f) => f.name).join(', ')} in {report.name} {report.files.filter((f) => !f.entry).length === 1 ? 'does' : 'do'} not match any report NetAuditAI generated. It may have been edited.</p>
+            )) : report.match ? (
               <p className="ledger-ok">Genuine: {report.name} is exactly the report recorded as entry #{report.entry.seq} ({new Date(report.entry.at).toLocaleString()}).</p>
             ) : (
               <p className="ledger-bad" role="alert">Not found: {report.name} does not match any report NetAuditAI generated. It may have been edited.</p>

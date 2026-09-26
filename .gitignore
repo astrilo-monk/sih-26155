@@ -85,3 +85,7 @@ datasets/
 
 # Other teams' SIH 26155 projects: local reference only, never committed
 sih-samne/
+
+# Playwright output
+frontend/test-results/
+frontend/playwright-report/

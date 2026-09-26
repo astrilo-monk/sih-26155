@@ -13,8 +13,9 @@
 5. **Open a finding → Show how this was decided:** NIST / STIG / ISO requirement → check → `mgmt.ssh.version = 1` →
    `line 27: ip ssh version 1` → Fails.
 6. **Remediation:** *Fix in this order* puts the fix that closes the critical path first, with the reason.
-7. **Executive summary (PDF)**, then **Audit ledger → Verify the ledger** (intact) and **Check a report PDF** with the
-   file just downloaded: "Genuine". Change one byte and it says "Not found".
+7. **Executive summary (PDF)** (two devices download as a .zip of one PDF each), then **Audit ledger → Verify the
+   ledger** (intact) and **Check a report PDF** with the file just downloaded: "Genuine: all 2 reports…". Change one
+   byte and it says "Not found". This whole path runs as an automated browser test: `cd frontend && npm run e2e`.
 8. **Rules catalog:** 23 checks answer 78 framework requirements. Close on the numbers in the README: 17/20 planted,
    70/87 across 8 vendors, 0 missed, 0 false alarms, 0 of 6 prompt-injection attacks succeeded.
 
