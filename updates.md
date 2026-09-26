@@ -290,9 +290,9 @@ build on what NetAuditAI already keeps. Branch `phase-6`.
   > same engine without the web server. Exit code 1 when a decided FAIL at or above the threshold exists. SARIF so
   > GitHub shows findings on the lines. Example workflow in docs.
 - **Checklist:**
-  - [ ] CLI + exit codes + tests
-  - [ ] SARIF output + test
-  - [ ] docs + example workflow
+  - [x] CLI + exit codes + tests
+  - [x] SARIF output + test
+  - [x] docs + example workflow
 
 #### 6.5 Organisation baseline
 - **Why judges care:** auditors ask for "our policy", not only NIST's.
@@ -329,3 +329,4 @@ build on what NetAuditAI already keeps. Branch `phase-6`.
 | 2026-09-27 | 6.1 Drift | (this commit) | `GET /api/scan/{id}/drift` + "Since the last audit" on Results. Matches by hostname + vendor against the redacted scan archive (last 200 scans; `ponytail` note on the query). FAIL → undecided is its own list, never counted as fixed. |
 | 2026-09-27 | 6.2 Offline AI | (this commit) | `LOCAL_AI_URL` / `LOCAL_AI_MODEL` send every AI call to a local OpenAI-compatible server. Change from the plan: the Groq SDK hard-codes its `/openai/v1` path, so a ~20-line httpx client (already installed) is used for the local server; no new dependency. Status returns `provider`; the assistant says when AI is local. Not tried against a real Ollama in this session. |
 | 2026-09-27 | 6.3 Checks across devices | (this commit) | `fleet_findings`: shared SNMP community (matched by sha256, never shown), NTP and syslog server mismatches, decided facts only; shown under Fleet. Demo pair: shared `public` + NTP mismatch. Changes from the plan: password-hash reuse left out (no normalized field carries the hash); "one device missing what the others have" left out (each missing setting is already a per-device FAIL). |
+| 2026-09-27 | 6.4 CLI for CI | (this commit) | `python -m app.cli scan … [--fail-on] [--sarif] [--json] [--db]`; exit 0/1/2. Runs on a throwaway seeded DB with AI off (deterministic, writes nothing to the deployment DB); the benchmark now reuses the same `isolated_engine()`. SARIF cites the first evidence line. `docs/cli.md` with a GitHub Actions workflow (not run on GitHub in this session). |

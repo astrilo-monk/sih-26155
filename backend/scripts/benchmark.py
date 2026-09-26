@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import json
 import sys
-import tempfile
 import time
 from collections import Counter
 from pathlib import Path
@@ -31,18 +30,9 @@ DECISIVE = {"parser", "confirmed", "default"}
 
 
 def _isolated_engine():
-    """Shipped knowledge only, and no AI whatever the local .env says."""
-    import app.config as config
-    from app.db import database
+    from app.cli import isolated_engine
 
-    settings = config.settings
-    db = Path(tempfile.mkdtemp()) / "benchmark.db"
-    settings.adaptive_db_path, settings.database_url, settings.api_key = db, "", ""
-    settings.ai_judge_max_calls_per_scan = 0
-    for name in [n for n in vars(type(settings)).get("model_fields", {}) if n.startswith("groq_api_key")]:
-        setattr(settings, name, "")
-    database._SEEDED = set()
-    database.init_db(db)
+    isolated_engine()
 
 
 def _scan(path: Path) -> tuple[dict[str, list[dict]], float, str]:
