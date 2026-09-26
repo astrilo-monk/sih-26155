@@ -18,7 +18,7 @@ from typing import Iterable, Optional
 
 from app.facts import lexicon as L
 from app.facts.heuristics import heuristic_facts
-from app.facts.recognizers import recognizer_facts
+from app.facts.recognizers import recognize
 from app.facts.predicates import (
     CENTRAL_AAA, DISCOVERY_PROTOCOL, FIELD_PREDICATES, IDLE_TIMEOUT, IPSEC_PROPOSAL, LOG_REMOTE_DESTINATION, LOGIN_BANNER,
     MGMT_EXPOSED, LOGIN_MAX_ATTEMPTS, PASSWORD_MIN_LENGTH, ADMIN_ACCOUNT, MGMT_WEAK_CRYPTO, RULE_LOGGING,
@@ -64,7 +64,7 @@ def facts_from_config(config: NormalizedConfig, extra_recognizers: Iterable = ()
         return _ParserFacts(config).build()
     # A recognizer answers the lines it matches; mappings and heuristics on those lines step aside.
     # Other lines still speak, so a recognizer never hides a contradicting statement elsewhere.
-    recognized, skip = recognizer_facts(config.raw_lines, extra_recognizers)
+    recognized, skip, absence = recognize(config.raw_lines, extra_recognizers)
     # A recognizer answers for the whole setting, not only for its own line: a heuristic elsewhere that
     # repeats that answer (the server address inside a block whose header was recognized) adds nothing
     # but its weaker assurance, which would drag the control down to provisional. One that contradicts
@@ -94,7 +94,9 @@ def facts_from_config(config: NormalizedConfig, extra_recognizers: Iterable = ()
         )
     # AI judge facts (provisional) step aside for any line a recognizer answered or an admin rejected
     judged = [f for f in config.ai_facts if not set(f.evidence.line_numbers) & skip]
-    return recognized + facts + judged
+    known = recognized + facts + judged
+    # a setting no device ships with, that this understood dialect would state and nothing does, is not set
+    return known + absence(known)
 
 
 # ── confirmed vendors ───────────────────────────────────────────────────────

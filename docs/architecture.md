@@ -173,7 +173,17 @@ A `SecurityFact` has predicate, subject, scope, value, unit, assurance, cited ev
 
 * value `None` -present but undetermined (provenance says why);
 * `NOT_SET` -a confirmed parser read the whole configuration and the setting is absent (the control decides what
-  absence means). Unknown vendors never produce `NOT_SET`: absence is never evidence there.
+  absence means). On the generic path `NOT_SET` comes only from **learned absence**
+  (`app/facts/recognizers.py`, `_dialect` / `_absence`), for the five settings no device ships with: an AAA server,
+  a remote syslog server, a login banner, an NTP server and NTP authentication. It needs all of:
+  * the configuration is **understood**: one dialect's learned knowledge (the vendor label of the seeds that
+    matched, clear winner, plus taught recognizers whose fingerprint matches) answered at least 3 settings in it;
+  * that dialect **knows how it writes** the missing setting (a seed or taught recognizer for it);
+  * **nothing** states it: no fact of any assurance, and no line even names the concept in the lexicon's words
+    (`server-profile tacplus …` in an untaught variant keeps absence silent).
+  The fact is `confirmed`, cites no line, and its FAIL reason says how the dialect would write it
+  ("Palo Alto PAN-OS states it as 'set deviceconfig system syslog-server …'"). Every other absence on the generic
+  path stays `NOT_CONFIGURED`: no vendor code, and a syntax nobody taught is never read as a missing setting.
 
 Sources and assurance:
 
@@ -362,6 +372,11 @@ human or AI.
   **decisive PASS** (not `NOT_CONFIGURED`), no other control regressed and the copy is still read generically.
   Fixes then behave exactly like a confirmed vendor's: the plan lists them as `fixed`, and `/download-fixed`
   returns one corrected file.
+* **A missing setting is added** when its FAIL was read from absence (no cited line): the understood dialect's own
+  reviewed, unscoped template with one value, filled from a validated input -`syslog_server` (LOG-001) or
+  `banner_text` (MGMT-009, quoted) -and appended only if its first word opens a top-level line of this file
+  (`set …` in a set-style file, never at the end of a brace-structured one). The same recognizer reads it back and
+  the rescan verifies it like any rewrite. AAA (a shared secret) and NTP (needs authentication too) are never added.
 * Not written: a secure form that needs more than the slot (NTP authentication also needs a key the recognizer
   does not describe), a `{neg}` toggle (the negator is `no`, `delete` or `undo` depending on the dialect), and
   anything read only by heuristics (SNMP, any-any rules, IPsec). Those keep the candidate path below.

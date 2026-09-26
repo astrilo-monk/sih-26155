@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from collections import defaultdict
 from typing import Any, Iterable, Optional
 
 from app.adaptive.matcher import (
@@ -31,7 +32,7 @@ from app.facts import lexicon as L
 from app.facts.heuristics import _Candidate, _polarity, _version, combine, heuristic_candidates, state_lines
 from app.facts.predicates import (
     ADMIN_ACCOUNT, CENTRAL_AAA, DISCOVERY_PROTOCOL, IDLE_TIMEOUT, LOG_REMOTE_DESTINATION, LOGIN_BANNER, LOGIN_MAX_ATTEMPTS,
-    MGMT_EXPOSED, MGMT_WEAK_CRYPTO, NTP_AUTHENTICATED, PASSWORD_MIN_LENGTH, ROUTER_UNSAFE_SERVICE, RULE_LOGGING,
+    MGMT_EXPOSED, MGMT_WEAK_CRYPTO, NOT_SET, NTP_AUTHENTICATED, PASSWORD_MIN_LENGTH, ROUTER_UNSAFE_SERVICE, RULE_LOGGING,
     NTP_SERVER, PASSWORD_ENCRYPTION_SERVICE, PASSWORD_STORAGE, PERMIT_ANY, PROTOCOL_ENABLED, SOURCE_RESTRICTED,
     SNMP_COMMUNITY, SOURCE_ROUTING, SSH_VERSION, SecurityFact,
 )
@@ -324,13 +325,20 @@ def _dialect_matches(stored: Optional[str], current: set[str]) -> bool:
 def recognizer_facts(raw_lines: list[str], extra: Iterable = ()) -> tuple[list[SecurityFact], frozenset[int]]:
     """CONFIRMED facts from stored (+ ``extra``) recognizers, and the lines heuristics must skip:
     lines a recognizer answered or an administrator rejected."""
+    facts, skip, _ = recognize(raw_lines, extra)
+    return facts, skip
+
+
+def recognize(raw_lines: list[str], extra: Iterable = ()):
+    """``recognizer_facts`` plus a function that reads absence once every other fact is known (see ``_absence``)."""
     recognizers, rejected = _stored_knowledge()
+    recognizers = [*recognizers, *extra]
     statements = tokenize(raw_lines)
     current = set(_fingerprint(statements).split())
-    candidates, recognized = [], set()
+    candidates, recognized, matched = [], set(), []
 
     for s in statements:
-        for r in [*recognizers, *extra]:
+        for r in recognizers:
             try:
                 if (normalize_line(s.text) in r.negatives or not _dialect_matches(r.dialect_fingerprint, current)
                         or r.scope_template and not _scope_matches(r.scope_template, s)
@@ -350,6 +358,7 @@ def recognizer_facts(raw_lines: list[str], extra: Iterable = ()) -> tuple[list[S
                 continue
             value = stated_value(r, value, s)
             recognized.add(s.line)
+            matched.append(r)
             # every community (every exposed zone) is its own fact: two of them are not a conflict about one setting
             scope = f"{PER_STATEMENT[r.predicate]} at line {s.line}" if r.predicate in PER_STATEMENT else None
             candidates.append(_Candidate(r.predicate, value, lines or [s.line], subject=r.subject, scope=scope,
@@ -358,7 +367,90 @@ def recognizer_facts(raw_lines: list[str], extra: Iterable = ()) -> tuple[list[S
     from app.db.mappings import rejection_key  # the store imports this module for its gates
 
     skip = recognized | {n for n, text in enumerate(raw_lines, 1) if text.strip() and rejection_key(text) in rejected}
-    return combine(candidates, raw_lines, Assurance.CONFIRMED), frozenset(skip)
+    dialect = _dialect(matched, recognizers, current)
+    return (combine(candidates, raw_lines, Assurance.CONFIRMED), frozenset(skip),
+            lambda known: _absence(known, dialect, statements))
+
+
+def understood_dialect(raw_lines: list[str]) -> Optional[tuple[str, list]]:
+    """The dialect this configuration is written in, as learned knowledge knows it (see ``_dialect``)."""
+    recognizers, _ = _stored_knowledge()
+    statements = tokenize(raw_lines)
+    current = set(_fingerprint(statements).split())
+    matched = [r for s in statements for r in recognizers
+               if normalize_line(s.text) not in r.negatives and _dialect_matches(r.dialect_fingerprint, current)
+               and not (r.scope_template and not _scope_matches(r.scope_template, s))
+               and _safe_match(r, s.text)]
+    return _dialect(matched, recognizers, current)
+
+
+def _safe_match(r, text: str) -> bool:
+    try:
+        return match_recognizer(r.command_pattern, text) is not None
+    except (PatternError, ValueError, AttributeError):
+        return False
+
+
+# Settings no device ships with: a remote log server, an AAA server, a login banner, a time source and its
+# authentication exist only when someone configures them. For these alone, a setting the configuration
+# does not state is a setting the device does not have -once we know the configuration would state it.
+NO_FACTORY_DEFAULT = (CENTRAL_AAA, LOG_REMOTE_DESTINATION, LOGIN_BANNER, NTP_SERVER, NTP_AUTHENTICATED)
+# A configuration is understood when one dialect's taught syntax answered at least this many settings
+MIN_UNDERSTOOD = 3
+
+
+def _dialect(matched: list, recognizers: list, current: set[str]) -> Optional[tuple[str, list]]:
+    """(name, its recognizers) when one dialect's learned knowledge understands this configuration, else None.
+
+    Learned knowledge only, no vendor code: the dialect is the vendor label of the seeds that matched
+    (the clear winner) together with taught recognizers whose fingerprint matches this configuration,
+    and it must have answered ``MIN_UNDERSTOOD`` settings here."""
+    def local(r) -> bool:
+        return bool(r.dialect_fingerprint) and _dialect_matches(r.dialect_fingerprint, current)
+
+    def labels(r) -> set[str]:
+        return {v.strip() for v in (r.vendor or "").split("/") if v.strip()}
+
+    by_label: dict[str, set[str]] = defaultdict(set)
+    for r in matched:
+        for label in labels(r):
+            by_label[label].add(r.predicate)
+    ranked = sorted(by_label, key=lambda v: len(by_label[v]), reverse=True)
+    if len(ranked) > 1 and len(by_label[ranked[0]]) == len(by_label[ranked[1]]):
+        return None  # two dialects fit equally well: this configuration is not understood
+    family = ranked[0] if ranked else None
+    if len({r.predicate for r in matched if local(r) or family in labels(r)}) < MIN_UNDERSTOOD:
+        return None
+    return family or "this configuration's dialect", [r for r in recognizers if local(r) or family in labels(r)]
+
+
+def _absence(known: list[SecurityFact], dialect: Optional[tuple[str, list]],
+             statements: list[Statement]) -> list[SecurityFact]:
+    """NOT_SET for each no-factory-default setting nothing states, when the dialect is understood.
+
+    The dialect must know how it states the missing setting: absence of a syntax nobody taught is never
+    read as absence of the setting. Any fact about the setting (a heuristic, an AI proposal, an
+    undetermined value), or any line that so much as names it (``server-profile tacplus …`` in a variant
+    the seed does not know), means it may be stated somewhere, and absence says nothing."""
+    if dialect is None:
+        return []
+    name, own = dialect
+    syntax = {}
+    for r in own:
+        if r.predicate in NO_FACTORY_DEFAULT:
+            syntax.setdefault(r.predicate, r.command_pattern)
+    stated = {f.predicate for f in known}
+    stated |= {p for p in syntax for st in statements
+               if _names_concept(p, None, [*st.key_tokens, *(w for h in st.scope_path for w in h.split())])}
+    return [SecurityFact(p, NOT_SET, Assurance.CONFIRMED,
+                         provenance=f"no line states it; {name} states it as '{_shown(syntax[p])}'")
+            for p in NO_FACTORY_DEFAULT if p in syntax and p not in stated]
+
+
+def _shown(pattern: str) -> str:
+    """A template as a person reads it: ``set system syslog host {host} {rest}`` → ``set system syslog host …``."""
+    text = re.sub(r"\{[^{}]*\}", "…", pattern.replace(NEGATION_SLOT, "").replace(REST_TOKEN, ""))
+    return re.sub(r"\s+", " ", re.sub(r"…(\s*…)+", "…", text)).strip()
 
 
 def _stored_knowledge() -> tuple[list, set[str]]:

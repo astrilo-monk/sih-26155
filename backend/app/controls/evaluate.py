@@ -25,7 +25,7 @@ from app.controls.catalog import CONTROLS, Control, ControlKind
 from app.controls.judges import JUDGES
 from app.facts.defaults import default_facts
 from app.facts.from_normalized import PARSER_COVERAGE, facts_from_config, weakest
-from app.facts.predicates import SecurityFact
+from app.facts.predicates import NOT_SET, SecurityFact
 from app.models.normalized import NormalizedConfig
 from app.models.results import Assurance, ControlResult, Evidence, Status
 
@@ -67,7 +67,8 @@ def evaluate_control(control: Control, facts: list[SecurityFact], config: Normal
     fails = [(fact, o) for fact, o in judged if o.status == Status.FAIL]
     if fails:
         return [
-            _result(config, control, Status.FAIL, o.reason, [fact, *o.also], scope=fact.scope, failure=o.failure)
+            _result(config, control, Status.FAIL, _unstated(o.reason, fact), [fact, *o.also], scope=fact.scope,
+                    failure=o.failure)
             for fact, o in fails
         ]
 
@@ -100,6 +101,13 @@ def evaluate_control(control: Control, facts: list[SecurityFact], config: Normal
     if control.kind == ControlKind.RELATIONAL:
         return [_result(config, control, Status.UNKNOWN, "No relevant setting was found in this configuration")]
     return [_result(config, control, Status.NOT_CONFIGURED, "No relevant setting was found in this configuration")]
+
+
+def _unstated(reason: str, fact: SecurityFact) -> str:
+    """A failure read from absence says how the configuration would have stated the setting."""
+    if fact.value is NOT_SET and fact.assurance == Assurance.CONFIRMED and fact.provenance:
+        return f"{reason} ({fact.provenance[0].upper()}{fact.provenance[1:]}.)"
+    return reason
 
 
 def _result(config, control, status, reason, facts=(), scope=None, failure=None, assured=True,

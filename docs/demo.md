@@ -27,8 +27,11 @@ is not empty for long: the shipped seed recognizers load into it on first use, w
    **Adaptive learning → Learned mappings** and switch between *Shipped* and *Taught here*.
 9. **Upload `backend/tests/fixtures/seed_dialects/huawei.conf`** -a dialect nobody taught this deployment. Five
    controls are answered decisively out of the box (Telnet, HTTP management, session timeout, remote syslog, NTP),
-   coverage is above 0, and every one cites a real line. The login banner stays `NOT_CONFIGURED` rather than being
-   guessed. Now **teach** the SSH-version line under **Adaptive learning**: the taught recognizer and the shipped ones are used
+   coverage is above 0, and every one cites a real line. AAA stays `NOT_CONFIGURED` rather than being guessed:
+   nobody taught how Huawei writes an AAA server, so its absence is not read as a missing setting. (On
+   `demo-sih/paloalto_fw_vulnerable.cfg`, where PAN-OS knowledge does know it, the missing AAA server, syslog server
+   and banner are decided FAILs that say how PAN-OS would write them; **Fix** asks for the syslog server and banner
+   text and adds those lines.) Now **teach** the SSH-version line under **Adaptive learning**: the taught recognizer and the shipped ones are used
    side by side on the rescan. See [seed-knowledge.md](seed-knowledge.md).
 10. **Remediation, for the unconfirmed vendor -one click.** Press **Fix it for me**. NetAuditAI derives the change from
     the configuration itself (`delete system services telnet`, built from the file's own block path), applies it to a

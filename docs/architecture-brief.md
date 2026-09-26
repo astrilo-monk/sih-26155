@@ -18,7 +18,8 @@ Controls read facts and never vendor syntax, so **every control runs on every co
 The other half of the design is honesty about evidence. Each fact carries an **assurance**, a verdict inherits the
 weakest assurance it cites, and only decisive facts are scored. **Absence is never a PASS**: a setting nobody
 configured is `NOT_CONFIGURED`, not compliant. In an audit, "I could not determine this" beats a confident wrong
-answer.
+answer. Absence becomes a FAIL only for settings no device ships with (AAA, remote syslog, banner, NTP), and only
+when learned knowledge understands the file's dialect and knows how that dialect would write the missing line.
 
 ## 2. Pipeline
 

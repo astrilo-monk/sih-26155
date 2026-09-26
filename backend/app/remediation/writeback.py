@@ -13,7 +13,10 @@ slot changed -without anyone, human or AI, supplying command text:
       → FIXED only when the control is now a decisive PASS, no other control got worse and the
         copy is still read by generic analysis
 
-Only a value on a line that is already there is changed, so the dialect's own syntax is kept. A setting
+Only a value on a line that is already there is changed, so the dialect's own syntax is kept. A setting the
+configuration does not state at all (a FAIL read from absence) is *added* the same way: the dialect's reviewed
+template with its one value slot filled from a validated operator input -a remote syslog server, a login
+banner -and only when the template is a top-level statement this file already writes. A setting
 that needs the operator (which subnet may manage the device) is NEEDS_INPUT. A setting whose secure form
 needs more than one slot -NTP authentication also needs a key the recognizer does not describe -and a
 ``{neg}`` toggle (``delete`` / ``no`` / ``undo`` differ per dialect) are not written: they stay with the
@@ -24,17 +27,22 @@ from __future__ import annotations
 
 import difflib
 import json
+import re
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-from app.adaptive.matcher import EXTRACTION_RECOGNIZER, compile_pattern, recognizer_slot
+from app.adaptive.matcher import (
+    EXTRACTION_RECOGNIZER, NEGATION_SLOT, REST_TOKEN, compile_pattern, recognizer_slot,
+)
 from app.controls.catalog import CONTROLS
 from app.facts import lexicon as L
 from app.facts.predicates import (
-    DISCOVERY_PROTOCOL, IDLE_TIMEOUT, LOGIN_MAX_ATTEMPTS, PASSWORD_MIN_LENGTH, PROTOCOL_ENABLED, SOURCE_RESTRICTED,
+    DISCOVERY_PROTOCOL, IDLE_TIMEOUT, LOG_REMOTE_DESTINATION, LOGIN_BANNER, LOGIN_MAX_ATTEMPTS, PASSWORD_MIN_LENGTH, PROTOCOL_ENABLED, SOURCE_RESTRICTED,
     SOURCE_ROUTING, SSH_VERSION,
 )
-from app.facts.recognizers import _scope_matches, _stored_knowledge, recognizer_value, stated_value
+from app.facts.recognizers import (
+    _scope_matches, _stored_knowledge, recognizer_value, stated_value, understood_dialect,
+)
 from app.models.results import DECISIVE_ASSURANCE, Status
 from app.remediation.engine import (
     INPUTS, Analysis, Check, Outcome, Plan, RemediationStatus, _join, _status_text, analyze_generic_text, credit_earlier_fix,
@@ -66,6 +74,12 @@ TARGETS = {
     (SOURCE_RESTRICTED, None): Target("MGMT-003", lambda v: v is True, input="management_subnet"),
     (LOGIN_MAX_ATTEMPTS, None): Target("AUTH-001", lambda v: isinstance(v, (int, float)) and 0 < v <= 10, want=3),
     (PASSWORD_MIN_LENGTH, None): Target("AUTH-002", lambda v: isinstance(v, (int, float)) and v >= 8, want=12),
+}
+# A missing setting one validated value completes: control → (predicate, input, the typed slot its template has).
+# NTP needs authentication too and AAA needs a shared secret, so neither is ever added from one value.
+ADDED = {
+    "LOG-001": (LOG_REMOTE_DESTINATION, "syslog_server", ("host", "ip")),
+    "MGMT-009": (LOGIN_BANNER, "banner_text", (None,)),  # stated by presence: the text fills its one {any}
 }
 _ANTONYM = {"yes": "no", "no": "yes", "enable": "disable", "disable": "enable", "enabled": "disabled",
             "disabled": "enabled", "true": "false", "false": "true", "on": "off", "off": "on"}
@@ -164,6 +178,39 @@ def rewrites(text: str, control_id: str, inputs: dict, before: Analysis) -> dict
                 changes[statement.line] = original[:len(original) - len(original.lstrip())] + new
                 break
     return changes
+
+
+def added_line(text: str, control_id: str, inputs: dict) -> Optional[str]:
+    """The line that states a missing setting in this configuration's own dialect, or None when none can be written.
+
+    A reviewed, unscoped template of the dialect that understands this configuration, with one value slot, whose first word opens a top-level statement in this file
+    (``set …``, ``configure …``): appending anything else could land outside the block it belongs in. The same
+    recognizer must read the written line back. Raises ``_NeedsInput`` when a template fits but the value is missing."""
+    if control_id not in ADDED:
+        return None
+    predicate, name, kinds = ADDED[control_id]
+    # the words this file opens its top-level lines with, as written: ``set`` in a set-style file, never in a
+    # brace-structured one whose top level is ``system {`` even though both name ``system``
+    top = {line.split()[0] for line in text.splitlines()
+           if line.strip() and not line[0].isspace() and line.strip()[0] not in "!#"}
+    dialect = understood_dialect(text.splitlines())
+    # only this configuration's own dialect writes the line: another dialect's template would read back just as well
+    for recognizer in dialect[1] if dialect else ():
+        if recognizer.predicate != predicate or recognizer.scope_template:
+            continue
+        pattern = " ".join(recognizer.command_pattern.replace(NEGATION_SLOT, "").replace(REST_TOKEN, "").split())
+        slots = re.findall(r"\{[^{}]*\}", pattern)
+        if len(slots) != 1 or recognizer_slot(pattern)[0] not in kinds:
+            continue
+        if pattern.split()[0] not in top:
+            continue
+        if name not in inputs:
+            raise _NeedsInput(name)
+        value = str(inputs[name])
+        line = pattern.replace(slots[0], f'"{value}"' if " " in value else value)
+        if _reads(recognizer, line) not in (None, False):
+            return line
+    return None
 
 
 def _identity(recognizer, line: str) -> Optional[str]:
@@ -268,22 +315,33 @@ def writeback_control(text: str, control_id: str, inputs: dict, before: Optional
                                "it, so the rescan can check exactly what it does.")
     else:
         outcome.inputs = [t.input for t in TARGETS.values() if t.control_id == control_id and t.input]
+        # a FAIL no line cites was read from absence: the setting is added, not rewritten
+        absent = not any(r.evidence.line_numbers for r in fails)
+        if absent and control_id in ADDED:
+            outcome.inputs = [ADDED[control_id][1]]
         try:
             changes = rewrites(text, control_id, inputs, before)
+            added = added_line(text, control_id, inputs) if absent and not changes else None
         except _NeedsInput as e:
             outcome.status, outcome.missing_inputs = RemediationStatus.NEEDS_INPUT, [e.name]
             outcome.reason = f"Provide {INPUTS[e.name].label} to generate this change"
             return outcome, None
+        new_text = applied_command(text, added, control_id) if added else None
         # the rescan decides whether the rewritten lines were all the control needed
-        if not changes:
+        if not changes and new_text is None:
             outcome.status = RemediationStatus.NO_RECIPE
             outcome.reason = (f"No reviewed recognizer can write the secure form of every line {control_id} "
                               "cites; propose or review a command instead")
             return outcome, None
-        new_lines = [changes.get(n, line) for n, line in enumerate(lines, 1)]
-        new_text = _join(new_lines, text)
-        outcome.explanation = ("Written by the same reviewed recognizer that read the failing line: only its value "
-                               "changes, so the line keeps this configuration's own syntax.")
+        if changes:
+            new_lines = [changes.get(n, line) for n, line in enumerate(lines, 1)]
+            new_text = _join(new_lines, text)
+            outcome.explanation = ("Written by the same reviewed recognizer that read the failing line: only its "
+                                   "value changes, so the line keeps this configuration's own syntax.")
+        else:
+            new_lines = new_text.splitlines()
+            outcome.explanation = ("The setting was missing. This line is the reviewed template this configuration's "
+                                   "dialect uses for it, with your value, and the same recognizer reads it back.")
     outcome.fixed_config = new_text
     outcome.diff = "\n".join(difflib.unified_diff(lines, new_lines, "before", "after", n=2, lineterm=""))
     after = analyze_generic_text(new_text)

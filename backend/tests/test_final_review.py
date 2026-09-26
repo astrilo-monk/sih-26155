@@ -77,14 +77,14 @@ def test_ask_ai_for_one_check_keeps_only_that_checks_suggestions(seeded_adaptive
     client = TestClient(app)
     scan = _scan(client)
     url = f"/api/adaptive/scans/{scan['scan_id']}/ask-ai"
-    body = {"config_index": 0, "control_id": "MGMT-008"}
+    body = {"config_index": 0, "control_id": "AUTH-002"}
     with patch("app.ai.client.is_available", return_value=False):
         assert client.post(url, json=body).status_code == 503
 
     def judge(config, results, budget):
-        assert [r.control_id for r in results] == ["MGMT-008"] and budget.remaining == 1
+        assert [r.control_id for r in results] == ["AUTH-002"] and budget.remaining == 1
         config.ai_facts = []
-        config.ai_notes["MGMT-008"] = "the AI proposed no fact with a verifiable citation"
+        config.ai_notes["AUTH-002"] = "the AI proposed no fact with a verifiable citation"
 
     with patch("app.ai.client.is_available", return_value=True), patch("app.ai.judge.judge_config", judge):
         answer = client.post(url, json=body).json()

@@ -81,6 +81,18 @@ def _key(value: str) -> str:
     return value
 
 
+# Written into the configuration as one quoted token: no quote, newline, brace, semicolon or comment character
+_BANNER = re.compile(r"[A-Za-z0-9 .,:()/_-]{8,200}")
+
+
+def _banner(value: str) -> str:
+    text = " ".join(value.split())
+    if not _BANNER.fullmatch(text):
+        raise ValueError("use 8-200 letters, digits, spaces or . , : ( ) / _ -, "
+                         "e.g. Authorized access only. Activity is monitored.")
+    return text
+
+
 @dataclass(frozen=True)
 class InputSpec:
     name: str
@@ -96,6 +108,8 @@ INPUTS: dict[str, InputSpec] = {spec.name: spec for spec in (
     InputSpec("ntp_key", "NTP key", "The secret shared with the NTP server, 8-32 characters, e.g. NtpKey-2026; written only into the "
               "generated configuration",
               _key),
+    InputSpec("banner_text", "Login banner", "The warning shown before login, e.g. Authorized access only. "
+              "Activity is monitored.", _banner),
     InputSpec("management_subnet", "Management subnet", "Trusted administration network in CIDR, e.g. 10.10.0.0/24",
               _subnet),
 )}
