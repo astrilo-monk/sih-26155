@@ -301,9 +301,9 @@ build on what NetAuditAI already keeps. Branch `phase-6`.
   > and lists approved NTP / syslog / AAA servers. Checks read the policy; results say when the organisation's value
   > was used instead of the default. Upload page accepts it optionally; CLI takes `--policy`.
 - **Checklist:**
-  - [ ] policy model + validation + tests
-  - [ ] checks use it; results cite it
-  - [ ] upload + CLI option; docs
+  - [x] policy model + validation + tests
+  - [x] checks use it; results cite it
+  - [x] upload + CLI option; docs
 
 ---
 
@@ -330,3 +330,4 @@ build on what NetAuditAI already keeps. Branch `phase-6`.
 | 2026-09-27 | 6.2 Offline AI | (this commit) | `LOCAL_AI_URL` / `LOCAL_AI_MODEL` send every AI call to a local OpenAI-compatible server. Change from the plan: the Groq SDK hard-codes its `/openai/v1` path, so a ~20-line httpx client (already installed) is used for the local server; no new dependency. Status returns `provider`; the assistant says when AI is local. Not tried against a real Ollama in this session. |
 | 2026-09-27 | 6.3 Checks across devices | (this commit) | `fleet_findings`: shared SNMP community (matched by sha256, never shown), NTP and syslog server mismatches, decided facts only; shown under Fleet. Demo pair: shared `public` + NTP mismatch. Changes from the plan: password-hash reuse left out (no normalized field carries the hash); "one device missing what the others have" left out (each missing setting is already a per-device FAIL). |
 | 2026-09-27 | 6.4 CLI for CI | (this commit) | `python -m app.cli scan … [--fail-on] [--sarif] [--json] [--db]`; exit 0/1/2. Runs on a throwaway seeded DB with AI off (deterministic, writes nothing to the deployment DB); the benchmark now reuses the same `isolated_engine()`. SARIF cites the first evidence line. `docs/cli.md` with a GitHub Actions workflow (not run on GitHub in this session). |
+| 2026-09-27 | 6.5 Organisation policy | (this commit) | `app/controls/policy.py`: idle timeout, login attempts, password length (tighten only; looser = 422 / exit 2), approved NTP and syslog servers. Active policy is a context variable set in `run_scan` and `live_scan`, so teaching and remediation re-checks use the scan's policy without new parameters. Results cite "(organisation policy '…')"; response echoes `policy`; Upload takes a JSON file; CLI `--policy`; `docs/policy.md`. Changes from the plan: approved AAA servers left out (the AAA fact carries no server list); automatic fixes still write 5 minutes, so a policy under 5 makes that fix fail its re-check (documented). |

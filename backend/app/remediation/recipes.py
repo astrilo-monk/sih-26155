@@ -22,8 +22,9 @@ import re
 from dataclasses import dataclass
 from typing import Callable, Optional
 
+from app.controls import policy
 from app.controls.judges import (
-    DEFAULT_SNMP_COMMUNITIES, MAX_IDLE_TIMEOUT_MINUTES, STRONG_PASSWORD_STORAGE, WEAK_DH_GROUPS, WEAK_ENCRYPTION,
+    DEFAULT_SNMP_COMMUNITIES, STRONG_PASSWORD_STORAGE, WEAK_DH_GROUPS, WEAK_ENCRYPTION,
     WEAK_HASH,
 )
 from app.facts import lexicon as L
@@ -229,7 +230,8 @@ def _bad_timeout(line) -> bool:
     if line.exec_timeout_minutes is None:
         return True
     minutes = line.exec_timeout_minutes + (line.exec_timeout_seconds or 0) / 60
-    return minutes == 0 or minutes > MAX_IDLE_TIMEOUT_MINUTES
+    # ponytail: recipes write 5 minutes; a policy under 5 is left to the rescan, which then refuses the fix
+    return minutes == 0 or minutes > policy.current().idle_timeout_minutes
 
 
 # FortiOS: config/edit blocks closed by end/next

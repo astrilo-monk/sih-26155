@@ -20,7 +20,8 @@ Returns a simple status payload confirming the backend is running.
 Upload one or more raw configuration files for analysis.
 * **Request:** `multipart/form-data` with one or more `files` fields (UTF-8 text or JSON, max 2 MB each), optional
   asset context for the risk rating only (`criticality`: `low` | `medium` | `high` | `critical`; `internet_facing`:
-  `true`), and an
+  `true`), an optional organisation `policy` (the JSON text of a policy file, see [policy.md](policy.md); a policy
+  that loosens a default or is not valid JSON is refused with 422), and an
   optional `framework` field (`NIST_800_53` | `CIS` | `DISA_STIG` | `ISO_27001`). Every control runs either way;
   the choice limits the framework views, the findings' compliance mapping and the PDF report to one benchmark.
   An unknown name is refused with 422.
@@ -32,6 +33,7 @@ Upload one or more raw configuration files for analysis.
     `set … hostname X`); `unknown` when absent or conflicting. Hostnames can repeat: a device is identified by its
     position, `config_index`.
   * `framework`: the benchmark chosen at upload, `null` when every framework is reported
+  * `policy`: the organisation policy the scan was checked against, `null` for the defaults
   * `vendor_identification[]`: `detected_vendor`, `status` (`confirmed` / `unverified` / `unknown`), `parse_coverage`, `uncovered_lines`, `reason`
   * `results[]`: every control for every config -`status`, `assurance`, `proposed_status` (AI verdict awaiting confirmation), `scope`, `reason`, `evidence`,
     and the evidence chain: `facts[]` (the normalized fields the answer read: `field`, `subject`, `value` redacted,

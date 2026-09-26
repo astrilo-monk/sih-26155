@@ -224,6 +224,13 @@ export default function Results({ scan, audit, onOpen, onTeach, go }) {
         </section>
       </div>
 
+      {scan.policy && (
+        <p className="small muted">
+          Checked against the organisation policy <strong>{scan.policy.name}</strong> as well as the frameworks: results it
+          changed say so in their reason.
+        </p>
+      )}
+
       <Drift scanId={scan.scan_id} labels={labels} />
 
       <Fleet scan={scan} labels={labels} />

@@ -40,3 +40,19 @@ it('passes the asset context the user states', () => {
   fireEvent.click(screen.getByRole('button', { name: /start scan/i }));
   expect(onScan).toHaveBeenCalledWith(expect.any(Array), null, { criticality: 'critical', internetFacing: true });
 });
+
+it('sends an organisation policy file with the scan, and refuses one that is not JSON', async () => {
+  cleanup(); // the test above renders outside the describe's cleanup
+  const onScan = vi.fn();
+  render(<Upload onScan={onScan} scanning={false} error={null} currentScan={null} />);
+  const input = screen.getByLabelText('Organisation policy');
+  fireEvent.change(input, { target: { files: [new File(['{oops'], 'bad.json', { type: 'application/json' })] } });
+  await screen.findByText('bad.json is not valid JSON.');
+
+  const text = '{"name": "Acme", "idle_timeout_minutes": 10}';
+  fireEvent.change(screen.getByLabelText('Organisation policy'), { target: { files: [new File([text], 'acme.json')] } });
+  await screen.findByText('acme.json');
+  chooseFile();
+  fireEvent.click(screen.getByRole('button', { name: 'Start scan' }));
+  expect(onScan.mock.calls[0][2]).toEqual({ criticality: '', internetFacing: false, policy: text });
+});

@@ -93,6 +93,7 @@ def main(argv: list[str] | None = None) -> int:
     scan.add_argument("--framework", choices=["NIST_800_53", "CIS", "DISA_STIG", "ISO_27001"])
     scan.add_argument("--sarif", metavar="FILE", help="also write SARIF 2.1.0 here")
     scan.add_argument("--json", action="store_true", help="print the full scan result as JSON instead of a summary")
+    scan.add_argument("--policy", metavar="FILE", help="organisation policy (JSON) to check against")
     scan.add_argument("--db", type=Path, help="knowledge database to use instead of the shipped knowledge")
     args = parser.parse_args(argv)
 
@@ -107,12 +108,19 @@ def main(argv: list[str] | None = None) -> int:
         print("netaudit: no files to check", file=sys.stderr)
         return 2
 
+    from app.controls import policy
+    try:
+        chosen = policy.parse(json.loads(Path(args.policy).read_text(encoding="utf-8"))) if args.policy else None
+    except (OSError, ValueError) as e:
+        print(f"netaudit: policy: {e}", file=sys.stderr)
+        return 2
+
     isolated_engine(args.db)
     from fastapi import HTTPException
 
     from app.api.routes.scan import run_scan
     try:
-        result = run_scan(sources, args.framework).model_dump(mode="json")
+        result = run_scan(sources, args.framework, policy=chosen).model_dump(mode="json")
     except HTTPException as e:
         print(f"netaudit: {e.detail}", file=sys.stderr)
         return 2

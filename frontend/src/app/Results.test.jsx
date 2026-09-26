@@ -137,6 +137,11 @@ it('offers the compliance report for the scan, and says so when it cannot be gen
   expect(await screen.findByText('The report couldn’t be generated.')).toBeTruthy();
 });
 
+it('names the organisation policy the scan was checked against', () => {
+  render(<Results scan={{ ...UNKNOWN, policy: { name: 'Acme baseline' } }} audit={audit({ queue: QUEUE })} onOpen={() => {}} go={() => {}} onTeach={() => {}} />);
+  expect(screen.getByText('Acme baseline').tagName).toBe('STRONG');
+});
+
 const CISCO = {
   ...UNKNOWN, posture: 20, coverage: 100, critical_unassessed: [],
   devices: [{ hostname: 'R1', vendor: 'cisco_ios' }],

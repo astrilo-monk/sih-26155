@@ -261,6 +261,8 @@ class ScanResultResponse(BaseModel):
     attack_paths: list[dict] = []
     # Problems across devices (app/analysis/fleet_checks.py): shared SNMP community, mismatched NTP / syslog
     fleet_findings: list[dict] = []
+    # The organisation policy this scan was checked against (app/controls/policy.py); None = the defaults
+    policy: Optional[dict] = None
 
 
 class RemediationRequest(BaseModel):

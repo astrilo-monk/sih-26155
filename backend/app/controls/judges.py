@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
+from app.controls import policy
 from app.facts import lexicon as L
 from app.facts.predicates import (
     CENTRAL_AAA, DISCOVERY_PROTOCOL, IDLE_TIMEOUT, IPSEC_PROPOSAL, LOG_REMOTE_DESTINATION, LOGIN_BANNER,
@@ -25,7 +26,6 @@ from app.models.results import FailureDetail, Status
 DEFAULT_SNMP_COMMUNITIES = {"public", "private", "community", "snmp", "default"}
 WEAK_PASSWORD_STORAGE = {"plaintext", "type7", "type0"}
 STRONG_PASSWORD_STORAGE = {"secret", "encrypted", "hashed", "type5_md5", "type8_sha256", "type9_scrypt"}
-MAX_IDLE_TIMEOUT_MINUTES = 15
 WEAK_ENCRYPTION = {"des", "3des", "des-cbc", "3des-cbc"}
 WEAK_HASH = {"md5", "md5-hmac", "esp-md5-hmac"}
 WEAK_DH_GROUPS = {1: 768, 2: 1024, 5: 1536}
@@ -183,29 +183,30 @@ def passwords(fact, facts, vendor):
 
 def idle_timeout(fact, facts, vendor):
     where = fact.scope or "Admin sessions"
+    p = policy.current()
+    limit = p.idle_timeout_minutes
     if fact.value is NOT_SET or fact.value == 0:
         return _fail(
             Severity.MEDIUM,
             f"{where} has no idle timeout or the timeout is set to 0 (disabled). Idle sessions stay open indefinitely.",
             "An unattended session left logged in can be used by anyone with physical or remote access "
             "to the admin workstation.",
-            _advice(vendor, f"Set an idle timeout of {MAX_IDLE_TIMEOUT_MINUTES} minutes or less.",
+            _advice(vendor, f"Set an idle timeout of {limit} minutes or less{p.says()}.",
                     cisco="Set a reasonable timeout: 'exec-timeout 5 0' (5 minutes).",
                     fortinet="Set admintimeout to 5 minutes or less."),
         )
     if fact.value is None or fact.unit != "min" or not isinstance(fact.value, (int, float)):
         return _unknown(fact, f"The idle timeout of {where.lower()} is stated without a known unit")
-    if fact.value > MAX_IDLE_TIMEOUT_MINUTES:
+    if fact.value > limit:
         return _fail(
             Severity.MEDIUM,
-            f"The idle timeout of {where.lower()} is {fact.value:g} minutes, which is excessively long "
-            "for a management session.",
+            f"The idle timeout of {where.lower()} is {fact.value:g} minutes, longer than {limit} minutes{p.says()}.",
             "Long session timeouts increase the risk of session hijacking or unauthorized use of "
             "unattended admin sessions.",
             _advice(vendor, "Set the idle timeout to 5 minutes or less.",
                     cisco="Set 'exec-timeout 5 0'.", fortinet="Set admintimeout to 5 minutes or less."),
         )
-    return _pass(f"Idle management sessions time out after {fact.value:g} minutes or less")
+    return _pass(f"Idle management sessions time out after {fact.value:g} minutes, within {limit}{p.says()}")
 
 
 def ssh_version(fact, facts, vendor):
@@ -322,7 +323,17 @@ def remote_log(fact, facts, vendor):
         )
     if not fact.value:
         return _unknown(fact, "A remote log destination was found but could not be read")
-    return _pass(f"Logs are forwarded to {', '.join(fact.value)}")
+    p = policy.current()
+    unapproved = [s for s in fact.value if p.syslog_servers and s not in p.syslog_servers]
+    if unapproved:
+        return _fail(
+            Severity.MEDIUM,
+            f"Logs are sent to {', '.join(unapproved)}, which is not an approved syslog server{p.says()}.",
+            "Logs sent to an unapproved destination may be lost to the security team or leak to a third party.",
+            f"Forward logs only to the approved syslog servers: {', '.join(p.syslog_servers)}.",
+        )
+    return _pass(f"Logs are forwarded to {', '.join(fact.value)}"
+                 + (f", approved{p.says()}" if p.syslog_servers else ""))
 
 
 def ntp(fact, facts, vendor):
@@ -335,6 +346,15 @@ def ntp(fact, facts, vendor):
             "unreliable for correlating events across devices during incident investigation.",
             "Inaccurate timestamps make forensic timeline reconstruction impossible across multiple devices.",
             "Configure at least two NTP servers for time synchronization.",
+        )
+    p = policy.current()
+    unapproved = [s for s in fact.value or [] if p.ntp_servers and s not in p.ntp_servers]
+    if unapproved:
+        return _fail(
+            Severity.MEDIUM,
+            f"The device takes its time from {', '.join(unapproved)}, which is not an approved NTP server{p.says()}.",
+            "An unapproved time source can drift from the rest of the network or be controlled by someone else.",
+            f"Use only the approved NTP servers: {', '.join(p.ntp_servers)}.",
         )
     auth = next((f for f in facts if f.predicate == NTP_AUTHENTICATED), None)
     if not fact.value or auth is None or auth.value is None:
@@ -479,23 +499,23 @@ def weak_management_crypto(fact, facts, vendor):
 
 # ── authentication ──────────────────────────────────────────────────────────
 
-MAX_LOGIN_ATTEMPTS = 10
-MIN_PASSWORD_LENGTH = 8
 DEFAULT_ACCOUNTS = L.DEFAULT_ACCOUNT_NAMES
 
 
 def login_attempts(fact, facts, vendor):
+    p = policy.current()
+    limit = p.login_attempts
     if fact.value is None:
         return _unknown(fact, "The failed-login limit could not be determined")
-    if fact.value is not NOT_SET and 0 < fact.value <= MAX_LOGIN_ATTEMPTS:
-        return _pass(f"Failed logins are limited to {fact.value:g} before a lockout or disconnect")
+    if fact.value is not NOT_SET and 0 < fact.value <= limit:
+        return _pass(f"Failed logins are limited to {fact.value:g} before a lockout or disconnect{p.says()}")
     missing = fact.value is NOT_SET or fact.value == 0
     return _fail(
         Severity.HIGH,
         "Failed logins are not limited: nothing locks out, blocks or slows an attacker guessing passwords."
-        if missing else f"Failed logins are limited to {fact.value:g} attempts, more than {MAX_LOGIN_ATTEMPTS}.",
+        if missing else f"Failed logins are limited to {fact.value:g} attempts, more than {limit}{p.says()}.",
         "Management accounts can be brute-forced online until a password is found.",
-        _advice(vendor, f"Limit failed logins to {MAX_LOGIN_ATTEMPTS} or fewer, with a lockout or back-off.",
+        _advice(vendor, f"Limit failed logins to {limit} or fewer, with a lockout or back-off.",
                 cisco="Add 'login block-for 900 attempts 3 within 120' (or 'aaa local authentication attempts "
                       "max-fail 3').",
                 fortinet="Set 'set admin-lockout-threshold 3' and an 'admin-lockout-duration' in system global."),
@@ -503,16 +523,18 @@ def login_attempts(fact, facts, vendor):
 
 
 def password_length(fact, facts, vendor):
+    p = policy.current()
+    minimum = p.password_min_length
     if fact.value is None:
         return _unknown(fact, "The enforced minimum password length could not be determined")
-    if fact.value is not NOT_SET and fact.value >= MIN_PASSWORD_LENGTH:
-        return _pass(f"Passwords must be at least {fact.value:g} characters")
+    if fact.value is not NOT_SET and fact.value >= minimum:
+        return _pass(f"Passwords must be at least {fact.value:g} characters{p.says()}")
     return _fail(
         Severity.MEDIUM,
         "No minimum password length is enforced." if fact.value is NOT_SET
-        else f"The minimum password length is {fact.value:g}, below {MIN_PASSWORD_LENGTH}.",
+        else f"The minimum password length is {fact.value:g}, below {minimum}{p.says()}.",
         "Short passwords can be guessed or cracked quickly, online or from a captured hash.",
-        _advice(vendor, f"Enforce a minimum password length of at least {MIN_PASSWORD_LENGTH} (12 or more is better).",
+        _advice(vendor, f"Enforce a minimum password length of at least {minimum} (12 or more is better).",
                 cisco="Add 'security passwords min-length 12'.",
                 fortinet="Enable 'config system password-policy' with 'set status enable' and "
                          "'set minimum-length 12'."),

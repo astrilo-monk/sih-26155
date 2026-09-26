@@ -60,6 +60,24 @@ export default function Upload({ onScan, onCollect, scanning, error, currentScan
   const [framework, setFramework] = useState('');
   const [criticality, setCriticality] = useState('');
   const [internetFacing, setInternetFacing] = useState(false);
+  // organisation policy (JSON text, checked by the backend): { name, text } or null
+  const [policy, setPolicy] = useState(null);
+  const [policyError, setPolicyError] = useState('');
+  const readPolicy = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        JSON.parse(reader.result);
+        setPolicy({ name: file.name, text: reader.result });
+        setPolicyError('');
+      } catch {
+        setPolicy(null);
+        setPolicyError(`${file.name} is not valid JSON.`);
+      }
+    };
+    reader.readAsText(file);
+  };
   const [drag, setDrag] = useState(false);
   // Where the configurations come from: a file the operator exported, or the devices themselves
   const [source, setSource] = useState('file');
@@ -181,11 +199,29 @@ export default function Upload({ onScan, onCollect, scanning, error, currentScan
             </label>
           </div>
 
+          <div className="field">
+            <span className="field-label" id="policy-label">Organisation policy</span>
+            {policy ? (
+              <span className="small">
+                <span className="mono">{policy.name}</span>{' '}
+                <button type="button" className="btn btn-quiet btn-sm" onClick={() => setPolicy(null)}>Remove</button>
+              </span>
+            ) : (
+              <input type="file" accept=".json,application/json" aria-labelledby="policy-label"
+                     onChange={(e) => readPolicy(e.target.files?.[0])} />
+            )}
+            {policyError && <span className="field-error" role="alert">{policyError}</span>}
+            <span className="field-help">
+              Optional JSON with your own stricter limits (idle timeout, login attempts, password length) and approved
+              NTP / syslog servers. It can only tighten the defaults. See docs/policy.md.
+            </span>
+          </div>
+
           {source === 'file' ? (
             <>
               <div className="upload-actions">
                 <button type="button" className="btn btn-accent btn-lg" disabled={!files.length || tooLarge || empty}
-                        onClick={() => onScan(files, framework || null, { criticality, internetFacing })}>
+                        onClick={() => onScan(files, framework || null, { criticality, internetFacing, ...(policy && { policy: policy.text }) })}>
                   Start scan
                 </button>
                 <span className="small muted">{hint}</span>

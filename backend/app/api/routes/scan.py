@@ -12,6 +12,7 @@ analysis. This is the main entry point for the security audit workflow.
 """
 
 from __future__ import annotations
+import json
 import logging
 import re
 import uuid
@@ -23,6 +24,7 @@ from app.parsers.detector import STATUS_UNVERIFIED, VendorIdentification, identi
 from app.analysis.attack_paths import attack_paths
 from app.analysis.drift import scan_drift
 from app.analysis.fleet_checks import fleet_findings
+from app.controls import policy as org_policy
 from app.analysis.risk import CRITICALITY, device_risk
 from app.analysis.engine import analyze, analyze_multiple, evaluate_controls
 from app.analysis.scoring import calculate_posture, control_outcomes
@@ -406,6 +408,7 @@ def _new_adaptive_service() -> AdaptiveService:
 def reanalyze_scan(scan_id: str) -> None:
     """Re-run the deterministic engine on a stored scan's (enriched) configs."""
     entry = _scan_store[scan_id]
+    org_policy.activate(entry.get("policy"))
     configs = entry["configs"]
     result = analyze(configs[0]) if len(configs) == 1 else analyze_multiple(configs)
     result.scan_id = scan_id
@@ -499,6 +502,7 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
         attack_paths=[{"config_index": idx, **path} for idx in range(len(configs))
                       for path in attack_paths([r.model_dump() for r in results_schema if r.config_index == idx])],
         # values shown are server addresses only; a shared secret is matched by hash and never included
+        policy=entry["policy"].as_dict() if entry.get("policy") else None,
         fleet_findings=fleet_findings([facts_from_config(cfg) for cfg in configs]) if len(configs) > 1 else [],
     )
 
@@ -549,7 +553,15 @@ def validated_framework(framework: Optional[str]) -> Optional[str]:
 
 
 def run_scan(sources: list[tuple[str, str]], framework: Optional[str] = None,
-             context: Optional[dict] = None) -> ScanResultResponse:
+             context: Optional[dict] = None, policy: Optional[org_policy.Policy] = None) -> ScanResultResponse:
+    """Analyse configurations that are already text, under ``policy`` (the organisation's; None = defaults), and
+    return the scan they produce. See ``_run_scan``."""
+    with org_policy.using(policy):
+        return _run_scan(sources, framework, context, policy)
+
+
+def _run_scan(sources: list[tuple[str, str]], framework: Optional[str] = None,
+             context: Optional[dict] = None, policy: Optional[org_policy.Policy] = None) -> ScanResultResponse:
     """Analyse configurations that are already text, and return the scan they produce.
 
     ``sources`` are ``(name, configuration)`` pairs. The name is only for error messages: nothing in
@@ -639,6 +651,8 @@ def run_scan(sources: list[tuple[str, str]], framework: Optional[str] = None,
         "framework": framework,
         # asset criticality and internet exposure the operator stated at upload (risk only; never a verdict)
         "context": context or {},
+        # the organisation policy every evaluation of this scan uses (app.controls.policy); None = defaults
+        "policy": policy,
     }
 
     if not (had_unknown_vendor and not had_ai_available and not anything_applied):
@@ -651,7 +665,8 @@ def run_scan(sources: list[tuple[str, str]], framework: Optional[str] = None,
 
 @router.post("/scan", response_model=ScanResultResponse)
 async def scan_configs(files: list[UploadFile] = File(...), framework: Optional[str] = Form(None),
-                       criticality: Optional[str] = Form(None), internet_facing: bool = Form(False)):
+                       criticality: Optional[str] = Form(None), internet_facing: bool = Form(False),
+                       policy: Optional[str] = Form(None)):
     """
     Upload one or more config files for security analysis.
     Returns findings, score, and device info.
@@ -672,6 +687,7 @@ async def scan_configs(files: list[UploadFile] = File(...), framework: Optional[
     framework = validated_framework(framework)
     if criticality not in (None, "", *CRITICALITY):
         raise HTTPException(422, f"criticality must be one of: {', '.join(CRITICALITY)}")
+    chosen = parsed_policy(policy)
 
     sources: list[tuple[str, str]] = []
     for file in files:
@@ -685,7 +701,18 @@ async def scan_configs(files: list[UploadFile] = File(...), framework: Optional[
         except UnicodeDecodeError:
             raise HTTPException(400, f"File '{file.filename}' is not a valid text file")
 
-    return run_scan(sources, framework, {"criticality": criticality or None, "internet_facing": internet_facing})
+    return run_scan(sources, framework, {"criticality": criticality or None, "internet_facing": internet_facing},
+                    chosen)
+
+
+def parsed_policy(text: Optional[str]) -> Optional[org_policy.Policy]:
+    """The organisation policy sent with an upload (JSON text), or None; 422 says what is wrong with it."""
+    if not (text or "").strip():
+        return None
+    try:
+        return org_policy.parse(json.loads(text))
+    except ValueError as e:  # includes invalid JSON
+        raise HTTPException(422, f"Organisation policy: {e}")
 
 
 @router.get("/scan/{scan_id}", response_model=ScanResultResponse)
@@ -786,6 +813,7 @@ def live_scan(scan_id: str) -> dict:
     """The in-memory scan an action needs; an archived scan is explained, not reported missing."""
     entry = _scan_store.get(scan_id)
     if entry:
+        org_policy.activate(entry.get("policy"))
         return entry
     if load_scan(scan_id) is not None:
         raise HTTPException(409, "This scan was restored from history: its configuration is not kept, because it "

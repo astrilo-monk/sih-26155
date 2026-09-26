@@ -92,6 +92,7 @@ export const apiClient = {
     if (framework) formData.append('framework', framework);
     if (context.criticality) formData.append('criticality', context.criticality);
     if (context.internetFacing) formData.append('internet_facing', 'true');
+    if (context.policy) formData.append('policy', context.policy);
 
     const response = await fetch(`${API_BASE_URL}/scan`, {
       method: 'POST',

@@ -253,6 +253,7 @@ A line holding a secret (password, key, community string) is never stored as a m
 | [docs/security-model.md](docs/security-model.md) | Trust boundaries and safety guarantees |
 | [docs/ai-design.md](docs/ai-design.md) | AI judge, remediation candidates, verification, cache, legacy interpreter |
 | [docs/api.md](docs/api.md) | Endpoints and response fields |
+| [docs/policy.md](docs/policy.md) | Organisation policy: your own stricter baseline and approved servers |
 | [docs/cli.md](docs/cli.md) | Command line for CI pipelines (exit codes, SARIF, GitHub Actions) |
 | [docs/detection-rules.md](docs/detection-rules.md) | The 23 controls, per-vendor facts and remediation |
 | [docs/data-model.md](docs/data-model.md) | Core objects |

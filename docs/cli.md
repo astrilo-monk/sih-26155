@@ -15,6 +15,7 @@ python -m app.cli scan ../configs/ --fail-on high --sarif netaudit.sarif
 | `--framework` | `NIST_800_53`, `CIS`, `DISA_STIG` or `ISO_27001` (reporting only; every check still runs). |
 | `--sarif FILE` | Also write SARIF 2.1.0: each decided FAIL on the first line it cites. |
 | `--json` | Print the full scan result (the same JSON as `POST /api/scan`) instead of the summary. |
+| `--policy FILE` | Check against an organisation policy ([policy.md](policy.md)). |
 | `--db FILE` | Use this knowledge database (with what was taught there) instead of the shipped knowledge. |
 
 Exit codes: `0` passed, `1` a decided problem at or above the threshold, `2` bad arguments or unreadable input.
