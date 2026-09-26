@@ -310,8 +310,9 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
                 : 'Every check NetAuditAI could decide is decided. Anything still undecided is shown on Results with the reason.'}
           </p>
           <div className="actions">
-            {skipped.size > 0 && <button type="button" className="btn" onClick={() => setSkipped(new Set())}>Review skipped checks</button>}
-            <a className="btn btn-primary" href={`#/app/scan/${scanId}`}>Back to results</a>
+            <a className="btn btn-primary" href={`#/app/scan/${scanId}/fix`}>Next: fix the problems</a>
+            <a className="btn" href={`#/app/scan/${scanId}`}>See your score</a>
+            {skipped.size > 0 && <button type="button" className="btn btn-quiet" onClick={() => setSkipped(new Set())}>Review skipped checks</button>}
           </div>
         </div>
       )}

@@ -134,8 +134,19 @@ Remediate one control on one device.
 
 ### `POST /api/remediation/plan`
 Remediate every failing control of every device, in catalog order, verifying each step.
-* **Request JSON:** `{"scan_id": "123-abc", "inputs": {}}`
-* **Response JSON:** `RemediationPlanResponse`: `inputs` (every input spec) and `devices[]`, each with `vendor_status`, `remediations[]`, `candidates[]` (unconfirmed vendors), `fixed_controls`, the combined `checks`, `before` / `after` and `fixed_config` (every verified change; `null` when none).
+* **Request JSON:** `{"scan_id": "123-abc", "inputs": {}, "device_inputs": {"0": {"ntp_key": "NtpKey-2026"}}}`
+  -`inputs` apply to every device; `device_inputs` holds one device's own values by config index and overrides
+  `inputs` for that device only. The UI sends only `device_inputs`, so one router's answer never fills in another's
+  unless the person ticks *Use these values for every device that still needs them*.
+* **Response JSON:** `RemediationPlanResponse`: `inputs` (every input spec) and `devices[]`, each with `vendor_status`, `remediations[]`, `candidates[]` (unconfirmed vendors), `fixed_controls`, the combined `checks`, `before` / `after`, `fixed_config` (every verified change; `null` when none) and `fixed_diff` (the uploaded file against `fixed_config`, both redacted, for the *Preview the corrected file* panel).
+* A refused value answers `422` with `{"message": "Please check what you entered", "errors": {"NTP key": "use 8-32 letters, … e.g. NtpKey-2026"}}`, keyed by the field's label.
+
+### `POST /api/remediation/final`
+The score once every decision is made: the Fix page's **Next**. Same request as the plan. For each device it builds
+one file from every verified fix plus every candidate you confirmed whose effect NetAuditAI could simulate
+(a removal it verified), rescans it once and returns `before` / `after`, `included` (control ids in the file),
+`by_hand` (confirmed commands it could not simulate: never written into the file), `changed` and `diff`
+(redacted). A confirmed removal clears its finding but is not proven secure; the page says so.
 
 ### `POST /api/remediation/candidate/derive` (unconfirmed vendors)
 The change NetAuditAI works out for itself, already verified when it returns. **Request JSON:** the candidate
@@ -210,7 +221,8 @@ candidate's simulated change, byte-for-byte the text that was re-analysed when t
 
 ### `POST /api/download-fixed`
 Download the configuration(s) with every verified fix applied (unverified changes are never included).
-* **Request JSON:** `{"scan_id": "123-abc", "inputs": {}}`
+* **Request JSON:** `{"scan_id": "123-abc", "inputs": {}, "device_inputs": {}, "include_confirmed": false}` -
+  `include_confirmed: true` downloads exactly the file `/api/remediation/final` scored (after **Next**).
 * **Response:** one `.cfg` (text/plain) or a `.zip` of `<hostname>_fixed.cfg`. `409` when no configuration has a confirmed vendor; `400` when nothing was verified.
 * Confirmed vendors only, unchanged: an unconfirmed vendor's verified candidate copy is never included here, and is
   downloaded from `/api/remediation/candidate/download` instead.
@@ -266,6 +278,14 @@ The resolution queue: every applicable control the scan could not decide, i.e. e
 one) and `action`: `teach`, or `blocked` with a `blocked_reason` (a confirmed parser reads this config, or no
 recognizer can express the setting). Listing a control never changes it -it stays undecided until confirmed
 evidence decides it.
+
+### `POST /api/adaptive/scans/{scan_id}/ask-ai`
+*Ask AI to find the line* on the Teach page. **Request JSON:** `{"config_index": 0, "control_id": "MGMT-008"}`.
+Runs the scan's AI judge for this one undecided check (redacted, scrubbed excerpts only; one call). A suggestion is
+kept only when the deterministic verifier finds its quote on the cited line; kept suggestions then appear in
+`/unresolved` `suggested_lines`, and a person still confirms them. **Response:** `{"found": true}` or
+`{"found": false, "note": "…"}`. `503` without an AI key, `409` for a check that is already decided, `422` for a
+configuration a parser reads.
 
 ### `GET /api/adaptive/scans/{scan_id}/configs/{config_index}/lines`
 The uploaded configuration, redacted for display, so a person can point at any line: `lines[]` with `line_number`,

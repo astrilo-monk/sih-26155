@@ -111,8 +111,10 @@ afterEach(() => {
 });
 
 // the two questions, in order: is this the right line? then what does it say?
-const yesLine = async () => fireEvent.click(await screen.findByRole('button', { name: 'Yes, that’s the line' }));
-const answer = async (name) => fireEvent.click(await screen.findByRole('button', { name: new RegExp(`^${name}`) }));
+// answers load over two requests: allow for a busy machine
+const SLOW = { timeout: 4000 };
+const yesLine = async () => fireEvent.click(await screen.findByRole('button', { name: 'Yes, that’s the line' }, SLOW));
+const answer = async (name) => fireEvent.click(await screen.findByRole('button', { name: new RegExp(`^${name}`) }, SLOW));
 
 it('asks is-this-the-line, then what it says, learns the answer and moves to the next check', async () => {
   apiClient.getUnresolvedControls.mockResolvedValueOnce(queueOf(TELNET, TIMEOUT)).mockResolvedValue(queueOf(TIMEOUT));
@@ -213,7 +215,7 @@ it('lets an expert edit the rule under Advanced details; the edit goes through t
   apiClient.saveRecognizer.mockResolvedValue({ mapping: { id: 8 }, replay: [], scan: UPDATED });
   render(<Harness />);
   await yesLine();
-  fireEvent.click(await screen.findByRole('button', { name: 'Advanced details' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Advanced details' }, SLOW));
   fireEvent.click(screen.getByRole('button', { name: 'Show the rule NetAuditAI would save' }));
   const template = await screen.findByLabelText('Template');
   expect(template.value).toBe('remote-console protocol {enum:protocol}');

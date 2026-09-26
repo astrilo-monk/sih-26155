@@ -45,20 +45,29 @@ class ManualReview(Exception):
 # ── inputs (validated at the trust boundary: they are the only caller data written into a config) ──
 
 def _ipv4(value: str) -> str:
-    return str(ipaddress.IPv4Address(value.strip()))
+    try:
+        return str(ipaddress.IPv4Address(value.strip()))
+    except ValueError:
+        raise ValueError("enter an IPv4 address, e.g. 10.20.0.5") from None
 
 
 def _subnet(value: str) -> ipaddress.IPv4Network:
-    network = ipaddress.IPv4Network(value.strip(), strict=False)
+    try:
+        network = ipaddress.IPv4Network(value.strip(), strict=False)
+    except ValueError:
+        raise ValueError("enter a network with its prefix, e.g. 10.10.0.0/24") from None
     if network.prefixlen == 0:
         raise ValueError("0.0.0.0/0 would allow every source")
     return network
 
 
 def _key_id(value: str) -> int:
-    number = int(str(value).strip())
+    try:
+        number = int(str(value).strip())
+    except ValueError:
+        raise ValueError("enter a whole number from 1 to 65535, e.g. 1") from None
     if not 1 <= number <= 65535:
-        raise ValueError("must be between 1 and 65535")
+        raise ValueError("enter a whole number from 1 to 65535, e.g. 1")
     return number
 
 
@@ -67,7 +76,8 @@ _KEY = re.compile(r"[A-Za-z0-9._+=@%-]{8,32}")
 
 def _key(value: str) -> str:
     if not _KEY.fullmatch(value):
-        raise ValueError("use 8-32 letters, digits or . _ + = @ % -")
+        raise ValueError(f"use 8-32 letters, digits or . _ + = @ % - (you entered {len(value)} characters), "
+                         "e.g. NtpKey-2026")
     return value
 
 
@@ -80,10 +90,11 @@ class InputSpec:
 
 
 INPUTS: dict[str, InputSpec] = {spec.name: spec for spec in (
-    InputSpec("syslog_server", "Syslog server", "IPv4 address of the remote log collector", _ipv4),
-    InputSpec("ntp_server", "NTP server", "IPv4 address of a trusted NTP server", _ipv4),
-    InputSpec("ntp_key_id", "NTP key ID", "Key number (1-65535) shared with the NTP server", _key_id),
-    InputSpec("ntp_key", "NTP key", "Shared NTP key (8-32 characters); written only into the generated configuration",
+    InputSpec("syslog_server", "Syslog server", "IPv4 address of the remote log collector, e.g. 10.20.0.5", _ipv4),
+    InputSpec("ntp_server", "NTP server", "IPv4 address of a trusted NTP server, e.g. 10.20.0.123", _ipv4),
+    InputSpec("ntp_key_id", "NTP key ID", "A number from 1 to 65535 that names the key, e.g. 1. It must match the NTP server", _key_id),
+    InputSpec("ntp_key", "NTP key", "The secret shared with the NTP server, 8-32 characters, e.g. NtpKey-2026; written only into the "
+              "generated configuration",
               _key),
     InputSpec("management_subnet", "Management subnet", "Trusted administration network in CIDR, e.g. 10.10.0.0/24",
               _subnet),

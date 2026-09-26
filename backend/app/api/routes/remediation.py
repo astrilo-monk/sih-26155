@@ -21,6 +21,7 @@ See ``app.remediation.candidates``.
 
 from __future__ import annotations
 
+import difflib
 import io
 import re
 import zipfile
@@ -64,7 +65,8 @@ def _stored(scan_id: str) -> dict:
 def _inputs(raw: dict) -> dict:
     values, errors = parse_inputs(raw)
     if errors:
-        raise HTTPException(422, {"message": "Invalid remediation inputs", "errors": errors})
+        named = {INPUTS[n].label if n in INPUTS else n: msg for n, msg in errors.items()}
+        raise HTTPException(422, {"message": "Please check what you entered", "errors": named})
     return values
 
 
@@ -117,6 +119,14 @@ def _gate(stored: dict, index: int, control_id: str) -> Optional[Outcome]:
 def _provisional(stored: dict, index: int) -> dict[str, Outcome]:
     """Controls of a confirmed-vendor device whose stored verdict is only provisional: never remediated."""
     return {c: gate for c in CONTROLS if (gate := _gate(stored, index, c)) is not None}
+
+
+def _diff(redactor: Redactor, before: str, after: Optional[str]) -> str:
+    """The uploaded file against a corrected one, both redacted: what a download changes."""
+    if not after or after == before:
+        return ""
+    old, new = (redact_config_text(redactor, text).splitlines() for text in (before, after))
+    return "\n".join(difflib.unified_diff(old, new, "uploaded", "corrected", n=2, lineterm=""))
 
 
 def _summary(summary: Optional[dict]) -> Optional[PostureSummarySchema]:
@@ -235,6 +245,7 @@ def _device_plan(stored: dict, index: int, inputs: dict) -> DeviceRemediationPla
             fixed_controls=plan.fixed_controls, checks=_checks(plan.checks) if plan.fixed_controls else [],
             before=_summary(plan.before), after=_summary(plan.after) if plan.fixed_controls else None,
             fixed_config=redact_config_text(redactor, plan.fixed_config),
+            fixed_diff=_diff(redactor, config.raw_config, plan.fixed_config),
         )
     gates = _provisional(stored, index)
     plan = remediate_all(config.raw_config, inputs, skip=set(gates))
@@ -244,6 +255,7 @@ def _device_plan(stored: dict, index: int, inputs: dict) -> DeviceRemediationPla
         remediations=remediations, fixed_controls=plan.fixed_controls, checks=_checks(plan.checks),
         before=_summary(plan.before), after=_summary(plan.after),
         fixed_config=redact_config_text(redactor, plan.fixed_config),
+        fixed_diff=_diff(redactor, config.raw_config, plan.fixed_config),
     )
 
 
@@ -508,12 +520,14 @@ async def remediation_final(req: RemediationPlanRequest):
     stored = _stored(req.scan_id)
     devices = []
     for index, config in enumerate(stored["configs"]):
-        fixed, before, after, included, by_hand = _final(stored, index, _device_inputs(req, index))
-        redactor = config_redactor([config])
+        inputs = _device_inputs(req, index)
+        fixed, before, after, included, by_hand = _final(stored, index, inputs)
+        redactor = _redactor(stored, inputs, index)  # also hides the NTP key typed in
         devices.append(FinalDeviceSchema(
             config_index=index, device_hostname=config.device.hostname,
             before=_summary(before), after=_summary(after), included=included, changed=fixed is not None,
             by_hand=[ByHandSchema(control_id=c.control_id, command=display_scrub(redactor, c.command)) for c in by_hand],
+            diff=_diff(redactor, config.raw_config, fixed),
         ))
     return FinalReviewResponse(scan_id=req.scan_id, devices=devices)
 

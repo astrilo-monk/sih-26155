@@ -238,6 +238,7 @@ export function FixAction({ item, scan, audit }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [values, setValues] = useState({});
+  const [everywhere, setEverywhere] = useState(false);
   // an answer given on another finding can change what this one still needs: an old error no longer applies
   const missing = (rem?.missing_inputs || []).join(',');
   useEffect(() => { setError(null); }, [missing]);
@@ -289,7 +290,7 @@ export function FixAction({ item, scan, audit }) {
     const submit = (e) => {
       e.preventDefault();
       run(async () => {
-        const res = await audit.answer(item, values);
+        const res = await audit.answer(item, values, everywhere);
         if (res && res.status === 'needs_input') setError(res.reason);
       });
     };
@@ -314,6 +315,12 @@ export function FixAction({ item, scan, audit }) {
             </label>
           ))}
         </div>
+        {(scan.devices || []).length > 1 && (
+          <label className="check">
+            <input type="checkbox" checked={everywhere} onChange={(e) => setEverywhere(e.target.checked)} />
+            <span>Use these values for every device that still needs them</span>
+          </label>
+        )}
         <div className="actions">
           <button type="submit" className="btn btn-primary" disabled={busy || specs.some((s) => !(values[s.name] || '').trim())}>
             {busy ? 'Generating and verifying…' : 'Generate fix'}
@@ -392,6 +399,7 @@ function FindingSection({ item, scan, audit, label, index, onOpen }) {
         <Severity level={item.severity} />
         <button type="button" className="finding-title" onClick={() => onOpen(item)}>{item.title}</button>
         <MetaLine parts={[item.controlId, label]} />
+        {item.finding?.security_impact && <p className="small muted">Why it matters: {item.finding.security_impact}</p>}
       </div>
       <div className="finding-main">
         <StatusMark state={status.state}>{status.label}</StatusMark>
@@ -605,6 +613,15 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
         </p>
       )}
 
+      {plan && !final && devices.some((d) => d.fixed_diff) && (
+        <Disclosure summary="Preview the corrected file before you download it">
+          {devices.filter((d) => d.fixed_diff).map((d) => (
+            <FileDiff key={d.config_index} diff={d.fixed_diff} file={labels[d.config_index] ?? d.device_hostname}
+                      caption="your file → corrected file" />
+          ))}
+        </Disclosure>
+      )}
+
       {final && (
         <section className="verified enter" id="fix-final" role="status" aria-labelledby="final-title">
           <p className="verified-k" id="final-title">Your corrected configuration</p>
@@ -625,6 +642,11 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
                     {d.by_hand.map((h) => <li key={h.control_id}><span className="mono">{h.control_id}</span> <code>{h.command}</code></li>)}
                   </ul>
                 </>
+              )}
+              {d.diff && (
+                <Disclosure summary="See every change in the file">
+                  <FileDiff diff={d.diff} file={labels[d.config_index] ?? d.device_hostname} caption="your file → corrected file" />
+                </Disclosure>
               )}
             </div>
           ))}

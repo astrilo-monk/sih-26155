@@ -1,9 +1,23 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
+// A request that never reached the server (backend stopped or restarting, network down) says so in words
+// instead of the browser's "Failed to fetch". status 0: no HTTP answer at all.
+export const UNREACHABLE = 'Can’t reach the NetAuditAI server. Check that the backend is running, then try again.';
+async function fetch(url, options) {
+  try {
+    return await globalThis.fetch(url, options);
+  } catch {
+    const err = new Error(UNREACHABLE);
+    err.status = 0;
+    throw err;
+  }
+}
+
 function errorMessage(detail, status) {
   if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
     const fields = Object.entries(detail.errors || {}).map(([name, msg]) => `${name}: ${msg}`);
-    return [detail.message, ...fields].filter(Boolean).join(' -');
+    return fields.length ? `${detail.message || 'Please check what you entered'}. ${fields.join('. ')}.`
+      : (detail.message || `API error: ${status}`);
   }
   return (typeof detail === 'string' && detail) || `API error: ${status}`;
 }

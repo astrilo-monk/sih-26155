@@ -388,6 +388,8 @@ class DeviceRemediationPlanSchema(BaseModel):
     after: Optional[PostureSummarySchema] = None
     # Every verified change applied in sequence; None when nothing was fixed
     fixed_config: Optional[str] = None
+    # the uploaded file against fixed_config as a redacted unified diff: what the download changes
+    fixed_diff: str = ""
 
 
 class RemediationPlanResponse(BaseModel):
@@ -438,6 +440,8 @@ class FinalDeviceSchema(BaseModel):
     # confirmed commands NetAuditAI could not simulate: not in the file, apply them on the device yourself
     by_hand: list[ByHandSchema] = []
     changed: bool = False
+    # the uploaded file against the final one, redacted: what the download changes
+    diff: str = ""
 
 
 class FinalReviewResponse(BaseModel):

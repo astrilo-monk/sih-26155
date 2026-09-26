@@ -42,6 +42,13 @@ def test_confirmed_removals_and_manual_commands_in_the_final_review(seeded_adapt
     assert "MGMT-004" in device["included"]
     assert [h["control_id"] for h in device["by_hand"]] == ["LOG-002"]
     assert device["after"]["posture"] > first["devices"][0]["after"]["posture"]
+    # the preview is the uploaded file against the download, redacted: the community never appears
+    diff = device["diff"].splitlines()
+    assert "+set network profiles interface-management-profile UNTRUST-MGMT permitted-ip 10.50.0.0/24" in diff
+    assert any(l.startswith("-") and "snmp-community-string" in l for l in diff)
+    assert "public" not in device["diff"]
+    plan = client.post("/api/remediation/plan", json={"scan_id": scan["scan_id"], "inputs": inputs}).json()
+    assert "+set deviceconfig system service disable-telnet yes" in plan["devices"][0]["fixed_diff"].splitlines()
 
     text = client.post("/api/download-fixed", json={"scan_id": scan["scan_id"], "inputs": inputs,
                                                     "include_confirmed": True}).text
@@ -85,3 +92,16 @@ def test_ask_ai_for_one_check_keeps_only_that_checks_suggestions(seeded_adaptive
     # a decided check is refused
     decided = client.post(url, json={"config_index": 0, "control_id": "MGMT-001"})
     assert decided.status_code in (409, 503)
+
+
+def test_a_refused_value_names_the_field_and_shows_an_example(seeded_adaptive_db):
+    client = TestClient(app)
+    scan = _scan(client)
+    bad = client.post("/api/remediation/plan", json={"scan_id": scan["scan_id"],
+                                                     "device_inputs": {"0": {"ntp_key": "9", "ntp_key_id": "x"}}})
+    assert bad.status_code == 422
+    detail = bad.json()["detail"]
+    assert detail["message"] == "Please check what you entered"
+    assert "you entered 1 characters" in detail["errors"]["NTP key"] and "NtpKey-2026" in detail["errors"]["NTP key"]
+    assert detail["errors"]["NTP key ID"].startswith("enter a whole number from 1 to 65535")
+    assert "9" not in detail["errors"]["NTP key"].split("(")[0]  # the typed secret is never echoed back

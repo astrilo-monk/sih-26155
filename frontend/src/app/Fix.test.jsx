@@ -462,3 +462,32 @@ it('still says nothing has been verified when no candidate has been checked', as
   expect(await screen.findByText('Nothing to download yet: no fix has been verified.')).toBeTruthy();
   expect(screen.queryByText(/No corrected file for an unconfirmed vendor/)).toBeNull();
 });
+
+it('says why each problem matters, and previews the corrected file before the download', async () => {
+  apiClient.getRemediationPlan.mockResolvedValue(plan(PLAN.devices[0].remediations,
+    { fixed_diff: '--- uploaded\n+++ corrected\n@@ -3,1 +3,1 @@\n-ip ssh version 1\n+ip ssh version 2' }));
+  render(<Harness />);
+  expect(await screen.findByText('Why it matters: Everything is reachable')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Preview the corrected file before you download it' }));
+  expect(screen.getByText('ip ssh version 2')).toBeTruthy();
+  expect(screen.getByLabelText('1 added, 1 removed')).toBeTruthy();
+});
+
+it('gives an answer to one device only, unless the person asks for every device that needs it', async () => {
+  const two = {
+    ...SCAN, devices: [{ hostname: 'R1', vendor: 'cisco_ios' }, { hostname: 'R2', vendor: 'cisco_ios' }],
+    vendor_identification: [0, 1].map((i) => ({ config_index: i, detected_vendor: 'cisco_ios', status: 'confirmed' })),
+    results: [result('LOG-001'), result('LOG-001', { config_index: 1, device_hostname: 'R2' })], findings: [],
+  };
+  const asks = (i) => ({ ...item('LOG-001', 'needs_input', { missing_inputs: ['syslog_server'] }), config_index: i });
+  const device = (i) => ({ ...plan([asks(i)]).devices[0], config_index: i, device_hostname: `R${i + 1}`, fixed_controls: [] });
+  apiClient.getRemediationPlan.mockResolvedValue({ ...plan([]), devices: [device(0), device(1)] });
+  render(<Harness scan={two} />);
+
+  const [first] = await screen.findAllByLabelText('Syslog server');
+  fireEvent.change(first, { target: { value: '10.20.0.5' } });
+  fireEvent.click(screen.getAllByLabelText('Use these values for every device that still needs them')[0]);
+  fireEvent.click(screen.getAllByRole('button', { name: 'Generate fix' })[0]);
+  await waitFor(() => expect(apiClient.getRemediationPlan).toHaveBeenLastCalledWith('scan-1',
+    { 0: { syslog_server: '10.20.0.5' }, 1: { syslog_server: '10.20.0.5' } }));
+});

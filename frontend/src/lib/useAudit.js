@@ -120,9 +120,18 @@ export function useAudit(scan, revision, onScanExpired) {
   };
 
   // Regenerate the plan with the values a fix needs; errors are thrown to the form that asked
-  const answer = async (item, values) => {
-    const own = { ...(inputs.current[item.configIndex] || {}), ...values };
-    const next = await fetchPlan({ ...inputs.current, [item.configIndex]: own });
+  // everywhere: also give these values to every other device still asking for one of them (the person ticked it)
+  const answer = async (item, values, everywhere = false) => {
+    const names = Object.keys(values);
+    const targets = new Set([item.configIndex]);
+    if (everywhere) {
+      for (const d of plan?.devices || []) {
+        if (d.remediations.some((r) => (r.missing_inputs || []).some((n) => names.includes(n)))) targets.add(d.config_index);
+      }
+    }
+    const merged = { ...inputs.current };
+    for (const index of targets) merged[index] = { ...(merged[index] || {}), ...values };
+    const next = await fetchPlan(merged);
     const res = planItem(next, item.key);
     if (res) setVerified((v) => ({ ...v, [item.key]: res }));
     if (res?.status === 'fixed') markApplied([item.key]);
