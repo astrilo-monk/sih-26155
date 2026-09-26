@@ -51,6 +51,8 @@ from app.api.routes.scan import (
     redact_lines,
 )
 from app.api.schemas import (
+    AskAIRequest,
+    AskAIResponse,
     AcceptInterpretationRequest,
     CandidateMappingSchema,
     EditInterpretationRequest,
@@ -375,7 +377,7 @@ async def reject_interpretation(
     entry = _get_entry(scan_id)
     config_index, record_index, record = _pending_record(entry, item_id)
     config: NormalizedConfig = entry["configs"][config_index]
-    reason = (body.reason if body else None) or "Rejected by administrator"
+    reason = (body.reason if body else None) or "Rejected by you"
 
     _repository().record_rejection(record.raw_line, vendor=config.device.vendor.value, reason=reason)
 
@@ -556,7 +558,7 @@ async def reject_provisional_line(scan_id: str, body: RejectProvisionalRequest):
                                                       _ai_candidates(config, body.control_id))):
         raise HTTPException(404, f"Line {body.line_number} holds no provisional statement for this control")
     _repository().record_rejection(config.raw_lines[body.line_number - 1], vendor=config.device.vendor.value,
-                                   reason=body.reason or "Heuristic rejected by administrator")
+                                   reason=body.reason or "Heuristic rejected by you")
     reanalyze_scan(scan_id)
     return build_scan_response(scan_id)
 
@@ -576,6 +578,36 @@ def _teach_line_schema(config: NormalizedConfig, redactor: Redactor, line_number
         subject=candidate.subject if candidate else None,
         value=display_scrub(redactor, value) if isinstance(value, str) else value,
     )
+
+
+@router.post("/scans/{scan_id}/ask-ai", response_model=AskAIResponse)
+async def ask_ai_for_line(scan_id: str, body: AskAIRequest):
+    """Ask the AI which line answers one undecided check, the same way a scan escalates.
+
+    The judge sees only redacted, scrubbed excerpts, and a suggestion is kept only when the deterministic
+    verifier finds its quote on the cited line. It decides nothing: a person still confirms the line on the
+    teach page, and nothing is counted before that.
+    """
+    from app.ai.client import is_available
+    from app.ai.judge import Budget, judge_config
+
+    entry = _get_entry(scan_id)
+    config = _unknown_config(entry, body.config_index)
+    _control(body.control_id)
+    if not is_available():
+        raise HTTPException(503, "The AI assistant is not configured on this server")
+    result = next((r for r in _device_results(entry.get("result"), entry["configs"], body.config_index)
+                   if r.control_id == body.control_id), None)
+    if result is None or result.status not in (Status.UNKNOWN, Status.NOT_CONFIGURED):
+        raise HTTPException(409, f"{body.control_id} is already decided for this configuration")
+    kept = [f for f in config.ai_facts if f.control_id != body.control_id]
+    config.ai_notes.pop(body.control_id, None)
+    judge_config(config, [result], Budget(remaining=1))
+    found = [f for f in config.ai_facts if f.control_id == body.control_id]
+    config.ai_facts = kept + found
+    note = None if found else (config.ai_notes.get(body.control_id)
+                               or "The AI found no line in this configuration that answers this check")
+    return AskAIResponse(found=bool(found), note=note)
 
 
 @router.get("/scans/{scan_id}/unresolved", response_model=UnresolvedQueueResponse)

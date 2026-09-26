@@ -370,6 +370,8 @@ class RemediationCandidateSchema(BaseModel):
 class RemediationPlanRequest(BaseModel):
     scan_id: str
     inputs: dict[str, str] = {}
+    # values for one config only, by config index; they override ``inputs`` for that device
+    device_inputs: dict[int, dict[str, str]] = {}
 
 
 class DeviceRemediationPlanSchema(BaseModel):
@@ -416,6 +418,31 @@ class AssistantResponse(BaseModel):
 class DownloadFixedRequest(BaseModel):
     scan_id: str
     inputs: dict[str, str] = {}
+    device_inputs: dict[int, dict[str, str]] = {}
+    # also apply every candidate you confirmed whose effect NetAuditAI could simulate (see /remediation/final)
+    include_confirmed: bool = False
+
+
+class ByHandSchema(BaseModel):
+    control_id: str
+    command: str
+
+
+class FinalDeviceSchema(BaseModel):
+    """One device with every verified fix and every simulated change you confirmed, rescanned once."""
+    config_index: int
+    device_hostname: Optional[str] = None
+    before: Optional[PostureSummarySchema] = None
+    after: Optional[PostureSummarySchema] = None
+    included: list[str] = []
+    # confirmed commands NetAuditAI could not simulate: not in the file, apply them on the device yourself
+    by_hand: list[ByHandSchema] = []
+    changed: bool = False
+
+
+class FinalReviewResponse(BaseModel):
+    scan_id: str
+    devices: list[FinalDeviceSchema]
 
 
 # ── Adaptive training (Phase 4/5) ─────────────────────────────────────────────
@@ -545,6 +572,17 @@ class MeaningOptionsResponse(BaseModel):
     line_number: int
     text: str
     options: list[MeaningOptionSchema]
+
+
+class AskAIRequest(BaseModel):
+    config_index: int = 0
+    control_id: str
+
+
+class AskAIResponse(BaseModel):
+    # the AI's verified line suggestions are served by /unresolved as suggested_lines; this says whether any held up
+    found: bool
+    note: Optional[str] = None
 
 
 class RecognizerDraftRequest(BaseModel):

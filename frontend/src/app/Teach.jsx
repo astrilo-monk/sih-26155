@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../api/client';
-import { Evidence, StatusMark } from '../components/ui/Evidence';
+import { Evidence } from '../components/ui/Evidence';
 import { Notice } from '../components/ui/primitives';
-import { deviceLabels, explainGate, sayFact, sayMeaning, statusState, vendorName } from '../lib/domain';
+import { deviceLabels, explainGate, sayFact, sayMeaning, vendorName } from '../lib/domain';
 import { UnresolvedDetail } from './Unresolved';
 import LegacyInterpretations from './LegacyInterpretations';
 
@@ -11,7 +11,7 @@ import LegacyInterpretations from './LegacyInterpretations';
 // safety gates and replays it, and only then saves it -nothing is counted before that, and nothing here can
 // bypass those checks. The uploaded configuration is only ever read. The technical draft stays under Advanced.
 
-const STEPS = ['The check', 'The line', 'Your answer', 'Learned'];
+const STEPS = ['The question', 'The line', 'What it says', 'Learned'];
 const fmtValue = (v) => (typeof v === 'string' ? v : JSON.stringify(v));
 const itemKey = (item) => `${item.config_index}-${item.control_id}`;
 const meaningKey = (m) => `${m.predicate}|${m.subject ?? ''}|${JSON.stringify(m.value ?? null)}`;
@@ -126,7 +126,7 @@ function ConfigPicker({ scanId, configIndex, chosen, onPick }) {
         {lines.map((line) => (
           <li key={line.line_number} className={chosen === line.line_number ? 'is-chosen' : ''}>
             <button type="button" className="config-line" disabled={!line.teachable}
-              aria-pressed={chosen === line.line_number} onClick={() => onPick(line.line_number)}>
+              aria-pressed={chosen === line.line_number} onClick={() => onPick(line.line_number, line.text)}>
               <span className="config-n tnum">{line.line_number}</span>
               <code>{line.text || ' '}</code>
             </button>
@@ -148,11 +148,14 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
   const [focus, setFocus] = useState(focusKey || null);
   const [phase, setPhase] = useState({ kind: 'ask' });
   const [line, setLine] = useState(null);
-  const [choice, setChoice] = useState('');
   const [edits, setEdits] = useState(null);
   const [options, setOptions] = useState(null);
   const [optionsError, setOptionsError] = useState(null);
   const [picking, setPicking] = useState(false);
+  // 'line': is this the right line?  'meaning': what does it say?
+  const [step, setStep] = useState('line');
+  const [pickedText, setPickedText] = useState('');
+  const [ai, setAi] = useState({ busy: false, note: null, asked: null });
 
   const queue = open.filter((i) => !skipped.has(itemKey(i)));
   // Once answered, the check stays on screen (the queue refreshes underneath) until the person continues
@@ -160,13 +163,13 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
   const key = item ? itemKey(item) : null;
   const allConfirmed = (scan.vendor_identification || []).length > 0 && scan.vendor_identification.every((v) => v.status === 'confirmed');
 
-  // A new check starts with its best suggested line and no answer
+  // A new check starts at "is this the right line?" with nothing chosen
   useEffect(() => {
     if (phase.kind !== 'ask') return;
-    setLine(item?.suggested_lines?.[0]?.line_number ?? null);
-    setChoice('');
+    setLine(null);
     setEdits(null);
-    setPicking(!item?.suggested_lines?.length);
+    setPicking(false);
+    setStep('line');
   }, [key, phase.kind]);
 
   // What this line may mean for this check -the backend decides, from the check's own settings
@@ -185,7 +188,29 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
   }, [scanId, key, line]);
 
   const chosenLine = item?.suggested_lines?.find((l) => l.line_number === line)
-    || (line != null ? { line_number: line, text: '', predicate: null } : null);
+    || (line != null ? { line_number: line, text: pickedText, predicate: null } : null);
+  const suggestion = item?.suggested_lines?.[0] || null;
+
+  const useLine = (n, text = '') => {
+    setLine(n);
+    setPickedText(text);
+    setEdits(null);
+    setPicking(false);
+    setStep('meaning');
+  };
+
+  // Ask the AI which line answers this check: it sees redacted lines only, and what it suggests still has to
+  // be confirmed here like any other suggestion
+  const askAI = async () => {
+    setAi({ busy: true, note: null, asked: key });
+    try {
+      const res = await apiClient.askAI(scanId, item.config_index, item.control_id);
+      if (res.found) await audit.loadQueue();
+      setAi({ busy: false, note: res.found ? null : res.note, asked: key });
+    } catch (err) {
+      setAi({ busy: false, note: err.message, asked: key });
+    }
+  };
 
   const next = () => {
     setFocus(null);
@@ -200,10 +225,14 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
     return false;
   };
 
-  const submit = async () => {
+  const skip = () => {
+    setSkipped((s) => new Set(s).add(key));
+    next();
+  };
+
+  const submit = async (choice) => {
     if (choice === 'skip') {
-      setSkipped((s) => new Set(s).add(key));
-      next();
+      skip();
       return;
     }
     const meaning = (options || []).find((o) => meaningKey(o) === choice);
@@ -240,7 +269,7 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
     }
   };
 
-  const stepOn = { ask: line == null ? 0 : choice ? 2 : 1, checking: 2, failed: 2, rejected: 2, learned: 3 }[phase.kind];
+  const stepOn = { ask: step === 'line' ? 1 : 2, checking: 2, failed: 2, rejected: 2, learned: 3 }[phase.kind];
   const moreAfter = phase.item && queue.some((i) => itemKey(i) !== itemKey(phase.item));
   const continueButton = (
     <button type="button" className="btn btn-primary" onClick={next}>{moreAfter ? 'Continue to the next check' : 'Continue'}</button>
@@ -253,9 +282,9 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
         <p className="eyebrow">Teach NetAuditAI</p>
         <h1 className="page-title">Finish this assessment</h1>
         <p className="lede">
-          NetAuditAI could not decide some checks from this configuration alone. Show it which line answers one and
-          say what that line means. It checks your answer against the line, re-checks the same configuration, and
-          remembers the meaning for future scans. Your file is never changed.
+          NetAuditAI couldn’t decide some checks on its own. For each one it asks two things: is this the right line,
+          and what does it say? Skip anything your file doesn’t have. What you teach is checked against the line and
+          remembered for future scans. Your file is never changed.
         </p>
       </header>
 
@@ -302,87 +331,109 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
                 {labels.length > 1 && ` · ${labels[item.config_index]}`}
               </p>
               <h2 className="teach-title" id="teach-title">{item.question}</h2>
-              <div className="teach-status">
-                <StatusMark state={statusState(item.status)}>
-                  {item.status === 'not_configured' ? 'Not configured' : 'Not enough information'}
-                </StatusMark>
-                <p>{item.reason}</p>
-              </div>
 
-              <fieldset className="choices" disabled={phase.kind === 'checking'}>
-                <legend>Which line of your configuration answers this?</legend>
-                {(item.suggested_lines || []).length > 0 && !picking && (
-                  <ul className="teach-lines">
-                    {item.suggested_lines.map((l) => (
-                      <li key={l.line_number}>
-                        <label className={`choice ${line === l.line_number ? 'is-checked' : ''}`}>
-                          <input type="radio" name="teach-line" checked={line === l.line_number}
-                            onChange={() => { setLine(l.line_number); setChoice(''); setEdits(null); }} />
-                          <span>
-                            <code className="code">{l.line_number}: {l.text}</code>
-                            {l.scope_path?.length > 0 && <span className="small muted"> in {l.scope_path.join(' › ')}</span>}
-                            {sayFact(l) && <span className="teach-guess"> We think it {sayFact(l)}.</span>}
-                          </span>
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <button type="button" className="btn btn-sm" onClick={() => setPicking((v) => !v)}>
-                  {picking ? 'Back to the suggested lines' : 'Show the whole configuration'}
-                </button>
-                {picking && (
-                  <ConfigPicker scanId={scanId} configIndex={item.config_index} chosen={line}
-                    onPick={(n) => { setLine(n); setChoice(''); setEdits(null); }} />
-                )}
-              </fieldset>
-
-              {line != null && (
-                <>
-                  <Evidence lineNumbers={[line]} lines={[chosenLine.text]} title="The line you chose" />
-                  {optionsError && <p className="field-error" role="alert">{optionsError}</p>}
-                  {options == null && !optionsError && <p className="muted" aria-busy="true">Loading what this line could mean…</p>}
-                  {options && (
-                    <fieldset className="choices" disabled={phase.kind === 'checking'}>
-                      <legend>What does this line say about this check?</legend>
-                      {/* The answers come from the control's own settings, not from the line, so the list
-                          is identical on every line. Saying so stops it reading as a stuck control. */}
-                      <p className="small muted choices-hint">
-                        These are the answers this check can take, so they stay the same whichever line you pick.
-                      </p>
-                      {options.map((o) => (
-                        <label key={meaningKey(o)} className={`choice ${choice === meaningKey(o) ? 'is-checked' : ''}`}>
-                          <input type="radio" name="teach-meaning" value={meaningKey(o)}
-                            checked={choice === meaningKey(o)} onChange={() => setChoice(meaningKey(o))} />
-                          <span>It {sayMeaning(o) || `answers “${item.question}”`}</span>
-                        </label>
-                      ))}
-                      {chosenLine.predicate && (
-                        <label className={`choice ${choice === 'reject' ? 'is-checked' : ''}`}>
-                          <input type="radio" name="teach-meaning" value="reject" checked={choice === 'reject'} onChange={() => setChoice('reject')} />
-                          <span>Something else -NetAuditAI misread this line</span>
-                        </label>
-                      )}
-                      <label className={`choice ${choice === 'skip' ? 'is-checked' : ''}`}>
-                        <input type="radio" name="teach-meaning" value="skip" checked={choice === 'skip'} onChange={() => setChoice('skip')} />
-                        <span>I’m not sure -skip this check for now</span>
-                      </label>
-                    </fieldset>
+              {step === 'line' && !picking && (
+                <div className="teach-ask">
+                  {suggestion ? (
+                    <>
+                      <p className="small muted">NetAuditAI thinks this line answers it:</p>
+                      <Evidence lineNumbers={[suggestion.line_number]} lines={[suggestion.text]} />
+                      {sayFact(suggestion) && <p className="teach-guess">We think it {sayFact(suggestion)}.</p>}
+                      <p className="fix-lead">Is this the right line?</p>
+                      <div className="actions">
+                        <button type="button" className="btn btn-primary" onClick={() => useLine(suggestion.line_number, suggestion.text)}>
+                          Yes, that’s the line
+                        </button>
+                        <button type="button" className="btn" onClick={() => setPicking(true)}>No, it’s a different line</button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="fix-lead">NetAuditAI couldn’t find a line in your file that answers this.</p>
+                      <p className="small muted">If your file does set it, show NetAuditAI the line. If it doesn’t, skip: the check stays undecided and is not counted.</p>
+                      <div className="actions">
+                        <button type="button" className="btn btn-primary" onClick={() => setPicking(true)}>I’ll show you the line</button>
+                      </div>
+                    </>
                   )}
-                </>
+                  <div className="actions">
+                    {ai.asked !== key && (
+                      <button type="button" className="btn" onClick={askAI} disabled={ai.busy}>
+                        {ai.busy ? 'Asking AI…' : 'Ask AI to find the line'}
+                      </button>
+                    )}
+                    <button type="button" className="btn btn-quiet" onClick={skip}>My file doesn’t have this: skip</button>
+                  </div>
+                  {ai.asked === key && ai.busy && <p className="muted" aria-busy="true">Asking AI…</p>}
+                  {ai.asked === key && !ai.busy && (
+                    <p className="small muted" role="status">
+                      {ai.note ? `AI: ${ai.note}` : 'The AI’s suggestion is shown above. Check it before you say yes.'}
+                    </p>
+                  )}
+                </div>
               )}
 
-              <p className="small muted">
-                When you continue, NetAuditAI checks that this meaning really is stated on that line before it saves
-                anything. A line that doesn’t say it can’t teach it.
-              </p>
-              <div className="actions">
-                <button type="button" className="btn btn-primary" onClick={submit} disabled={!choice || phase.kind === 'checking'}>
-                  {phase.kind === 'checking' ? 'Checking…' : 'Continue'}
-                </button>
-              </div>
+              {step === 'line' && picking && (
+                <div className="teach-ask">
+                  <p className="fix-lead">Click the line that answers the question.</p>
+                  {(item.suggested_lines || []).length > 1 && (
+                    <ul className="teach-lines">
+                      {item.suggested_lines.slice(1).map((l) => (
+                        <li key={l.line_number}>
+                          <button type="button" className="config-line" onClick={() => useLine(l.line_number, l.text)}>
+                            <code>{l.line_number}: {l.text}</code>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <ConfigPicker scanId={scanId} configIndex={item.config_index} chosen={line} onPick={useLine} />
+                  <div className="actions">
+                    <button type="button" className="btn btn-quiet" onClick={() => setPicking(false)}>Back</button>
+                    <button type="button" className="btn btn-quiet" onClick={skip}>My file doesn’t have this: skip</button>
+                  </div>
+                </div>
+              )}
+
+              {step === 'meaning' && line != null && (
+                <div className="teach-ask">
+                  <Evidence lineNumbers={[line]} lines={[chosenLine.text]} title="The line" />
+                  <p className="fix-lead">What does this line say?</p>
+                  {optionsError && <p className="field-error" role="alert">{optionsError}</p>}
+                  {options == null && !optionsError && <p className="muted" aria-busy="true">Loading the answers…</p>}
+                  {options && (
+                    <div className="actions teach-answers">
+                      {options.map((o) => {
+                        const guess = chosenLine.predicate === o.predicate
+                          && JSON.stringify(chosenLine.value ?? null) === JSON.stringify(o.value ?? null);
+                        return (
+                          <button key={meaningKey(o)} type="button" className={`btn${guess ? ' btn-primary' : ''}`}
+                            disabled={phase.kind === 'checking'} onClick={() => submit(meaningKey(o))}>
+                            It {sayMeaning(o) || `answers “${item.question}”`}{guess ? ' (NetAuditAI’s guess)' : ''}
+                          </button>
+                        );
+                      })}
+                      {chosenLine.predicate && (
+                        <button type="button" className="btn" disabled={phase.kind === 'checking'} onClick={() => submit('reject')}>
+                          Something else: NetAuditAI misread this line
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {phase.kind === 'checking' && <p className="muted" aria-busy="true">Checking your answer against the line…</p>}
+                  <p className="small muted">NetAuditAI checks that the line really says this before it saves anything.</p>
+                  <div className="actions">
+                    <button type="button" className="btn btn-quiet" disabled={phase.kind === 'checking'}
+                      onClick={() => { setStep('line'); setPicking(true); }}>
+                      Pick a different line
+                    </button>
+                    <button type="button" className="btn btn-quiet" onClick={skip} disabled={phase.kind === 'checking'}>I’m not sure: skip</button>
+                  </div>
+                </div>
+              )}
+
               <Toggle label="Why this check is undecided">{() => <UnresolvedDetail item={item} />}</Toggle>
-              {base && (
+              {base && step === 'meaning' && (
                 <Toggle label="Advanced details">
                   {() => <AdvancedDraft key={`${key}-${line}`} scanId={scanId} base={base} item={item} line={chosenLine} edits={edits} setEdits={setEdits} />}
                 </Toggle>

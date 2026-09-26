@@ -8,6 +8,7 @@ vi.mock('../api/client', () => ({
     getRemediationPlan: vi.fn(),
     getRemediation: vi.fn(),
     downloadFixedConfigs: vi.fn(),
+    remediationFinal: vi.fn(),
     getProvisionalResults: vi.fn(),
     getReviewQueue: vi.fn(),
     remediationCandidate: vi.fn(),
@@ -152,7 +153,7 @@ it('asks only for the value a fix needs, then shows the verified fix and downloa
 
   fireEvent.change(screen.getByLabelText('Syslog server'), { target: { value: '10.20.0.5' } });
   fireEvent.click(screen.getByRole('button', { name: 'Generate fix' }));
-  await waitFor(() => expect(apiClient.getRemediationPlan).toHaveBeenLastCalledWith('scan-1', { syslog_server: '10.20.0.5' }));
+  await waitFor(() => expect(apiClient.getRemediationPlan).toHaveBeenLastCalledWith('scan-1', { 0: { syslog_server: '10.20.0.5' } }));
   expect(await screen.findByText('Fix verified')).toBeTruthy();
   expect(screen.getByText('Logs are forwarded to 10.20.0.5')).toBeTruthy();
 
@@ -163,7 +164,7 @@ it('asks only for the value a fix needs, then shows the verified fix and downloa
   expect(screen.queryByRole('button', { name: /Fix the other/ })).toBeNull();
 
   fireEvent.click(screen.getAllByRole('button', { name: 'Download corrected configuration' })[0]);
-  await waitFor(() => expect(apiClient.downloadFixedConfigs).toHaveBeenCalledWith('scan-1', { syslog_server: '10.20.0.5' }));
+  await waitFor(() => expect(apiClient.downloadFixedConfigs).toHaveBeenCalledWith('scan-1', { 0: { syslog_server: '10.20.0.5' } }));
 });
 
 it('fixes one problem through the backend and only calls it fixed when the rescan verified it', async () => {
@@ -234,12 +235,12 @@ it('offers a candidate fix instead of a dead end when the vendor is not confirme
   render(<Harness scan={UNKNOWN_SCAN} />);
 
   // the problem is its own group, open, and says what is missing -never "can't fix"
-  expect(await screen.findByRole('region', { name: /Needs administrator input/ })).toBeTruthy();
-  expect(screen.getAllByText('Needs administrator input').length).toBeGreaterThan(0);
+  expect(await screen.findByRole('region', { name: /Needs your command/ })).toBeTruthy();
+  expect(screen.getAllByText('Needs your command').length).toBeGreaterThan(0);
   expect(screen.getByText(/no reviewed recognizer can write this fix/)).toBeTruthy();
   expect(screen.getByText('Disable Telnet and use SSH for remote management.')).toBeTruthy();
   // one status for the finding, and only one: no candidate yet means it is still waiting on a person
-  const finding = within(screen.getByRole('region', { name: /Needs administrator input/ }));
+  const finding = within(screen.getByRole('region', { name: /Needs your command/ }));
   expect(finding.getAllByText((_, el) => el?.className === 'status-word')).toHaveLength(1);
   expect(finding.getByText('Needs input')).toBeTruthy();
   expect(screen.queryByText('We can’t fix this automatically.')).toBeNull();
@@ -300,7 +301,7 @@ it('generates an AI candidate, labels it unverified, verifies it and confirms it
         { name: 'no_regression', passed: true, detail: 'No other control got worse' }],
     }))
     .mockResolvedValueOnce(candidate('confirmed', {
-      reason: 'Confirmed by an administrator. It was verified against the uploaded configuration; NetAuditAI has not connected to the device and has not changed it.',
+      reason: 'Confirmed by you. It was verified against the uploaded configuration; NetAuditAI has not connected to the device and has not changed it.',
       control_status_after: 'not_configured', confirmed_at: '2026-09-18T13:05:00',
     }));
   render(<Harness scan={UNKNOWN_SCAN} />);
@@ -332,7 +333,7 @@ it('generates an AI candidate, labels it unverified, verifies it and confirms it
   expect(screen.getAllByText(/has not connected to the device/).length).toBeGreaterThan(0);
   // the scan itself never moves: the problem is still a problem until the device is changed and rescanned
   expect(screen.queryByText('Fixes verified')).toBeNull();
-  expect(screen.getByRole('region', { name: /Needs administrator input/ })).toBeTruthy();
+  expect(screen.getByRole('region', { name: /Needs your command/ })).toBeTruthy();
 });
 
 it('sends a manually entered command as a candidate and shows a rejected one as rejected', async () => {
@@ -387,10 +388,10 @@ it('offers the verified corrected copy of a confirmed candidate, and never a dev
     checks: [{ name: 'target', passed: true, detail: 'MGMT-001 fail → not_configured on the edited copy' }] })]));
   render(<Harness scan={UNKNOWN_SCAN} />);
 
-  // the copy is per candidate; the page-wide "corrected configuration" is still only for a confirmed vendor
+  // every decision is made: the bar offers Next instead of a download
   const copy = await screen.findByRole('button', { name: 'Download verified corrected copy' });
-  expect(screen.getByRole('button', { name: 'Download corrected configuration' }).disabled).toBe(true);
-  expect(screen.getByText(/No corrected device configuration for an unconfirmed vendor/)).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Next' })).toBeTruthy();
+  expect(screen.getByText(/Every decision is made. Press Next/)).toBeTruthy();
   expect(screen.queryByText('Nothing to download yet: no fix has been verified.')).toBeNull();
   // the warning says what the file is and what it is not
   expect(screen.getByText('Verified against a copy of your uploaded configuration. This file has not been applied to a device.')).toBeTruthy();
@@ -434,7 +435,24 @@ it('offers no copy for a candidate the checks rejected', async () => {
 
   expect(await screen.findByText('Rejected')).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Download verified corrected copy' })).toBeNull();
-  expect(screen.getByText('Nothing to download yet: no fix has been verified.')).toBeTruthy();
+  // a rejected command is a decision too
+  expect(screen.getByRole('button', { name: 'Next' })).toBeTruthy();
+});
+
+it('Next rescores on the same page with your confirmed changes and downloads that file', async () => {
+  apiClient.getRemediationPlan.mockResolvedValue(unknownPlan([candidate('confirmed', {
+    control_status_after: 'not_configured', confirmed_at: '2026-09-18T13:05:00', download_available: true })]));
+  apiClient.remediationFinal.mockResolvedValue({ scan_id: 'scan-1', devices: [{
+    config_index: 0, device_hostname: 'JUNIPER-EDGE-01', before: { posture: 12, coverage: 64, vendor_status: 'unknown' },
+    after: { posture: 71, coverage: 64, vendor_status: 'unknown' }, included: ['MGMT-001'], changed: true,
+    by_hand: [{ control_id: 'LOG-002', command: 'set ntp authentication-key 1' }] }] });
+  render(<Harness scan={UNKNOWN_SCAN} />);
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Next' }));
+  expect(await screen.findByText('Your corrected configuration')).toBeTruthy();
+  expect(screen.getByText('set ntp authentication-key 1')).toBeTruthy();
+  fireEvent.click(screen.getAllByRole('button', { name: 'Download corrected configuration' })[0]);
+  await waitFor(() => expect(apiClient.downloadFixedConfigs).toHaveBeenCalledWith('scan-1', expect.anything(), true));
 });
 
 it('still says nothing has been verified when no candidate has been checked', async () => {

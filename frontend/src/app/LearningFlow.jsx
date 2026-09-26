@@ -1,5 +1,5 @@
 // The human-in-the-loop path every unfamiliar line takes, shown above this scan's questions and the learned list
-const STAGES = ['Unknown syntax', 'Administrator review', 'Mapping', 'Confirmation', 'Learned mapping'];
+const STAGES = ['Unknown syntax', 'Your review', 'Mapping', 'Confirmation', 'Learned mapping'];
 
 export default function LearningFlow({ scanHref, here }) {
   return (

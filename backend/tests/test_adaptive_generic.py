@@ -713,7 +713,7 @@ def test_ai_high_that_disagrees_with_similar_confirmed_mapping_goes_to_review():
     record = AdaptiveService(repository=repo, interpreter=interpreter_for("logging.remote_hosts"),
                              ai_available=lambda: True).process(cfg).records[0]
     # agreeing with confirmed knowledge is still only a proposal: the service never applies AI output (Phase 7)
-    assert record.source == "needs_review" and "administrator review" in record.reason
+    assert record.source == "needs_review" and "your review" in record.reason
     assert cfg.logging.remote_hosts == []
 
 

@@ -817,7 +817,7 @@ def test_legacy_known_vendor_interpreter_only_fills_the_review_queue(monkeypatch
     record = next(m for m in legacy["adaptive"]["ai_mappings"] if "secure-shell" in m["raw_line"])
     # a valid HIGH interpretation with cited evidence is still never applied without an administrator
     assert (record["source"], record["confidence_tier"]) == ("needs_review", "high")
-    assert "administrator review" in record["reason"]
+    assert "your review" in record["reason"]
 
     stored = lambda s: get_scan_store()[s["scan_id"]]["configs"][0]
     assert stored(legacy).management.ssh_version == stored(default).management.ssh_version

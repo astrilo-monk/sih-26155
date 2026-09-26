@@ -386,7 +386,7 @@ def confirm(candidate: Candidate) -> Candidate:
     verified = candidate.status == CandidateStatus.VERIFIED
     candidate.status = CandidateStatus.CONFIRMED
     candidate.reason = (
-        "Confirmed by an administrator. " + (
+        "Confirmed by you. " + (
             "It was verified against the uploaded configuration; " if verified
             else "It could not be verified automatically; ")
         + "NetAuditAI has not connected to the device and has not changed it. Apply the command "
@@ -399,5 +399,5 @@ def reject(candidate: Candidate, reason: str = "") -> Candidate:
     candidate.status = CandidateStatus.REJECTED
     candidate.confirmed_at = None
     candidate.verified_config = None
-    candidate.reason = reason.strip() or "Rejected by an administrator. Nothing was changed."
+    candidate.reason = reason.strip() or "Rejected by you. Nothing was changed."
     return candidate

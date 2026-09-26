@@ -37,7 +37,8 @@ from app.api.routes.scan import (
     _device_results, config_redactor, display_scrub, get_scan_store, live_scan, redact_config_text, redact_lines,
 )
 from app.api.schemas import (
-    DeviceRemediationPlanSchema, DownloadFixedRequest, EvidenceSchema, PostureSummarySchema,
+    ByHandSchema, DeviceRemediationPlanSchema, DownloadFixedRequest, EvidenceSchema, FinalDeviceSchema,
+    FinalReviewResponse, PostureSummarySchema,
     RemediationCandidateRequest, RemediationCandidateSchema, RemediationCheckSchema, RemediationInputSchema,
     RemediationPlanRequest, RemediationPlanResponse, RemediationRequest, RemediationResponse,
 )
@@ -46,7 +47,7 @@ from app.models.normalized import Vendor
 from app.models.results import DECISIVE_ASSURANCE, Status
 from app.remediation import candidates as cand
 from app.remediation.engine import (
-    INPUTS, Outcome, RemediationStatus, parse_inputs, remediate_all, remediate_control,
+    INPUTS, Outcome, RemediationStatus, analyze_generic_text, parse_inputs, remediate_all, remediate_control,
 )
 from app.remediation.writeback import writeback_all, writeback_control
 
@@ -65,6 +66,11 @@ def _inputs(raw: dict) -> dict:
     if errors:
         raise HTTPException(422, {"message": "Invalid remediation inputs", "errors": errors})
     return values
+
+
+def _device_inputs(req, index: int) -> dict:
+    """The scan-wide values with this config's own values on top."""
+    return _inputs({**req.inputs, **req.device_inputs.get(index, {})})
 
 
 def _confirmed(stored: dict, index: int) -> bool:
@@ -251,11 +257,10 @@ async def remediation_plan(req: RemediationPlanRequest):
             scan_id=req.scan_id, inputs=[_input_schema(n) for n in INPUTS],
             devices=[DeviceRemediationPlanSchema(**p) for p in archived[1] if p is not None])
     stored = _stored(req.scan_id)
-    inputs = _inputs(req.inputs)
     return RemediationPlanResponse(
         scan_id=req.scan_id,
         inputs=[_input_schema(n) for n in INPUTS],
-        devices=[_device_plan(stored, i, inputs) for i in range(len(stored["configs"]))],
+        devices=[_device_plan(stored, i, _device_inputs(req, i)) for i in range(len(stored["configs"]))],
     )
 
 
@@ -474,6 +479,45 @@ async def download_candidate_config(req: RemediationCandidateRequest):
     )
 
 
+def _final(stored: dict, index: int, inputs: dict):
+    """The config with every verified fix and every simulated change you confirmed, and what is left by hand.
+
+    Returns (fixed_text or None, before, after, included control ids, confirmed commands with no simulated
+    effect). A removal you confirmed drops the lines it was verified against; a command NetAuditAI could not
+    simulate is never written into the file."""
+    text = stored["configs"][index].raw_config
+    if _confirmed(stored, index):
+        plan = remediate_all(text, inputs, skip=set(_provisional(stored, index)))
+        return plan.fixed_config, plan.before, plan.after, list(plan.fixed_controls), []
+    confirmed = [c for c in _candidates(stored).values()
+                 if c.config_index == index and c.status == cand.CandidateStatus.CONFIRMED]
+    removals = [c for c in confirmed if c.effect == "removal"]
+    copy = cand.apply_to_copy(text, {n for c in removals for n, _ in c.evidence}) if removals else text
+    plan = writeback_all(copy, inputs, commands=_confirmed_commands(stored, index))
+    final = plan.fixed_config or copy
+    included = list(dict.fromkeys([*plan.fixed_controls, *(c.control_id for c in removals)]))
+    by_hand = [c for c in confirmed if c.effect not in ("applied", "removal")]
+    before = analyze_generic_text(text).summary()
+    after = analyze_generic_text(final).summary() if final != text else before
+    return (final if final != text else None), before, after, included, by_hand
+
+
+@router.post("/remediation/final", response_model=FinalReviewResponse)
+async def remediation_final(req: RemediationPlanRequest):
+    """The score once everything you decided is in: verified fixes plus the candidates you confirmed."""
+    stored = _stored(req.scan_id)
+    devices = []
+    for index, config in enumerate(stored["configs"]):
+        fixed, before, after, included, by_hand = _final(stored, index, _device_inputs(req, index))
+        redactor = config_redactor([config])
+        devices.append(FinalDeviceSchema(
+            config_index=index, device_hostname=config.device.hostname,
+            before=_summary(before), after=_summary(after), included=included, changed=fixed is not None,
+            by_hand=[ByHandSchema(control_id=c.control_id, command=display_scrub(redactor, c.command)) for c in by_hand],
+        ))
+    return FinalReviewResponse(scan_id=req.scan_id, devices=devices)
+
+
 @router.post("/download-fixed")
 async def download_fixed_configs(req: DownloadFixedRequest):
     """
@@ -483,10 +527,15 @@ async def download_fixed_configs(req: DownloadFixedRequest):
     Unverified changes are never included.
     """
     stored = _stored(req.scan_id)
-    inputs = _inputs(req.inputs)
 
     fixed = []
     for index, config in enumerate(stored["configs"]):
+        inputs = _device_inputs(req, index)
+        if req.include_confirmed:
+            text = _final(stored, index, inputs)[0]
+            if text is not None:
+                fixed.append((config.device.hostname or "device", text))
+            continue
         if _confirmed(stored, index):
             plan = remediate_all(config.raw_config, inputs, skip=set(_provisional(stored, index)))
         else:

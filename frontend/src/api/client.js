@@ -119,8 +119,14 @@ export const apiClient = {
     });
   },
 
-  getRemediationPlan(scanId, inputs = {}) {
-    return postJson('/remediation/plan', { scan_id: scanId, inputs });
+  // deviceInputs: each device's own values, by config index ({ 0: { ntp_key: … } })
+  getRemediationPlan(scanId, deviceInputs = {}) {
+    return postJson('/remediation/plan', { scan_id: scanId, device_inputs: deviceInputs });
+  },
+
+  // The score once every fix you decided on is in: verified fixes plus the candidates you confirmed
+  async remediationFinal(scanId, deviceInputs = {}) {
+    return postJson('/remediation/final', { scan_id: scanId, device_inputs: deviceInputs });
   },
 
   // Candidate remediation for a device whose vendor is not confirmed. `action` is 'derive' (the change
@@ -229,6 +235,11 @@ export const apiClient = {
 
   // The uploaded configuration as it was uploaded, redacted for display. Read-only: teaching cites a
   // line of it, and nothing in the API writes it back.
+  // Ask the AI which line answers one undecided check (redacted lines only; a person still confirms it)
+  async askAI(scanId, configIndex, controlId) {
+    return postJson(`/adaptive/scans/${scanId}/ask-ai`, { config_index: configIndex, control_id: controlId });
+  },
+
   async getConfigLines(scanId, configIndex) {
     const response = await fetch(`${API_BASE_URL}/adaptive/scans/${scanId}/configs/${configIndex}/lines`, { cache: 'no-cache' });
     return handleResponse(response);
@@ -274,8 +285,8 @@ export const apiClient = {
     await saveDownload('/report', { scan_id: scanId, config_index: configIndex, inputs });
   },
 
-  async downloadFixedConfigs(scanId, inputs = {}) {
-    await saveDownload('/download-fixed', { scan_id: scanId, inputs });
+  async downloadFixedConfigs(scanId, deviceInputs = {}, includeConfirmed = false) {
+    await saveDownload('/download-fixed', { scan_id: scanId, device_inputs: deviceInputs, include_confirmed: includeConfirmed });
   },
 
   // The verified corrected COPY of the uploaded configuration for one candidate (unconfirmed vendor).

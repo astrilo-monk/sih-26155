@@ -15,6 +15,7 @@ vi.mock('../api/client', () => ({
     draftRecognizer: vi.fn(),
     saveRecognizer: vi.fn(),
     rejectProvisionalLine: vi.fn(),
+    askAI: vi.fn(),
   },
 }));
 
@@ -109,7 +110,11 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-it('asks what an undecided check needs in plain words, learns the answer and moves to the next check', async () => {
+// the two questions, in order: is this the right line? then what does it say?
+const yesLine = async () => fireEvent.click(await screen.findByRole('button', { name: 'Yes, that’s the line' }));
+const answer = async (name) => fireEvent.click(await screen.findByRole('button', { name: new RegExp(`^${name}`) }));
+
+it('asks is-this-the-line, then what it says, learns the answer and moves to the next check', async () => {
   apiClient.getUnresolvedControls.mockResolvedValueOnce(queueOf(TELNET, TIMEOUT)).mockResolvedValue(queueOf(TIMEOUT));
   apiClient.draftRecognizer.mockResolvedValue(DRAFT);
   apiClient.saveRecognizer.mockResolvedValue({ mapping: { id: 7, command_pattern: DRAFT.draft.command_pattern }, replay: DRAFT.replay, scan: UPDATED });
@@ -118,14 +123,16 @@ it('asks what an undecided check needs in plain words, learns the answer and mov
 
   expect(await screen.findByText('Is cleartext Telnet disabled for remote management?')).toBeTruthy();
   expect(screen.getByText('Check 1 of 2')).toBeTruthy();
-  expect(screen.getByText('Not enough information')).toBeTruthy();
-  expect(await screen.findByText('It turns on Telnet remote access')).toBeTruthy();
+  expect(screen.getByText('NetAuditAI thinks this line answers it:')).toBeTruthy();
+  expect(screen.getByText('Is this the right line?')).toBeTruthy();
   // no internal machinery in the default view
   expect(container.textContent).not.toMatch(/recognizer|slot|JSON|predicate|provisional|heuristic|safety gate/i);
-  expect(screen.getByRole('button', { name: 'Continue' }).disabled).toBe(true);
+  // nothing is asked about meaning until the line is confirmed
+  expect(screen.queryByText('What does this line say?')).toBeNull();
 
-  fireEvent.click(screen.getByLabelText('It turns on Telnet remote access'));
-  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  await yesLine();
+  expect(await screen.findByText('What does this line say?')).toBeTruthy();
+  await answer('It turns on Telnet remote access');
 
   expect(await screen.findByText('NetAuditAI learned this')).toBeTruthy();
   expect(apiClient.draftRecognizer).toHaveBeenCalledWith('scan-1', ASK);
@@ -142,15 +149,16 @@ it('asks what an undecided check needs in plain words, learns the answer and mov
   fireEvent.click(await screen.findByRole('button', { name: 'Continue to the next check' }));
   expect(await screen.findByText('Do idle management sessions time out?')).toBeTruthy();
   expect(screen.getByText('Check 1 of 1')).toBeTruthy();
-  expect(await screen.findByText('It sets how long an idle session may stay open')).toBeTruthy();
+  await yesLine();
+  expect(await screen.findByRole('button', { name: /^It sets how long an idle session may stay open/ })).toBeTruthy();
 });
 
 it('a saved meaning that still does not decide the check is never counted', async () => {
   apiClient.draftRecognizer.mockResolvedValue(DRAFT);
   apiClient.saveRecognizer.mockResolvedValue({ mapping: { id: 7 }, replay: [], scan: { ...SCAN, results: [] } });
   render(<Harness />);
-  fireEvent.click(await screen.findByLabelText('It turns on Telnet remote access'));
-  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  await yesLine();
+  await answer('It turns on Telnet remote access');
   expect(await screen.findByText(/is still undecided/)).toBeTruthy();
   expect(screen.getByText(/Nothing was counted/)).toBeTruthy();
 });
@@ -158,8 +166,8 @@ it('a saved meaning that still does not decide the check is never counted', asyn
 it('explains a failed safety check in plain English, saves nothing, and lets the person try again', async () => {
   apiClient.draftRecognizer.mockResolvedValue({ ...DRAFT, errors: ['This line holds a secret value: a recognizer would store it, so it cannot be drafted from this line'], replay: [] });
   const { container } = render(<Harness />);
-  fireEvent.click(await screen.findByLabelText('It turns on Telnet remote access'));
-  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  await yesLine();
+  await answer('It turns on Telnet remote access');
 
   expect(await screen.findByText('NetAuditAI couldn’t safely save this.')).toBeTruthy();
   expect(screen.getByText(/contains a secret, such as a password or key/)).toBeTruthy();
@@ -170,29 +178,30 @@ it('explains a failed safety check in plain English, saves nothing, and lets the
   expect(screen.getByText(/recognizer would store it/)).toBeTruthy();
 
   fireEvent.click(screen.getByRole('button', { name: 'Try another line' }));
-  expect(await screen.findByText('Is cleartext Telnet disabled for remote management?')).toBeTruthy();
+  expect(await screen.findByText('Is this the right line?')).toBeTruthy();
 });
 
 it('treats a refused save the same way: nothing is claimed as learned', async () => {
   apiClient.draftRecognizer.mockResolvedValue(DRAFT);
   apiClient.saveRecognizer.mockRejectedValue(Object.assign(new Error('A recognizer already maps this template'), { status: 409 }));
   render(<Harness />);
-  fireEvent.click(await screen.findByLabelText('It turns on Telnet remote access'));
-  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  await yesLine();
+  await answer('It turns on Telnet remote access');
   expect(await screen.findByText('NetAuditAI couldn’t safely save this.')).toBeTruthy();
   expect(screen.getByText(/already knows a different meaning/)).toBeTruthy();
   expect(screen.queryByText('NetAuditAI learned this')).toBeNull();
 });
 
-it('rejects a misread line and propagates the re-evaluated scan', async () => {
+it('marks NetAuditAI’s own guess, and rejects a misread line', async () => {
   const read = { ...TELNET, suggested_lines: [{ ...TELNET.suggested_lines[0], predicate: 'mgmt.remote_access.protocol_enabled', subject: 'telnet', value: true }] };
   apiClient.getUnresolvedControls.mockResolvedValue(queueOf(read, TIMEOUT));
   apiClient.rejectProvisionalLine.mockResolvedValue(UPDATED);
   const onUpdated = vi.fn();
   render(<Harness onUpdated={onUpdated} />);
   expect(await screen.findByText(/We think it turns on Telnet remote access/)).toBeTruthy();
-  fireEvent.click(await screen.findByLabelText('Something else -NetAuditAI misread this line'));
-  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  await yesLine();
+  expect(await screen.findByRole('button', { name: 'It turns on Telnet remote access (NetAuditAI’s guess)' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Something else: NetAuditAI misread this line' }));
   expect(await screen.findByText('Got it.')).toBeTruthy();
   expect(apiClient.rejectProvisionalLine).toHaveBeenCalledWith('scan-1', { config_index: 0, control_id: 'MGMT-001', line_number: 71 });
   expect(onUpdated).toHaveBeenCalledWith(UPDATED);
@@ -203,35 +212,47 @@ it('lets an expert edit the rule under Advanced details; the edit goes through t
   apiClient.draftRecognizer.mockResolvedValue(DRAFT);
   apiClient.saveRecognizer.mockResolvedValue({ mapping: { id: 8 }, replay: [], scan: UPDATED });
   render(<Harness />);
+  await yesLine();
   fireEvent.click(await screen.findByRole('button', { name: 'Advanced details' }));
   fireEvent.click(screen.getByRole('button', { name: 'Show the rule NetAuditAI would save' }));
   const template = await screen.findByLabelText('Template');
   expect(template.value).toBe('remote-console protocol {enum:protocol}');
   fireEvent.change(template, { target: { value: 'remote-console protocol {enum:proto}' } });
 
-  fireEvent.click(screen.getByLabelText('It turns on Telnet remote access'));
-  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  await answer('It turns on Telnet remote access');
   expect(await screen.findByText('NetAuditAI learned this')).toBeTruthy();
   const edited = { ...ASK, command_pattern: 'remote-console protocol {enum:proto}', scope_template: '', value: '{"telnet": true, "*": false}', any_dialect: false };
   expect(apiClient.draftRecognizer).toHaveBeenLastCalledWith('scan-1', edited);
   expect(apiClient.saveRecognizer).toHaveBeenCalledWith('scan-1', edited);
 });
 
-it('can pick any line of the uploaded configuration instead of the suggested one', async () => {
+it('"No, it’s a different line" opens the file, and the picked line is asked about', async () => {
   render(<Harness />);
-  fireEvent.click(await screen.findByRole('button', { name: 'Show the whole configuration' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'No, it’s a different line' }));
   expect(await screen.findByRole('list', { name: 'Uploaded configuration' })).toBeTruthy();
   expect(apiClient.getConfigLines).toHaveBeenCalledWith('scan-1', 0);
+  fireEvent.click(screen.getByRole('button', { name: /71\s*remote-console protocol telnet/ }));
+  expect(await screen.findByText('What does this line say?')).toBeTruthy();
 });
 
-it('skips a check without answering it', async () => {
+it('without a suggestion it says so, and offers the file, the AI, or a skip', async () => {
+  apiClient.getUnresolvedControls.mockResolvedValue(queueOf({ ...TELNET, suggested_lines: [] }, TIMEOUT));
+  apiClient.askAI.mockResolvedValue({ found: false, note: 'The AI found no line in this configuration that answers this check' });
   render(<Harness />);
-  fireEvent.click(await screen.findByLabelText('I’m not sure -skip this check for now'));
-  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  expect(await screen.findByText('NetAuditAI couldn’t find a line in your file that answers this.')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'I’ll show you the line' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Ask AI to find the line' }));
+  expect(await screen.findByText(/AI: The AI found no line/)).toBeTruthy();
+  expect(apiClient.askAI).toHaveBeenCalledWith('scan-1', 0, 'MGMT-001');
+  expect(apiClient.draftRecognizer).not.toHaveBeenCalled();
+});
+
+it('skips checks in one click, and says skipped checks are not counted', async () => {
+  render(<Harness />);
+  fireEvent.click(await screen.findByRole('button', { name: 'My file doesn’t have this: skip' }));
   expect(await screen.findByText('Do idle management sessions time out?')).toBeTruthy();
   expect(screen.getByText('Check 1 of 1')).toBeTruthy();
-  fireEvent.click(await screen.findByLabelText('I’m not sure -skip this check for now'));
-  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  fireEvent.click(screen.getByRole('button', { name: 'My file doesn’t have this: skip' }));
   expect(await screen.findByText('No more checks for now.')).toBeTruthy();
   expect(screen.getByText(/Skipped checks stay undecided and uncounted/)).toBeTruthy();
   expect(apiClient.draftRecognizer).not.toHaveBeenCalled();

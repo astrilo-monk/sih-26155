@@ -228,7 +228,7 @@ def remediation_block(plan, index: int) -> list[Block]:
 
     if plan.vendor_status != "confirmed":
         blocks.append(("note", f"The vendor of {plan.device_hostname} is not confirmed, so NetAuditAI generates no "
-                               "vendor commands for it. Each problem is stated with what to change; an administrator "
+                               "vendor commands for it. Each problem is stated with what to change; you "
                                "can propose a command in the application, where it is checked against this "
                                "configuration before anything is accepted."))
     for item in items:
@@ -259,13 +259,13 @@ def remediation_block(plan, index: int) -> list[Block]:
 def unresolved_block(scan, index: int) -> list[Block]:
     """What the scan could not decide, and what it needs -the queue an administrator works through."""
     undecided = [r for r in _results_for(scan, index) if r.status in ("unknown", "not_configured")]
-    blocks: list[Block] = [("h2", "6. Checks that need administrator input")]
+    blocks: list[Block] = [("h2", "6. Checks that need your input")]
     if not undecided:
         blocks.append(("p", "None: every applicable control was decided from evidence."))
         return blocks
     rows = [[r.control_id, r.title, STATUS_WORDS.get(r.status, r.status.upper()), r.reason] for r in undecided]
     blocks.append(("table", (["Control", "Requirement", "Result", "Why it could not be decided"], rows)))
-    blocks.append(("note", "These are not failures and not passes. In the application's Teach page an administrator "
+    blocks.append(("note", "These are not failures and not passes. In the application's Teach page you "
                            "can point NetAuditAI at the configuration line that answers one and state what it means; "
                            "the same configuration is then re-checked and the result becomes decisive."))
     return blocks

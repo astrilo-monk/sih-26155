@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import FileDiff from '../components/ui/FileDiff';
 import Count from '../components/ui/Count';
 import { Severity, StatusMark } from '../components/ui/Evidence';
@@ -238,6 +238,9 @@ export function FixAction({ item, scan, audit }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [values, setValues] = useState({});
+  // an answer given on another finding can change what this one still needs: an old error no longer applies
+  const missing = (rem?.missing_inputs || []).join(',');
+  useEffect(() => { setError(null); }, [missing]);
 
   const run = async (action) => {
     setBusy(true);
@@ -427,6 +430,11 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
   const [downloading, setDownloading] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
   const [error, setError] = useState(null);
+  const [final, setFinal] = useState(null);
+  const [finalLoading, setFinalLoading] = useState(false);
+
+  // a decision changed after Next: the rescored result no longer matches it
+  useEffect(() => { setFinal(null); }, [plan, audit.candidates]);
 
   const items = checkItems(scan, plan).filter(isProblem);
   const counts = auditCounts(scan, plan, applied, audit.queue);
@@ -444,11 +452,30 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
   const remaining = items.length - fixed.length;
   const shared = { scan, audit, labels, onOpen };
 
+  // Next appears once every question is answered and every proposed command is confirmed or rejected
+  const decided = (i) => ['confirmed', 'rejected'].includes(audit.candidates?.[i.key]?.status);
+  const commandItems = inState('needs_admin');
+  const waiting = inState('needs_input').length + commandItems.filter((i) => !decided(i)).length;
+  const readyForNext = unconfirmed.length > 0 && commandItems.length > 0 && waiting === 0;
+
+  const handleNext = async () => {
+    setFinalLoading(true);
+    setError(null);
+    try {
+      setFinal(await audit.loadFinal());
+      requestAnimationFrame(() => document.getElementById('fix-final')?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setFinalLoading(false);
+    }
+  };
+
   const handleDownload = async () => {
     setDownloading(true);
     setError(null);
     try {
-      await audit.download();
+      await (final ? audit.downloadFinal() : audit.download());
       setDownloaded(true);
     } catch (err) {
       setError(err.message);
@@ -458,7 +485,8 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
   };
 
   const downloadButton = (
-    <button type="button" className="btn btn-primary" onClick={handleDownload} disabled={!downloadable || downloading}>
+    <button type="button" className="btn btn-primary" onClick={handleDownload}
+            disabled={!(final ? final.devices.some((d) => d.changed) : downloadable) || downloading}>
       {downloading ? 'Preparing…' : 'Download corrected configuration'}
     </button>
   );
@@ -554,7 +582,7 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
           <div id="fix-remaining">
             <Group id="fix-can" title="Can fix automatically" items={canFix} {...shared} />
             <Group id="fix-input" title="Needs your input" hint="Answer these and NetAuditAI generates and verifies the fix." items={inState('needs_input')} {...shared} />
-            <Group id="fix-candidate" title="Needs administrator input" hint={NEEDS_ADMIN_REASON}
+            <Group id="fix-candidate" title="Needs your command" hint={NEEDS_ADMIN_REASON}
                    items={inState('needs_admin')} {...shared} />
             <Group id="fix-manual" title="Needs manual action" hint="NetAuditAI shows what to change; you make the change on the device."
                    items={inState('manual', 'cannot_fix', 'verification_failed')} {...shared} />
@@ -577,6 +605,34 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
         </p>
       )}
 
+      {final && (
+        <section className="verified enter" id="fix-final" role="status" aria-labelledby="final-title">
+          <p className="verified-k" id="final-title">Your corrected configuration</p>
+          {final.devices.map((d) => (
+            <div key={d.config_index}>
+              <p className="score-move">
+                {labels.length > 1 && <span className="mono small">{labels[d.config_index]}</span>}
+                <span className="score-k">Before</span><span className="score-v tnum">{d.before?.posture ?? '-'}</span>
+                <span className="score-arrow" aria-hidden="true">→</span>
+                <span className="score-k">After</span>
+                <span className="score-v score-after tnum">{d.after?.posture == null ? '-' : <Count value={d.after.posture} from={d.before?.posture ?? 0} duration={700} />}</span>
+              </p>
+              <p className="verified-sum">{d.included.length} change{d.included.length === 1 ? '' : 's'} in the file · {d.after?.coverage ?? 0}% checked</p>
+              {d.by_hand.length > 0 && (
+                <>
+                  <p className="small muted">You confirmed these, but NetAuditAI can’t simulate them, so they are not in the file. Apply them on the device yourself:</p>
+                  <ul className="small">
+                    {d.by_hand.map((h) => <li key={h.control_id}><span className="mono">{h.control_id}</span> <code>{h.command}</code></li>)}
+                  </ul>
+                </>
+              )}
+            </div>
+          ))}
+          <p className="small muted">A removal you confirmed clears its finding, but it isn’t proven secure. Review the file before you deploy it.</p>
+          <div className="actions">{downloadButton}</div>
+        </section>
+      )}
+
       {downloaded && (
         <Notice label="Downloaded your corrected configuration." role="status"
                 action={<a className="btn btn-sm btn-quiet" href="#/app">Scan it</a>}>
@@ -587,13 +643,19 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
       {plan && items.length > 0 && (
         <ActionBar
           status={`${fixed.length} of ${items.length} verified`}
-          note={downloadable
+          note={final
+            ? 'Includes every verified fix and every change you confirmed that NetAuditAI could check against your file.'
+            : readyForNext
+            ? 'Every decision is made. Press Next to rescore the configuration with the changes you confirmed.'
+            : downloadable
             ? `Includes every fix NetAuditAI verified (${verifiedTotal}). Only changes that passed the rescan are included -review before deploying.`
             : candidateVerified
               ? 'No corrected device configuration for an unconfirmed vendor. Each verified candidate offers its own corrected copy of your uploaded file, above -NetAuditAI checked it against that file and has not applied it to a device.'
               : 'Nothing to download yet: no fix has been verified.'}
         >
-          {downloadButton}
+          {readyForNext && !final
+            ? <button type="button" className="btn btn-primary" onClick={handleNext} disabled={finalLoading}>{finalLoading ? 'Rescoring…' : 'Next'}</button>
+            : downloadButton}
         </ActionBar>
       )}
     </div>

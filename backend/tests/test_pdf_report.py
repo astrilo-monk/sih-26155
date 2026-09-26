@@ -178,7 +178,7 @@ def test_frameworks_are_reported_and_the_unmapped_ones_are_named(client):
 
 def test_undecided_checks_are_listed_with_what_they_need(client):
     body = text_of(client, upload(client, "juniper.cfg", JUNIPER_CFG.read_text(encoding="utf-8")))
-    assert "Checks that need administrator input" in body
+    assert "Checks that need your input" in body
     assert "NOT CONFIGURED" in body or "UNKNOWN" in body
     assert "These are not failures and not passes" in body
 

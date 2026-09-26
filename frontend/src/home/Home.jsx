@@ -59,7 +59,7 @@ const STATUSES = [
 
 const ASSURANCE_LADDER = [
   ['Parser evidence', 'A dedicated parser read the line', true],
-  ['Confirmed recognizer', 'A rule an administrator confirmed', true],
+  ['Confirmed recognizer', 'A rule you confirmed', true],
   ['Documented default', 'The platform’s documented behaviour', true],
   ['Heuristic reading', 'A wording match on unfamiliar syntax', false],
   ['AI proposal', 'A cited reading whose quote was verified', false],
@@ -435,8 +435,8 @@ export default function Home() {
         <section className="hsec" id="adaptive" aria-labelledby="adaptive-title">
           <div className="wrap">
             <SectionHead no="05" id="adaptive-title" title="It learns unfamiliar syntax -only when you confirm it.">
-              Controlled, human-in-the-loop adaptation. Not model training: nothing changes until an administrator
-              confirms a reading, and what is saved is a typed rule you can read, replay and disable.
+              Controlled, human-in-the-loop adaptation. Not model training: nothing changes until you
+              confirm a reading, and what is saved is a typed rule you can read, replay and disable.
             </SectionHead>
             <LearningLoop />
           </div>

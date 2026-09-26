@@ -28,7 +28,8 @@ export function useAudit(scan, revision, onScanExpired) {
   const [verified, setVerified] = useState({});
   // Candidate remediations (unconfirmed vendors), by item key: proposals awaiting verification or confirmation
   const [candidates, setCandidates] = useState({});
-  // The inputs the displayed plan was generated (and verified) with: the only inputs a fix or download may use
+  // The inputs the displayed plan was generated (and verified) with, per device by config index: the only
+  // inputs a fix or download may use. One device's answer never fills in another's.
   const inputs = useRef({});
   const loadedFor = useRef(null);
   const expiredRef = useRef(onScanExpired);
@@ -110,7 +111,8 @@ export function useAudit(scan, revision, onScanExpired) {
 
   // Generate and verify one fix on its own; "applied" only when the backend's rescan verified it
   const fixOne = async (item) => {
-    const res = await apiClient.getRemediation(scanId, item.controlId, item.primary.device_hostname, item.configIndex, inputs.current);
+    const res = await apiClient.getRemediation(scanId, item.controlId, item.primary.device_hostname, item.configIndex,
+      inputs.current[item.configIndex] || {});
     setVerified((v) => ({ ...v, [item.key]: res }));
     setPlan((p) => withItem(p, res));
     if (res.status === 'fixed') markApplied([item.key]);
@@ -119,7 +121,8 @@ export function useAudit(scan, revision, onScanExpired) {
 
   // Regenerate the plan with the values a fix needs; errors are thrown to the form that asked
   const answer = async (item, values) => {
-    const next = await fetchPlan({ ...inputs.current, ...values });
+    const own = { ...(inputs.current[item.configIndex] || {}), ...values };
+    const next = await fetchPlan({ ...inputs.current, [item.configIndex]: own });
     const res = planItem(next, item.key);
     if (res) setVerified((v) => ({ ...v, [item.key]: res }));
     if (res?.status === 'fixed') markApplied([item.key]);
@@ -147,8 +150,16 @@ export function useAudit(scan, revision, onScanExpired) {
     markRemediated(scanId);
   };
 
+  // After every decision is made: the rescored configuration with your confirmed changes, and its download
+  const loadFinal = () => apiClient.remediationFinal(scanId, inputs.current);
+  const downloadFinal = async () => {
+    await apiClient.downloadFixedConfigs(scanId, inputs.current, true);
+    markRemediated(scanId);
+  };
+
   return {
     plan, planLoading, planError, loadPlan, queue, queueError, loadQueue,
-    applied, markApplied, verified, fixOne, answer, download, candidates, candidateStep, candidateDownload,
+    applied, markApplied, verified, fixOne, answer, download, loadFinal, downloadFinal, candidates, candidateStep,
+    candidateDownload,
   };
 }

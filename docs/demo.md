@@ -36,7 +36,7 @@ is not empty for long: the shipped seed recognizers load into it on first use, w
     passing -no AI, no vendor grammar, nothing taught. Then point at what it refuses: **Fix it for me** never appears
     for a check that needs a setting *added*, and it will not delete an idle timeout to make a threshold check stop
     failing. Those stay with the person who owns the command.
-11. **Remediation, the other two ways.** The problem is **"Needs administrator input"**, not a dead end. Press
+11. **Remediation, the other two ways.** The problem is **"Needs your command"**, not a dead end. Press
     *Generate candidate fix* (AI on) or *Enter command manually* and type `delete system services telnet;`. The
     candidate is labelled **AI-generated candidate · Not checked yet** and NetAuditAI has changed nothing.
     Press *Verify candidate*: it is applied to a **copy** of the uploaded file, the copy is re-read by the generic

@@ -533,7 +533,7 @@ class AdaptiveMapper:
                 if not auto_apply:
                     return self._needs_review(
                         interp, confidence, tier,
-                        "HIGH confidence -AI interpretations are never applied without administrator review",
+                        "HIGH confidence -AI interpretations are never applied without your review",
                     )
                 return self._auto_map(config, interp, validation, confidence)
             # HIGH but invalid → needs_review
@@ -546,7 +546,7 @@ class AdaptiveMapper:
             # MEDIUM never writes to config -even if valid
             return self._needs_review(
                 interp, confidence, tier,
-                f"MEDIUM confidence -requires admin review before applying{note}",
+                f"MEDIUM confidence -needs your review before applying{note}",
             )
 
         # LOW
@@ -739,7 +739,7 @@ class AdaptiveMapper:
             extracted_value=None,
             confidence=0.0,
             confidence_tier=ConfidenceTier.LOW.value,
-            reasoning="Previously reviewed and rejected by an administrator",
+            reasoning="Previously reviewed and rejected by you",
             source=SOURCE_REJECTED,
             status="rejected",
             likely_vendor=line.vendor,
@@ -773,7 +773,7 @@ class AdaptiveMapper:
             final_value=write.final_value,
             mapping_id=mapping.id if mapping else record.mapping_id,
             security_concept=mapping.concept if mapping else record.security_concept,
-            reason="Confirmed by administrator",
+            reason="Confirmed by you",
         )
 
 
