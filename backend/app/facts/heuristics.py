@@ -534,6 +534,19 @@ def _interfaces(tokens) -> list[str]:
     return [t for t in tokens if _INTERFACE.match(t) and t not in _NOT_INTERFACES]
 
 
+def external_interfaces(statements) -> dict[str, Statement]:
+    """Interfaces placed in a zone whose name says it is external (``set zone untrust network layer3 ethernet1/1``),
+    each with the statement that says so. Nothing is concluded about a zone with any other name."""
+    external: dict[str, Statement] = {}
+    for s in statements:
+        keys = s.key_tokens
+        for i, token in enumerate(keys[:-1]):
+            if token in ("zone", "security-zone") and keys[i + 1] in L.EXTERNAL_ZONES:
+                for name in _interfaces(keys[i + 2:]):
+                    external.setdefault(name, s)
+    return external
+
+
 def _exposed_management(statements) -> Iterator[_Candidate]:
     """A management profile with a service switched on, bound to an interface in an external zone:
 
@@ -543,15 +556,12 @@ def _exposed_management(statements) -> Iterator[_Candidate]:
 
     Three statements joined by the names they share (interface, profile). A zone is external only when its
     name says so (``untrust``, ``outside``, ``internet`` …); nothing is concluded about any other zone."""
-    external: dict[str, Statement] = {}
+    external = external_interfaces(statements)
     bound: dict[str, tuple[str, Statement]] = {}
     services: dict[str, list[Statement]] = {}
     for s in statements:
         keys = s.key_tokens
         for i, token in enumerate(keys[:-1]):
-            if token in ("zone", "security-zone") and keys[i + 1] in L.EXTERNAL_ZONES:
-                for name in _interfaces(keys[i + 2:]):
-                    external.setdefault(name, s)
             if token in ("interface-management-profile", "management-profile"):
                 profile, rest = keys[i + 1], keys[i + 2:]
                 named = _interfaces(keys[:i])

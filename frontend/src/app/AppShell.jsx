@@ -18,11 +18,12 @@ import History from './History';
 import Learned from './Learned';
 import Ledger from './Ledger';
 import Rules from './Rules';
+import { AttackPathsPage } from './AttackPaths';
 import FindingDrawer from './FindingDrawer';
 import LearningFlow from './LearningFlow';
 import '../styles/app.css';
 
-export const SCAN_VIEWS = ['overview', 'fix', 'teach', 'checks', 'devices', 'frameworks'];
+export const SCAN_VIEWS = ['overview', 'fix', 'teach', 'checks', 'paths', 'devices', 'frameworks'];
 // Links from earlier versions keep working
 const OLD_VIEWS = { summary: 'overview', findings: 'checks', review: 'teach', remediation: 'fix' };
 
@@ -218,6 +219,7 @@ export default function AppShell({ path }) {
     ['Overview', scanHref('overview'), here('scan', 'overview')],
     ['Devices', scanHref('devices'), here('scan', 'devices')],
     ['Findings', scanHref('checks'), here('scan', 'checks')],
+    ['Attack paths', scanHref('paths'), here('scan', 'paths'), current?.attack_paths?.length],
     // every problem still open, so the badge cannot contradict the problem count on Results
     ['Remediation', scanHref('fix'), here('scan', 'fix'), counts && counts.problems - counts.fixed],
   ];
@@ -293,6 +295,7 @@ export default function AppShell({ path }) {
                      onScanExpired={(id) => handleScansExpired([id])} />
             )}
             {route.view === 'checks' && <Checks {...shared} />}
+            {route.view === 'paths' && <AttackPathsPage scan={current} labels={labels} go={go} />}
             {route.view === 'devices' && <Devices scan={current} audit={audit} />}
             {route.view === 'frameworks' && (
               <div className="wrap enter">

@@ -449,7 +449,7 @@ button { font: inherit; color: inherit; letter-spacing: inherit; }
 }
 /* Copy sits inside the block it copies, never floating beside it. */
 .codeblock { margin: var(--s-3) 0; }
-.codeblock pre { border: 0; padding-right: 96px; }
+.codeblock pre { border: 0; padding-right: 168px; } /* room for "Copy commands" */
 .codeblock.is-active { border-left: var(--bw-thick) solid var(--accent); }
 .codeblock .copy { position: absolute; top: 0; right: var(--s-4); }
 .codeblock .copy .btn { min-height: 36px; }

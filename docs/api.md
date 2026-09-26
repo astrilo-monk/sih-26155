@@ -220,7 +220,7 @@ Remediate every failing control of every device, in catalog order, verifying eac
 * A refused value answers `422` with `{"message": "Please check what you entered", "errors": {"NTP key": "use 8-32 letters, … e.g. NtpKey-2026"}}`, keyed by the field's label.
 
 ### `POST /api/remediation/final`
-The score once every decision is made: the Fix page's **Next**. Same request as the plan. For each device it builds
+The score with the commands you confirmed: the Fix page's **Next**, offered as soon as one command is confirmed (items still undecided are simply left out). Same request as the plan. For each device it builds
 one file from every verified fix plus every candidate you confirmed whose effect NetAuditAI could simulate
 (a removal it verified), rescans it once and returns `before` / `after`, `included` (control ids in the file),
 `by_hand` (confirmed commands it could not simulate: never written into the file), `changed` and `diff`
@@ -362,8 +362,9 @@ evidence decides it.
 *Ask AI to find the line* on the Teach page. **Request JSON:** `{"config_index": 0, "control_id": "MGMT-008"}`.
 Runs the scan's AI judge for this one undecided check (redacted, scrubbed excerpts only; one call). A suggestion is
 kept only when the deterministic verifier finds its quote on the cited line; kept suggestions then appear in
-`/unresolved` `suggested_lines`, and a person still confirms them. **Response:** `{"found": true}` or
-`{"found": false, "note": "…"}`. `503` without an AI key, `409` for a check that is already decided, `422` for a
+`/unresolved` `suggested_lines`, and a person still confirms them. **Response:** `{"found": true}` only when the
+answer names a line the teach page can show for confirmation; otherwise `{"found": false, "note": "…"}`, including
+when the AI answered without such a line (for example, judging the setting absent). `503` without an AI key, `409` for a check that is already decided, `422` for a
 configuration a parser reads.
 
 ### `GET /api/adaptive/scans/{scan_id}/configs/{config_index}/lines`

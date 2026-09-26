@@ -6,7 +6,7 @@
    *How important is this device?* to **High**, tick **faces the internet**, **Start scan**.
 2. **Overview:** Risk **CRITICAL** (hover for the reasons and formula); *Across 2 devices* shows each score and the
    most common problems.
-3. **Potential attack paths:** read "Remote takeover through the management plane" left to right: reach the login →
+3. **Attack paths** (sidebar, or *See attack paths* on the Overview): read "Remote takeover through the management plane" left to right: reach the login →
    capture the password → log in as admin → full control. Every step cites its line. "Break it: fix MGMT-003".
 4. **Compare the devices field by field:** Cisco (parser) and PAN-OS (learned, no parser) filled into the *same*
    vendor-neutral fields from completely different syntax. That is the problem statement's normalization, visible.
@@ -16,7 +16,7 @@
 7. **Executive summary (PDF)** (two devices download as a .zip of one PDF each), then **Audit ledger → Verify the
    ledger** (intact) and **Check a report PDF** with the file just downloaded: "Genuine: all 2 reports…". Change one
    byte and it says "Not found". This whole path runs as an automated browser test: `cd frontend && npm run e2e`.
-8. **Rules catalog:** 23 checks answer 78 framework requirements. Close on the numbers in the README: 17/20 planted,
+8. **Rules catalog:** 23 checks answer 78 framework requirements. Close on the numbers in the README: 18/20 planted,
    70/87 across 8 vendors, 0 missed, 0 false alarms, 0 of 6 prompt-injection attacks succeeded.
 
 ## The full walkthrough

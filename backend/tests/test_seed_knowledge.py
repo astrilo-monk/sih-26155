@@ -576,3 +576,25 @@ def test_a_security_group_marks_what_it_cannot_have_as_not_applicable(seeded_ada
         assert result["status"] == "n_a" and "security group only filters traffic" in result["reason"]
     # what a security group does express is still judged, on its own lines
     assert _result(scan, "BOUNDARY-001")["status"] == "fail" and _result(scan, "MGMT-003")["status"] == "fail"
+
+
+PAN_DEMO = (Path(__file__).resolve().parents[2] / "demo-sih" / "paloalto_fw_vulnerable.cfg").read_text(encoding="utf-8")
+
+
+def test_lldp_on_an_interface_an_external_zone_holds_is_decided_and_cites_the_zone(seeded_adaptive_db):
+    lldp = _results(PAN_DEMO)["BOUNDARY-003"]
+    assert lldp.status == Status.FAIL and lldp.scope == "interface ethernet1/1"
+    assert {26, 28} <= set(lldp.evidence.line_numbers)  # the LLDP line and 'set zone untrust … ethernet1/1'
+    # the same line on an interface no external zone holds says nothing about exposure
+    inside = PAN_DEMO.replace("set zone untrust network layer3 ethernet1/1", "set zone dmz network layer3 ethernet1/1")
+    assert _results(inside)["BOUNDARY-003"].status == Status.UNKNOWN
+
+
+def test_pan_os_password_length_absent_is_decided_from_its_reviewed_factory_default(seeded_adaptive_db):
+    length = _results(PAN_DEMO)["AUTH-002"]
+    assert length.status == Status.FAIL and "ships with Minimum Password Complexity disabled" in length.reason
+    stated = PAN_DEMO + "\nset mgt-config password-complexity enabled yes\nset mgt-config password-complexity minimum-length 12\n"
+    assert _results(stated)["AUTH-002"].status == Status.PASS
+    # a complexity line the seeds do not read may be stating it: absence then says nothing
+    other = PAN_DEMO + "\nset mgt-config password-complexity enabled no\n"
+    assert _results(other)["AUTH-002"].status != Status.FAIL

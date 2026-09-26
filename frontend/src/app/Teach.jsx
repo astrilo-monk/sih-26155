@@ -369,7 +369,8 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
                   {ai.asked === key && ai.busy && <p className="muted" aria-busy="true">Asking AI…</p>}
                   {ai.asked === key && !ai.busy && (
                     <p className="small muted" role="status">
-                      {ai.note ? `AI: ${ai.note}` : 'The AI’s suggestion is shown above. Check it before you say yes.'}
+                      {ai.note ? `AI: ${ai.note}` : suggestion ? 'The AI’s suggestion is shown above. Check it before you say yes.'
+                        : 'The AI answered, but not with a line to confirm here. Show NetAuditAI the line yourself, or skip.'}
                     </p>
                   )}
                 </div>

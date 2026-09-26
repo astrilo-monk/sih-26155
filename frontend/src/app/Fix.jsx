@@ -128,23 +128,29 @@ export function CandidateFix({ item, audit }) {
   // Nothing proposed yet: three ways to get a command, one of them primary.
   if (!candidate) {
     if (editing) return <div className="fix">{editor}</div>;
+    // a missing setting cites no line: there is nothing for Fix it for me to remove
+    const cites = (item.primary?.evidence?.line_numbers || []).length > 0;
     return (
       <div className="fix">
         {item.finding?.recommendation && (
           <dl className="fix-steps"><dt>What to change</dt><dd>{item.finding.recommendation}</dd></dl>
         )}
         <div className="actions">
-          <button type="button" className="btn btn-primary" onClick={() => step('derive')} disabled={!!busy}>
-            {busy === 'derive' ? 'Working it out…' : 'Fix it for me'}
-          </button>
-          <button type="button" className="btn btn-quiet" onClick={() => step('generate')} disabled={!!busy}>
+          {cites && (
+            <button type="button" className="btn btn-primary" onClick={() => step('derive')} disabled={!!busy}>
+              {busy === 'derive' ? 'Working it out…' : 'Fix it for me'}
+            </button>
+          )}
+          <button type="button" className={`btn ${cites ? 'btn-quiet' : 'btn-primary'}`} onClick={() => step('generate')} disabled={!!busy}>
             {busy === 'generate' ? 'Asking AI…' : 'Ask AI for a command'}
           </button>
           <button type="button" className="btn btn-quiet" onClick={openEditor} disabled={!!busy}>Enter command manually</button>
         </div>
         <p className="small muted">
-          <strong>Fix it for me</strong> removes exactly the lines this finding cites from a copy of your file and
-          re-checks it. It needs no AI and no vendor grammar -but it can only remove a setting, never add one.
+          {cites ? (
+            <><strong>Fix it for me</strong> removes exactly the lines this finding cites from a copy of your file and
+              re-checks it. It needs no AI and no vendor grammar -but it can only remove a setting, never add one.</>
+          ) : 'This setting is missing, so there is no line to remove: enter the command that adds it on your device, or have AI draft one.'}
         </p>
         {errorLine}
       </div>
@@ -460,11 +466,13 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
   const remaining = items.length - fixed.length;
   const shared = { scan, audit, labels, onOpen };
 
-  // Next appears once every question is answered and every proposed command is confirmed or rejected
+  // Next appears as soon as one proposed command is confirmed: it rescores with what is decided, and anything still
+  // waiting is left out (and said so), so one hard item never blocks the score
   const decided = (i) => ['confirmed', 'rejected'].includes(audit.candidates?.[i.key]?.status);
   const commandItems = inState('needs_admin');
   const waiting = inState('needs_input').length + commandItems.filter((i) => !decided(i)).length;
-  const readyForNext = unconfirmed.length > 0 && commandItems.length > 0 && waiting === 0;
+  const confirmedCount = commandItems.filter((i) => audit.candidates?.[i.key]?.status === 'confirmed').length;
+  const readyForNext = unconfirmed.length > 0 && confirmedCount > 0;
 
   const handleNext = async () => {
     setFinalLoading(true);
@@ -684,7 +692,8 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
           note={final
             ? 'Includes every verified fix and every change you confirmed that NetAuditAI could check against your file.'
             : readyForNext
-            ? 'Every decision is made. Press Next to rescore the configuration with the changes you confirmed.'
+            ? `Press Next to rescore the configuration with the ${confirmedCount} change${confirmedCount === 1 ? '' : 's'} you confirmed.${
+              waiting ? ` ${waiting} still waiting ${waiting === 1 ? 'is' : 'are'} left out until you decide ${waiting === 1 ? 'it' : 'them'}.` : ''}`
             : downloadable
             ? `Includes every fix NetAuditAI verified (${verifiedTotal}). Only changes that passed the rescan are included -review before deploying.`
             : candidateVerified

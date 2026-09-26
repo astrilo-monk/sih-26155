@@ -66,7 +66,7 @@ export default function Devices({ scan, audit }) {
                 <dd>{vs.key === 'confirmed' ? 'Not used -the parser decides'
                   : ai?.ai_available ? `${ai.ai_calls || 0} request(s), ${ai.ai_cache_hits || 0} answered from cache -suggestions only, never counted`
                     : 'Off or unavailable'}{ai?.ai_unavailable_lines ? ` · unavailable for ${ai.ai_unavailable_lines} line(s)` : ''}</dd>
-                <dt>Automatic fixes</dt><dd>{vs.key === 'confirmed' ? 'Available where a proven fix exists' : 'Not available until the vendor is confirmed'}</dd>
+                <dt>Automatic fixes</dt><dd>{vs.key === 'confirmed' ? 'Available where a proven fix exists' : 'Only where a reviewed recognizer can write the secure form in this file’s own syntax, verified by rescan; anything else takes a command from you'}</dd>
                 {ai?.learned_matches > 0 && <><dt>Recognized from what you taught</dt><dd>{ai.learned_matches} line(s)</dd></>}
                 {evidence && evidence.status !== 'unknown' && (
                   <><dt>Vendor hint</dt><dd>{evidence.status === 'identified' ? evidence.likely_vendor : 'conflicting'} <span className="muted">(information only -never selects a parser)</span></dd></>

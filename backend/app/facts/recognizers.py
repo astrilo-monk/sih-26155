@@ -22,6 +22,8 @@ import json
 import logging
 import re
 from collections import defaultdict
+from functools import lru_cache
+from pathlib import Path
 from typing import Any, Iterable, Optional
 
 from app.adaptive.matcher import (
@@ -29,7 +31,9 @@ from app.adaptive.matcher import (
     normalize_line, recognizer_slot, strip_terminator,
 )
 from app.facts import lexicon as L
-from app.facts.heuristics import _Candidate, _polarity, _version, combine, heuristic_candidates, state_lines
+from app.facts.heuristics import (
+    _Candidate, _interfaces, _polarity, _version, combine, external_interfaces, heuristic_candidates, state_lines,
+)
 from app.facts.predicates import (
     ADMIN_ACCOUNT, CENTRAL_AAA, DISCOVERY_PROTOCOL, IDLE_TIMEOUT, LOG_REMOTE_DESTINATION, LOGIN_BANNER, LOGIN_MAX_ATTEMPTS,
     MGMT_EXPOSED, MGMT_WEAK_CRYPTO, NOT_SET, NTP_AUTHENTICATED, PASSWORD_MIN_LENGTH, ROUTER_UNSAFE_SERVICE, RULE_LOGGING,
@@ -336,6 +340,7 @@ def recognize(raw_lines: list[str], extra: Iterable = ()):
     statements = tokenize(raw_lines)
     current = set(_fingerprint(statements).split())
     candidates, recognized, matched = [], set(), []
+    external = external_interfaces(statements)
 
     for s in statements:
         for r in recognizers:
@@ -361,6 +366,9 @@ def recognize(raw_lines: list[str], extra: Iterable = ()):
             matched.append(r)
             # every community (every exposed zone) is its own fact: two of them are not a conflict about one setting
             scope = f"{PER_STATEMENT[r.predicate]} at line {s.line}" if r.predicate in PER_STATEMENT else None
+            # a discovery protocol on an interface an external zone holds: the judge needs to know it is external
+            if r.predicate == DISCOVERY_PROTOCOL and (wan := [n for n in _interfaces(s.key_tokens) if n in external]):
+                scope, lines = f"interface {wan[0]}", sorted({*(lines or [s.line]), external[wan[0]].line})
             candidates.append(_Candidate(r.predicate, value, lines or [s.line], subject=r.subject, scope=scope,
                                          unit="min" if r.predicate == IDLE_TIMEOUT else None))
 
@@ -435,16 +443,38 @@ def _absence(known: list[SecurityFact], dialect: Optional[tuple[str, list]],
     if dialect is None:
         return []
     name, own = dialect
+    unset_by_default = _factory_defaults().get(name, {})
+    eligible = (*NO_FACTORY_DEFAULT, *unset_by_default)
     syntax = {}
     for r in own:
-        if r.predicate in NO_FACTORY_DEFAULT:
+        if r.predicate in eligible:
             syntax.setdefault(r.predicate, r.command_pattern)
     stated = {f.predicate for f in known}
-    stated |= {p for p in syntax for st in statements
-               if _names_concept(p, None, [*st.key_tokens, *(w for h in st.scope_path for w in h.split())])}
+    stated |= {p for p in syntax for st in statements if _mentions_setting(p, st)}
     return [SecurityFact(p, NOT_SET, Assurance.CONFIRMED,
-                         provenance=f"no line states it; {name} states it as '{_shown(syntax[p])}'")
-            for p in NO_FACTORY_DEFAULT if p in syntax and p not in stated]
+                         provenance=f"no line states it; {name} states it as '{_shown(syntax[p])}'"
+                                    + (f". {unset_by_default[p]}" if p in unset_by_default else ""))
+            for p in eligible if p in syntax and p not in stated]
+
+
+@lru_cache(maxsize=1)
+def _factory_defaults() -> dict[str, dict[str, str]]:
+    """data/factory_defaults.json: per dialect, settings its devices do not enforce until configured."""
+    path = Path(__file__).resolve().parents[2] / "data" / "factory_defaults.json"
+    return {k: v for k, v in json.loads(path.read_text(encoding="utf-8")).items() if not k.startswith("_")}
+
+
+# Password words alone name a password (a hash, a user's secret), not its policy: a line may only be the length
+# setting stated some other way when it also speaks of length or complexity
+ABSENCE_WORDS = {PASSWORD_MIN_LENGTH: frozenset({"length", "len", "minlen", "complexity"})}
+
+
+def _mentions_setting(predicate: str, st: Statement) -> bool:
+    words = [*st.key_tokens, *(w for h in st.scope_path for w in h.split())]
+    if not _names_concept(predicate, None, words):
+        return False
+    extra = ABSENCE_WORDS.get(predicate)
+    return not extra or bool({p for w in words for p in {w.lower(), *re.split(r"[-_./]", w.lower())}} & extra)
 
 
 def _shown(pattern: str) -> str:

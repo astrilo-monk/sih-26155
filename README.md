@@ -14,7 +14,7 @@ NetAuditAI only ever **reads** a device, and never executes a change on one.
 
 ## Highlights
 
-* **Measured, not claimed.** 17/20 planted vulnerabilities detected as decided FAILs, 70/87 on labelled fixtures from
+* **Measured, not claimed.** 18/20 planted vulnerabilities detected as decided FAILs, 70/87 on labelled fixtures from
   8 vendors with no dedicated parser, **0 missed and 0 false alarms**; a test fails the build if that gets worse.
 * **Potential attack paths.** Findings chained into how an attacker gets in (reach the login → capture the password
   → log in as admin), each step a decided FAIL with its line, plus the one fix that breaks the path.
@@ -28,11 +28,21 @@ NetAuditAI only ever **reads** a device, and never executes a change on one.
   prompt-injection attacks succeeded 0 times, and a fully hijacked model is tested to change nothing.
 * **Contextual risk.** Worst problem, internet exposure, attack paths and asset importance, by a formula shown on
   screen and in the report.
+* **Changes since the last audit.** Rescan a device and see what got fixed, what newly broke and which attack paths
+  closed, from the redacted scan archive only; losing evidence is never counted as a fix.
+* **Problems only visible across devices.** The same SNMP community on several devices (matched by hash, never
+  shown) and devices using different NTP or syslog servers.
+* **Your own baseline.** An organisation policy file tightens the limits (idle timeout, login attempts, password
+  length) and names approved NTP / syslog servers; it can only tighten, never loosen ([docs/policy.md](docs/policy.md)).
+* **Runs offline and in CI.** `LOCAL_AI_URL` sends every AI call to a local model (Ollama, llama.cpp) so nothing
+  leaves the network; `python -m app.cli scan` fails a pipeline on a decided problem and writes SARIF
+  ([docs/cli.md](docs/cli.md)).
 
 ## Status
 
-Working hackathon prototype. Backend: 1227 tests passed, 2 live-AI tests skipped. Frontend: 119 tests
-passed, production build OK.
+Working hackathon prototype. Backend: 1509 tests passed, 2 live-AI tests skipped (`pytest -n auto` runs them in
+parallel). Frontend: 149 tests passed, production build OK. One end-to-end browser test walks the demo path
+(`cd frontend && npm run e2e`).
 
 ## Measured accuracy
 
@@ -42,7 +52,7 @@ Every labelled configuration through the real pipeline, shipped knowledge only, 
 
 | Set | Insecure settings detected (decided FAIL) | Missed | False alarms on secure settings |
 |---|---|---|---|
-| 20 vulnerabilities planted in the demo files (Cisco IOS, PAN-OS) | **17/20** (+2 suspected, 1 undecided by design) | **0** | **0** of 4 |
+| 20 vulnerabilities planted in the demo files (Cisco IOS, PAN-OS) | **18/20** (+2 suspected) | **0** | **0** of 4 |
 | 16 labelled fixtures, 8 vendors with no dedicated parser | **70/87** (17 undecided) | **0** | **0** of 68 |
 
 "Undecided" is an answer, not a miss: the engine shows the line and says what it would need, and never calls an
@@ -142,15 +152,16 @@ is open.
 | Sidebar | Page | Route |
 |---|---|---|
 | New scan | Upload one or more configurations, or collect them from live devices over SSH; optionally say how important the device is and whether it faces the internet (risk only) | `#/app` |
-| Overview | Risk (with its reasons), posture, coverage, a fleet view for several devices, **potential attack paths** with the fix that breaks each, the **vendor-neutral model** side by side per device, what to do now, PDF report, one-page executive summary, baseline JSON | `#/app/scan/{id}` |
+| Overview | Risk (with its reasons), posture, coverage, **changes since the last audit** of the same device, a fleet view for several devices (with problems only visible across them), a link to the attack paths, the **vendor-neutral model** side by side per device, what to do now, PDF report, one-page executive summary, baseline JSON | `#/app/scan/{id}` |
 | Devices | How each configuration was read (vendor, parser or generic path, coverage) | `…/devices` |
 | Findings | Every control on every device, with evidence | `…/checks` |
-| Remediation | **Fix in this order** (most risk removed per effort, with reasons), then fix automatically, needs your input, manual action, cannot safely fix; verified download; candidate fixes | `…/fix` |
+| Attack paths | How the confirmed problems chain into an attack, per path: the steps with their lines, the outcome, and the one fix that breaks it; a summary of the fixes that close them all | `…/paths` |
+| Remediation | **Fix in this order** (most risk removed per effort, with reasons), then fix automatically, needs your input, manual action, cannot safely fix; verified download; candidate fixes; **Next** rescores a copy with the commands you confirmed (shown as soon as one is) | `…/fix` |
 | Adaptive learning | With a scan open: this scan's unknown syntax to teach. Otherwise: learned mappings (shipped and taught, each can be stopped) | `…/teach`, `#/app/learned` |
 | Frameworks | The same results by framework requirement | `…/frameworks` |
 | History | Scan summaries kept in this browser | `#/app/history` |
 | Rules catalog | Every check, what it reads, and the 78 framework requirements the 23 checks answer | `#/app/rules` |
-| Audit ledger | Hash-chained record of every scan, taught recognizer, fix decision and report; verify the chain, or check a report PDF byte for byte | `#/app/ledger` |
+| Audit ledger | Hash-chained record of every scan, taught recognizer, fix decision and report; verify the chain, or check a report PDF (or the .zip of a multi-device scan) byte for byte | `#/app/ledger` |
 
 Clicking a finding opens a drawer with its cited lines, assurance and framework mappings, and **how it was
 decided**: framework requirement → check → normalized field and value → configuration line → verdict. When AI is configured,

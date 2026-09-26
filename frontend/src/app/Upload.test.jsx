@@ -56,3 +56,15 @@ it('sends an organisation policy file with the scan, and refuses one that is not
   fireEvent.click(screen.getByRole('button', { name: 'Start scan' }));
   expect(onScan.mock.calls[0][2]).toEqual({ criticality: '', internetFacing: false, policy: text });
 });
+
+it('adds a file chosen twice only once', () => {
+  cleanup();
+  render(<Upload onScan={vi.fn()} scanning={false} error={null} currentScan={null} />);
+  const input = document.getElementById('config-files');
+  const file = new File(['hostname R1\n'], 'r1.cfg', { type: 'text/plain', lastModified: 1 });
+  for (let i = 0; i < 2; i += 1) {
+    Object.defineProperty(input, 'files', { value: [file], configurable: true });
+    fireEvent.change(input);
+  }
+  expect(screen.getAllByText('r1.cfg')).toHaveLength(1);
+});

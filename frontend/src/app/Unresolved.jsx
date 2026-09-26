@@ -88,7 +88,8 @@ export default function UnresolvedList({ items, loading, error, onRetry, labels,
         {resolvable.length > 0
           ? <>{resolvable.length === 1 ? '1 check needs' : `${resolvable.length} checks need`} your input to complete this assessment</>
           : <>Checks we couldn’t decide</>}
-        <span className="count-pill tnum">{items.length}</span>
+        {/* the checks this list asks about; the ones that cannot be resolved here are counted in their own section */}
+        <span className="count-pill tnum">{resolvable.length || items.length}</span>
       </h2>
       <p className="small muted">
         NetAuditAI has no evidence for these, so they are never counted as passed or failed. Show it which

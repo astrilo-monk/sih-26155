@@ -34,6 +34,16 @@ production default with the `seeded_adaptive_db` fixture.
 | Optional API key: open when unset, `401` without or with a wrong `X-API-Key`, `/health` always open | `test_api_key.py` |
 | `DATABASE_URL`: a raw password holding `@` or `$` is percent-encoded so the right host is used | `test_database_url.py` |
 | Browser UI audit regressions -no secret in API responses, `config_index` identity, generic hostnames, manual-review consistency, CIS banner mapping, scan status | `test_ui_audit_regressions.py` |
+| Accuracy benchmark floors (planted ≥ 18, fixtures ≥ 70, 0 missed, 0 false alarms) | `test_benchmark.py` |
+| Prompt injection: the fence cannot be closed from inside, a fully hijacked AI changes no verdict | `test_prompt_injection.py` |
+| Attack paths, evidence chain, contextual risk | `test_attack_paths.py`, `test_evidence_chain.py`, `test_risk.py` |
+| Audit ledger: every scan and report recorded, a report PDF or a multi-device .zip verifies, any edit breaks the chain | `test_ledger.py` |
+| Changes since the last audit (fixed, new, no longer decided) | `test_drift.py` |
+| Checks across devices: shared SNMP community never shown, NTP / syslog mismatch | `test_fleet_checks.py` |
+| Offline AI through a local OpenAI-compatible server | `test_local_ai.py` |
+| Command line: exit codes, SARIF on the cited line, no secret in the output | `test_cli.py` |
+| Organisation policy: tightens only, results cite it, CLI `--policy` | `test_policy.py` |
+| Seed knowledge incl. LLDP on an external-zone interface and PAN-OS password length from its reviewed factory default | `test_seed_knowledge.py` |
 
 Two live Groq tests in `test_adaptive_generic.py` are skipped unless `NETAUDIT_LIVE_AI=1` and a key are set.
 
@@ -55,15 +65,25 @@ Two live Groq tests in `test_adaptive_generic.py` are skipped unless `NETAUDIT_L
 | Evidence and status primitives | `components/ui/ui.test.jsx` |
 | Summary-only history | `utils/history.test.js` |
 | Mapping form validation | `utils/adaptiveValidation.test.js` |
+| Attack paths page, field-by-field compare, fleet view, drift, audit ledger, rules catalog | `app/AttackPaths.test.jsx`, `app/Baseline.test.jsx`, `app/Fleet.test.jsx`, `app/Drift.test.jsx`, `app/Ledger.test.jsx`, `app/Rules.test.jsx` |
+
+## End to end (`frontend/e2e/`)
+
+`demo.spec.js` runs the 2-minute judge path in a real browser against the real backend, on their own ports
+(8011, 5183) with a throwaway database and AI off: scan Cisco + PAN-OS, Overview, compare fields, executive
+summary, attack paths, verify the ledger and the downloaded report, a one-byte edit is caught, rules catalog.
+Windows uses the installed Chrome (`PW_CHANNEL=msedge` to change); elsewhere run `npx playwright install chromium`
+once.
 
 ## Run
 
 ```powershell
 cd backend
-venv\Scripts\python -m pytest tests -q     # 1227 passed, 2 skipped
+venv\Scripts\python -m pytest tests -q -n auto   # 1509 passed, 2 skipped (~7 min in parallel)
 
 cd ..\frontend
-npm test                                    # 119 passed
+npm test                                    # 149 passed
+npm run e2e                                 # 1 passed (starts its own servers)
 npm run build
 ```
 

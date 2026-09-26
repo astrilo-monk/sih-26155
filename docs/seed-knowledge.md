@@ -219,6 +219,15 @@ interface names. Passing the gates makes a recognizer safe to store, not worth s
   `configure account`; Huawei `local-user … privilege level`. A default account is read through a value table
   of default names (`admin`, `administrator`, `root`, `cisco`, `manager`), so only those names produce a fact:
   any other name says nothing, and the account check is seed-only (teaching does not draft value tables).
+* **A missing setting is decided only with a reviewed factory default.** For a dialect it understands, a
+  setting no device ships with (AAA server, remote syslog, banner, NTP) that no line states is `NOT_SET`. Any other
+  setting needs its vendor's factory default recorded, with its source, in `backend/data/factory_defaults.json`:
+  today only PAN-OS password length (Minimum Password Complexity is off by default). A line that may state it in a
+  form the seeds do not read (for length: a password line that also speaks of length or complexity) keeps it
+  undecided. PAN-OS login lockout is **not** covered: neither `teach/` nor Batfish has its syntax.
+* **Discovery protocols on external interfaces.** A seeded LLDP / CDP line that names an interface is tied to it
+  when a zone whose name says it is external holds that interface (`set zone untrust network layer3
+  ethernet1/1`), citing both lines; on any other interface it stays undecided.
 * **SNMP communities are seed-only.** The line holds the community string, so a `{community:RO}` /
   `{community:RW}` slot reads it at scan time and nothing stores it; a taught example could only be kept by
   storing the secret, so MGMT-004 cannot be taught. The access level is the template's own words, never

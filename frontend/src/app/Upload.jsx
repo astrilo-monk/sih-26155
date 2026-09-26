@@ -84,7 +84,9 @@ export default function Upload({ onScan, onCollect, scanning, error, currentScan
 
   const add = (list) => {
     const next = Array.from(list || []);
-    if (next.length) setFiles((prev) => [...prev, ...next]);
+    // the same file chosen twice would be scanned as two devices
+    const id = (f) => `${f.name}|${f.size}|${f.lastModified}`;
+    if (next.length) setFiles((prev) => [...prev, ...next.filter((f) => !prev.some((p) => id(p) === id(f)))]);
   };
 
   if (scanning) return <Scanning files={files} collecting={source === 'device'} />;
@@ -207,8 +209,11 @@ export default function Upload({ onScan, onCollect, scanning, error, currentScan
                 <button type="button" className="btn btn-quiet btn-sm" onClick={() => setPolicy(null)}>Remove</button>
               </span>
             ) : (
-              <input type="file" accept=".json,application/json" aria-labelledby="policy-label"
-                     onChange={(e) => readPolicy(e.target.files?.[0])} />
+              <label className="btn btn-sm policy-pick">
+                Choose a JSON file
+                <input type="file" accept=".json,application/json" aria-labelledby="policy-label" className="visually-hidden"
+                       onChange={(e) => readPolicy(e.target.files?.[0])} />
+              </label>
             )}
             {policyError && <span className="field-error" role="alert">{policyError}</span>}
             <span className="field-help">

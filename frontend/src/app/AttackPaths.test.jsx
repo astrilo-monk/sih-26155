@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
-import AttackPaths from './AttackPaths';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import AttackPaths, { AttackPathsPage } from './AttackPaths';
 
 const PATH = {
   config_index: 0, path_id: 'remote-takeover', title: 'Remote takeover through the management plane',
@@ -29,4 +29,11 @@ describe('AttackPaths', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Go to fixes' }));
     expect(onFix).toHaveBeenCalled();
   });
+});
+
+it('has its own page, which says so when nothing chains', () => {
+  cleanup();
+  render(<AttackPathsPage scan={{ attack_paths: [] }} labels={['r1']} go={() => {}} />);
+  screen.getByRole('heading', { name: 'How the problems add up' });
+  screen.getByText(/No attack path: the confirmed problems on this device do not chain into one/);
 });

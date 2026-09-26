@@ -17,20 +17,22 @@ test('scan two vendors, follow an attack path, verify a report against the ledge
   await expect(page.getByText(/critical/i).first()).toBeVisible({ timeout: 60_000 });
   await expect(page.getByRole('heading', { name: 'Across 2 devices' })).toBeVisible();
   await expect(page.getByText('The same SNMP community string is used on 2 devices')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'See attack paths' })).toBeVisible();
 
-  // 3. Attack paths, each breakable by one fix
-  await expect(page.getByRole('heading', { name: 'Potential attack paths' })).toBeVisible();
-  await expect(page.getByText('Remote takeover through the management plane').first()).toBeVisible();
-
-  // 4. Same vendor-neutral fields from two different syntaxes
+  // 3. Same vendor-neutral fields from two different syntaxes
   await page.getByRole('button', { name: 'Compare the devices field by field' }).click();
   await expect(page.getByText('mgmt.ssh.version').first()).toBeVisible({ timeout: 30_000 });
 
-  // 5. Executive summary PDF, then the ledger recognises exactly that file
+  // 4. Executive summary PDF, then the ledger recognises exactly that file
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Executive summary (PDF)' }).click();
   const pdf = info.outputPath('executive.zip'); // two devices: one PDF each, in a .zip
   await (await download).saveAs(pdf);
+
+  // 6. Attack paths, on their own page, each breakable by one fix
+  await page.getByRole('link', { name: /^Attack paths/ }).click();
+  await expect(page.getByRole('heading', { name: 'Potential attack paths' })).toBeVisible();
+  await expect(page.getByText('Remote takeover through the management plane').first()).toBeVisible();
 
   await page.getByRole('link', { name: 'Audit ledger' }).click();
   await page.getByRole('button', { name: 'Verify the ledger' }).click();
@@ -46,7 +48,7 @@ test('scan two vendors, follow an attack path, verify a report against the ledge
   await upload.setInputFiles(info.outputPath('forged.zip'));
   await expect(page.getByText(/^Not found:/)).toBeVisible();
 
-  // 6. Rules catalog: every check and the requirements it answers
+  // 7. Rules catalog: every check and the requirements it answers
   await page.getByRole('link', { name: 'Rules catalog' }).click();
   await expect(page.getByText(/78/).first()).toBeVisible();
 });

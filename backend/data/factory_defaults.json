@@ -1,0 +1,12 @@
+{
+  "_README": [
+    "Reviewed factory defaults for dialects without a dedicated parser, read by app.facts.recognizers._absence.",
+    "A setting listed here for a dialect is one that dialect does NOT enforce unless its configuration states it,",
+    "so when the dialect is understood and no line states it, it is decided NOT_SET (like an AAA server).",
+    "Only add an entry with its source; a guess here would turn a missing line into a false FAIL.",
+    "Keys are the seed 'vendor' labels; values map a predicate to the reason shown to the user."
+  ],
+  "Palo Alto PAN-OS": {
+    "auth.password.min_length": "PAN-OS ships with Minimum Password Complexity disabled, so no minimum length is enforced until 'set mgt-config password-complexity' enables it (PAN-OS Administrator's Guide, Device > Setup > Management)"
+  }
+}

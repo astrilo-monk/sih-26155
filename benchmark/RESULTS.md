@@ -5,18 +5,17 @@ Shipped knowledge only, no AI. A miss means the engine called an insecure settin
 
 ## Planted vulnerabilities (labelled with the demo files, before any scan)
 
-**17/20** insecure settings detected as a decided FAIL (2 more flagged as suspected, 1 left undecided, **0 missed**) · **0 false alarms** on 4 secure settings (4 confirmed secure, 0 undecided)
+**18/20** insecure settings detected as a decided FAIL (2 more flagged as suspected, 0 left undecided, **0 missed**) · **0 false alarms** on 4 secure settings (4 confirmed secure, 0 undecided)
 
 | File | Vendor path | Detected | Suspected | Undecided | Missed | False alarms | Time |
 |---|---|---|---|---|---|---|---|
-| `demo-sih/cisco_edge_vulnerable.cfg` | cisco_ios | 10/10 | 0 | 0 | 0 | 0 | 1166 ms |
-| `demo-sih/paloalto_fw_vulnerable.cfg` | unknown | 7/10 | 2 | 1 | 0 | 0 | 7502 ms |
+| `demo-sih/cisco_edge_vulnerable.cfg` | cisco_ios | 10/10 | 0 | 0 | 0 | 0 | 411 ms |
+| `demo-sih/paloalto_fw_vulnerable.cfg` | unknown | 8/10 | 2 | 0 | 0 | 0 | 1976 ms |
 
 Not detected as a decided FAIL:
 
 - `paloalto_fw_vulnerable.cfg` BOUNDARY-001: provisional
 - `paloalto_fw_vulnerable.cfg` CRYPTO-001: provisional
-- `paloalto_fw_vulnerable.cfg` BOUNDARY-003: undecided
 
 ## Labelled fixtures, 8 vendors (labels written by reading each file)
 
@@ -24,22 +23,22 @@ Not detected as a decided FAIL:
 
 | File | Vendor path | Detected | Suspected | Undecided | Missed | False alarms | Time |
 |---|---|---|---|---|---|---|---|
-| `teach/arista_eos_5_configs/arista_01_secure.conf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 2587 ms |
-| `teach/arista_eos_5_configs/arista_02_insecure.conf` | unknown | 11/13 | 0 | 2 | 0 | 0 | 2462 ms |
-| `teach/checkpoint_gaia_5_configs/checkpoint_01_secure.conf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 825 ms |
-| `teach/checkpoint_gaia_5_configs/checkpoint_02_insecure.conf` | unknown | 9/9 | 0 | 0 | 0 | 0 | 1873 ms |
-| `teach/extreme_networks_exos_5_configs/extreme_01_secure.conf` | unknown | 1/2 | 0 | 1 | 0 | 0 | 1405 ms |
-| `teach/extreme_networks_exos_5_configs/extreme_02_insecure.conf` | unknown | 7/11 | 0 | 4 | 0 | 0 | 1726 ms |
-| `teach/hpe_aruba_aoscx_5_configs/aruba_01_secure.conf` | unknown | 3/3 | 0 | 0 | 0 | 0 | 2007 ms |
-| `teach/hpe_aruba_aoscx_5_configs/aruba_02_insecure.conf` | unknown | 8/10 | 0 | 2 | 0 | 0 | 2036 ms |
-| `teach/huawei_vrp_5_configs/huawei_01_secure.conf` | unknown | 0/0 | 0 | 0 | 0 | 0 | 1872 ms |
-| `teach/huawei_vrp_5_configs/huawei_02_insecure.conf` | unknown | 9/9 | 0 | 0 | 0 | 0 | 2519 ms |
-| `teach/juniper_junos_5_configs/juniper_01_secure.conf` | unknown | 2/3 | 0 | 1 | 0 | 0 | 2494 ms |
-| `teach/juniper_junos_5_configs/juniper_02_insecure.conf` | unknown | 5/6 | 0 | 1 | 0 | 0 | 2875 ms |
-| `teach/mikrotik_routeros_5_configs/mikrotik_01_secure.rsc` | unknown | 0/2 | 0 | 2 | 0 | 0 | 2267 ms |
-| `teach/mikrotik_routeros_5_configs/mikrotik_02_insecure.rsc` | unknown | 5/8 | 0 | 3 | 0 | 0 | 1768 ms |
-| `teach/paloalto_pan_os_5_configs/paloalto_01_secure.conf` | unknown | 1/1 | 0 | 0 | 0 | 0 | 1517 ms |
-| `teach/paloalto_pan_os_5_configs/paloalto_02_insecure.conf` | unknown | 5/6 | 0 | 1 | 0 | 0 | 1748 ms |
+| `teach/arista_eos_5_configs/arista_01_secure.conf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 614 ms |
+| `teach/arista_eos_5_configs/arista_02_insecure.conf` | unknown | 11/13 | 0 | 2 | 0 | 0 | 606 ms |
+| `teach/checkpoint_gaia_5_configs/checkpoint_01_secure.conf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 282 ms |
+| `teach/checkpoint_gaia_5_configs/checkpoint_02_insecure.conf` | unknown | 9/9 | 0 | 0 | 0 | 0 | 578 ms |
+| `teach/extreme_networks_exos_5_configs/extreme_01_secure.conf` | unknown | 1/2 | 0 | 1 | 0 | 0 | 361 ms |
+| `teach/extreme_networks_exos_5_configs/extreme_02_insecure.conf` | unknown | 7/11 | 0 | 4 | 0 | 0 | 539 ms |
+| `teach/hpe_aruba_aoscx_5_configs/aruba_01_secure.conf` | unknown | 3/3 | 0 | 0 | 0 | 0 | 432 ms |
+| `teach/hpe_aruba_aoscx_5_configs/aruba_02_insecure.conf` | unknown | 8/10 | 0 | 2 | 0 | 0 | 376 ms |
+| `teach/huawei_vrp_5_configs/huawei_01_secure.conf` | unknown | 0/0 | 0 | 0 | 0 | 0 | 433 ms |
+| `teach/huawei_vrp_5_configs/huawei_02_insecure.conf` | unknown | 9/9 | 0 | 0 | 0 | 0 | 614 ms |
+| `teach/juniper_junos_5_configs/juniper_01_secure.conf` | unknown | 2/3 | 0 | 1 | 0 | 0 | 386 ms |
+| `teach/juniper_junos_5_configs/juniper_02_insecure.conf` | unknown | 5/6 | 0 | 1 | 0 | 0 | 438 ms |
+| `teach/mikrotik_routeros_5_configs/mikrotik_01_secure.rsc` | unknown | 0/2 | 0 | 2 | 0 | 0 | 489 ms |
+| `teach/mikrotik_routeros_5_configs/mikrotik_02_insecure.rsc` | unknown | 5/8 | 0 | 3 | 0 | 0 | 562 ms |
+| `teach/paloalto_pan_os_5_configs/paloalto_01_secure.conf` | unknown | 1/1 | 0 | 0 | 0 | 0 | 422 ms |
+| `teach/paloalto_pan_os_5_configs/paloalto_02_insecure.conf` | unknown | 5/6 | 0 | 1 | 0 | 0 | 657 ms |
 
 Not detected as a decided FAIL:
 

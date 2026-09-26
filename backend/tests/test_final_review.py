@@ -77,14 +77,14 @@ def test_ask_ai_for_one_check_keeps_only_that_checks_suggestions(seeded_adaptive
     client = TestClient(app)
     scan = _scan(client)
     url = f"/api/adaptive/scans/{scan['scan_id']}/ask-ai"
-    body = {"config_index": 0, "control_id": "AUTH-002"}
+    body = {"config_index": 0, "control_id": "AUTH-001"}
     with patch("app.ai.client.is_available", return_value=False):
         assert client.post(url, json=body).status_code == 503
 
     def judge(config, results, budget):
-        assert [r.control_id for r in results] == ["AUTH-002"] and budget.remaining == 1
+        assert [r.control_id for r in results] == ["AUTH-001"] and budget.remaining == 1
         config.ai_facts = []
-        config.ai_notes["AUTH-002"] = "the AI proposed no fact with a verifiable citation"
+        config.ai_notes["AUTH-001"] = "the AI proposed no fact with a verifiable citation"
 
     with patch("app.ai.client.is_available", return_value=True), patch("app.ai.judge.judge_config", judge):
         answer = client.post(url, json=body).json()
@@ -92,6 +92,23 @@ def test_ask_ai_for_one_check_keeps_only_that_checks_suggestions(seeded_adaptive
     # a decided check is refused
     decided = client.post(url, json={"config_index": 0, "control_id": "MGMT-001"})
     assert decided.status_code in (409, 503)
+
+
+def test_an_ai_answer_without_a_line_to_confirm_is_not_reported_as_found(seeded_adaptive_db):
+    """The teach page can only show a line: an answer citing none must not promise a suggestion."""
+    from types import SimpleNamespace as NS
+
+    client = TestClient(app)
+    scan = _scan(client)
+
+    def judge(config, results, budget):
+        config.ai_facts = [NS(predicate="auth.login.max_attempts", value=50, subject=None, scope=None, unit=None,
+                              control_id="AUTH-001", evidence=NS(line_numbers=[]))]
+
+    with patch("app.ai.client.is_available", return_value=True), patch("app.ai.judge.judge_config", judge):
+        answer = client.post(f"/api/adaptive/scans/{scan['scan_id']}/ask-ai",
+                             json={"config_index": 0, "control_id": "AUTH-001"}).json()
+    assert answer["found"] is False and "not with a line you can confirm" in answer["note"]
 
 
 def test_a_refused_value_names_the_field_and_shows_an_example(seeded_adaptive_db):

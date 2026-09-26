@@ -388,10 +388,10 @@ it('offers the verified corrected copy of a confirmed candidate, and never a dev
     checks: [{ name: 'target', passed: true, detail: 'MGMT-001 fail → not_configured on the edited copy' }] })]));
   render(<Harness scan={UNKNOWN_SCAN} />);
 
-  // every decision is made: the bar offers Next instead of a download
+  // a confirmed change: the bar offers Next (rescore) instead of a download
   const copy = await screen.findByRole('button', { name: 'Download verified corrected copy' });
   expect(screen.getByRole('button', { name: 'Next' })).toBeTruthy();
-  expect(screen.getByText(/Every decision is made. Press Next/)).toBeTruthy();
+  expect(screen.getByText('Press Next to rescore the configuration with the 1 change you confirmed.')).toBeTruthy();
   expect(screen.queryByText('Nothing to download yet: no fix has been verified.')).toBeNull();
   // the warning says what the file is and what it is not
   expect(screen.getByText('Verified against a copy of your uploaded configuration. This file has not been applied to a device.')).toBeTruthy();
@@ -435,8 +435,8 @@ it('offers no copy for a candidate the checks rejected', async () => {
 
   expect(await screen.findByText('Rejected')).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Download verified corrected copy' })).toBeNull();
-  // a rejected command is a decision too
-  expect(screen.getByRole('button', { name: 'Next' })).toBeTruthy();
+  // nothing confirmed: nothing to rescore with
+  expect(screen.queryByRole('button', { name: 'Next' })).toBeNull();
 });
 
 it('Next rescores on the same page with your confirmed changes and downloads that file', async () => {

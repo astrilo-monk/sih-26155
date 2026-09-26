@@ -9,7 +9,6 @@ import { useState } from 'react';
 import { apiClient } from '../api/client';
 import UnresolvedList from './Unresolved';
 import FirstRunTips from './FirstRunTips';
-import AttackPaths from './AttackPaths';
 import Baseline from './Baseline';
 import Drift from './Drift';
 import Fleet from './Fleet';
@@ -70,7 +69,7 @@ export function PostureSummary({ posture, coverage = 0, bounds, criticalUnassess
         {assessed != null && (
           <p className="assessment-progress">
             <span className="tnum">{assessed}</span> check{assessed === 1 ? '' : 's'} assessed
-            {unresolved > 0 && <> · <span className="tnum">{unresolved}</span> need your input</>}
+            {unresolved > 0 && <> · <span className="tnum">{unresolved}</span> undecided</>}
           </p>
         )}
         <p className="assessment-line mono small muted">Posture {posture ?? '-'} · Coverage {coverage}% · {a.scope}</p>
@@ -235,7 +234,13 @@ export default function Results({ scan, audit, onOpen, onTeach, go }) {
 
       <Fleet scan={scan} labels={labels} />
 
-      <AttackPaths paths={scan.attack_paths} labels={labels} onFix={scan.archived ? null : () => go('fix')} />
+      {(scan.attack_paths || []).length > 0 && (
+        <p className="small">
+          <strong>{scan.attack_paths.length} potential attack path{scan.attack_paths.length === 1 ? '' : 's'}</strong> chain
+          the problems found here.{' '}
+          <button type="button" className="btn btn-quiet btn-sm" onClick={() => go('paths')}>See attack paths</button>
+        </p>
+      )}
 
       {!scan.archived && !nothingToAssess && <Baseline scanId={scan.scan_id} labels={labels} />}
 

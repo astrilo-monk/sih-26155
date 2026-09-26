@@ -596,7 +596,7 @@ async def ask_ai_for_line(scan_id: str, body: AskAIRequest):
 
     entry = _get_entry(scan_id)
     config = _unknown_config(entry, body.config_index)
-    _control(body.control_id)
+    control = _control(body.control_id)
     if not is_available():
         raise HTTPException(503, "The AI assistant is not configured on this server")
     result = next((r for r in _device_results(entry.get("result"), entry["configs"], body.config_index)
@@ -608,9 +608,18 @@ async def ask_ai_for_line(scan_id: str, body: AskAIRequest):
     judge_config(config, [result], Budget(remaining=1))
     found = [f for f in config.ai_facts if f.control_id == body.control_id]
     config.ai_facts = kept + found
-    note = None if found else (config.ai_notes.get(body.control_id)
-                               or "The AI found no line in this configuration that answers this check")
-    return AskAIResponse(found=bool(found), note=note)
+    # "found" means a line the teach page can show for confirmation, not merely an answer: an answer with no
+    # teachable line (e.g. "the setting is absent") would otherwise promise a suggestion that never appears
+    ai = _ai_candidates(config, body.control_id)
+    shown = [n for n, c in provisional_lines(config.raw_lines, control.needs, ai) if c in ai]
+    if shown:
+        return AskAIResponse(found=True, note=None)
+    if found:
+        note = ("The AI answered, but not with a line you can confirm here (for example, it judged the setting "
+                "absent). The check stays undecided: show NetAuditAI the line yourself, or skip.")
+    else:
+        note = config.ai_notes.get(body.control_id) or "The AI found no line in this configuration that answers this check"
+    return AskAIResponse(found=False, note=note)
 
 
 @router.get("/scans/{scan_id}/unresolved", response_model=UnresolvedQueueResponse)
