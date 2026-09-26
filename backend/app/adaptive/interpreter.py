@@ -53,6 +53,7 @@ from app.ai.interpretation_schemas import (
 )
 from app.models.field_catalog import FIELD_REGISTRY, SETTABLE_FIELDS
 from app.models.normalized import NormalizedConfig, UnrecognizedLine
+from app.ai.fence import DATA_RULE, fence
 
 logger = logging.getLogger(__name__)
 
@@ -242,7 +243,7 @@ def _field_catalog_text() -> str:
     return "\n".join(lines)
 
 
-INTERPRETATION_SYSTEM_PROMPT = _SYSTEM_PROMPT_TEMPLATE.format(field_catalog=_field_catalog_text())
+INTERPRETATION_SYSTEM_PROMPT = _SYSTEM_PROMPT_TEMPLATE.format(field_catalog=_field_catalog_text()) + "\n" + DATA_RULE
 
 
 def _clip(text: str) -> str:
@@ -290,7 +291,7 @@ def _build_prompt(lines: list[UnrecognizedLine]) -> str:
     return (
         "Map each TARGET line below. Block paths and context lines are read-only "
         "reading aids; do not return objects for them.\n\n"
-        + "\n\n".join(blocks)
+        + fence("\n\n".join(blocks).split("\n"))
         + f"\n\nReturn exactly {len(lines)} object(s), one per TARGET line, in this order."
     )
 

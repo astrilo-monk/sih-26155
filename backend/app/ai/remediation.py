@@ -29,6 +29,7 @@ from app.ai.redaction import Redactor
 from app.controls.catalog import Control
 from app.remediation.candidates import MAX_COMMAND_CHARS, CandidateError, clean_command
 from app.structure.tokenizer import tokenize
+from app.ai.fence import DATA_RULE, fence
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,9 @@ RULES
 5. explanation: one sentence on what the command changes. assumptions: what you had to assume about
    the platform, as short phrases; an empty list is fine.
 6. You do not decide compliance and your command is not applied. It is verified by deterministic code
-   where possible and confirmed by a human. If you are unsure of the dialect, say so in assumptions."""
+   where possible and confirmed by a human. If you are unsure of the dialect, say so in assumptions.
+"""
+SYSTEM_PROMPT += DATA_RULE
 
 _FIELDS = {
     "control_id": {"type": "string"},
@@ -93,7 +96,7 @@ def _prompt(control: Control, recommendation: str, vendor_status: str, detected_
            "not a confirmed platform)" if detected_vendor and detected_vendor != "unknown" else "")
         + f"\n- block path of the failing lines: {' | '.join(scopes) or 'top level'}\n\n"
         "CONFIGURATION EXCERPT (secrets redacted; the cited failing lines are marked >>)\n"
-        + "\n".join(excerpt)
+        + fence(excerpt)
     )
 
 

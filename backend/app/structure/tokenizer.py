@@ -31,6 +31,9 @@ from app.adaptive.context import structural_paths
 POSITIVE = frozenset({"enable", "enabled", "on", "true", "yes"})
 NEGATIVE = frozenset({"disable", "disabled", "off", "false", "no"})
 NEGATORS = frozenset({"no", "unset", "delete", "undo"})
+# ``configure syslog delete 10.0.0.5``: a leading configuring verb, then the removal right after the feature
+CONFIGURING = frozenset({"configure", "config"})
+REMOVERS = frozenset({"delete", "remove"})
 # Words that only switch a polarity word before them: ``disabled=yes``
 SWITCHES = frozenset({"yes", "no", "true", "false"})
 FREE_TEXT = frozenset({"description", "remark", "comment", "alias"})
@@ -78,6 +81,11 @@ def tokenize_line(text: str, line: int = 1, scope_path: tuple[str, ...] = ()) ->
     negated = tokens[0].lower() in NEGATORS and len(tokens) > 1
     if negated:
         tokens = tokens[1:]
+    elif tokens[0].lower() in CONFIGURING and len(tokens) > 3 and (
+            remover := next((i for i in (1, 2) if tokens[i].lower() in REMOVERS), None)):
+        # the statement removes what it names: ``configure ntp-client delete server all``
+        negated = True
+        tokens = tokens[:remover] + tokens[remover + 1:]
 
     statement = Statement(line=line, text=text, scope_path=scope_path)
     for token in tokens:

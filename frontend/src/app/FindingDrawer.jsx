@@ -4,9 +4,10 @@ import Drawer from '../components/ui/Drawer';
 import { Evidence, Severity, StatusMark } from '../components/ui/Evidence';
 import { MetaLine } from '../components/ui/primitives';
 import { ASSURANCE, fixStatus, isProblem, itemState, vendorState } from '../lib/domain';
+import { shown } from './Baseline';
 import { FixAction } from './Fix';
 
-const FRAMEWORKS = { NIST_800_53: 'NIST SP 800-53', DISA_STIG: 'DISA STIG', ISO_27001: 'ISO/IEC 27001' };
+const FRAMEWORKS = { NIST_800_53: 'NIST SP 800-53', CIS: 'CIS', DISA_STIG: 'DISA STIG', ISO_27001: 'ISO/IEC 27001' };
 
 const ADVICE = {
   pass: 'Nothing to do. This check passed.',
@@ -79,6 +80,45 @@ function Explain({ scanId, finding }) {
   );
 }
 
+const VERDICT = { pass: 'Passes', fail: 'Fails', unknown: 'Undecided', not_configured: 'Not configured', n_a: 'Does not apply' };
+
+// The evidence chain, top to bottom: what the frameworks require → the check → the vendor-neutral fields it read
+// → the configuration lines that said so → the verdict. Nothing here is recomputed: it is the result as scanned.
+function Chain({ item, results }) {
+  const reqs = item.primary.requirements || [];
+  const facts = results.flatMap((x) => (x.facts || []).map((f) => ({ ...f, x })));
+  const lineText = (x, n) => x.evidence?.lines?.[x.evidence.line_numbers.indexOf(n)];
+  return (
+    <ol className="chain">
+      <li>
+        <span className="chain-k">Required by</span>
+        {reqs.length ? (
+          <span className="chain-v">{reqs.slice(0, 4).map((q) => `${FRAMEWORKS[q.framework] || q.framework} ${q.requirement_id}`).join(' · ')}
+            {reqs.length > 4 && ` · +${reqs.length - 4} more`}</span>
+        ) : <span className="chain-v muted">No framework requirement mapped</span>}
+      </li>
+      <li><span className="chain-k">Check</span><span className="chain-v"><span className="mono">{item.controlId}</span> {item.question}</span></li>
+      <li>
+        <span className="chain-k">Read as</span>
+        {facts.length ? (
+          <ul className="chain-facts">
+            {facts.map((f, i) => (
+              <li key={i}>
+                <span className="mono">{f.field}{f.subject ? `[${f.subject}]` : ''} = {shown(f.value)}{f.unit ? ` ${f.unit}` : ''}</span>
+                <span className="small muted"> · {ASSURANCE[f.assurance]?.technical || f.assurance}</span>
+                {f.line_numbers.slice(0, 2).map((n) => (
+                  <code key={n} className="chain-line">line {n}: {lineText(f.x, n) ?? ''}</code>
+                ))}
+              </li>
+            ))}
+          </ul>
+        ) : <span className="chain-v muted">No setting was found for it in this configuration</span>}
+      </li>
+      <li><span className="chain-k">Verdict</span><span className="chain-v"><b>{results.map((x) => VERDICT[x.status] || x.status).filter((v, i, a) => a.indexOf(v) === i).join(' / ')}</b></span></li>
+    </ol>
+  );
+}
+
 export default function FindingDrawer({ item, scan, audit, labels, onClose, onTeach }) {
   if (!item) return null;
   const state = itemState(item, audit.applied);
@@ -127,6 +167,10 @@ export default function FindingDrawer({ item, scan, audit, labels, onClose, onTe
             </div>
           ) : <p>{ADVICE[state] || ADVICE.unknown}</p>}
       </section>
+
+      <More label="Show how this was decided">
+        <Chain item={item} results={shown} />
+      </More>
 
       <More label="Show evidence">
         {shown.map((x, i) => (

@@ -1,5 +1,25 @@
 # Demo Script (SIH)
 
+## The 2-minute judge path
+
+1. **New scan:** add `demo-sih/cisco_edge_vulnerable.cfg` and `demo-sih/paloalto_fw_vulnerable.cfg` together, set
+   *How important is this device?* to **High**, tick **faces the internet**, **Start scan**.
+2. **Overview:** Risk **CRITICAL** (hover for the reasons and formula); *Across 2 devices* shows each score and the
+   most common problems.
+3. **Potential attack paths:** read "Remote takeover through the management plane" left to right: reach the login →
+   capture the password → log in as admin → full control. Every step cites its line. "Break it: fix MGMT-003".
+4. **Compare the devices field by field:** Cisco (parser) and PAN-OS (learned, no parser) filled into the *same*
+   vendor-neutral fields from completely different syntax. That is the problem statement's normalization, visible.
+5. **Open a finding → Show how this was decided:** NIST / STIG / ISO requirement → check → `mgmt.ssh.version = 1` →
+   `line 27: ip ssh version 1` → Fails.
+6. **Remediation:** *Fix in this order* puts the fix that closes the critical path first, with the reason.
+7. **Executive summary (PDF)**, then **Audit ledger → Verify the ledger** (intact) and **Check a report PDF** with the
+   file just downloaded: "Genuine". Change one byte and it says "Not found".
+8. **Rules catalog:** 23 checks answer 78 framework requirements. Close on the numbers in the README: 17/20 planted,
+   70/87 across 8 vendors, 0 missed, 0 false alarms, 0 of 6 prompt-injection attacks succeeded.
+
+## The full walkthrough
+
 Uses files in the repository. Run with AI off (no Groq key) unless step 9 is shown; check the Groq quota first if it is.
 Start from an empty recognizer database for a clean replay (`ADAPTIVE_DB_PATH` pointing at a new file). A new file
 is not empty for long: the shipped seed recognizers load into it on first use, which is what steps 6a and 8 show.

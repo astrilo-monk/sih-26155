@@ -9,6 +9,9 @@ import { useState } from 'react';
 import { apiClient } from '../api/client';
 import UnresolvedList from './Unresolved';
 import FirstRunTips from './FirstRunTips';
+import AttackPaths from './AttackPaths';
+import Baseline from './Baseline';
+import Fleet from './Fleet';
 import { useEntered } from '../lib/hooks';
 
 // The row's action word: what clicking it lets you do
@@ -129,6 +132,8 @@ export default function Results({ scan, audit, onOpen, onTeach, go }) {
   const questions = audit.queue?.provisional || [];
   const multi = labels.length > 1;
   const title = multi ? `${labels.length} configurations` : labels[0] === 'unknown' ? 'Unnamed device' : labels[0];
+  // contextual risk (app/analysis/risk.py): the riskiest device's; older scans without it fall back to severity
+  const risk = scan.devices.map((d) => d.risk).filter(Boolean).sort((a, b) => b.score - a.score)[0];
 
   return (
     <div className="wrap overview enter">
@@ -147,6 +152,10 @@ export default function Results({ scan, audit, onOpen, onTeach, go }) {
             label={scan.devices.length > 1 ? `Download ${scan.devices.length} PDF reports` : 'Download PDF report'}
             run={() => apiClient.downloadReport(scan.scan_id)} failed="The report couldn’t be generated."
           />
+          <DownloadButton
+            label="Executive summary (PDF)" failed="The summary couldn’t be generated."
+            run={() => apiClient.downloadReport(scan.scan_id, null, {}, 'executive')}
+          />
           {!scan.archived && (
             <DownloadButton
               label="Download baseline (JSON)" failed="The baseline couldn’t be exported."
@@ -164,9 +173,15 @@ export default function Results({ scan, audit, onOpen, onTeach, go }) {
         <div><dt>Security score</dt><dd className="tnum">{scan.posture ?? '-'}{scan.posture != null && <small>/100</small>}</dd></div>
         <div><dt>Findings</dt><dd className="tnum">{counts.problems}</dd></div>
         <div><dt>Devices</dt><dd className="tnum">{scan.devices.length}</dd></div>
-        <div className={`kpi-risk sev-${SEVERITIES.find((s) => counts.severity[s]) || 'none'}`}>
-          <dt>Risk</dt><dd>{SEVERITIES.find((s) => counts.severity[s]) || (nothingToAssess ? 'Unknown' : 'None found')}</dd>
-        </div>
+        {risk ? (
+          <div className={`kpi-risk sev-${risk.level}`} title={`${risk.reasons.join('\n')}\n\nRisk = ${risk.formula}`}>
+            <dt>Risk</dt><dd>{risk.level} <small className="tnum">{risk.score}/100</small></dd>
+          </div>
+        ) : (
+          <div className={`kpi-risk sev-${SEVERITIES.find((s) => counts.severity[s]) || 'none'}`}>
+            <dt>Risk</dt><dd>{SEVERITIES.find((s) => counts.severity[s]) || (nothingToAssess ? 'Unknown' : 'None found')}</dd>
+          </div>
+        )}
       </dl>
 
       <div className="status-grid">
@@ -207,6 +222,12 @@ export default function Results({ scan, audit, onOpen, onTeach, go }) {
           </div>
         </section>
       </div>
+
+      <Fleet scan={scan} labels={labels} />
+
+      <AttackPaths paths={scan.attack_paths} labels={labels} onFix={scan.archived ? null : () => go('fix')} />
+
+      {!scan.archived && !nothingToAssess && <Baseline scanId={scan.scan_id} labels={labels} />}
 
       {critical.length > 0 && (
         <Notice kind="warning" label="Not checked">

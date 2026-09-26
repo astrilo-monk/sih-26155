@@ -129,8 +129,12 @@ def glance_block(scan, index: int, plan=None) -> list[Block]:
         return blocks
     worst = min((r.severity for r in failed.values()), key=_ORDER.index)
     counts = {s: sum(1 for r in failed.values() if r.severity == s) for s in _ORDER}
-    blocks.append(("p", f"Risk: {worst.upper()}. {len(failed)} problem{'s' if len(failed) != 1 else ''} found ("
+    risk = (_device(scan, index) or {}).get("risk")
+    level = f"{risk['level'].upper()} ({risk['score']}/100)" if risk else worst.upper()
+    blocks.append(("p", f"Risk: {level}. {len(failed)} problem{'s' if len(failed) != 1 else ''} found ("
                         + ", ".join(f"{n} {s}" for s, n in counts.items() if n) + ")."))
+    if risk:
+        blocks.append(("p", f"Why: {'; '.join(risk['reasons'])}. Risk = {risk['formula']}."))
     if scan.posture is not None:
         line = f"Score: {scan.posture}/100, from the {scan.coverage}% of checks that could be decided."
         after = getattr(plan, "after", None) if plan is not None else None
@@ -313,6 +317,27 @@ def unresolved_block(scan, index: int) -> list[Block]:
     return blocks
 
 
+def attack_paths_block(scan, index: int) -> list[Block]:
+    """How this device's confirmed problems chain together, step by step, and the fix that breaks each chain."""
+    paths = [p for p in (getattr(scan, "attack_paths", None) or []) if p.get("config_index") == index]
+    if not paths:
+        return []
+    blocks: list[Block] = [("h2", "Potential attack paths"),
+                           ("p", "Each path chains problems this report confirms; every step is a decided FAIL. It shows "
+                                 "what the configuration allows, not a test of the live device.")]
+    for path in paths:
+        blocks.append(("h3", f"{path['title']} ({path['severity'].upper()})"))
+        rows = [[str(i), step["title"], ", ".join(c["control_id"] for c in step["controls"]),
+                 "; ".join(f"line {line['number']}: {line['text']}" for c in step["controls"] for line in c["lines"][:1])
+                 or "not configured"]
+                for i, step in enumerate(path["steps"], 1)]
+        rows.append(["", f"Result: {path['outcome']}", "", ""])
+        blocks.append(("table", (["#", "Step", "Checks", "Evidence"], rows)))
+        blocks.append(("p", f"Break it: fix {' and '.join(path['break_with'])} (the \"{path['break_step']}\" step) "
+                            "and the whole path closes."))
+    return blocks
+
+
 def report_blocks(scan, index: int, plan=None, generated_at: Optional[datetime] = None) -> list[Block]:
     """The whole report for one device, as a document model."""
     device = _device(scan, index)
@@ -324,7 +349,8 @@ def report_blocks(scan, index: int, plan=None, generated_at: Optional[datetime] 
     if index in (getattr(scan, "unreadable_configs", None) or []):
         blocks.append(("note", "This file does not contain enough recognizable configuration to assess. "
                                "No posture was calculated for it."))
-    for section in (glance_block(scan, index, plan), identification_block(scan, index), summary_block(scan, index),
+    for section in (glance_block(scan, index, plan), attack_paths_block(scan, index), identification_block(scan, index),
+                    summary_block(scan, index),
                     findings_block(scan, index),
                     frameworks_block(scan, index), remediation_block(plan, index), unresolved_block(scan, index)):
         blocks.extend(section)
@@ -414,7 +440,45 @@ def render_pdf(blocks: list[Block], title: str = "Compliance report") -> bytes:
     return buffer.getvalue()
 
 
-def device_report_pdf(scan, index: int, plan=None, generated_at: Optional[datetime] = None) -> bytes:
+def executive_blocks(scan, index: int, plan=None, generated_at: Optional[datetime] = None) -> list[Block]:
+    """One page for a decision-maker: risk, score, attack paths and the first three things to do."""
     device = _device(scan, index)
-    blocks = report_blocks(scan, index, plan, generated_at)
+    when = (generated_at or datetime.now()).strftime("%Y-%m-%d %H:%M")
+    blocks: list[Block] = [
+        ("h1", f"Executive summary -{device.get('hostname') or 'unnamed device'}"),
+        ("p", f"NetAuditAI · generated {when} · scan {scan.scan_id} · the full technical report has every finding, "
+              "its evidence and its fix"),
+        *glance_block(scan, index, plan),
+    ]
+    paths = [p for p in (getattr(scan, "attack_paths", None) or []) if p.get("config_index") == index]
+    if paths:
+        blocks.append(("h2", "How an attacker could chain these problems"))
+        blocks.append(("table", (["Potential attack path", "Outcome", "Breaks when you fix"],
+                                 [[f"{p['title']} ({p['severity']})", p["outcome"], " and ".join(p["break_with"])]
+                                  for p in paths])))
+    todo = []
+    if plan is not None:
+        # the fix that breaks the most severe attack path first, then a fix that is ready, then by check
+        breaking: dict[str, int] = {}
+        for p in paths:
+            for c in p["break_with"]:
+                breaking[c] = min(breaking.get(c, len(_ORDER)), _ORDER.index(p["severity"]))
+        items = [r for r in plan.remediations if r.status != "not_failing"]
+        items.sort(key=lambda r: (breaking.get(r.rule_id, len(_ORDER)), r.status != "fixed", r.rule_id))
+        todo = [[r.rule_id, r.title, REMEDIATION_WORDS.get(r.status, r.status)
+                 + ("; breaks an attack path" if r.rule_id in breaking else "")] for r in items[:3]]
+    if todo:
+        blocks.append(("h2", "What to do first"))
+        blocks.append(("table", (["Check", "Problem", "How"], todo)))
+    return blocks
+
+
+def device_report_pdf(scan, index: int, plan=None, generated_at: Optional[datetime] = None,
+                      ledger_entry: Optional[dict] = None, executive: bool = False) -> bytes:
+    device = _device(scan, index)
+    blocks = (executive_blocks if executive else report_blocks)(scan, index, plan, generated_at)
+    if ledger_entry:
+        blocks.append(("note", f"Audit ledger: the scan behind this report is entry #{ledger_entry['seq']} "
+                               f"(hash {ledger_entry['hash'][:16]}…). This PDF's own SHA-256 is recorded when it is "
+                               "generated: any copy can be checked with POST /api/ledger/verify-report."))
     return render_pdf(blocks, title=f"Compliance report -{device.get('hostname') or 'device'}")

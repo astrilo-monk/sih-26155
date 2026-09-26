@@ -40,7 +40,7 @@ UNKNOWN_CFG = (REPO / "sample" / "unknown.cfg").read_text(encoding="utf-8")
 def _proposal(control_id, predicate, value, needles, evidence, subject=None, unit=None):
     """A proposal citing the excerpt lines that contain ``needles`` (None when the prompt lacks them)."""
     def build(prompt):
-        refs = {text.strip(): int(ref) for ref, text in re.findall(r"^\[(\d+)\] (.*)$", prompt, re.M)}
+        refs = {text.strip(): int(ref) for ref, text in re.findall(r"^(?:[0-9a-f]{12}\|)?\[(\d+)\] (.*)$", prompt, re.M)}
         cited = [ref for needle in needles for text, ref in refs.items() if needle in text]
         if len(cited) < len(needles):
             return None

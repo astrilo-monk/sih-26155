@@ -18,7 +18,9 @@ Returns a simple status payload confirming the backend is running.
 
 ### `POST /api/scan`
 Upload one or more raw configuration files for analysis.
-* **Request:** `multipart/form-data` with one or more `files` fields (UTF-8 text or JSON, max 2 MB each), and an
+* **Request:** `multipart/form-data` with one or more `files` fields (UTF-8 text or JSON, max 2 MB each), optional
+  asset context for the risk rating only (`criticality`: `low` | `medium` | `high` | `critical`; `internet_facing`:
+  `true`), and an
   optional `framework` field (`NIST_800_53` | `CIS` | `DISA_STIG` | `ISO_27001`). Every control runs either way;
   the choice limits the framework views, the findings' compliance mapping and the PDF report to one benchmark.
   An unknown name is refused with 422.
@@ -31,7 +33,10 @@ Upload one or more raw configuration files for analysis.
     position, `config_index`.
   * `framework`: the benchmark chosen at upload, `null` when every framework is reported
   * `vendor_identification[]`: `detected_vendor`, `status` (`confirmed` / `unverified` / `unknown`), `parse_coverage`, `uncovered_lines`, `reason`
-  * `results[]`: every control for every config -`status`, `assurance`, `proposed_status` (AI verdict awaiting confirmation), `scope`, `reason`, `evidence`
+  * `results[]`: every control for every config -`status`, `assurance`, `proposed_status` (AI verdict awaiting confirmation), `scope`, `reason`, `evidence`,
+    and the evidence chain: `facts[]` (the normalized fields the answer read: `field`, `subject`, `value` redacted,
+    `unit`, `assurance`, `line_numbers`) and `requirements[]` (`framework`, `version`, `requirement_id`, `title`;
+    CIS only for the confirmed vendor it was written for)
   * `findings[]`: FAIL results with their `config_index` (`assurance` heuristic = suspected, not scored) and severity counts
   * Every configuration quote (evidence lines, reasons, adaptive lines and their context) is redacted with that
     configuration's own secrets, e.g. `username admin password 0 <SECRET:type0>`. Evidence keeps its line numbers.
@@ -41,6 +46,13 @@ Upload one or more raw configuration files for analysis.
   * `unreadable_configs[]`: indexes of uploaded files holding no security configuration at all (prose, a README).
     They are reported as unreadable and never scored; an unfamiliar *configuration* is a different thing.
   * `frameworks[]`: the same results by framework version -`coverage`, `counts`, `requirements[]` (`status` pass / fail / partial / unknown / not_configured / n_a, `provisional`, mapped `controls[]` with status, assurance, evidence)
+  * each `devices[]` entry also carries its own `posture`, `coverage` and `risk` (`score` 0-100, `level`,
+    `reasons[]`, `formula`; `app/analysis/risk.py`): worst decided problem + exposure + attack paths, times asset
+    criticality. Risk never changes a check result or the posture.
+  * `attack_paths[]`: potential attack paths per device (`app/analysis/attack_paths.py`): `config_index`,
+    `path_id`, `title`, `outcome`, `severity`, `steps[]` (`title`, `how`, `controls[]` with `control_id`, `title`,
+    up to 3 redacted `lines`), `break_with` (the checks of the cheapest step: fixing them all closes the path) and
+    `break_step`. A path appears only when every step is a decided FAIL; heuristic and AI verdicts never open one.
   * `score`: **deprecated** penalty score, kept for existing scripts; do not use for compliance
 * **`adaptive` block:** present when lines went through the adaptive layer. It holds:
   * `ai_calls`, `ai_cache_hits`: AI judge requests and cached answers for this config
@@ -54,6 +66,11 @@ Upload one or more raw configuration files for analysis.
 
 ### `GET /api/scan/{scan_id}`
 Retrieve a previous scan from the in-memory store (`404` after a backend restart).
+
+### `GET /api/catalog`
+Every check (`control_id`, `title`, `question`, `category`, `severity`, `kind`, `reads[]` normalized fields) with every
+framework requirement it answers (`framework`, `version`, `requirement_id`, `title`, `vendor` for product benchmarks),
+plus `requirements` (distinct requirements per framework) and `requirement_total`. The UI's **Rules catalog** page.
 
 ### `GET /api/scan/{scan_id}/baseline?config_index=0`
 The **Security Baseline Model** of one configuration: the vendor-neutral fields every control reads, whatever the
@@ -85,6 +102,25 @@ answers; `read_by` says which checks read each field.
 ### `GET /api/scan/{scan_id}/status`
 Whether the backend still holds a scan: `{"scan_id": "123-abc", "held": false}` (always `200`). The History page uses it
 to mark entries expired after a restart.
+
+## Audit ledger
+
+An append-only, hash-chained record (`backend/app/ledger.py`): every archived scan state, taught recognizer,
+confirmed or rejected candidate fix and generated PDF report appends `{seq, at, kind, subject, content_hash,
+prev_hash, hash}`, where `content_hash` is the SHA-256 of the redacted artefact (never a secret or configuration)
+and `hash` = SHA-256 of the entry including the previous hash. The report PDF prints the scan's ledger entry.
+
+### `GET /api/ledger?limit=100`
+The most recent entries, newest first: `{"entries": [...]}`.
+
+### `GET /api/ledger/verify`
+Recomputes the chain: `{"ok": true, "entries": 12, "broken_at": null, "reason": null, "head": "<hash>"}`. On
+tampering `ok` is false, `broken_at` names the first bad entry and `reason` says why (`entry #n is missing`, `it
+does not follow the entry before it`, `its content was changed after it was recorded`).
+
+### `POST /api/ledger/verify-report`
+`multipart/form-data` with `file`: `{"match": true, "sha256": "...", "entry": {...}, "chain": {...}}`: whether the
+PDF is byte for byte a report NetAuditAI generated. Only the hash is compared; the file is not kept.
 
 ## Live collection
 
@@ -259,6 +295,7 @@ Download the configuration(s) with every verified fix applied (unverified change
 ## Reporting
 
 ### `POST /api/report`
+`variant`: `full` (default, the technical report) or `executive` (one page: risk and why, score, attack paths, the first three things to do). Every generated PDF is recorded in the audit ledger.
 The compliance report as PDF. **Request JSON:** `{"scan_id": "123-abc", "config_index": 0, "inputs": {}}` -
 `config_index` omitted reports every device of the scan. One device returns `application/pdf`
 (`<hostname>_compliance_report.pdf`); several return a `.zip` with one PDF per device. `404` for an unknown

@@ -1266,6 +1266,34 @@
       "command_pattern": "aaa authentication {any} console {enum:group} {rest}",
       "constant_value": "{\"local\": false, \"*\": true}",
       "example_line": "aaa authentication ssh console TACACS-GROUP LOCAL"
+    },
+    {
+      "concept": "SNMP community",
+      "vendor": "Arista EOS",
+      "predicate": "snmp.community",
+      "command_pattern": "snmp-server community {community:RO} ro access {any}",
+      "example_line": "snmp-server community <SECRET:snmp-community> ro access SNMP-ACL"
+    },
+    {
+      "concept": "SNMP community",
+      "vendor": "Check Point Gaia",
+      "predicate": "snmp.community",
+      "command_pattern": "set snmp community {community:RO}",
+      "example_line": "set snmp community <SECRET:snmp-community>"
+    },
+    {
+      "concept": "SNMP community",
+      "vendor": "HPE Aruba AOS-CX",
+      "predicate": "snmp.community",
+      "command_pattern": "snmp-server community {community:RO}",
+      "example_line": "snmp-server community <SECRET:snmp-community>"
+    },
+    {
+      "concept": "SNMP community",
+      "vendor": "Extreme Networks EXOS",
+      "predicate": "snmp.community",
+      "command_pattern": "configure snmp add community {community:RO}",
+      "example_line": "configure snmp add community <SECRET:snmp-community>"
     }
   ]
 }

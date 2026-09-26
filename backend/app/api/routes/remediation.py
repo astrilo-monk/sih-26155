@@ -47,6 +47,7 @@ from app.controls.catalog import CONTROLS
 from app.models.normalized import Vendor
 from app.models.results import DECISIVE_ASSURANCE, Status
 from app.remediation import candidates as cand
+from app import ledger
 from app.remediation.engine import (
     INPUTS, Outcome, RemediationStatus, analyze_generic_text, parse_inputs, remediate_all, remediate_control,
 )
@@ -443,7 +444,7 @@ async def confirm_candidate(req: RemediationCandidateRequest):
         raise HTTPException(409, f"A candidate in state '{item.status.value}' cannot be confirmed: "
                                  "check it against this configuration first.")
     cand.confirm(item)
-    return _candidate_schema(stored, item)
+    return _recorded(req, _candidate_schema(stored, item))
 
 
 @router.post("/remediation/candidate/reject", response_model=RemediationCandidateSchema)
@@ -452,7 +453,13 @@ async def reject_candidate(req: RemediationCandidateRequest):
     stored = _stored(req.scan_id)
     item = _existing(stored, req)
     cand.reject(item, req.reason or "")
-    return _candidate_schema(stored, item)
+    return _recorded(req, _candidate_schema(stored, item))
+
+
+def _recorded(req, schema):
+    """A person's decision on a candidate fix goes into the audit ledger."""
+    ledger.append("candidate", f"{req.scan_id}/{req.config_index}/{req.rule_id}", schema.model_dump(mode="json"))
+    return schema
 
 
 def _safe_name(*parts: str) -> str:

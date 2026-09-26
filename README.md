@@ -12,10 +12,41 @@ AI is optional: it only proposes answers for controls the deterministic engine l
 human confirms them before they count. Configurations can be uploaded or pulled from a device over SSH;
 NetAuditAI only ever **reads** a device, and never executes a change on one.
 
+## Highlights
+
+* **Measured, not claimed.** 17/20 planted vulnerabilities detected as decided FAILs, 70/87 on labelled fixtures from
+  8 vendors with no dedicated parser, **0 missed and 0 false alarms**; a test fails the build if that gets worse.
+* **Potential attack paths.** Findings chained into how an attacker gets in (reach the login → capture the password
+  → log in as admin), each step a decided FAIL with its line, plus the one fix that breaks the path.
+* **Every verdict traceable.** Framework requirement → check → vendor-neutral field and value → the configuration
+  line → verdict, in the finding drawer; the whole model can be compared across vendors side by side or exported.
+* **Fixes that are proven.** Every automatic fix is applied to a copy and rescanned before it counts; a missing
+  syslog server or banner is added in the device's own syntax from a validated value.
+* **Tamper-evident audit ledger.** Scans, taught recognizers, fix decisions and reports are hash-chained; editing
+  any entry is caught, and a report PDF can be checked byte for byte.
+* **AI that cannot change a verdict.** Configuration text is fenced as data in every prompt; a live probe of 6
+  prompt-injection attacks succeeded 0 times, and a fully hijacked model is tested to change nothing.
+* **Contextual risk.** Worst problem, internet exposure, attack paths and asset importance, by a formula shown on
+  screen and in the report.
+
 ## Status
 
 Working hackathon prototype. Backend: 1227 tests passed, 2 live-AI tests skipped. Frontend: 119 tests
 passed, production build OK.
+
+## Measured accuracy
+
+Every labelled configuration through the real pipeline, shipped knowledge only, **no AI**
+(`python backend/scripts/benchmark.py`, full table in [benchmark/RESULTS.md](benchmark/RESULTS.md), labels in
+[benchmark/labels.json](benchmark/labels.json)):
+
+| Set | Insecure settings detected (decided FAIL) | Missed | False alarms on secure settings |
+|---|---|---|---|
+| 20 vulnerabilities planted in the demo files (Cisco IOS, PAN-OS) | **17/20** (+2 suspected, 1 undecided by design) | **0** | **0** of 4 |
+| 16 labelled fixtures, 8 vendors with no dedicated parser | **70/87** (17 undecided) | **0** | **0** of 68 |
+
+"Undecided" is an answer, not a miss: the engine shows the line and says what it would need, and never calls an
+insecure setting secure. A test fails the build if any of these numbers gets worse.
 
 ## Pipeline
 
@@ -105,20 +136,24 @@ The scan response still carries `score`, the deprecated penalty score (kept for 
 ### The interface
 
 A fixed left sidebar. **New scan · Overview · Devices · Findings · Remediation**, then under *Intelligence*
-**Adaptive learning · Frameworks · History**. The scan pages are disabled until a scan is open.
+**Adaptive learning · Frameworks · History · Rules catalog · Audit ledger**. The scan pages are disabled until a scan
+is open.
 
 | Sidebar | Page | Route |
 |---|---|---|
-| New scan | Upload one or more configurations, or collect them from live devices over SSH | `#/app` |
-| Overview | Posture, coverage, critical not assessed, what to do now, PDF report | `#/app/scan/{id}` |
+| New scan | Upload one or more configurations, or collect them from live devices over SSH; optionally say how important the device is and whether it faces the internet (risk only) | `#/app` |
+| Overview | Risk (with its reasons), posture, coverage, a fleet view for several devices, **potential attack paths** with the fix that breaks each, the **vendor-neutral model** side by side per device, what to do now, PDF report, one-page executive summary, baseline JSON | `#/app/scan/{id}` |
 | Devices | How each configuration was read (vendor, parser or generic path, coverage) | `…/devices` |
 | Findings | Every control on every device, with evidence | `…/checks` |
-| Remediation | Fix automatically, needs your input, manual action, cannot safely fix; verified download; candidate fixes | `…/fix` |
+| Remediation | **Fix in this order** (most risk removed per effort, with reasons), then fix automatically, needs your input, manual action, cannot safely fix; verified download; candidate fixes | `…/fix` |
 | Adaptive learning | With a scan open: this scan's unknown syntax to teach. Otherwise: learned mappings (shipped and taught, each can be stopped) | `…/teach`, `#/app/learned` |
 | Frameworks | The same results by framework requirement | `…/frameworks` |
 | History | Scan summaries kept in this browser | `#/app/history` |
+| Rules catalog | Every check, what it reads, and the 78 framework requirements the 23 checks answer | `#/app/rules` |
+| Audit ledger | Hash-chained record of every scan, taught recognizer, fix decision and report; verify the chain, or check a report PDF byte for byte | `#/app/ledger` |
 
-Clicking a finding opens a drawer with its cited lines, assurance and framework mappings. When AI is configured,
+Clicking a finding opens a drawer with its cited lines, assurance and framework mappings, and **how it was
+decided**: framework requirement → check → normalized field and value → configuration line → verdict. When AI is configured,
 **Explain this** asks for a plain-language explanation, labelled *AI-written, commentary, not evidence*; it never
 changes a status, severity or count.
 

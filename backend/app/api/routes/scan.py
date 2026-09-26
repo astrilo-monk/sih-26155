@@ -20,6 +20,8 @@ from functools import partial
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.parsers.detector import STATUS_UNVERIFIED, VendorIdentification, identify_vendor
+from app.analysis.attack_paths import attack_paths
+from app.analysis.risk import CRITICALITY, device_risk
 from app.analysis.engine import analyze, analyze_multiple, evaluate_controls
 from app.analysis.scoring import calculate_posture, control_outcomes
 from app.facts.from_normalized import facts_from_config
@@ -47,6 +49,7 @@ from app.config import settings
 from app.adaptive import capture_unrecognized_lines
 from app.adaptive.context import structural_paths
 from app.ai.redaction import Redactor, placeholder
+from app import ledger
 from app.db.scans import load_scan, save_scan
 from app.facts.heuristics import generic_hostname, stated_identity
 from app.structure.structured import flatten_json
@@ -141,7 +144,25 @@ def _finding_to_schema(f, redactor: Redactor, framework: Optional[str] = None) -
     )
 
 
-def _result_to_schema(result: ControlResult, config_index: int, redactor: Redactor) -> ControlResultSchema:
+def fact_value(redactor: Redactor, fact):
+    """A fact's value as it may be shown: secrets scrubbed, absence as "not_set"."""
+    if fact.predicate == SNMP_COMMUNITY and fact.value is not NOT_SET:
+        # SNMP community strings are credentials: which one is configured is never shown, only that one is
+        return placeholder("redacted")
+
+    def shown(value):
+        if value is NOT_SET:
+            return "not_set"
+        if isinstance(value, (list, tuple)):
+            return [shown(v) for v in value]
+        if isinstance(value, str):
+            return display_scrub(redactor, value)
+        return value
+    return shown(fact.value)
+
+
+def _result_to_schema(result: ControlResult, config_index: int, redactor: Redactor,
+                      vendor: Optional[Vendor] = None) -> ControlResultSchema:
     control = CONTROLS[result.control_id]
     return ControlResultSchema(
         config_index=config_index,
@@ -163,7 +184,18 @@ def _result_to_schema(result: ControlResult, config_index: int, redactor: Redact
             lines=redact_lines(redactor, result.evidence.text, result.evidence.scope_path),
             scope_path=list(result.evidence.scope_path),
         ),
+        # the evidence chain: the normalized facts this answer read, and the requirements it answers
+        facts=[{"field": f.predicate, "subject": f.subject, "value": fact_value(redactor, f), "unit": f.unit,
+                "assurance": f.assurance.value, "line_numbers": list(f.evidence.line_numbers)}
+               for f in (result.facts or [])],
+        requirements=[{"framework": m.framework, "version": m.version, "requirement_id": m.requirement_id,
+                       "title": m.title} for m in control.mappings if m.vendor is None or m.vendor == vendor],
     )
+
+
+def _device_posture(results: list[ControlResult]) -> dict:
+    posture = calculate_posture([results])
+    return {"posture": posture.posture, "coverage": posture.coverage}
 
 
 def _device_results(result, configs: list[NormalizedConfig], config_index: int) -> list[ControlResult]:
@@ -391,7 +423,9 @@ def archive_scan(scan_id: str) -> None:
             plans.append(_device_plan(_scan_store[scan_id], index, {}).model_dump(mode="json"))
         except Exception:  # a scan is worth keeping even when remediation cannot be planned
             plans.append(None)
-    save_scan(scan_id, _scan_store[scan_id]["timestamp"], build_scan_response(scan_id).model_dump(mode="json"), plans)
+    response = build_scan_response(scan_id).model_dump(mode="json")
+    save_scan(scan_id, _scan_store[scan_id]["timestamp"], response, plans)
+    ledger.append("scan", scan_id, response)
 
 
 def archived_scan(scan_id: str) -> Optional[ScanResultResponse]:
@@ -431,7 +465,8 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
         if run is not None
     ]
     results_schema = [
-        _result_to_schema(r, idx, redactors[idx]) for idx, results in enumerate(device_results) for r in results
+        _result_to_schema(r, idx, redactors[idx], configs[idx].device.vendor)
+        for idx, results in enumerate(device_results) for r in results
     ]
     selected = entry.get("framework")
     views = [v for v in framework_views(device_results) if selected in (None, v["framework"])]
@@ -458,6 +493,9 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
         unreadable_configs=[idx for idx, cfg in enumerate(configs) if not is_configuration(cfg)],
         assessed_count=sum(1 for o in outcomes.values() if o in ("pass", "fail")),
         unresolved_count=sum(1 for o in outcomes.values() if o == "undecided"),
+        # built from the redacted results above, so a path quotes nothing the results do not
+        attack_paths=[{"config_index": idx, **path} for idx in range(len(configs))
+                      for path in attack_paths([r.model_dump() for r in results_schema if r.config_index == idx])],
     )
 
     if result is None:
@@ -483,7 +521,12 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
         high=result.high_count,
         medium=result.medium_count,
         low=result.low_count,
-        devices=result.devices,
+        # each device's own posture and coverage, from the same calculation as the scan's (fleet view)
+        devices=[{**device, **_device_posture(device_results[idx]),
+                  "risk": device_risk([r.model_dump() for r in results_schema if r.config_index == idx],
+                                      [p for p in posture_fields["attack_paths"] if p["config_index"] == idx],
+                                      **entry.get("context", {}))}
+                 for idx, device in enumerate(result.devices)],
         findings=[_finding_to_schema(f, redactors[f.config_index], selected) for f in result.findings],
         adaptive=adaptive,
         adaptive_configs=infos,
@@ -501,7 +544,8 @@ def validated_framework(framework: Optional[str]) -> Optional[str]:
     return framework
 
 
-def run_scan(sources: list[tuple[str, str]], framework: Optional[str] = None) -> ScanResultResponse:
+def run_scan(sources: list[tuple[str, str]], framework: Optional[str] = None,
+             context: Optional[dict] = None) -> ScanResultResponse:
     """Analyse configurations that are already text, and return the scan they produce.
 
     ``sources`` are ``(name, configuration)`` pairs. The name is only for error messages: nothing in
@@ -589,6 +633,8 @@ def run_scan(sources: list[tuple[str, str]], framework: Optional[str] = None) ->
         # item_id -> {"status": accepted|edited|rejected|learned, "mapping_id": int|None}
         "review_state": {},
         "framework": framework,
+        # asset criticality and internet exposure the operator stated at upload (risk only; never a verdict)
+        "context": context or {},
     }
 
     if not (had_unknown_vendor and not had_ai_available and not anything_applied):
@@ -600,7 +646,8 @@ def run_scan(sources: list[tuple[str, str]], framework: Optional[str] = None) ->
 
 
 @router.post("/scan", response_model=ScanResultResponse)
-async def scan_configs(files: list[UploadFile] = File(...), framework: Optional[str] = Form(None)):
+async def scan_configs(files: list[UploadFile] = File(...), framework: Optional[str] = Form(None),
+                       criticality: Optional[str] = Form(None), internet_facing: bool = Form(False)):
     """
     Upload one or more config files for security analysis.
     Returns findings, score, and device info.
@@ -619,6 +666,8 @@ async def scan_configs(files: list[UploadFile] = File(...), framework: Optional[
     if not files:
         raise HTTPException(400, "No files uploaded")
     framework = validated_framework(framework)
+    if criticality not in (None, "", *CRITICALITY):
+        raise HTTPException(422, f"criticality must be one of: {', '.join(CRITICALITY)}")
 
     sources: list[tuple[str, str]] = []
     for file in files:
@@ -632,7 +681,7 @@ async def scan_configs(files: list[UploadFile] = File(...), framework: Optional[
         except UnicodeDecodeError:
             raise HTTPException(400, f"File '{file.filename}' is not a valid text file")
 
-    return run_scan(sources, framework)
+    return run_scan(sources, framework, {"criticality": criticality or None, "internet_facing": internet_facing})
 
 
 @router.get("/scan/{scan_id}", response_model=ScanResultResponse)
@@ -643,6 +692,23 @@ async def get_scan(scan_id: str):
             return archived
         raise HTTPException(404, "Scan not found")
     return build_scan_response(scan_id)
+
+
+@router.get("/catalog")
+async def control_catalog():
+    """Every check: its question, what it reads, and every framework requirement it answers (with versions)."""
+    controls = [{
+        "control_id": c.control_id, "title": c.title, "question": c.question, "category": c.category,
+        "severity": c.severity.value, "kind": c.kind.value, "reads": list(c.needs),
+        "requirements": [{"framework": m.framework, "version": m.version, "requirement_id": m.requirement_id,
+                          "title": m.title, "vendor": m.vendor.value if m.vendor else None} for m in c.mappings],
+    } for c in CONTROLS.values()]
+    by_framework: dict[str, set] = {}
+    for c in controls:
+        for r in c["requirements"]:
+            by_framework.setdefault(r["framework"], set()).add((r["version"], r["requirement_id"]))
+    return {"controls": controls, "requirements": {f: len(ids) for f, ids in sorted(by_framework.items())},
+            "requirement_total": sum(len(ids) for ids in by_framework.values())}
 
 
 @router.get("/scan/{scan_id}/baseline")
@@ -658,22 +724,11 @@ async def security_baseline(scan_id: str, config_index: int = 0):
     config: NormalizedConfig = entry["configs"][config_index]
     redactor = config_redactor([config])
     facts = facts_from_config(config)
-
-    def shown(value):
-        if value is NOT_SET:
-            return "not_set"
-        if isinstance(value, (list, tuple)):
-            return [shown(v) for v in value]
-        if isinstance(value, str):
-            return display_scrub(redactor, value)
-        return value
-
     settings = [{
         "field": f.predicate,
         "subject": f.subject,
         "scope": display_scrub(redactor, f.scope),
-        # SNMP community strings are credentials: which one is configured is never shown, only that one is
-        "value": placeholder("redacted") if f.predicate == SNMP_COMMUNITY and f.value is not NOT_SET else shown(f.value),
+        "value": fact_value(redactor, f),
         "unit": f.unit,
         "assurance": f.assurance.value,
         "lines": [{"number": n, "text": t} for n, t in

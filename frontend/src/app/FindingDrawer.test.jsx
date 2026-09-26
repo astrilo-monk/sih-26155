@@ -22,7 +22,11 @@ const result = (extra) => ({
   config_index: 1, control_id: 'MGMT-001', title: 'Telnet enabled', question: 'Is Telnet disabled?', category: 'management',
   severity: 'critical', status: 'fail', assurance: 'parser', proposed_status: null, device_hostname: 'BRANCH-FGT-02', vendor: 'fortinet',
   scope: 'interface wan1', reason: 'Telnet is allowed on wan1',
-  evidence: { line_numbers: [21], lines: ['        set allowaccess ping https ssh http telnet'], scope_path: [] }, ...extra,
+  evidence: { line_numbers: [21], lines: ['        set allowaccess ping https ssh http telnet'], scope_path: [] },
+  facts: [{ field: 'mgmt.remote_access.protocol_enabled', subject: 'telnet', value: true, unit: null, assurance: 'parser', line_numbers: [21] }],
+  requirements: [{ framework: 'NIST_800_53', version: 'Rev. 5', requirement_id: 'AC-17(2)', title: 'Protection' },
+    { framework: 'DISA_STIG', version: 'NDM SRG', requirement_id: 'SRG-APP-000142-NDM-000245', title: 'Ports' }],
+  ...extra,
 });
 
 // two uploads share one hostname: config_index is the identity
@@ -133,4 +137,13 @@ it('explains a finding as labelled AI commentary, and a failed call says so inli
   render(<Harness controlId="MGMT-001" />);
   fireEvent.click(await screen.findByRole('button', { name: 'Explain this' }));
   expect((await screen.findByRole('alert')).textContent).toMatch(/couldn’t be loaded: API error: 500/);
+});
+
+it('traces how a result was decided: requirement, check, the field it read, the line, the verdict', async () => {
+  render(<Harness controlId="MGMT-001" />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Show how this was decided' }));
+  screen.getByText(/NIST SP 800-53 AC-17\(2\) · DISA STIG SRG-APP-000142-NDM-000245/);
+  screen.getByText('mgmt.remote_access.protocol_enabled[telnet] = yes');
+  screen.getByText('line 21: set allowaccess ping https ssh http telnet', { exact: false });
+  screen.getByText('Fails');
 });

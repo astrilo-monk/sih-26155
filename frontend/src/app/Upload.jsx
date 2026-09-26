@@ -58,6 +58,8 @@ const FRAMEWORK_CHOICES = [
 export default function Upload({ onScan, onCollect, scanning, error, currentScan }) {
   const [files, setFiles] = useState([]);
   const [framework, setFramework] = useState('');
+  const [criticality, setCriticality] = useState('');
+  const [internetFacing, setInternetFacing] = useState(false);
   const [drag, setDrag] = useState(false);
   // Where the configurations come from: a file the operator exported, or the devices themselves
   const [source, setSource] = useState('file');
@@ -161,11 +163,29 @@ export default function Upload({ onScan, onCollect, scanning, error, currentScan
             <span className="field-help">Optional. Every check still runs; results and the PDF report are mapped to this framework only.</span>
           </label>
 
+          <div className="field-row">
+            <label className="field">
+              <span className="field-label">How important is this device?</span>
+              <select className="select" value={criticality} onChange={(e) => setCriticality(e.target.value)}>
+                <option value="">Not set</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+              <span className="field-help">Optional. Changes the risk rating only, never a check result.</span>
+            </label>
+            <label className="field field-check">
+              <input type="checkbox" checked={internetFacing} onChange={(e) => setInternetFacing(e.target.checked)} />
+              <span>This device faces the internet</span>
+            </label>
+          </div>
+
           {source === 'file' ? (
             <>
               <div className="upload-actions">
                 <button type="button" className="btn btn-accent btn-lg" disabled={!files.length || tooLarge || empty}
-                        onClick={() => onScan(files, framework || null)}>
+                        onClick={() => onScan(files, framework || null, { criticality, internetFacing })}>
                   Start scan
                 </button>
                 <span className="small muted">{hint}</span>

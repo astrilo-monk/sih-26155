@@ -83,12 +83,15 @@ function saveBlob(blob, filename) {
 }
 
 export const apiClient = {
-  async scanConfigs(files, framework = null) {
+  // context: { criticality, internetFacing } the operator states about the asset (risk only)
+  async scanConfigs(files, framework = null, context = {}) {
     const formData = new FormData();
     for (const file of files) {
       formData.append('files', file);
     }
     if (framework) formData.append('framework', framework);
+    if (context.criticality) formData.append('criticality', context.criticality);
+    if (context.internetFacing) formData.append('internet_facing', 'true');
 
     const response = await fetch(`${API_BASE_URL}/scan`, {
       method: 'POST',
@@ -110,6 +113,26 @@ export const apiClient = {
   // and are never stored by the backend; they are not kept in the browser either.
   async collectConfigs(targets, framework = null) {
     return postJson('/collect', { targets, framework: framework || null });
+  },
+
+  // Every check and the framework requirements it answers
+  async getCatalog() {
+    return handleResponse(await fetch(`${API_BASE_URL}/catalog`, { cache: 'no-cache' }));
+  },
+
+  // The audit ledger (app/ledger.py)
+  async getLedger(limit = 100) {
+    return handleResponse(await fetch(`${API_BASE_URL}/ledger?limit=${limit}`, { cache: 'no-cache' }));
+  },
+
+  async verifyLedger() {
+    return handleResponse(await fetch(`${API_BASE_URL}/ledger/verify`, { cache: 'no-cache' }));
+  },
+
+  async verifyReport(file) {
+    const body = new FormData();
+    body.append('file', file);
+    return handleResponse(await fetch(`${API_BASE_URL}/ledger/verify-report`, { method: 'POST', body }));
   },
 
   async getScan(scanId) {
@@ -299,19 +322,23 @@ export const apiClient = {
   },
 
   // The vendor-neutral Security Baseline Model of every device of the scan, saved as one JSON file
+  // One device's vendor-neutral Security Baseline Model
+  async getBaseline(scanId, configIndex = 0) {
+    const response = await fetch(`${API_BASE_URL}/scan/${scanId}/baseline?config_index=${configIndex}`, { cache: 'no-cache' });
+    return handleResponse(response);
+  },
+
   async downloadBaseline(scanId, devices = 1) {
     const models = [];
-    for (let i = 0; i < devices; i += 1) {
-      const response = await fetch(`${API_BASE_URL}/scan/${scanId}/baseline?config_index=${i}`, { cache: 'no-cache' });
-      models.push(await handleResponse(response));
-    }
+    for (let i = 0; i < devices; i += 1) models.push(await this.getBaseline(scanId, i));
     const body = JSON.stringify(devices === 1 ? models[0] : { devices: models }, null, 2);
     saveBlob(new Blob([body], { type: 'application/json' }), `NetAuditAI_Baseline_${scanId.slice(0, 8)}.json`);
   },
 
   // The compliance report as PDF (one device, or every device of the scan as a .zip)
-  async downloadReport(scanId, configIndex = null, inputs = {}) {
-    await saveDownload('/report', { scan_id: scanId, config_index: configIndex, inputs });
+  // variant 'executive': the one-page summary instead of the full technical report
+  async downloadReport(scanId, configIndex = null, inputs = {}, variant = 'full') {
+    await saveDownload('/report', { scan_id: scanId, config_index: configIndex, inputs, variant });
   },
 
   async downloadFixedConfigs(scanId, deviceInputs = {}, includeConfirmed = false) {

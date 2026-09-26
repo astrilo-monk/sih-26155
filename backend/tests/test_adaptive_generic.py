@@ -227,7 +227,8 @@ VENDOR_SPELLINGS = {
 
 # ── Fakes ─────────────────────────────────────────────────────────────────────
 
-_TARGET = re.compile(r"^\[TARGET line (\d+)\]\n(.*)$", re.MULTILINE)
+# prompt lines carry the fence tag (app/ai/fence.py): ``<tag>|[TARGET line n]``
+_TARGET = re.compile(r"^(?:[0-9a-f]{12}\|)?\[TARGET line (\d+)\]\n(?:[0-9a-f]{12}\|)?(.*)$", re.MULTILINE)
 
 
 def _lookup(dialect: str, text: str) -> Optional[Answer]:
@@ -924,7 +925,8 @@ def test_context_is_sent_but_results_stay_tied_to_the_target_line():
 
     target = next(ln for ln in cfg.unrecognized_lines if "protocol-version" in ln.raw_line)
     assert list(target.structural_path) == ["system", "services", "ssh"]
-    assert f"[TARGET line {target.line_number}]\nprotocol-version v2;\n  block: system > services > ssh" in prompt
+    unfenced = re.sub(r"(?m)^[0-9a-f]{12}\|", "", prompt)
+    assert f"[TARGET line {target.line_number}]\nprotocol-version v2;\n  block: system > services > ssh" in unfenced
     assert "context before:" in prompt
     assert "do not return objects for them" in prompt
     assert {m.line_number: m for m in records}[target.line_number].normalized_field == "management.ssh_version"

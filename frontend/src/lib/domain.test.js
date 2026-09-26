@@ -1,6 +1,6 @@
-import { expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  assessment, auditCounts, deviceLabels, explainGate, nextStep, quotedCommands, parseUnifiedDiff, problems, resultState, sayFact, STATE,
+  assessment, auditCounts, deviceLabels, fixOrder, explainGate, nextStep, quotedCommands, parseUnifiedDiff, problems, resultState, sayFact, STATE,
   stripLineNo, vendorState,
 } from './domain';
 
@@ -162,4 +162,22 @@ it('explains safety-gate failures in plain English without internal terms', () =
     expect(said.length).toBeGreaterThan(20);
   }
   expect(explainGate(messages[0])).toMatch(/secret/);
+});
+
+describe('fixOrder', () => {
+  const item = (controlId, severity, state, configIndex = 0) => ({
+    key: `${configIndex}|${controlId}`, controlId, severity, configIndex,
+    primary: { status: 'fail', assurance: 'parser' },
+    results: [{ status: 'fail', assurance: 'parser' }],
+    remediation: { status: { can_fix: 'fixed', needs_input: 'needs_input', manual: 'manual_review' }[state] },
+  });
+  it('puts the fix that closes an attack path first, then value per effort, and explains each step', () => {
+    const items = [item('MGMT-001', 'critical', 'can_fix'), item('MGMT-003', 'high', 'needs_input'),
+      item('LOG-001', 'medium', 'can_fix'), item('AUTH-003', 'low', 'manual')];
+    const paths = [{ config_index: 0, title: 'Remote takeover', break_with: ['MGMT-003'] }];
+    const order = fixOrder(items, paths);
+    expect(order.map((o) => o.item.controlId)).toEqual(['MGMT-003', 'MGMT-001', 'LOG-001', 'AUTH-003']);
+    expect(order[0].why).toEqual(['closes the “Remote takeover” attack path', 'high problem', 'needs one answer from you']);
+    expect(order[1].why).toEqual(['critical problem', 'fixed in one click']);
+  });
 });

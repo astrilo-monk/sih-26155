@@ -13,7 +13,7 @@ from __future__ import annotations
 import io
 import re
 import zipfile
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
@@ -24,6 +24,7 @@ from app.api.routes.scan import archived_scan, build_scan_response, get_scan_sto
 from app.api.schemas import DeviceRemediationPlanSchema
 from app.db.scans import load_scan
 from app.reporting.report import device_report_pdf
+from app import ledger
 
 router = APIRouter()
 
@@ -34,6 +35,8 @@ class ReportRequest(BaseModel):
     config_index: Optional[int] = None
     # The same values the remediation plan uses, so the report states the fixes the user would get
     inputs: dict[str, str] = {}
+    # "executive": the one-page summary instead of the full technical report
+    variant: Literal["full", "executive"] = "full"
 
 
 def _filename(hostname: str) -> str:
@@ -75,7 +78,10 @@ async def compliance_report(req: ReportRequest):
         except Exception:
             # A report is worth having even when remediation cannot be planned; the section says so.
             plan = None
-        reports.append((scan.devices[index].get("hostname"), device_report_pdf(scan, index, plan)))
+        pdf = device_report_pdf(scan, index, plan, ledger_entry=ledger.latest("scan", req.scan_id),
+                                executive=req.variant == "executive")
+        ledger.append("report", f"{req.scan_id}/{index}", pdf)
+        reports.append((scan.devices[index].get("hostname"), pdf))
 
     if len(reports) == 1:
         hostname, pdf = reports[0]

@@ -156,6 +156,10 @@ class ControlResultSchema(BaseModel):
     scope: Optional[str] = None
     reason: str
     evidence: EvidenceSchema
+    # The evidence chain: normalized facts read (field, subject, value, unit, assurance, line_numbers; values
+    # redacted), and the framework requirements this control answers on this device
+    facts: list[dict] = []
+    requirements: list[dict] = []
 
 
 class FrameworkControlSchema(BaseModel):
@@ -253,6 +257,8 @@ class ScanResultResponse(BaseModel):
     # Controls that decided PASS or FAIL from decisive evidence, and the applicable ones that did not
     assessed_count: int = 0
     unresolved_count: int = 0
+    # Potential attack paths: chains of decided FAILs on one device (app/analysis/attack_paths.py)
+    attack_paths: list[dict] = []
 
 
 class RemediationRequest(BaseModel):

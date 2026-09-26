@@ -84,6 +84,19 @@ MIGRATIONS: list[str] = [
         plans       TEXT NOT NULL DEFAULT '[]'
     );
     """,
+    # v6 -tamper-evident audit ledger (app/ledger.py): hashes of redacted artefacts only
+    """
+    CREATE TABLE IF NOT EXISTS ledger (
+        seq          INTEGER PRIMARY KEY,
+        at           TEXT NOT NULL,
+        kind         TEXT NOT NULL,
+        subject      TEXT NOT NULL,
+        content_hash TEXT NOT NULL,
+        prev_hash    TEXT NOT NULL,
+        hash         TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_ledger_content ON ledger (content_hash);
+    """,
 ]
 
 
@@ -137,6 +150,19 @@ PG_MIGRATIONS: list[str] = [
         response    TEXT NOT NULL,
         plans       TEXT NOT NULL DEFAULT '[]'
     );
+    """,
+    # SQLite v6
+    """
+    CREATE TABLE IF NOT EXISTS ledger (
+        seq          BIGINT PRIMARY KEY,
+        at           TEXT NOT NULL,
+        kind         TEXT NOT NULL,
+        subject      TEXT NOT NULL,
+        content_hash TEXT NOT NULL,
+        prev_hash    TEXT NOT NULL,
+        hash         TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_ledger_content ON ledger (content_hash);
     """,
 ]
 

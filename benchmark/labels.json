@@ -1,0 +1,89 @@
+{
+  "_README": "Ground truth for backend/scripts/benchmark.py. 'planted' labels were written together with the demo files (demo-sih/README.md), before any scan; they are the headline set. 'fixtures' labels were written by reading each teach/ file: only settings the file clearly states are labelled, and every setting left out on purpose is listed under 'excluded' with the reason. fail = the check must fail, pass = the check must pass.",
+  "planted": {
+    "demo-sih/cisco_edge_vulnerable.cfg": {
+      "fail": ["MGMT-001", "MGMT-002", "MGMT-003", "MGMT-004", "MGMT-005", "MGMT-006", "MGMT-007", "MGMT-008", "BOUNDARY-001", "BOUNDARY-002"],
+      "pass": ["MGMT-009", "BOUNDARY-003", "LOG-001", "LOG-002"]
+    },
+    "demo-sih/paloalto_fw_vulnerable.cfg": {
+      "fail": ["MGMT-001", "MGMT-002", "MGMT-003", "MGMT-004", "MGMT-006", "MGMT-007", "BOUNDARY-001", "LOG-002", "CRYPTO-001", "BOUNDARY-003"],
+      "pass": []
+    }
+  },
+  "fixtures": {
+    "teach/arista_eos_5_configs/arista_01_secure.conf": {
+      "fail": ["MGMT-011", "MGMT-008"],
+      "pass": ["MGMT-001", "MGMT-002", "MGMT-003", "MGMT-007", "MGMT-009", "LOG-001", "LOG-002", "BOUNDARY-002", "AUTH-003"],
+      "excluded": {"MGMT-006": "idle-timeout 900: the unit (minutes or seconds) is not stated in the file", "MGMT-004": "community name READONLY: whether it counts as a default string is a judgement"}
+    },
+    "teach/arista_eos_5_configs/arista_02_insecure.conf": {
+      "fail": ["MGMT-001", "MGMT-002", "MGMT-003", "MGMT-004", "MGMT-006", "MGMT-007", "MGMT-008", "MGMT-011", "LOG-001", "LOG-002", "BOUNDARY-001", "BOUNDARY-002", "AUTH-003"],
+      "pass": ["MGMT-009"]
+    },
+    "teach/checkpoint_gaia_5_configs/checkpoint_01_secure.conf": {
+      "fail": ["MGMT-011", "LOG-002"],
+      "pass": ["MGMT-001", "MGMT-002", "MGMT-006", "MGMT-009", "LOG-001", "BOUNDARY-001", "BOUNDARY-002", "BOUNDARY-003"],
+      "excluded": {"MGMT-004": "community name 'readonly': default-string judgement"}
+    },
+    "teach/checkpoint_gaia_5_configs/checkpoint_02_insecure.conf": {
+      "fail": ["MGMT-001", "MGMT-002", "MGMT-004", "MGMT-006", "MGMT-011", "LOG-001", "LOG-002", "BOUNDARY-001", "BOUNDARY-002"],
+      "pass": ["MGMT-009"],
+      "excluded": {"BOUNDARY-003": "LLDP is on, but whether any interface faces the internet is not stated"}
+    },
+    "teach/extreme_networks_exos_5_configs/extreme_01_secure.conf": {
+      "fail": ["MGMT-011", "LOG-002"],
+      "pass": ["MGMT-001", "MGMT-002", "MGMT-003", "MGMT-006", "MGMT-009", "LOG-001", "BOUNDARY-003"],
+      "excluded": {"BOUNDARY-004": "only proxy-ARP is stated; redirects and directed broadcast are not"}
+    },
+    "teach/extreme_networks_exos_5_configs/extreme_02_insecure.conf": {
+      "fail": ["MGMT-001", "MGMT-002", "MGMT-003", "MGMT-004", "MGMT-006", "MGMT-011", "LOG-001", "LOG-002", "BOUNDARY-001", "BOUNDARY-004", "AUTH-003"],
+      "pass": ["MGMT-009"]
+    },
+    "teach/hpe_aruba_aoscx_5_configs/aruba_01_secure.conf": {
+      "fail": ["MGMT-008", "MGMT-011", "AUTH-003"],
+      "pass": ["MGMT-001", "MGMT-002", "MGMT-006", "MGMT-009", "LOG-001", "LOG-002", "AUTH-001"],
+      "excluded": {"MGMT-005": "'password plaintext' is how the value was entered; AOS-CX stores it hashed"}
+    },
+    "teach/hpe_aruba_aoscx_5_configs/aruba_02_insecure.conf": {
+      "fail": ["MGMT-001", "MGMT-002", "MGMT-004", "MGMT-006", "MGMT-008", "MGMT-011", "LOG-001", "LOG-002", "BOUNDARY-001", "AUTH-003"],
+      "pass": ["MGMT-009"]
+    },
+    "teach/huawei_vrp_5_configs/huawei_01_secure.conf": {
+      "fail": [],
+      "pass": ["MGMT-001", "MGMT-002", "MGMT-005", "MGMT-009", "LOG-001", "LOG-002", "BOUNDARY-002", "AUTH-003"],
+      "excluded": {"MGMT-006": "'ssh server timeout 10' is the authentication timeout, not an idle timeout", "MGMT-011": "a community exists but the agent is set to SNMPv3 only"}
+    },
+    "teach/huawei_vrp_5_configs/huawei_02_insecure.conf": {
+      "fail": ["MGMT-001", "MGMT-002", "MGMT-004", "MGMT-005", "MGMT-011", "LOG-001", "LOG-002", "BOUNDARY-002", "AUTH-003"],
+      "pass": ["MGMT-009"],
+      "excluded": {"BOUNDARY-001": "ACL 2000 permits any source but is not applied anywhere in the file"}
+    },
+    "teach/juniper_junos_5_configs/juniper_01_secure.conf": {
+      "fail": ["MGMT-002", "MGMT-008", "LOG-002"],
+      "pass": ["MGMT-007", "MGMT-009", "LOG-001"],
+      "excluded": {"MGMT-001": "'telnet { connection-limit 0; }': whether this disables Telnet is unclear"}
+    },
+    "teach/juniper_junos_5_configs/juniper_02_insecure.conf": {
+      "fail": ["MGMT-001", "MGMT-002", "MGMT-007", "MGMT-008", "LOG-001", "LOG-002"],
+      "pass": ["MGMT-009"]
+    },
+    "teach/mikrotik_routeros_5_configs/mikrotik_01_secure.rsc": {
+      "fail": ["MGMT-011", "LOG-002"],
+      "pass": ["MGMT-001", "MGMT-002", "MGMT-003", "MGMT-004", "MGMT-009", "LOG-001", "BOUNDARY-003", "CRYPTO-002"]
+    },
+    "teach/mikrotik_routeros_5_configs/mikrotik_02_insecure.rsc": {
+      "fail": ["MGMT-001", "MGMT-002", "MGMT-004", "MGMT-011", "LOG-001", "LOG-002", "BOUNDARY-001", "AUTH-003"],
+      "pass": ["MGMT-009"]
+    },
+    "teach/paloalto_pan_os_5_configs/paloalto_01_secure.conf": {
+      "fail": ["MGMT-008"],
+      "pass": ["MGMT-001", "MGMT-002", "MGMT-003", "MGMT-007", "MGMT-009", "MGMT-011", "LOG-001", "LOG-002", "AUTH-002"],
+      "excluded": {"MGMT-006": "session-timeout vs admin idle timeout: which one the line sets is a judgement"}
+    },
+    "teach/paloalto_pan_os_5_configs/paloalto_02_insecure.conf": {
+      "fail": ["MGMT-001", "MGMT-002", "MGMT-007", "MGMT-008", "MGMT-011", "LOG-002"],
+      "pass": ["MGMT-009", "LOG-001"],
+      "excluded": {"MGMT-010": "ethernet1/1 carries a management profile but nothing says it faces the internet", "MGMT-006": "session-timeout vs admin idle timeout"}
+    }
+  }
+}

@@ -147,7 +147,7 @@ field is a label for readability, never a claim of parser support and never used
 | MikroTik RouterOS | Telnet, HTTP management (`www`), NTP server (two spellings), remote syslog, LLDP, login note, permissive input rule |
 | HPE Aruba AOS-CX | Telnet, HTTP management, NTP authentication, login banner, permissive any-any rule, remote syslog, LLDP, local-only login, password storage |
 | Check Point Gaia | Telnet, HTTP management, remote syslog, NTP server, NTP authentication, SNMP source restriction, LLDP, IP source routing, session idle timeout, login banner, permissive access rule |
-| AWS security group (JSON) | any-protocol rule open to `0.0.0.0/0`, SSH / Telnet / RDP open to the world (or restricted to a prefix) |
+| AWS security group (JSON) | any-protocol rule open to `0.0.0.0/0`, SSH / Telnet / RDP open to the world (or restricted to a prefix). The 20 checks a security group cannot express are N/A with the reason (`backend/data/platform_profiles.json`) |
 | Extreme Networks EXOS | Telnet, HTTP management (`web`), remote syslog, NTP server, LLDP, login banner, permissive any-any rule, session idle timeout, password storage, SSH `access-profile` source restriction |
 | Cisco NX-OS | remote syslog (`logging server`), TACACS+ server, session idle timeout under `line`, permissive any-any rule, NTP server, `username … password 0` or `5` storage, `aaa authentication login default group`, `access-class … in` under `line vty`, `feature telnet` and `feature lldp` (on or off) |
 | Cisco ASA | remote syslog (`logging host <interface> <address>`), permissive `extended` any-any rule, NTP server, `aaa authentication <service> console <group>` (`LOCAL` alone is not central) |
@@ -224,9 +224,12 @@ interface names. Passing the gates makes a recognizer safe to store, not worth s
   storing the secret, so MGMT-004 cannot be taught. The access level is the template's own words, never
   guessed, and the ACL is not read: a read-write form is seeded only where the dialect writes the ACL on the
   same line, so `rw` with nothing after it really is open write access. Seeded: Junos `authorization read-only`,
-  NX-OS `group network-operator`, Arista `ro` / `ro <acl>` / `rw`, Huawei `read` / `write`, PAN-OS
-  `snmp-community-string` (PAN-OS SNMP is read-only). Left out: an encrypted community (`read cipher …`), and
-  Junos `clients …` lines, which name no access level.
+  NX-OS `group network-operator`, Arista `ro` / `ro <acl>` / `ro access <acl>` / `rw`, Huawei `read` / `write`,
+  PAN-OS `snmp-community-string` (PAN-OS SNMP is read-only), and read-only by the dialect's default: Check Point
+  `set snmp community`, Aruba AOS-CX `snmp-server community`, EXOS `configure snmp add community` (added after
+  the benchmark in `benchmark/` showed these lines only suspected). Left out: an encrypted community
+  (`read cipher …`), Junos `clients …` lines, which name no access level, and EXOS `… community readonly|readwrite
+  <name>`, which the secret gate refuses because the access word sits where a community string would.
 * **Read from `teach/` and deliberately left out:** `ssh server timeout` (Huawei, Aruba) is the SSH login
   timeout, not an idle timeout; `/ip service set ssh address=…` (RouterOS) needs `address` as a
   source-restriction word, which would let any interface address teach it; `snmp-agent acl` (Huawei) binds

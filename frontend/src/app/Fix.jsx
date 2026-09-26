@@ -4,8 +4,7 @@ import Count from '../components/ui/Count';
 import { Severity, StatusMark } from '../components/ui/Evidence';
 import { ActionBar, CodeBlock, Disclosure, MetaLine, Notice } from '../components/ui/primitives';
 import {
-  auditCounts, candidateMeta, candidateSource, CANNOT_FIX_REASON, checkItems, fixStatus, isProblem, itemState,
-  NEEDS_ADMIN_REASON, quotedCommands, vendorName, vendorState,
+  CANNOT_FIX_REASON, NEEDS_ADMIN_REASON, auditCounts, candidateMeta, candidateSource, checkItems, fixOrder, fixStatus, isProblem, itemState, quotedCommands, vendorName, vendorState,
 } from '../lib/domain';
 
 const CHECK_NAMES = {
@@ -445,6 +444,7 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
   useEffect(() => { setFinal(null); }, [plan, audit.candidates]);
 
   const items = checkItems(scan, plan).filter(isProblem);
+  const order = fixOrder(items, scan.attack_paths || [], applied);
   const counts = auditCounts(scan, plan, applied, audit.queue);
   const inState = (...states) => items.filter((i) => states.includes(itemState(i, applied)));
   const canFix = inState('can_fix');
@@ -471,7 +471,7 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
     setError(null);
     try {
       setFinal(await audit.loadFinal());
-      requestAnimationFrame(() => document.getElementById('fix-final')?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
+      requestAnimationFrame(() => document.getElementById('fix-final')?.scrollIntoView?.({ block: 'start', behavior: 'smooth' }));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -554,6 +554,22 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
 
       {plan && items.length > 0 && (
         <>
+          {order.length > 1 && (
+            <section className="fix-order" aria-labelledby="order-title">
+              <h2 className="paths-k" id="order-title">Fix in this order</h2>
+              <p className="paths-lede">Most risk removed for the least effort first.</p>
+              <ol className="fix-order-list">
+                {order.slice(0, 5).map(({ item, why }) => (
+                  <li key={item.key}>
+                    <button type="button" className="fix-order-item" onClick={() => onOpen(item)}>
+                      <b>{item.title}</b>{labels.length > 1 && <span className="mono small muted"> · {labels[item.configIndex]}</span>}
+                      <span className="small muted">{why.join(' · ')}</span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
           {fixed.length > 0 ? (
             <section className="verified enter" role="status" aria-labelledby="verified-title">
               <p className="verified-k" id="verified-title">Fixes verified</p>
@@ -570,7 +586,7 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
                   </button>
                 )}
                 {remaining > 0 && (
-                  <button type="button" className="btn btn-quiet" onClick={() => document.getElementById('fix-remaining')?.scrollIntoView({ block: 'start' })}>
+                  <button type="button" className="btn btn-quiet" onClick={() => document.getElementById('fix-remaining')?.scrollIntoView?.({ block: 'start' })}>
                     View remaining problems
                   </button>
                 )}

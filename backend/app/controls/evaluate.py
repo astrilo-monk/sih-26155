@@ -19,7 +19,11 @@ No vendor decides whether a control runs.
 
 from __future__ import annotations
 
+import json
 import logging
+from functools import lru_cache
+from pathlib import Path
+from typing import Optional
 
 from app.controls.catalog import CONTROLS, Control, ControlKind
 from app.controls.judges import JUDGES
@@ -40,14 +44,38 @@ def evaluate_controls(config: NormalizedConfig, extra_recognizers=()) -> list[Co
         logger.warning("Fact extraction failed: %s", e)
         return [_result(config, c, Status.UNKNOWN, f"Facts could not be extracted: {e}") for c in CONTROLS.values()]
 
+    profile = platform_profile(config.raw_lines)
     results: list[ControlResult] = []
     for control in CONTROLS.values():
         try:
-            results.extend(evaluate_control(control, facts, config))
+            answer = evaluate_control(control, facts, config)
         except Exception as e:
             logger.warning("Control %s failed: %s", control.control_id, e)
-            results.append(_result(config, control, Status.UNKNOWN, f"The control could not be evaluated: {e}"))
+            answer = [_result(config, control, Status.UNKNOWN, f"The control could not be evaluated: {e}")]
+        if profile and control.control_id in profile["not_applicable"] and all(
+                r.status in (Status.UNKNOWN, Status.NOT_CONFIGURED) for r in answer):
+            # the platform cannot have this setting: an undecided answer is really "does not apply"
+            answer = [_result(config, control, Status.N_A, profile["reason"])]
+        results.extend(answer)
     return results
+
+
+def platform_profile(raw_lines: list[str]) -> Optional[dict]:
+    """The profile (backend/data/platform_profiles.json) every statement of this configuration belongs to."""
+    statements = [line.strip() for line in raw_lines if line.strip()]
+    if not statements:
+        return None
+    return next((p for p in _profiles() if all(s.split(None, 1)[0] == p["root"] for s in statements)), None)
+
+
+@lru_cache(maxsize=1)
+def _profiles() -> tuple[dict, ...]:
+    path = Path(__file__).resolve().parents[2] / "data" / "platform_profiles.json"
+    try:
+        return tuple(json.loads(path.read_text(encoding="utf-8"))["profiles"])
+    except (OSError, ValueError, KeyError) as e:
+        logger.warning("Platform profiles unavailable: %s", e)
+        return ()
 
 
 def evaluate_control(control: Control, facts: list[SecurityFact], config: NormalizedConfig) -> list[ControlResult]:

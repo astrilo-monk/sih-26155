@@ -425,3 +425,31 @@ export function parseUnifiedDiff(diff = '') {
   while (rows.length && rows[rows.length - 1].type === 'ctx' && rows[rows.length - 1].text === '') rows.pop();
   return rows;
 }
+
+// ── Recommended fix order ───────────────────────────────────────────────────────────────────────────────────────
+// Most risk removed per unit of effort, deterministic and explained. Value: the problem's severity, plus a bonus
+// when fixing it breaks a potential attack path (all of it when this check alone closes the path's cheapest step,
+// a share when that step has several checks). Effort: one click < one answer from you < a command you write.
+const FIX_VALUE = { critical: 10, high: 6, medium: 3, low: 1 };
+const FIX_EFFORT = { can_fix: 1, needs_input: 2, needs_admin: 3, manual: 3 };
+const PATH_BONUS = 15;
+
+export function fixOrder(items, paths = [], applied) {
+  return items
+    .map((item) => ({ item, state: itemState(item, applied) }))
+    .filter(({ state }) => state in FIX_EFFORT)
+    .map(({ item, state }) => {
+      const breaks = paths.filter((p) => p.config_index === item.configIndex && p.break_with.includes(item.controlId));
+      const bonus = breaks.reduce((sum, p) => sum + PATH_BONUS / p.break_with.length, 0);
+      const effort = FIX_EFFORT[state];
+      const why = [
+        breaks.length && (breaks.some((p) => p.break_with.length === 1)
+          ? `closes the “${breaks[0].title}” attack path` : `helps close the “${breaks[0].title}” attack path`),
+        `${item.severity} problem`,
+        effort === 1 ? 'fixed in one click' : effort === 2 ? 'needs one answer from you' : 'needs a command from you',
+      ].filter(Boolean);
+      return { item, why, score: ((FIX_VALUE[item.severity] || 1) + bonus) / effort };
+    })
+    .sort((a, b) => b.score - a.score || (SEVERITY_RANK[a.item.severity] ?? 9) - (SEVERITY_RANK[b.item.severity] ?? 9)
+      || a.item.controlId.localeCompare(b.item.controlId) || a.item.configIndex - b.item.configIndex);
+}

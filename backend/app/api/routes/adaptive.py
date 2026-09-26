@@ -99,6 +99,7 @@ from app.facts.teaching import asserted_candidate, meanings, suggested_lines, te
 from app.structure.tokenizer import tokenize
 from app.models.normalized import AIFieldMapping, NormalizedConfig, Vendor
 from app.models.results import DECISIVE_ASSURANCE, ControlResult, Status
+from app import ledger
 
 router = APIRouter(prefix="/adaptive")
 
@@ -546,7 +547,9 @@ async def save_recognizer(scan_id: str, body: RecognizerDraftRequest):
     except MappingValidationError as e:
         raise HTTPException(422, str(e))
     reanalyze_scan(scan_id)
-    return RecognizerSaveResponse(mapping=_mapping_schema(saved), replay=changes, scan=build_scan_response(scan_id))
+    mapping = _mapping_schema(saved)
+    ledger.append("recognizer", f"recognizer {saved.id}", mapping.model_dump(mode="json"))
+    return RecognizerSaveResponse(mapping=mapping, replay=changes, scan=build_scan_response(scan_id))
 
 
 @router.post("/scans/{scan_id}/provisional/reject", response_model=ScanResultResponse)

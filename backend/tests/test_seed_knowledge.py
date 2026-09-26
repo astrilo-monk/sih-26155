@@ -567,3 +567,12 @@ def test_snmp_communities_are_read_by_seeds_but_never_taught(seeded_adaptive_db)
     from app.controls.catalog import CONTROLS
     from app.facts.teaching import teachable_predicates
     assert teachable_predicates(CONTROLS["MGMT-004"]) == []
+
+
+def test_a_security_group_marks_what_it_cannot_have_as_not_applicable(seeded_adaptive_db):
+    scan = _scan(TestClient(app), _json_file(AWS_SG))
+    for control_id in ("MGMT-006", "MGMT-009", "LOG-002", "AUTH-002"):
+        result = _result(scan, control_id)
+        assert result["status"] == "n_a" and "security group only filters traffic" in result["reason"]
+    # what a security group does express is still judged, on its own lines
+    assert _result(scan, "BOUNDARY-001")["status"] == "fail" and _result(scan, "MGMT-003")["status"] == "fail"

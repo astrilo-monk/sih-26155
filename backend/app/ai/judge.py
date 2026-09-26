@@ -51,6 +51,7 @@ from app.facts.recognizers import BOOL_PREDICATES
 from app.models.normalized import NormalizedConfig
 from app.models.results import Assurance, ControlResult, Status
 from app.structure.tokenizer import IP, NUMBER, Statement, tokenize
+from app.ai.fence import DATA_RULE, fence
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +97,9 @@ RULES
 5. value: "true" or "false" (the resulting state) for true/false facts; digits for numbers
    (unit "min", "s" or "h" only when the line writes a unit, else null); one IP address or hostname per proposal.
 6. subject: the protocol for protocol facts (telnet, http, cdp, lldp), otherwise null.
-7. Uncertain -> no proposal. An empty list is a valid answer. You never decide compliance."""
+7. Uncertain -> no proposal. An empty list is a valid answer. You never decide compliance.
+"""
+SYSTEM_PROMPT += DATA_RULE
 
 _PROPOSAL = {
     "control_id": {"type": "string"},
@@ -278,7 +281,8 @@ def _prompt(controls: list[Control], scopes: dict[str, list[Statement]], numbers
             excerpt.append("...")
         excerpt.append(f"[{ref}] {shown[n]}")
         previous = n
-    return "QUESTIONS\n" + "\n".join(questions) + "\n\nCONFIGURATION EXCERPT (secrets redacted)\n" + "\n".join(excerpt)
+    return ("QUESTIONS\n" + "\n".join(questions) + "\n\nCONFIGURATION EXCERPT (secrets redacted)\n"
+            + fence(excerpt))
 
 
 # ── request, budget, cache ──────────────────────────────────────────────────

@@ -10,6 +10,7 @@ from typing import Optional
 from app.models.findings import Finding
 from app.ai.client import generate
 from app.ai.redaction import Redactor
+from app.ai.fence import DATA_RULE, fence
 
 
 EXPLAIN_SYSTEM_PROMPT = """You are a network security expert explaining a vulnerability 
@@ -21,7 +22,9 @@ who needs to understand:
 4. The specific fix steps
 
 Keep your response under 200 words. Be direct and practical, not academic.
-Use bullet points for fix steps. Reference the specific config lines shown."""
+Use bullet points for fix steps. Reference the specific config lines shown.
+"""
+EXPLAIN_SYSTEM_PROMPT += DATA_RULE
 
 
 def explain_finding(finding: Finding, redactor: Optional[Redactor] = None) -> str | None:
@@ -33,7 +36,7 @@ def explain_finding(finding: Finding, redactor: Optional[Redactor] = None) -> st
     redactor = redactor or Redactor()
     evidence_lines = [redactor.line(line) for line in finding.evidence_lines]
     scrub = redactor.scrub
-    evidence = "\n".join(scrub(line) for line in evidence_lines) if evidence_lines else "(no evidence lines)"
+    evidence = fence([scrub(line) for line in evidence_lines]) if evidence_lines else "(no evidence lines)"
 
     prompt = f"""Explain this network security finding:
 

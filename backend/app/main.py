@@ -3,7 +3,7 @@ import secrets
 from fastapi import Depends, FastAPI, HTTPException, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
-from app.api.routes import scan, remediation, assistant, adaptive, report, collect
+from app.api.routes import scan, remediation, assistant, adaptive, report, collect, ledger
 from app import config as app_config
 from app.config import settings
 
@@ -41,6 +41,7 @@ app.include_router(assistant.router, prefix="/api", tags=["assistant"], dependen
 app.include_router(adaptive.router, prefix="/api", tags=["adaptive"], dependencies=api)
 app.include_router(report.router, prefix="/api", tags=["report"], dependencies=api)
 app.include_router(collect.router, prefix="/api", tags=["collect"], dependencies=api)
+app.include_router(ledger.router, prefix="/api", tags=["ledger"], dependencies=api)
 
 
 @app.get("/health")

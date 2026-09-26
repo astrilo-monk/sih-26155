@@ -16,6 +16,8 @@ import Devices from './Devices';
 import Frameworks from './Frameworks';
 import History from './History';
 import Learned from './Learned';
+import Ledger from './Ledger';
+import Rules from './Rules';
 import FindingDrawer from './FindingDrawer';
 import LearningFlow from './LearningFlow';
 import '../styles/app.css';
@@ -32,6 +34,8 @@ export function parseAppPath(path) {
   }
   if (parts[1] === 'history') return { page: 'history' };
   if (parts[1] === 'learned' || parts[1] === 'recognizers') return { page: 'learned' };
+  if (parts[1] === 'ledger') return { page: 'ledger' };
+  if (parts[1] === 'rules') return { page: 'rules' };
   return { page: 'new' };
 }
 
@@ -156,11 +160,11 @@ export default function AppShell({ path }) {
     saveScanToHistory(result);
   };
 
-  const handleScan = async (files, framework = null) => {
+  const handleScan = async (files, framework = null, context = {}) => {
     setScanning(true);
     setUploadError(null);
     try {
-      const result = await apiClient.scanConfigs(files, framework);
+      const result = await apiClient.scanConfigs(files, framework, context);
       adopt(result);
       navigate(`/app/scan/${result.scan_id}`);
     } catch (err) {
@@ -221,6 +225,8 @@ export default function AppShell({ path }) {
     ['Adaptive learning', scan ? scanHref('teach') : '#/app/learned', learning ? 'page' : undefined, counts?.review],
     ['Frameworks', scanHref('frameworks'), here('scan', 'frameworks')],
     ['History', '#/app/history', here('history')],
+    ['Rules catalog', '#/app/rules', here('rules')],
+    ['Audit ledger', '#/app/ledger', here('ledger')],
   ];
   const navItem = ([label, href, current, n]) => (
     <li key={label}>
@@ -302,6 +308,8 @@ export default function AppShell({ path }) {
           <ScanUnavailable opening={opening} openError={openError?.scanId === routeScanId ? openError : null} />
         ))}
         {route.page === 'history' && <History onScansExpired={handleScansExpired} />}
+        {route.page === 'ledger' && <Ledger />}
+        {route.page === 'rules' && <Rules />}
         {route.page === 'learned' && <LearningFlow scanHref={scanHref('teach')} here="learned" />}
         {route.page === 'learned' && <Learned />}
       </main>

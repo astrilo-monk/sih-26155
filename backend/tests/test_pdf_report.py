@@ -235,7 +235,7 @@ def test_the_report_opens_with_a_plain_summary_for_a_reader_who_stops_there(clie
     demo = pathlib.Path(__file__).parents[2] / "demo-sih" / "cisco_edge_vulnerable.cfg"
     body = text_of(client, upload(client, "demo.cfg", demo.read_text(encoding="utf-8")))
     glance = body[body.index("At a glance"):body.index("1. Device identification")]
-    assert "Risk: CRITICAL." in glance and "problems found" in glance
+    assert "Risk: CRITICAL (80/100)." in glance and "problems found" in glance
     assert "With the" in glance and "verified automatic fixes applied" in glance
     assert "Most serious problems" in glance and "Why it matters" in glance
     assert "Needs a person:" in glance
