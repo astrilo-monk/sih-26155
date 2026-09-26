@@ -37,7 +37,7 @@ from app.facts.predicates import (
 from app.facts.recognizers import _scope_matches, _stored_knowledge, recognizer_value, stated_value
 from app.models.results import DECISIVE_ASSURANCE, Status
 from app.remediation.engine import (
-    INPUTS, Analysis, Check, Outcome, Plan, RemediationStatus, _join, _status_text, analyze_generic_text,
+    INPUTS, Analysis, Check, Outcome, Plan, RemediationStatus, _join, _status_text, analyze_generic_text, credit_earlier_fix,
     no_regression,
 )
 from app.structure.tokenizer import NEGATIVE, POSITIVE, Statement, tokenize, tokenize_line
@@ -325,7 +325,7 @@ def writeback_all(text: str, inputs: dict, skip: frozenset[str] | set[str] = fro
         if after is not None:
             current = after
             outcome.fixed_config = None  # the plan keeps one combined output
-        outcomes.append(outcome)
+        outcomes.append(credit_earlier_fix(outcome, current, outcomes))
     changed = current is not original
     return Plan(
         hostname=original.config.device.hostname if original.config else "unknown",

@@ -8,6 +8,7 @@ import {
 import { useState } from 'react';
 import { apiClient } from '../api/client';
 import UnresolvedList from './Unresolved';
+import FirstRunTips from './FirstRunTips';
 import { useEntered } from '../lib/hooks';
 
 // The row's action word: what clicking it lets you do
@@ -146,6 +147,8 @@ export default function Results({ scan, audit, onOpen, onTeach, go }) {
           <a className="btn btn-sm" href="#/app">New scan</a>
         </div>
       </header>
+
+      <FirstRunTips />
 
       {/* risk: the most severe open problem, from the same counts the severity panel shows */}
       <dl className="kpis">

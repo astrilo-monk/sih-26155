@@ -105,3 +105,14 @@ def test_a_refused_value_names_the_field_and_shows_an_example(seeded_adaptive_db
     assert "you entered 1 characters" in detail["errors"]["NTP key"] and "NtpKey-2026" in detail["errors"]["NTP key"]
     assert detail["errors"]["NTP key ID"].startswith("enter a whole number from 1 to 65535")
     assert "9" not in detail["errors"]["NTP key"].split("(")[0]  # the typed secret is never echoed back
+
+
+def test_a_control_an_earlier_fix_resolved_is_credited_only_when_it_now_passes(seeded_adaptive_db):
+    from app.models.results import Status
+    from app.remediation.engine import RemediationStatus, analyze_text, remediate_all
+
+    ios = (pathlib.Path(__file__).parents[2] / "demo-sih" / "cisco_edge_vulnerable.cfg").read_text(encoding="utf-8")
+    plan = remediate_all(ios, {})
+    snmp = next(o for o in plan.outcomes if o.control_id == "MGMT-011")
+    assert snmp.status == RemediationStatus.FIXED and "MGMT-004" in snmp.reason
+    assert {r.status for r in analyze_text(plan.fixed_config).control("MGMT-011")} == {Status.PASS}

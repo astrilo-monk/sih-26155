@@ -304,6 +304,23 @@ class Plan:
         return [o.control_id for o in self.outcomes if o.status == RemediationStatus.FIXED]
 
 
+def credit_earlier_fix(outcome: Outcome, current: Analysis, outcomes: list[Outcome]) -> Outcome:
+    """A control that failed at the start of a plan but no longer fails on the text an earlier step produced.
+
+    It is FIXED only when every result for it is now PASS (or N/A): the combined file resolves it and the plan's
+    own rescan shows that. Anything short of that (NOT_CONFIGURED, UNKNOWN) keeps NOT_FAILING -absence is
+    never a pass."""
+    results = current.control(outcome.control_id)
+    if (outcome.status != RemediationStatus.NOT_FAILING or not results
+            or not all(r.status in (Status.PASS, Status.N_A) for r in results)):
+        return outcome
+    by = [o.control_id for o in outcomes if o.status == RemediationStatus.FIXED]
+    outcome.status = RemediationStatus.FIXED
+    outcome.reason = (f"{outcome.control_id} now passes: an earlier fix in this plan resolved it"
+                      + (f" ({', '.join(by)})" if by else ""))
+    return outcome
+
+
 def remediate_all(text: str, inputs: dict, skip: frozenset[str] | set[str] = frozenset()) -> Plan:
     """Remediate every failing control in catalog order; each step is verified against the previous text.
 
@@ -323,6 +340,7 @@ def remediate_all(text: str, inputs: dict, skip: frozenset[str] | set[str] = fro
             outcome, after = remediate_control(current.text, control_id, inputs, before=current)
             if after is not None:
                 current = after
+            outcome = credit_earlier_fix(outcome, current, outcomes)
             if outcome.status == RemediationStatus.FIXED:
                 outcome.fixed_config = None  # the plan keeps one combined output
             outcomes.append(outcome)

@@ -77,7 +77,7 @@ def test_cisco_vulnerable_plan_fixes_what_is_safe_and_explains_the_rest():
         "BOUNDARY-001": S.MANUAL_REVIEW,  # any-any ACL needs operator intent
         "BOUNDARY-002": S.FIXED, "BOUNDARY-003": S.FIXED, "LOG-001": S.FIXED, "LOG-002": S.FIXED,
         "CRYPTO-001": S.FIXED,
-        "MGMT-011": S.NOT_FAILING,  # the MGMT-004 fix already removed every community, earlier in the plan
+        "MGMT-011": S.FIXED,  # credited: the MGMT-004 fix already removed every community, earlier in the plan
         "AUTH-001": S.FIXED, "AUTH-002": S.FIXED, "BOUNDARY-004": S.FIXED,
         "AUTH-003": S.MANUAL_REVIEW,  # a named account needs new credentials
     }

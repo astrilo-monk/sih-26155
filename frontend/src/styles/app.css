@@ -675,3 +675,7 @@ button.history-header:hover, .history-header:hover { background: none; border-le
 /* Where the audit stands, and the one next step, on every scan page but the overview */
 .progress-strip { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4);
   flex-wrap: wrap; padding-top: var(--s-3); padding-bottom: var(--s-3); border-bottom: var(--bw) solid var(--line); }
+
+/* First scan: three steps, closed for good with one click */
+.first-run { margin: var(--s-5) 0; padding: var(--s-4) var(--s-5); border: var(--bw) solid var(--line); }
+.first-run-steps { margin: var(--s-3) 0 var(--s-4); padding-left: 1.2em; display: grid; gap: var(--s-2); }
