@@ -2,7 +2,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-vi.mock('../api/client', () => ({ apiClient: { downloadReport: vi.fn() } }));
+vi.mock('../api/client', () => ({ apiClient: { downloadReport: vi.fn(), getDrift: vi.fn().mockResolvedValue({ devices: [] }) } }));
 
 import { apiClient } from '../api/client';
 import Results, { PostureSummary } from './Results';

@@ -43,3 +43,18 @@ def load_scan(scan_id: str) -> Optional[tuple[dict, list[dict]]]:
         logger.warning("Scan archive unavailable: %s", e)
         return None
     return (json.loads(row["response"]), json.loads(row["plans"])) if row else None
+
+
+def earlier_scans(before: str, exclude: str, limit: int = 200) -> list[dict]:
+    """Archived scan responses created before ``before`` (ISO time), newest first, without ``exclude``."""
+    # ponytail: reads the last `limit` responses whole; index hostnames in a column if the archive grows large
+    try:
+        with get_connection() as conn:
+            rows = conn.execute(
+                "SELECT response FROM scans WHERE created_at < ? AND scan_id <> ? ORDER BY created_at DESC LIMIT ?",
+                (before, exclude, limit),
+            ).fetchall()
+    except Exception as e:
+        logger.warning("Scan archive unavailable: %s", e)
+        return []
+    return [json.loads(row["response"]) for row in rows]

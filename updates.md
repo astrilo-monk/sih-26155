@@ -247,6 +247,64 @@ Order = most judge impact for the least risk first. Each item has a prompt ready
 - [x] Demo script updated for the new screens (`docs/demo.md`)
 - [ ] One end-to-end browser test of the demo flow
 
+### Phase 6: Beyond the other projects
+Asked for on 2026-09-27 ("start working on the 5 things you said"). None of the reviewed projects has these; they
+build on what NetAuditAI already keeps. Branch `phase-6`.
+
+#### 6.1 Changes since the last audit (drift)
+- **Why judges care:** an audit becomes monitoring: what got fixed, what newly broke, on the same device.
+- **Prompt:**
+  > Compare a scan with the most recent earlier archived scan of the same device (hostname + vendor) using only the
+  > redacted responses already in the `scans` table; no configuration is stored. Per device: posture and risk
+  > before → after, checks fixed (decided FAIL → decided PASS), new problems (→ decided FAIL), checks no longer
+  > decided (FAIL → undecided, never called fixed), attack paths closed/opened. Endpoint + a section on Results.
+- **Checklist:**
+  - [x] drift model + tests
+  - [x] endpoint + docs
+  - [x] Results section + test
+
+#### 6.2 Offline AI (local model)
+- **Why judges care:** government networks are often air-gapped; "does it need the internet?" gets a "no".
+- **Prompt:**
+  > Let the AI layer use a local OpenAI-compatible server (Ollama, llama.cpp) chosen by configuration instead of
+  > Groq. Same redaction and fence; same prompts. Status endpoint says which provider is active. No new dependency
+  > if the current client can target another base URL.
+- **Checklist:**
+  - [ ] provider setting + tests
+  - [ ] status shows provider; docs
+
+#### 6.3 Checks across devices
+- **Why judges care:** problems one-device tools cannot see.
+- **Prompt:**
+  > For a scan with several devices, add fleet findings from the facts already read: the same SNMP community or
+  > password hash on several devices (compared by hash, never shown), devices disagreeing on NTP / syslog servers,
+  > a setting every other device has but one is missing. Each cites the devices and lines. Shown in the Fleet view.
+- **Checklist:**
+  - [ ] cross-device checks + tests
+  - [ ] API field + Fleet view + docs
+
+#### 6.4 Command line for CI pipelines
+- **Why judges care:** configs are checked before they reach devices, like code.
+- **Prompt:**
+  > `python -m app.cli scan <files or dir> [--framework] [--fail-on high] [--sarif out.sarif] [--json]`, using the
+  > same engine without the web server. Exit code 1 when a decided FAIL at or above the threshold exists. SARIF so
+  > GitHub shows findings on the lines. Example workflow in docs.
+- **Checklist:**
+  - [ ] CLI + exit codes + tests
+  - [ ] SARIF output + test
+  - [ ] docs + example workflow
+
+#### 6.5 Organisation baseline
+- **Why judges care:** auditors ask for "our policy", not only NIST's.
+- **Prompt:**
+  > A small policy file (JSON) that tightens thresholds (e.g. session timeout ≤ 10 min, minimum password length)
+  > and lists approved NTP / syslog / AAA servers. Checks read the policy; results say when the organisation's value
+  > was used instead of the default. Upload page accepts it optionally; CLI takes `--policy`.
+- **Checklist:**
+  - [ ] policy model + validation + tests
+  - [ ] checks use it; results cite it
+  - [ ] upload + CLI option; docs
+
 ---
 
 ## Progress log
@@ -267,3 +325,5 @@ Order = most judge impact for the least risk first. Each item has a prompt ready
 | 2026-09-27 | 4.2 Rules catalog | (this commit) | `GET /api/catalog`: 23 checks → 78 requirements (CIS 27, NIST 25, ISO 16, STIG 10); Rules catalog page. CIS mappings shown only for the matching vendor. |
 | 2026-09-27 | 4.3 Executive PDF | (this commit) | `variant: executive` ordered by the most severe attack path each fix breaks; ledger note in every PDF. |
 | 2026-09-27 | Browser check + Phase 5 | (this commit) | Cisco + PAN-OS scan checked in the browser: 5 paths, risk critical, 23 compared fields, ledger verifies. README accuracy/highlights and the 2-minute judge path in `docs/demo.md`. Still open: architecture PDF in the repo, end-to-end browser test. |
+| 2026-09-27 | Phase 6 plan | (this commit) | 5 features added as Phase 6 on branch `phase-6`; `pytest-xdist` added earlier (`pytest -n auto`: 41 min → 9 min). |
+| 2026-09-27 | 6.1 Drift | (this commit) | `GET /api/scan/{id}/drift` + "Since the last audit" on Results. Matches by hostname + vendor against the redacted scan archive (last 200 scans; `ponytail` note on the query). FAIL → undecided is its own list, never counted as fixed. |

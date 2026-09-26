@@ -747,6 +747,8 @@ button.history-header:hover, .history-header:hover { background: none; border-le
 .fleet-num { grid-column: 2; font-size: var(--fs-xs); color: var(--fg); }
 .fleet-num small { color: var(--muted-fg); font-size: inherit; }
 .fleet-common { margin: 0; padding-left: var(--s-5); display: grid; gap: var(--s-1); font-size: var(--fs-sm); }
+.drift-device { display: grid; gap: var(--s-2); padding-top: var(--s-3); border-top: var(--bw) solid var(--line); font-size: var(--fs-sm); }
+.drift-list { margin: 0; padding-left: var(--s-5); display: grid; gap: var(--s-1); }
 
 /* Audit ledger */
 .ledger-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--s-5); margin-bottom: var(--s-6); }

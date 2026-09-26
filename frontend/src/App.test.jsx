@@ -6,6 +6,7 @@ vi.mock('./api/client', () => ({
   apiClient: {
     isScanHeld: vi.fn().mockResolvedValue(true),
     getScan: vi.fn(),
+    getDrift: vi.fn().mockResolvedValue({ devices: [] }),
     listLearnedMappings: vi.fn().mockResolvedValue([]),
     // the assistant rail asks on mount, from every page of the shell
     getAssistantStatus: vi.fn().mockResolvedValue({ ai_available: false }),

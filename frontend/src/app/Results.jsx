@@ -11,6 +11,7 @@ import UnresolvedList from './Unresolved';
 import FirstRunTips from './FirstRunTips';
 import AttackPaths from './AttackPaths';
 import Baseline from './Baseline';
+import Drift from './Drift';
 import Fleet from './Fleet';
 import { useEntered } from '../lib/hooks';
 
@@ -222,6 +223,8 @@ export default function Results({ scan, audit, onOpen, onTeach, go }) {
           </div>
         </section>
       </div>
+
+      <Drift scanId={scan.scan_id} labels={labels} />
 
       <Fleet scan={scan} labels={labels} />
 

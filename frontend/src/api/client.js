@@ -323,6 +323,11 @@ export const apiClient = {
 
   // The vendor-neutral Security Baseline Model of every device of the scan, saved as one JSON file
   // One device's vendor-neutral Security Baseline Model
+  // Changes since the last audit of the same devices (app/analysis/drift.py)
+  async getDrift(scanId) {
+    return handleResponse(await fetch(`${API_BASE_URL}/scan/${scanId}/drift`, { cache: 'no-cache' }));
+  },
+
   async getBaseline(scanId, configIndex = 0) {
     const response = await fetch(`${API_BASE_URL}/scan/${scanId}/baseline?config_index=${configIndex}`, { cache: 'no-cache' });
     return handleResponse(response);

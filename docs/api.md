@@ -99,6 +99,14 @@ configuration (no secret appears in a value or a line; an SNMP community's value
 `parser` | `confirmed` | `default` | `heuristic` | `ai_verified`. `not_stated` lists the fields nothing in the file
 answers; `read_by` says which checks read each field.
 
+### `GET /api/scan/{scan_id}/drift`
+Changes since the last audit. Each device of the scan is compared with the most recent earlier archived scan holding
+the same hostname and vendor, from the redacted archived responses only (no configuration is stored). Devices seen
+for the first time are left out, so `devices` is empty on a first scan. Per device: `previous_scan_id`,
+`previous_at`, `posture` and `risk` as `[before, after]`, `fixed` (decided FAIL → decided PASS), `new_problems`
+(→ decided FAIL), `no_longer_decided` (decided FAIL → undecided: the evidence went away, which is not a fix), and
+`paths_closed` / `paths_opened` (attack path titles). Works for archived scans too; 404 for an unknown scan.
+
 ### `GET /api/scan/{scan_id}/status`
 Whether the backend still holds a scan: `{"scan_id": "123-abc", "held": false}` (always `200`). The History page uses it
 to mark entries expired after a restart.

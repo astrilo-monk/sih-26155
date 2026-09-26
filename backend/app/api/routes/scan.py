@@ -21,6 +21,7 @@ from typing import Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.parsers.detector import STATUS_UNVERIFIED, VendorIdentification, identify_vendor
 from app.analysis.attack_paths import attack_paths
+from app.analysis.drift import scan_drift
 from app.analysis.risk import CRITICALITY, device_risk
 from app.analysis.engine import analyze, analyze_multiple, evaluate_controls
 from app.analysis.scoring import calculate_posture, control_outcomes
@@ -50,7 +51,7 @@ from app.adaptive import capture_unrecognized_lines
 from app.adaptive.context import structural_paths
 from app.ai.redaction import Redactor, placeholder
 from app import ledger
-from app.db.scans import load_scan, save_scan
+from app.db.scans import earlier_scans, load_scan, save_scan
 from app.facts.heuristics import generic_hostname, stated_identity
 from app.structure.structured import flatten_json
 from app.adaptive.interpreter import interpret_lines
@@ -745,6 +746,19 @@ async def security_baseline(scan_id: str, config_index: int = 0):
         "not_stated": sorted(PREDICATES - stated),
         "read_by": {p: sorted(c.control_id for c in CONTROLS.values() if p in c.needs) for p in sorted(PREDICATES)},
     }
+
+
+@router.get("/scan/{scan_id}/drift")
+async def scan_changes(scan_id: str):
+    """Changes since the last audit: each device against its most recent earlier archived scan (same hostname and
+    vendor). Built from redacted archived responses only; devices scanned for the first time are left out."""
+    if scan_id in _scan_store:
+        current = build_scan_response(scan_id).model_dump(mode="json")
+    elif archived := archived_scan(scan_id):
+        current = archived.model_dump(mode="json")
+    else:
+        raise HTTPException(404, "Scan not found")
+    return {"scan_id": scan_id, "devices": scan_drift(current, earlier_scans(current["timestamp"], scan_id))}
 
 
 @router.get("/scan/{scan_id}/status")
