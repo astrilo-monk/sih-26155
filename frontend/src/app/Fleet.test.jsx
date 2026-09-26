@@ -31,3 +31,12 @@ it('shows each device’s score and decided problems, and what fails most often 
   screen.getByText((_, el) => el?.textContent === '1 · 1 critical');
   screen.getByText((_, el) => el?.textContent === 'MGMT-001 MGMT-001 title · 2 of 2 devices');
 });
+
+it('lists problems only visible across devices, citing each device and line', () => {
+  render(<Fleet scan={{ ...SCAN, fleet_findings: [{ check: 'shared-snmp-community', severity: 'high',
+    title: 'The same SNMP community string is used on 2 devices', why: 'The value is not shown.',
+    devices: [{ config_index: 0, lines: [53], value: null }, { config_index: 1, lines: [16], value: null }] }] }} labels={['a', 'b']} />);
+  screen.getByRole('heading', { name: 'Problems only visible across devices' });
+  screen.getByText('The same SNMP community string is used on 2 devices');
+  screen.getByText((_, el) => el?.tagName === 'LI' && el.textContent === 'b · line 16');
+});

@@ -69,6 +69,28 @@ export default function Fleet({ scan, labels }) {
           </ol>
         </div>
       )}
+      {(scan.fleet_findings || []).length > 0 && (
+        <div>
+          <h3 className="fleet-h">Problems only visible across devices</h3>
+          <ul className="drift-list">
+            {scan.fleet_findings.map((f) => (
+              <li key={f.check}>
+                <span className={`sev-word sev-${f.severity}`}>{f.severity}</span> <strong>{f.title}</strong>
+                <span className="muted"> · {f.why}</span>
+                <ul className="drift-list">
+                  {f.devices.map((d) => (
+                    <li key={d.config_index} className="small">
+                      <span className="mono">{labels[d.config_index]}</span>
+                      {d.value && <> · {d.value}</>}
+                      {d.lines.length > 0 && <span className="muted"> · line {d.lines.join(', ')}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }

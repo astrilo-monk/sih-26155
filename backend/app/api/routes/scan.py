@@ -22,6 +22,7 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.parsers.detector import STATUS_UNVERIFIED, VendorIdentification, identify_vendor
 from app.analysis.attack_paths import attack_paths
 from app.analysis.drift import scan_drift
+from app.analysis.fleet_checks import fleet_findings
 from app.analysis.risk import CRITICALITY, device_risk
 from app.analysis.engine import analyze, analyze_multiple, evaluate_controls
 from app.analysis.scoring import calculate_posture, control_outcomes
@@ -497,6 +498,8 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
         # built from the redacted results above, so a path quotes nothing the results do not
         attack_paths=[{"config_index": idx, **path} for idx in range(len(configs))
                       for path in attack_paths([r.model_dump() for r in results_schema if r.config_index == idx])],
+        # values shown are server addresses only; a shared secret is matched by hash and never included
+        fleet_findings=fleet_findings([facts_from_config(cfg) for cfg in configs]) if len(configs) > 1 else [],
     )
 
     if result is None:

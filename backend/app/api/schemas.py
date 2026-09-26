@@ -259,6 +259,8 @@ class ScanResultResponse(BaseModel):
     unresolved_count: int = 0
     # Potential attack paths: chains of decided FAILs on one device (app/analysis/attack_paths.py)
     attack_paths: list[dict] = []
+    # Problems across devices (app/analysis/fleet_checks.py): shared SNMP community, mismatched NTP / syslog
+    fleet_findings: list[dict] = []
 
 
 class RemediationRequest(BaseModel):

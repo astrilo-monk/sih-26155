@@ -280,8 +280,8 @@ build on what NetAuditAI already keeps. Branch `phase-6`.
   > password hash on several devices (compared by hash, never shown), devices disagreeing on NTP / syslog servers,
   > a setting every other device has but one is missing. Each cites the devices and lines. Shown in the Fleet view.
 - **Checklist:**
-  - [ ] cross-device checks + tests
-  - [ ] API field + Fleet view + docs
+  - [x] cross-device checks + tests
+  - [x] API field + Fleet view + docs
 
 #### 6.4 Command line for CI pipelines
 - **Why judges care:** configs are checked before they reach devices, like code.
@@ -328,3 +328,4 @@ build on what NetAuditAI already keeps. Branch `phase-6`.
 | 2026-09-27 | Phase 6 plan | (this commit) | 5 features added as Phase 6 on branch `phase-6`; `pytest-xdist` added earlier (`pytest -n auto`: 41 min → 9 min). |
 | 2026-09-27 | 6.1 Drift | (this commit) | `GET /api/scan/{id}/drift` + "Since the last audit" on Results. Matches by hostname + vendor against the redacted scan archive (last 200 scans; `ponytail` note on the query). FAIL → undecided is its own list, never counted as fixed. |
 | 2026-09-27 | 6.2 Offline AI | (this commit) | `LOCAL_AI_URL` / `LOCAL_AI_MODEL` send every AI call to a local OpenAI-compatible server. Change from the plan: the Groq SDK hard-codes its `/openai/v1` path, so a ~20-line httpx client (already installed) is used for the local server; no new dependency. Status returns `provider`; the assistant says when AI is local. Not tried against a real Ollama in this session. |
+| 2026-09-27 | 6.3 Checks across devices | (this commit) | `fleet_findings`: shared SNMP community (matched by sha256, never shown), NTP and syslog server mismatches, decided facts only; shown under Fleet. Demo pair: shared `public` + NTP mismatch. Changes from the plan: password-hash reuse left out (no normalized field carries the hash); "one device missing what the others have" left out (each missing setting is already a per-device FAIL). |

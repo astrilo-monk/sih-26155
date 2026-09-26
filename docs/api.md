@@ -53,6 +53,10 @@ Upload one or more raw configuration files for analysis.
     `path_id`, `title`, `outcome`, `severity`, `steps[]` (`title`, `how`, `controls[]` with `control_id`, `title`,
     up to 3 redacted `lines`), `break_with` (the checks of the cheapest step: fixing them all closes the path) and
     `break_step`. A path appears only when every step is a decided FAIL; heuristic and AI verdicts never open one.
+  * `fleet_findings[]`: problems visible only across devices, for scans of two or more (`app/analysis/fleet_checks.py`):
+    `check` (`shared-snmp-community`, `ntp-mismatch`, `syslog-mismatch`), `severity`, `title`, `why`, and `devices[]`
+    (`config_index`, `lines`, `value`). Decided facts only. A shared community string is matched by hash and its
+    `value` is always `null`; for mismatches `value` lists the servers each device uses.
   * `score`: **deprecated** penalty score, kept for existing scripts; do not use for compliance
 * **`adaptive` block:** present when lines went through the adaptive layer. It holds:
   * `ai_calls`, `ai_cache_hits`: AI judge requests and cached answers for this config
