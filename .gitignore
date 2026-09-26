@@ -89,3 +89,7 @@ sih-samne/
 # Playwright output
 frontend/test-results/
 frontend/playwright-report/
+
+# Local working notes, not part of the submission
+bugs.md
+updates.md
