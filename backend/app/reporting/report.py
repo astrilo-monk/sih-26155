@@ -110,6 +110,48 @@ def identification_block(scan, index: int) -> list[Block]:
     return blocks
 
 
+_ORDER = ["critical", "high", "medium", "low"]
+
+
+def glance_block(scan, index: int, plan=None) -> list[Block]:
+    """One screen for a reader who will not read the rest: risk, score, the worst problems, what is left."""
+    decisive = {"parser", "confirmed", "default"}
+    failed: dict[str, object] = {}
+    for r in _results_for(scan, index):
+        if r.status == "fail" and r.assurance in decisive:
+            kept = failed.get(r.control_id)
+            if kept is None or _ORDER.index(r.severity) < _ORDER.index(kept.severity):
+                failed[r.control_id] = r
+    blocks: list[Block] = [("h2", "At a glance")]
+    if not failed:
+        blocks.append(("p", "No problem was found from decisive evidence."
+                            + (f" Score {scan.posture}/100." if scan.posture is not None else "")))
+        return blocks
+    worst = min((r.severity for r in failed.values()), key=_ORDER.index)
+    counts = {s: sum(1 for r in failed.values() if r.severity == s) for s in _ORDER}
+    blocks.append(("p", f"Risk: {worst.upper()}. {len(failed)} problem{'s' if len(failed) != 1 else ''} found ("
+                        + ", ".join(f"{n} {s}" for s, n in counts.items() if n) + ")."))
+    if scan.posture is not None:
+        line = f"Score: {scan.posture}/100, from the {scan.coverage}% of checks that could be decided."
+        after = getattr(plan, "after", None) if plan is not None else None
+        fixed = list(getattr(plan, "fixed_controls", []) or []) if plan is not None else []
+        if after is not None and fixed and after.posture is not None:
+            line += (f" With the {len(fixed)} verified automatic fix{'es' if len(fixed) != 1 else ''} applied: "
+                     f"{after.posture}/100.")
+        blocks.append(("p", line))
+    impact = {f.rule_id: f.security_impact for f in (scan.findings or []) if (f.config_index or 0) == index}
+    top = sorted(failed.values(), key=lambda r: (_ORDER.index(r.severity), r.control_id))[:3]
+    blocks.append(("table", (["Most serious problems", "Why it matters"],
+                             [[f"{r.title} ({r.severity})", impact.get(r.control_id) or "-"] for r in top])))
+    if plan is not None:
+        human = [r for r in plan.remediations
+                 if r.status in ("manual_review", "needs_input", "vendor_unverified", "no_recipe", "verification_failed")]
+        if human:
+            blocks.append(("p", f"Needs a person: {len(human)} problem{'s' if len(human) != 1 else ''} cannot be "
+                                "fixed automatically. Section 5 says what to change for each."))
+    return blocks
+
+
 def summary_block(scan, index: int) -> list[Block]:
     results = _results_for(scan, index)
     by_control: dict[str, list] = {}
@@ -282,7 +324,8 @@ def report_blocks(scan, index: int, plan=None, generated_at: Optional[datetime] 
     if index in (getattr(scan, "unreadable_configs", None) or []):
         blocks.append(("note", "This file does not contain enough recognizable configuration to assess. "
                                "No posture was calculated for it."))
-    for section in (identification_block(scan, index), summary_block(scan, index), findings_block(scan, index),
+    for section in (glance_block(scan, index, plan), identification_block(scan, index), summary_block(scan, index),
+                    findings_block(scan, index),
                     frameworks_block(scan, index), remediation_block(plan, index), unresolved_block(scan, index)):
         blocks.extend(section)
     blocks.append(("note", "Secrets (passwords, keys, SNMP community strings) are redacted by the backend before "

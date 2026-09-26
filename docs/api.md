@@ -237,7 +237,7 @@ The compliance report as PDF. **Request JSON:** `{"scan_id": "123-abc", "config_
 (`<hostname>_compliance_report.pdf`); several return a `.zip` with one PDF per device. `404` for an unknown
 scan or device index.
 
-The report restates the scan; it never re-evaluates anything. Its six sections are device identification,
+It opens with **At a glance** for a reader who stops there: the risk, the score and the score with the verified automatic fixes applied, the three most serious problems with why each matters, and how many need a person. The report restates the scan; it never re-evaluates anything. Its six sections are device identification,
 assessment summary (posture, coverage, assessed / undecided counts), compliance findings with the assurance
 behind each result and the lines it cites, the framework view, remediation (the deterministic change per
 failing control, or why there is none), and the checks needing administrator input. Serial numbers and

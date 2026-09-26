@@ -10,6 +10,7 @@ command is shown for a vendor that was not confirmed.
 from __future__ import annotations
 
 import io
+import pathlib
 import zipfile
 from pathlib import Path
 
@@ -228,3 +229,13 @@ def test_an_unknown_framework_is_refused(client):
     response = client.post("/api/scan", data={"framework": "PCI_DSS"},
                            files={"files": ("cisco.cfg", io.BytesIO(CISCO_WITH_SECRETS.encode()), "text/plain")})
     assert response.status_code == 422
+
+
+def test_the_report_opens_with_a_plain_summary_for_a_reader_who_stops_there(client):
+    demo = pathlib.Path(__file__).parents[2] / "demo-sih" / "cisco_edge_vulnerable.cfg"
+    body = text_of(client, upload(client, "demo.cfg", demo.read_text(encoding="utf-8")))
+    glance = body[body.index("At a glance"):body.index("1. Device identification")]
+    assert "Risk: CRITICAL." in glance and "problems found" in glance
+    assert "With the" in glance and "verified automatic fixes applied" in glance
+    assert "Most serious problems" in glance and "Why it matters" in glance
+    assert "Needs a person:" in glance
