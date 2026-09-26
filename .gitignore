@@ -82,3 +82,6 @@ backend/REMEDIATION_AUDIT.md
 
 # Third-party config corpora (Batfish, Apache-2.0): local measurement input, not shipped
 datasets/
+
+# Other teams' SIH 26155 projects: local reference only, never committed
+sih-samne/
