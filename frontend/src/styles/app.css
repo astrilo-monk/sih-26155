@@ -671,3 +671,7 @@ button.history-header:hover, .history-header:hover { background: none; border-le
   .chat-log { max-height: 40vh; }
   .chat-resize { display: none; }
 }
+
+/* Where the audit stands, and the one next step, on every scan page but the overview */
+.progress-strip { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4);
+  flex-wrap: wrap; padding-top: var(--s-3); padding-bottom: var(--s-3); border-bottom: var(--bw) solid var(--line); }

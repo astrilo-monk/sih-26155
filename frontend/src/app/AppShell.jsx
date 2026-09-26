@@ -4,7 +4,7 @@ import { apiClient } from '../api/client';
 import { markScansExpired, saveScanToHistory } from '../utils/history';
 import { navigate } from '../lib/hooks';
 import { useAudit } from '../lib/useAudit';
-import { auditCounts, checkItems, deviceLabels } from '../lib/domain';
+import { auditCounts, checkItems, deviceLabels, nextStep } from '../lib/domain';
 import Upload from './Upload';
 import Assistant from './Assistant';
 import { NAV_WIDTH, clampPanel, keepOnScreen, loadPanel, savePanel } from '../lib/panel';
@@ -59,6 +59,30 @@ function ScanUnavailable({ opening, openError }) {
     );
   }
   return <div className="wrap" aria-busy={opening}><p className="muted">Opening scan…</p></div>;
+}
+
+// Where this audit stands, on every scan page but the overview (which has its own "what to do now"), and the
+// one next step. The same counts and priority order as the overview, so the two never disagree.
+export function ProgressStrip({ scan, audit, view, go }) {
+  const c = auditCounts(scan, audit.plan, audit.applied, audit.queue);
+  const step = nextStep(c, audit);
+  const total = (c.assessed ?? 0) + (c.unresolved ?? 0);
+  const waiting = (c.needsInput || 0) + (c.resolvable || 0);
+  const parts = [
+    total > 0 && `${c.assessed} of ${total} checks decided`,
+    c.fixed > 0 && `${c.fixed} fixed`,
+    c.canFix > 0 && `${c.canFix} ready to fix`,
+    waiting > 0 && `${waiting} waiting for you`,
+  ].filter(Boolean);
+  if (parts.length === 0) return null;
+  return (
+    <div className="wrap progress-strip" role="status" aria-label="Progress">
+      <span className="small">{parts.join(' · ')}</span>
+      {step.to && step.to !== view && step.action && (
+        <button type="button" className="btn btn-sm btn-primary" onClick={() => go(step.to)}>Next: {step.action}</button>
+      )}
+    </div>
+  );
 }
 
 export default function AppShell({ path }) {
@@ -254,6 +278,7 @@ export default function AppShell({ path }) {
                 </Notice>
               </div>
             )}
+            {route.view !== 'overview' && <ProgressStrip scan={current} audit={audit} view={route.view} go={go} />}
             {route.view === 'overview' && <Results {...shared} go={go} onTeach={openTeach} />}
             {route.view === 'fix' && <Fix {...shared} onTeach={() => openTeach()} />}
             {route.view === 'teach' && <LearningFlow scanHref={scanHref('teach')} here="teach" />}

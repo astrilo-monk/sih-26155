@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { apiClient } from '../api/client';
 import { Evidence } from '../components/ui/Evidence';
 import { Notice } from '../components/ui/primitives';
@@ -163,8 +163,9 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
   const key = item ? itemKey(item) : null;
   const allConfirmed = (scan.vendor_identification || []).length > 0 && scan.vendor_identification.every((v) => v.status === 'confirmed');
 
-  // A new check starts at "is this the right line?" with nothing chosen
-  useEffect(() => {
+  // A new check starts at "is this the right line?" with nothing chosen. A layout effect: it must run before the
+  // new check can be clicked, or a quick "Yes" would be undone by this reset
+  useLayoutEffect(() => {
     if (phase.kind !== 'ask') return;
     setLine(null);
     setEdits(null);
