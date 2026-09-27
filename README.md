@@ -54,6 +54,7 @@ Every labelled configuration through the real pipeline, shipped knowledge only, 
 |---|---|---|---|
 | 20 vulnerabilities planted in the demo files (Cisco IOS, PAN-OS) | **18/20** (+2 suspected) | **0** | **0** of 4 |
 | 31 labelled fixtures: 8 vendors with no dedicated parser, SONiC, Cumulus, Terraform (AWS, Azure, GCP), Azure NSG and GCP firewall exports | **89/112** (23 undecided) | **0** | **0** of 84 |
+| **Held-out**: 9 real configurations never seen before (pybatfish example networks: Cisco IOS / IOS-XE, Arista, AWS), labels committed before the first run | **21/21** (first run 20/21: the one miss was a parser bug, now fixed and tested) | **0** | **0** of 13 (2 undecided) |
 
 "Undecided" is an answer, not a miss: the engine shows the line and says what it would need, and never calls an
 insecure setting secure. A test fails the build if any of these numbers gets worse.

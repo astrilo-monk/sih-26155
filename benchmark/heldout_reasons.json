@@ -1,0 +1,5 @@
+{
+  "_first_run": "First run (2026-09-28, labels committed in 738ff1d before it): 20/21 detected, 1 missed, 0 false alarms, 11/13 secure confirmed. The miss was a parser bug, fixed afterwards (a '! text' comment inside an ACL ended the ACL); the table below is after that fix.",
+  "newyork.cfg BOUNDARY-001": "first run: missed. ACL AS1_TO_AS2 has '! deny …' comment lines before its 'permit ip any any' (line 138); the IOS parser treated a comment as the end of the ACL and never saw the permit. Fixed in the parser, regression test in test_cisco_acl.py",
+  "SecurityGroups.json BOUNDARY-001": "undecided, correctly: the default groups' all-protocol rules admit only their own group (UserIdGroupPairs), which no seed reads, so no verdict is claimed"
+}

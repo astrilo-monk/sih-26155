@@ -18,3 +18,6 @@ def test_benchmark_holds(seeded_adaptive_db):
         fails, passes = benchmark.totals(report[group])
         assert fails["missed"] == 0 and passes["false_alarm"] == 0, (group, fails, passes)
         assert fails["detected"] >= floor, (group, fails)
+    # held-out files are git-ignored: checked wherever they are fetched
+    fails, passes = benchmark.totals(report.get("heldout", []))
+    assert fails["missed"] == 0 and passes["false_alarm"] == 0, ("heldout", fails, passes)

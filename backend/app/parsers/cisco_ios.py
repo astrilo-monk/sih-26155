@@ -58,8 +58,10 @@ class CiscoIOSParser(BaseParser):
                 continue
             
             if line.startswith('!'):
-                # Reset context blocks
-                current_interface = current_vty = current_console = current_acl = current_isakmp = None
+                # a bare '!' separates blocks; '! text' is a comment, which IOS skips without leaving the block
+                # (``ip access-list extended X`` / ``! deny …`` / `` permit ip any any`` is still ACL X)
+                if line.rstrip() == '!':
+                    current_interface = current_vty = current_console = current_acl = current_isakmp = None
                 continue
 
             # --- Device Info ---

@@ -81,3 +81,13 @@ access-list 102 deny ip any any
     assert not any("permit tcp any any" in line for line in evidence_lines)
     assert not any("permit udp any any" in line for line in evidence_lines)
     assert not any("deny ip any any" in line for line in evidence_lines)
+
+
+def test_a_comment_inside_an_acl_does_not_end_it():
+    """Found by the held-out benchmark (pybatfish newyork.cfg): '! text' is a comment, so the entries after it
+    still belong to the ACL; before the fix they were dropped and an any-any permit was read as absent (a PASS)."""
+    parser = CiscoIOSParser()
+    config = parser.parse("hostname R\n!\nip access-list extended EDGE\n! deny   ip 10.0.0.0 0.255.255.255 any\n"
+                          " deny   ip host 192.0.2.1 any\n permit ip any any\n!\nline vty 0 4\n login\n")
+    acl = next(a for a in config.access_lists if a.name == "EDGE")
+    assert len(acl.entries) == 2 and acl.entries[-1].action == "permit"
