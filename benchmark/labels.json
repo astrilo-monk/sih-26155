@@ -149,5 +149,261 @@
       "pass": ["MGMT-009", "LOG-001"],
       "excluded": {"MGMT-010": "ethernet1/1 carries a management profile but nothing says it faces the internet", "MGMT-006": "session-timeout vs admin idle timeout"}
     }
+  },
+  "heldout": {
+    "_README": "Held-out set: real example-network configurations from pybatfish (Apache-2.0, commit in datasets/pybatfish/SOURCE_COMMIT), never used for seeds, tests or any earlier scan. Labelled 2026-09-28 by reading each file only, and committed before the engine ever ran on them; never edited after. Each label cites the line that states it (line null: the verdict comes from the whole file, e.g. no rule permits any to any). The files are git-ignored like Batfish: fetch with the command in benchmark/RESULTS.md.",
+    "datasets/pybatfish/networks/failure-analysis/configs/philadelphia.cfg": {
+      "fail": [
+        "MGMT-008",
+        "MGMT-006",
+        "MGMT-003",
+        "BOUNDARY-001"
+      ],
+      "pass": [
+        "LOG-001",
+        "MGMT-002"
+      ],
+      "evidence": {
+        "LOG-001": [
+          13,
+          "logging host 1.1.1.1"
+        ],
+        "MGMT-002": [
+          118,
+          "no ip http server"
+        ],
+        "MGMT-008": [
+          17,
+          "no aaa new-model"
+        ],
+        "MGMT-006": [
+          132,
+          " exec-timeout 0 0"
+        ],
+        "MGMT-003": [
+          141,
+          "line vty 0 4"
+        ],
+        "BOUNDARY-001": [
+          123,
+          " permit ip any any"
+        ]
+      }
+    },
+    "datasets/pybatfish/networks/failure-analysis/configs/newyork.cfg": {
+      "fail": [
+        "LOG-002",
+        "MGMT-006",
+        "MGMT-003",
+        "BOUNDARY-001"
+      ],
+      "pass": [
+        "MGMT-002"
+      ],
+      "evidence": {
+        "LOG-002": [
+          13,
+          "ntp server 18.18.18.18"
+        ],
+        "MGMT-002": [
+          127,
+          "no ip http server"
+        ],
+        "MGMT-006": [
+          186,
+          " exec-timeout 0 0"
+        ],
+        "MGMT-003": [
+          195,
+          "line vty 0 4"
+        ],
+        "BOUNDARY-001": [
+          138,
+          " permit ip any any"
+        ]
+      },
+      "excluded": {
+        "MGMT-008": "the file states both 'no aaa new-model' (line 17) and 'aaa new-model' (line 30)"
+      }
+    },
+    "datasets/pybatfish/networks/forwarding-change-validation/base/configs/border1.cfg": {
+      "fail": [
+        "LOG-002",
+        "MGMT-006",
+        "MGMT-003"
+      ],
+      "pass": [
+        "MGMT-002",
+        "BOUNDARY-001"
+      ],
+      "evidence": {
+        "LOG-002": [
+          13,
+          "ntp server 18.18.18.18"
+        ],
+        "MGMT-002": [
+          115,
+          "no ip http server"
+        ],
+        "MGMT-006": [
+          142,
+          " exec-timeout 0 0"
+        ],
+        "MGMT-003": [
+          151,
+          "line vty 0 4"
+        ],
+        "BOUNDARY-001": [
+          null,
+          "every ACL ends in deny ip any any; none permits any to any"
+        ]
+      },
+      "excluded": {
+        "MGMT-008": "the file states both 'no aaa new-model' (line 17) and 'aaa new-model' (line 30)"
+      }
+    },
+    "datasets/pybatfish/networks/hybrid-cloud/configs/exitgw.cfg": {
+      "fail": [
+        "MGMT-008",
+        "MGMT-005",
+        "AUTH-003",
+        "MGMT-002",
+        "MGMT-003",
+        "CRYPTO-001"
+      ],
+      "pass": [
+        "MGMT-001",
+        "MGMT-007"
+      ],
+      "evidence": {
+        "MGMT-008": [
+          20,
+          "no aaa new-model"
+        ],
+        "MGMT-005": [
+          105,
+          "username cisco privilege 15 password 0 cisco"
+        ],
+        "AUTH-003": [
+          105,
+          "username cisco privilege 15 password 0 cisco"
+        ],
+        "MGMT-002": [
+          317,
+          "ip http server"
+        ],
+        "MGMT-003": [
+          342,
+          "line vty 0 4"
+        ],
+        "CRYPTO-001": [
+          137,
+          " group 2"
+        ],
+        "MGMT-001": [
+          344,
+          " transport input ssh"
+        ],
+        "MGMT-007": [
+          322,
+          "ip ssh version 2"
+        ]
+      },
+      "excluded": {
+        "MGMT-006": "no exec-timeout is stated: the IOS default (10 minutes) applies, which is a judgement, not a statement"
+      }
+    },
+    "datasets/pybatfish/networks/example-filters/current/configs/firewall.cfg": {
+      "fail": [],
+      "pass": [
+        "MGMT-009",
+        "BOUNDARY-001"
+      ],
+      "evidence": {
+        "MGMT-009": [
+          4,
+          "banner motd ^C"
+        ],
+        "BOUNDARY-001": [
+          null,
+          "every ACL entry names object groups; every zone policy ends in class-default drop log"
+        ]
+      },
+      "excluded": {
+        "*": "a configuration fragment: no version, no lines, no management settings beyond the banner"
+      }
+    },
+    "datasets/pybatfish/networks/hybrid-cloud/configs/Leaf1.cfg": {
+      "fail": [
+        "AUTH-003"
+      ],
+      "pass": [
+        "MGMT-005"
+      ],
+      "evidence": {
+        "AUTH-003": [
+          14,
+          "username admin privilege 15 role network-admin secret sha512"
+        ],
+        "MGMT-005": [
+          14,
+          "username admin privilege 15 role network-admin secret sha512"
+        ]
+      }
+    },
+    "datasets/pybatfish/networks/hybrid-cloud/configs/Spine1.cfg": {
+      "fail": [
+        "AUTH-003"
+      ],
+      "pass": [
+        "MGMT-005"
+      ],
+      "evidence": {
+        "AUTH-003": [
+          16,
+          "username admin privilege 15 role network-admin secret sha512"
+        ],
+        "MGMT-005": [
+          16,
+          "username admin privilege 15 role network-admin secret sha512"
+        ]
+      }
+    },
+    "datasets/pybatfish/networks/hybrid-cloud/aws_configs/us-east-2/SecurityGroups.json": {
+      "fail": [
+        "MGMT-003"
+      ],
+      "pass": [
+        "BOUNDARY-001"
+      ],
+      "evidence": {
+        "MGMT-003": [
+          43,
+          "\"FromPort\": 22,"
+        ],
+        "BOUNDARY-001": [
+          null,
+          "the all-protocol rules of the default groups admit only their own group"
+        ]
+      }
+    },
+    "datasets/pybatfish/networks/hybrid-cloud/aws_configs/us-west-2/SecurityGroups.json": {
+      "fail": [
+        "MGMT-003"
+      ],
+      "pass": [
+        "BOUNDARY-001"
+      ],
+      "evidence": {
+        "MGMT-003": [
+          9,
+          "\"FromPort\": 22,"
+        ],
+        "BOUNDARY-001": [
+          null,
+          "the all-protocol rules of the default groups admit only their own group"
+        ]
+      }
+    }
   }
 }
