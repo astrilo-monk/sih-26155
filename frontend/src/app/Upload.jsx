@@ -142,12 +142,12 @@ export default function Upload({ onScan, onCollect, scanning, error, currentScan
               className="visually-hidden"
               type="file"
               multiple
-              accept=".cfg,.conf,.txt,.rsc,.json"
+              accept=".cfg,.conf,.txt,.rsc,.json,.tf"
               onChange={(e) => { add(e.target.files); e.target.value = ''; }}
             />
             <span className="dz-glyph" aria-hidden="true"><span /><span /><span /></span>
             <span className="dz-title">Upload network configuration</span>
-            <span className="dz-sub">Drag &amp; drop a .cfg, .conf, .txt, .rsc or .json file here</span>
+            <span className="dz-sub">Drag &amp; drop a .cfg, .conf, .txt, .rsc, .json or .tf file here</span>
             <span className="btn btn-accent dz-choose">Choose file</span>
             <span className="small muted">CLI exports or JSON (cloud security groups), up to 2 MB each. Several files can be scanned together.</span>
           </label>

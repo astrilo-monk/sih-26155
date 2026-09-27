@@ -25,6 +25,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
+from app.adaptive.context import structural_paths
 from app.controls.catalog import CONTROLS, Control, ControlKind
 from app.controls.judges import JUDGES
 from app.facts.defaults import default_facts
@@ -61,11 +62,13 @@ def evaluate_controls(config: NormalizedConfig, extra_recognizers=()) -> list[Co
 
 
 def platform_profile(raw_lines: list[str]) -> Optional[dict]:
-    """The profile (backend/data/platform_profiles.json) every statement of this configuration belongs to."""
-    statements = [line.strip() for line in raw_lines if line.strip()]
+    """The profile (backend/data/platform_profiles.json) every top-level statement of this configuration belongs
+    to. Only top-level lines count: a Terraform ``ingress { … }`` sits inside its ``resource``."""
+    statements = [line.strip() for line, path in zip(raw_lines, structural_paths(raw_lines)) if line.strip() and not path]
     if not statements:
         return None
-    return next((p for p in _profiles() if all(s.split(None, 1)[0] == p["root"] for s in statements)), None)
+    return next((p for p in _profiles()
+                 if all(s.split(None, 1)[0] in p.get("roots", [p.get("root")]) for s in statements)), None)
 
 
 @lru_cache(maxsize=1)

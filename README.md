@@ -14,8 +14,8 @@ NetAuditAI only ever **reads** a device, and never executes a change on one.
 
 ## Highlights
 
-* **Measured, not claimed.** 18/20 planted vulnerabilities detected as decided FAILs, 70/87 on labelled fixtures from
-  8 vendors with no dedicated parser, **0 missed and 0 false alarms**; a test fails the build if that gets worse.
+* **Measured, not claimed.** 18/20 planted vulnerabilities detected as decided FAILs, 83/101 on labelled fixtures from
+  8 vendors with no dedicated parser, Terraform for AWS, Azure and GCP, and Azure / GCP firewall exports, **0 missed and 0 false alarms**; a test fails the build if that gets worse.
 * **Potential attack paths.** Findings chained into how an attacker gets in (reach the login → capture the password
   → log in as admin), each step a decided FAIL with its line, plus the one fix that breaks the path.
 * **Every verdict traceable.** Framework requirement → check → vendor-neutral field and value → the configuration
@@ -40,7 +40,7 @@ NetAuditAI only ever **reads** a device, and never executes a change on one.
 
 ## Status
 
-Working hackathon prototype. Backend: 1509 tests passed, 2 live-AI tests skipped (`pytest -n auto` runs them in
+Working hackathon prototype. Backend: 1558 tests passed, 2 live-AI tests skipped (`pytest -n auto` runs them in
 parallel). Frontend: 149 tests passed, production build OK. One end-to-end browser test walks the demo path
 (`cd frontend && npm run e2e`).
 
@@ -53,7 +53,7 @@ Every labelled configuration through the real pipeline, shipped knowledge only, 
 | Set | Insecure settings detected (decided FAIL) | Missed | False alarms on secure settings |
 |---|---|---|---|
 | 20 vulnerabilities planted in the demo files (Cisco IOS, PAN-OS) | **18/20** (+2 suspected) | **0** | **0** of 4 |
-| 16 labelled fixtures, 8 vendors with no dedicated parser | **70/87** (17 undecided) | **0** | **0** of 68 |
+| 27 labelled fixtures: 8 vendors with no dedicated parser, Terraform (AWS, Azure, GCP), Azure NSG and GCP firewall exports | **83/101** (18 undecided) | **0** | **0** of 78 |
 
 "Undecided" is an answer, not a miss: the engine shows the line and says what it would need, and never calls an
 insecure setting secure. A test fails the build if any of these numbers gets worse.
@@ -100,13 +100,15 @@ Details: [docs/architecture.md](docs/architecture.md).
 | Cisco IOS / IOS-XE (common patterns) | Dedicated parser, confirmed by grammar coverage | Decisive (parser facts; no Cisco defaults are assumed) | Deterministic, verified |
 | Fortinet FortiGate (FortiOS with a `config firewall` / `config vpn` section) | Dedicated parser, confirmed by grammar coverage | Decisive; password storage and AAA are not read by the parser (UNKNOWN) | Deterministic, verified |
 | Look-alikes (Arista EOS, NX-OS, IOS-XR, ASA, Dell OS10, Brocade, FortiSwitch) and mixed configs | Reported **unverified**, then the generic path | Provisional unless a recognizer is confirmed | No generated commands; candidate remediation once a finding is decisive |
+| Terraform (`.tf`: AWS security groups and rules, Azure NSG rules, GCP firewalls) | Blocks flattened in place (one statement per block, on its own line), read by shipped seeds; device-only checks are N/A | Decisive for an open rule; a variable the file does not resolve stays undecided | No generated commands |
+| Cloud exports (JSON: AWS security groups, `az network nsg show` / `nsg rule list`, `gcloud compute firewall-rules list --format=json`) | Flattened to one statement per rule, read by shipped seeds; device-only checks are N/A | Decisive for an open Allow / Inbound rule | No generated commands |
 | Palo Alto, Juniper and every other vendor | **No dedicated parser.** Generic tokenizer, lexicon heuristics, confirmed recognizers, optional AI judge | Provisional; decisive only through confirmed recognizers | No generated commands; candidate remediation once a finding is decisive |
 
 The vendor is decided deterministically. An AI vendor guess is reported as evidence only and never selects a parser, defaults or remediation.
 
-**Shipped knowledge.** 161 reviewed recognizers for eleven unparsed dialects (Juniper Junos, Palo Alto PAN-OS,
-Arista EOS, Huawei VRP, HPE Aruba AOS-CX, Check Point Gaia, Extreme EXOS, MikroTik RouterOS, Cisco NX-OS, ASA, IOS-XR) and AWS security
-groups ship in `backend/data/seed_recognizers.json` and load into an empty database on first start, so those dialects
+**Shipped knowledge.** 226 reviewed recognizers for eleven unparsed dialects (Juniper Junos, Palo Alto PAN-OS,
+Arista EOS, Huawei VRP, HPE Aruba AOS-CX, Check Point Gaia, Extreme EXOS, MikroTik RouterOS, Cisco NX-OS, ASA, IOS-XR), AWS security
+groups, Azure NSG and GCP firewall exports and Terraform (AWS, Azure, GCP) ship in `backend/data/seed_recognizers.json` and load into an empty database on first start, so those dialects
 answer several controls before anyone teaches anything. Each entry is one concept per dialect, generalized over
 addresses, names, numbers and indentation through typed slots. They are ordinary recognizers -same templates,
 same validation, same decisive CONFIRMED facts -and are marked `source=seed` so shipped knowledge can be audited
@@ -216,10 +218,10 @@ Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `fr
 
 ```bash
 cd backend
-venv\Scripts\python -m pytest tests -q     # 1227 passed, 2 skipped (live AI, needs NETAUDIT_LIVE_AI=1)
+venv\Scripts\python -m pytest tests -q -n auto   # 1558 passed, 2 skipped (live AI, needs NETAUDIT_LIVE_AI=1)
 
 cd frontend
-npm test                                    # 119 passed
+npm test                                    # 149 passed
 npm run build
 ```
 
@@ -246,7 +248,7 @@ A line holding a secret (password, key, community string) is never stored as a m
 - Parsers cover common Cisco IOS and FortiGate syntax; the IOS grammar is a curated root list, so an unusual real IOS config can come out unverified.
 - 23 controls. Remediation recipes exist only for Cisco IOS and FortiGate; weak stored passwords, AAA without a strong local account and any-to-any rules always need a human.
 - Unknown vendors rely on lexicon heuristics and confirmed recognizers; heuristics can misread a dialect until an administrator confirms or rejects the line.
-- Shipped seed knowledge covers eleven dialects and 161 recognizers, so it answers only part of each dialect. Everything it does not cover still has to be taught, and a dialect with no seeds behaves exactly as before.
+- Shipped seed knowledge covers eleven dialects, AWS / Azure / GCP exports and Terraform, 226 recognizers, so it answers only part of each dialect. Everything it does not cover still has to be taught, and a dialect with no seeds behaves exactly as before.
 - Redaction is pattern-based: a secret behind an unlisted keyword could still reach the AI.
 - The AI judge escalates only unknown / unverified vendors; UNKNOWN controls of confirmed vendors are not sent to AI.
 - Scan results live in memory; recognizer replay only checks scans held by the running backend. A candidate remediation lives in its scan only and is never persisted as knowledge.
@@ -259,7 +261,7 @@ A line holding a secret (password, key, community string) is never stored as a m
 
 | Document | Contents |
 |---|---|
-| [docs/architecture-brief.md](docs/architecture-brief.md) | Two-page architecture brief (evaluation deliverable) |
+| [docs/architecture-brief.pdf](docs/architecture-brief.pdf) | Two-page architecture brief (evaluation deliverable), generated from [the Markdown](docs/architecture-brief.md) by `python backend/scripts/build_architecture_pdf.py` |
 | [docs/architecture.md](docs/architecture.md) | Pipeline, vendors, facts, controls, scoring, AI, recognizers, persistence, remediation, frameworks |
 | [docs/security-model.md](docs/security-model.md) | Trust boundaries and safety guarantees |
 | [docs/ai-design.md](docs/ai-design.md) | AI judge, remediation candidates, verification, cache, legacy interpreter |

@@ -1,0 +1,51 @@
+[
+  {
+    "allowed": [
+      {
+        "IPProtocol": "tcp",
+        "ports": [
+          "22"
+        ]
+      }
+    ],
+    "creationTimestamp": "2026-01-12T08:15:30.000-08:00",
+    "description": "",
+    "direction": "INGRESS",
+    "disabled": false,
+    "id": "1234567890123456789",
+    "kind": "compute#firewall",
+    "logConfig": {
+      "enable": false
+    },
+    "name": "allow-ssh-iap",
+    "network": "https://www.googleapis.com/compute/v1/projects/demo-project/global/networks/default",
+    "priority": 1000,
+    "selfLink": "https://www.googleapis.com/compute/v1/projects/demo-project/global/firewalls/allow-ssh-iap",
+    "sourceRanges": [
+      "35.235.240.0/20"
+    ]
+  },
+  {
+    "creationTimestamp": "2026-01-12T08:16:02.000-08:00",
+    "description": "",
+    "direction": "INGRESS",
+    "disabled": false,
+    "id": "9876543210987654321",
+    "kind": "compute#firewall",
+    "logConfig": {
+      "enable": false
+    },
+    "name": "deny-all",
+    "network": "https://www.googleapis.com/compute/v1/projects/demo-project/global/networks/default",
+    "priority": 65000,
+    "selfLink": "https://www.googleapis.com/compute/v1/projects/demo-project/global/firewalls/deny-all",
+    "sourceRanges": [
+      "0.0.0.0/0"
+    ],
+    "denied": [
+      {
+        "IPProtocol": "all"
+      }
+    ]
+  }
+]

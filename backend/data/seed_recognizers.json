@@ -12,33 +12,193 @@
       "concept": "Permissive any-any rule",
       "vendor": "AWS security group (JSON)",
       "predicate": "boundary.policy.permit_any",
-      "command_pattern": "SecurityGroups IpPermissions IpProtocol -1 CidrIp {enum:source}",
+      "command_pattern": "SecurityGroups IpPermissions IpProtocol -1 IpRanges CidrIp {enum:source}",
       "constant_value": "{\"0.0.0.0/0\": true}",
-      "example_line": "SecurityGroups IpPermissions IpProtocol -1 CidrIp 0.0.0.0/0"
+      "example_line": "SecurityGroups IpPermissions IpProtocol -1 IpRanges CidrIp 0.0.0.0/0"
     },
     {
       "concept": "Management access source restriction (SSH)",
       "vendor": "AWS security group (JSON)",
       "predicate": "mgmt.remote_access.source_restricted",
-      "command_pattern": "SecurityGroups IpPermissions FromPort 22 IpProtocol tcp CidrIp {enum:source} ToPort 22",
+      "command_pattern": "SecurityGroups IpPermissions FromPort 22 IpProtocol tcp IpRanges CidrIp {enum:source} ToPort 22",
       "constant_value": "{\"0.0.0.0/0\": false, \"*\": true}",
-      "example_line": "SecurityGroups IpPermissions FromPort 22 IpProtocol tcp CidrIp 0.0.0.0/0 ToPort 22"
+      "example_line": "SecurityGroups IpPermissions FromPort 22 IpProtocol tcp IpRanges CidrIp 0.0.0.0/0 ToPort 22"
     },
     {
       "concept": "Management access source restriction (Telnet)",
       "vendor": "AWS security group (JSON)",
       "predicate": "mgmt.remote_access.source_restricted",
-      "command_pattern": "SecurityGroups IpPermissions FromPort 23 IpProtocol tcp CidrIp {enum:source} ToPort 23",
+      "command_pattern": "SecurityGroups IpPermissions FromPort 23 IpProtocol tcp IpRanges CidrIp {enum:source} ToPort 23",
       "constant_value": "{\"0.0.0.0/0\": false, \"*\": true}",
-      "example_line": "SecurityGroups IpPermissions FromPort 23 IpProtocol tcp CidrIp 0.0.0.0/0 ToPort 23"
+      "example_line": "SecurityGroups IpPermissions FromPort 23 IpProtocol tcp IpRanges CidrIp 0.0.0.0/0 ToPort 23"
     },
     {
       "concept": "Management access source restriction (RDP)",
       "vendor": "AWS security group (JSON)",
       "predicate": "mgmt.remote_access.source_restricted",
-      "command_pattern": "SecurityGroups IpPermissions FromPort 3389 IpProtocol tcp CidrIp {enum:source} ToPort 3389",
+      "command_pattern": "SecurityGroups IpPermissions FromPort 3389 IpProtocol tcp IpRanges CidrIp {enum:source} ToPort 3389",
       "constant_value": "{\"0.0.0.0/0\": false, \"*\": true}",
-      "example_line": "SecurityGroups IpPermissions FromPort 3389 IpProtocol tcp CidrIp 0.0.0.0/0 ToPort 3389"
+      "example_line": "SecurityGroups IpPermissions FromPort 3389 IpProtocol tcp IpRanges CidrIp 0.0.0.0/0 ToPort 3389"
+    },
+    {
+      "concept": "Management access source restriction",
+      "vendor": "Azure NSG (JSON)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "securityRules access Allow destinationAddressPrefix {any} destinationPortRange {enum:port} direction Inbound name {any} priority {any} protocol {any} resourceGroup {any} sourceAddressPrefix * sourcePortRange {any} type {any}",
+      "constant_value": "{\"22\": false, \"23\": false, \"3389\": false}",
+      "example_line": "securityRules access Allow destinationAddressPrefix x destinationPortRange 22 direction Inbound name x priority x protocol x resourceGroup x sourceAddressPrefix * sourcePortRange x type x"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Azure NSG (JSON)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "securityRules access {enum:access} destinationAddressPrefix {any} destinationPortRange * direction Inbound name {any} priority {any} protocol {any} resourceGroup {any} sourceAddressPrefix * sourcePortRange {any} type {any}",
+      "constant_value": "{\"allow\": true}",
+      "example_line": "securityRules access Allow destinationAddressPrefix x destinationPortRange * direction Inbound name x priority x protocol x resourceGroup x sourceAddressPrefix * sourcePortRange x type x"
+    },
+    {
+      "concept": "Management access source restriction",
+      "vendor": "Azure NSG (JSON)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "securityRules access Allow destinationAddressPrefix {any} destinationPortRange {enum:port} direction Inbound name {any} priority {any} protocol {any} resourceGroup {any} sourceAddressPrefix Internet sourcePortRange {any} type {any}",
+      "constant_value": "{\"22\": false, \"23\": false, \"3389\": false}",
+      "example_line": "securityRules access Allow destinationAddressPrefix x destinationPortRange 22 direction Inbound name x priority x protocol x resourceGroup x sourceAddressPrefix Internet sourcePortRange x type x"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Azure NSG (JSON)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "securityRules access {enum:access} destinationAddressPrefix {any} destinationPortRange * direction Inbound name {any} priority {any} protocol {any} resourceGroup {any} sourceAddressPrefix Internet sourcePortRange {any} type {any}",
+      "constant_value": "{\"allow\": true}",
+      "example_line": "securityRules access Allow destinationAddressPrefix x destinationPortRange * direction Inbound name x priority x protocol x resourceGroup x sourceAddressPrefix Internet sourcePortRange x type x"
+    },
+    {
+      "concept": "Management access source restriction",
+      "vendor": "Azure NSG (JSON)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "securityRules access Allow destinationAddressPrefix {any} destinationPortRange {enum:port} direction Inbound name {any} priority {any} protocol {any} resourceGroup {any} sourceAddressPrefix 0.0.0.0/0 sourcePortRange {any} type {any}",
+      "constant_value": "{\"22\": false, \"23\": false, \"3389\": false}",
+      "example_line": "securityRules access Allow destinationAddressPrefix x destinationPortRange 22 direction Inbound name x priority x protocol x resourceGroup x sourceAddressPrefix 0.0.0.0/0 sourcePortRange x type x"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Azure NSG (JSON)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "securityRules access {enum:access} destinationAddressPrefix {any} destinationPortRange * direction Inbound name {any} priority {any} protocol {any} resourceGroup {any} sourceAddressPrefix 0.0.0.0/0 sourcePortRange {any} type {any}",
+      "constant_value": "{\"allow\": true}",
+      "example_line": "securityRules access Allow destinationAddressPrefix x destinationPortRange * direction Inbound name x priority x protocol x resourceGroup x sourceAddressPrefix 0.0.0.0/0 sourcePortRange x type x"
+    },
+    {
+      "concept": "Management access source restriction",
+      "vendor": "Azure NSG (JSON)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "access Allow destinationAddressPrefix {any} destinationPortRange {enum:port} direction Inbound name {any} priority {any} protocol {any} resourceGroup {any} sourceAddressPrefix * sourcePortRange {any} type {any}",
+      "constant_value": "{\"22\": false, \"23\": false, \"3389\": false}",
+      "example_line": "access Allow destinationAddressPrefix x destinationPortRange 22 direction Inbound name x priority x protocol x resourceGroup x sourceAddressPrefix * sourcePortRange x type x"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Azure NSG (JSON)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "access {enum:access} destinationAddressPrefix {any} destinationPortRange * direction Inbound name {any} priority {any} protocol {any} resourceGroup {any} sourceAddressPrefix * sourcePortRange {any} type {any}",
+      "constant_value": "{\"allow\": true}",
+      "example_line": "access Allow destinationAddressPrefix x destinationPortRange * direction Inbound name x priority x protocol x resourceGroup x sourceAddressPrefix * sourcePortRange x type x"
+    },
+    {
+      "concept": "Management access source restriction",
+      "vendor": "Azure NSG (JSON)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "access Allow destinationAddressPrefix {any} destinationPortRange {enum:port} direction Inbound name {any} priority {any} protocol {any} resourceGroup {any} sourceAddressPrefix Internet sourcePortRange {any} type {any}",
+      "constant_value": "{\"22\": false, \"23\": false, \"3389\": false}",
+      "example_line": "access Allow destinationAddressPrefix x destinationPortRange 22 direction Inbound name x priority x protocol x resourceGroup x sourceAddressPrefix Internet sourcePortRange x type x"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Azure NSG (JSON)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "access {enum:access} destinationAddressPrefix {any} destinationPortRange * direction Inbound name {any} priority {any} protocol {any} resourceGroup {any} sourceAddressPrefix Internet sourcePortRange {any} type {any}",
+      "constant_value": "{\"allow\": true}",
+      "example_line": "access Allow destinationAddressPrefix x destinationPortRange * direction Inbound name x priority x protocol x resourceGroup x sourceAddressPrefix Internet sourcePortRange x type x"
+    },
+    {
+      "concept": "Management access source restriction",
+      "vendor": "Azure NSG (JSON)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "access Allow destinationAddressPrefix {any} destinationPortRange {enum:port} direction Inbound name {any} priority {any} protocol {any} resourceGroup {any} sourceAddressPrefix 0.0.0.0/0 sourcePortRange {any} type {any}",
+      "constant_value": "{\"22\": false, \"23\": false, \"3389\": false}",
+      "example_line": "access Allow destinationAddressPrefix x destinationPortRange 22 direction Inbound name x priority x protocol x resourceGroup x sourceAddressPrefix 0.0.0.0/0 sourcePortRange x type x"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Azure NSG (JSON)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "access {enum:access} destinationAddressPrefix {any} destinationPortRange * direction Inbound name {any} priority {any} protocol {any} resourceGroup {any} sourceAddressPrefix 0.0.0.0/0 sourcePortRange {any} type {any}",
+      "constant_value": "{\"allow\": true}",
+      "example_line": "access Allow destinationAddressPrefix x destinationPortRange * direction Inbound name x priority x protocol x resourceGroup x sourceAddressPrefix 0.0.0.0/0 sourcePortRange x type x"
+    },
+    {
+      "concept": "Management access source restriction",
+      "vendor": "GCP firewall rules (JSON)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "allowed IPProtocol tcp ports {enum:port} direction INGRESS disabled false logConfig enable {any} name {any} network {any} priority {any} sourceRanges 0.0.0.0/0",
+      "constant_value": "{\"22\": false, \"23\": false, \"3389\": false}",
+      "example_line": "allowed IPProtocol tcp ports 22 direction INGRESS disabled false logConfig enable x name x network x priority x sourceRanges 0.0.0.0/0"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "GCP firewall rules (JSON)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "allowed IPProtocol {enum:protocol} direction INGRESS disabled false logConfig enable {any} name {any} network {any} priority {any} sourceRanges 0.0.0.0/0",
+      "constant_value": "{\"all\": true}",
+      "example_line": "allowed IPProtocol all direction INGRESS disabled false logConfig enable x name x network x priority x sourceRanges 0.0.0.0/0"
+    },
+    {
+      "concept": "Management access source restriction",
+      "vendor": "GCP firewall rules (JSON)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "allowed IPProtocol tcp ports {enum:port} direction INGRESS disabled false logConfig enable {any} name {any} network {any} priority {any} sourceRanges 0.0.0.0/0 targetTags {any}",
+      "constant_value": "{\"22\": false, \"23\": false, \"3389\": false}",
+      "example_line": "allowed IPProtocol tcp ports 22 direction INGRESS disabled false logConfig enable x name x network x priority x sourceRanges 0.0.0.0/0 targetTags x"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "GCP firewall rules (JSON)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "allowed IPProtocol {enum:protocol} direction INGRESS disabled false logConfig enable {any} name {any} network {any} priority {any} sourceRanges 0.0.0.0/0 targetTags {any}",
+      "constant_value": "{\"all\": true}",
+      "example_line": "allowed IPProtocol all direction INGRESS disabled false logConfig enable x name x network x priority x sourceRanges 0.0.0.0/0 targetTags x"
+    },
+    {
+      "concept": "Management access source restriction",
+      "vendor": "GCP firewall rules (JSON)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "allowed IPProtocol tcp ports {enum:port} direction INGRESS disabled false name {any} network {any} priority {any} sourceRanges 0.0.0.0/0",
+      "constant_value": "{\"22\": false, \"23\": false, \"3389\": false}",
+      "example_line": "allowed IPProtocol tcp ports 22 direction INGRESS disabled false name x network x priority x sourceRanges 0.0.0.0/0"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "GCP firewall rules (JSON)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "allowed IPProtocol {enum:protocol} direction INGRESS disabled false name {any} network {any} priority {any} sourceRanges 0.0.0.0/0",
+      "constant_value": "{\"all\": true}",
+      "example_line": "allowed IPProtocol all direction INGRESS disabled false name x network x priority x sourceRanges 0.0.0.0/0"
+    },
+    {
+      "concept": "Management access source restriction",
+      "vendor": "GCP firewall rules (JSON)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "allowed IPProtocol tcp ports {enum:port} direction INGRESS disabled false name {any} network {any} priority {any} sourceRanges 0.0.0.0/0 targetTags {any}",
+      "constant_value": "{\"22\": false, \"23\": false, \"3389\": false}",
+      "example_line": "allowed IPProtocol tcp ports 22 direction INGRESS disabled false name x network x priority x sourceRanges 0.0.0.0/0 targetTags x"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "GCP firewall rules (JSON)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "allowed IPProtocol {enum:protocol} direction INGRESS disabled false name {any} network {any} priority {any} sourceRanges 0.0.0.0/0 targetTags {any}",
+      "constant_value": "{\"all\": true}",
+      "example_line": "allowed IPProtocol all direction INGRESS disabled false name x network x priority x sourceRanges 0.0.0.0/0 targetTags x"
     },
     {
       "concept": "Local-only login authentication",
@@ -737,6 +897,76 @@
       "example_line": "set strong-crypto=yes forwarding-enabled=no"
     },
     {
+      "concept": "SNMP community",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "snmp.community",
+      "command_pattern": "set [ find {any} ] name {community:RO}",
+      "scope_template": "/snmp community",
+      "example_line": "set [ find default=yes ] name=<SECRET:snmp-community>"
+    },
+    {
+      "concept": "SNMP community",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "snmp.community",
+      "command_pattern": "set [find {any} name {community:RO}",
+      "scope_template": "/snmp community",
+      "example_line": "set [find default=yes] name=<SECRET:snmp-community>"
+    },
+    {
+      "concept": "SNMP community",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "snmp.community",
+      "command_pattern": "add name {community:RO}",
+      "scope_template": "/snmp community",
+      "example_line": "add name=<SECRET:snmp-community>"
+    },
+    {
+      "concept": "Password storage",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "auth.password.storage",
+      "command_pattern": "set {any} {enum:storage} {any} group {any}",
+      "scope_template": "/user",
+      "constant_value": "{\"password\": \"plaintext\"}",
+      "example_line": "set admin password=<SECRET:password> group=full"
+    },
+    {
+      "concept": "Password storage",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "auth.password.storage",
+      "command_pattern": "set {any} group {any} {enum:storage} {any}",
+      "scope_template": "/user",
+      "constant_value": "{\"password\": \"plaintext\"}",
+      "example_line": "set admin group=full password=<SECRET:password>"
+    },
+    {
+      "concept": "Password storage",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "auth.password.storage",
+      "command_pattern": "add name {any} {enum:storage} {any} group {any}",
+      "scope_template": "/user",
+      "constant_value": "{\"password\": \"plaintext\"}",
+      "example_line": "add name=ops password=<SECRET:password> group=full"
+    },
+    {
+      "concept": "Password storage",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "auth.password.storage",
+      "command_pattern": "add name {any} group {any} {enum:storage} {any}",
+      "scope_template": "/user",
+      "constant_value": "{\"password\": \"plaintext\"}",
+      "example_line": "add name=ops group=full password=<SECRET:password>"
+    },
+    {
+      "concept": "Telnet service",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "telnet",
+      "command_pattern": "set telnet disabled {enum:disabled} port {any}",
+      "scope_template": "{any} service",
+      "constant_value": "{\"no\": true, \"false\": true, \"yes\": false, \"true\": false}",
+      "example_line": "set telnet disabled=no port=23"
+    },
+    {
       "concept": "Login banner",
       "vendor": "Palo Alto PAN-OS",
       "predicate": "banner.login.present",
@@ -1294,6 +1524,274 @@
       "predicate": "snmp.community",
       "command_pattern": "configure snmp add community {community:RO}",
       "example_line": "configure snmp add community <SECRET:snmp-community>"
+    },
+    {
+      "concept": "Management access source restriction (SSH)",
+      "vendor": "Terraform (AWS)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "ingress cidr_blocks {enum:source} from_port 22 protocol tcp to_port 22",
+      "constant_value": "{\"0.0.0.0/0\": false, \"*\": true}",
+      "example_line": "ingress cidr_blocks 0.0.0.0/0 from_port 22 protocol tcp to_port 22 {"
+    },
+    {
+      "concept": "Management access source restriction (SSH, IPv6)",
+      "vendor": "Terraform (AWS)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "ingress from_port 22 ipv6_cidr_blocks {enum:source} protocol tcp to_port 22",
+      "constant_value": "{\"::/0\": false, \"*\": true}",
+      "example_line": "ingress from_port 22 ipv6_cidr_blocks ::/0 protocol tcp to_port 22 {"
+    },
+    {
+      "concept": "Management access source restriction (SSH)",
+      "vendor": "Terraform (AWS)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "resource aws_security_group_rule {any} cidr_blocks {enum:source} from_port 22 protocol tcp security_group_id {any} to_port 22 type ingress",
+      "constant_value": "{\"0.0.0.0/0\": false, \"*\": true}",
+      "example_line": "resource aws_security_group_rule ssh cidr_blocks 0.0.0.0/0 from_port 22 protocol tcp security_group_id ${aws_security_group.web.id} to_port 22 type ingress {"
+    },
+    {
+      "concept": "Management access source restriction (SSH)",
+      "vendor": "Terraform (AWS)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "resource aws_vpc_security_group_ingress_rule {any} cidr_ipv4 {enum:source} from_port 22 ip_protocol tcp security_group_id {any} to_port 22",
+      "constant_value": "{\"0.0.0.0/0\": false, \"*\": true}",
+      "example_line": "resource aws_vpc_security_group_ingress_rule ssh cidr_ipv4 0.0.0.0/0 from_port 22 ip_protocol tcp security_group_id ${aws_security_group.web.id} to_port 22 {"
+    },
+    {
+      "concept": "Management access source restriction (Telnet)",
+      "vendor": "Terraform (AWS)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "ingress cidr_blocks {enum:source} from_port 23 protocol tcp to_port 23",
+      "constant_value": "{\"0.0.0.0/0\": false, \"*\": true}",
+      "example_line": "ingress cidr_blocks 0.0.0.0/0 from_port 23 protocol tcp to_port 23 {"
+    },
+    {
+      "concept": "Management access source restriction (Telnet, IPv6)",
+      "vendor": "Terraform (AWS)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "ingress from_port 23 ipv6_cidr_blocks {enum:source} protocol tcp to_port 23",
+      "constant_value": "{\"::/0\": false, \"*\": true}",
+      "example_line": "ingress from_port 23 ipv6_cidr_blocks ::/0 protocol tcp to_port 23 {"
+    },
+    {
+      "concept": "Management access source restriction (Telnet)",
+      "vendor": "Terraform (AWS)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "resource aws_security_group_rule {any} cidr_blocks {enum:source} from_port 23 protocol tcp security_group_id {any} to_port 23 type ingress",
+      "constant_value": "{\"0.0.0.0/0\": false, \"*\": true}",
+      "example_line": "resource aws_security_group_rule ssh cidr_blocks 0.0.0.0/0 from_port 23 protocol tcp security_group_id ${aws_security_group.web.id} to_port 23 type ingress {"
+    },
+    {
+      "concept": "Management access source restriction (Telnet)",
+      "vendor": "Terraform (AWS)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "resource aws_vpc_security_group_ingress_rule {any} cidr_ipv4 {enum:source} from_port 23 ip_protocol tcp security_group_id {any} to_port 23",
+      "constant_value": "{\"0.0.0.0/0\": false, \"*\": true}",
+      "example_line": "resource aws_vpc_security_group_ingress_rule ssh cidr_ipv4 0.0.0.0/0 from_port 23 ip_protocol tcp security_group_id ${aws_security_group.web.id} to_port 23 {"
+    },
+    {
+      "concept": "Management access source restriction (RDP)",
+      "vendor": "Terraform (AWS)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "ingress cidr_blocks {enum:source} from_port 3389 protocol tcp to_port 3389",
+      "constant_value": "{\"0.0.0.0/0\": false, \"*\": true}",
+      "example_line": "ingress cidr_blocks 0.0.0.0/0 from_port 3389 protocol tcp to_port 3389 {"
+    },
+    {
+      "concept": "Management access source restriction (RDP, IPv6)",
+      "vendor": "Terraform (AWS)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "ingress from_port 3389 ipv6_cidr_blocks {enum:source} protocol tcp to_port 3389",
+      "constant_value": "{\"::/0\": false, \"*\": true}",
+      "example_line": "ingress from_port 3389 ipv6_cidr_blocks ::/0 protocol tcp to_port 3389 {"
+    },
+    {
+      "concept": "Management access source restriction (RDP)",
+      "vendor": "Terraform (AWS)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "resource aws_security_group_rule {any} cidr_blocks {enum:source} from_port 3389 protocol tcp security_group_id {any} to_port 3389 type ingress",
+      "constant_value": "{\"0.0.0.0/0\": false, \"*\": true}",
+      "example_line": "resource aws_security_group_rule ssh cidr_blocks 0.0.0.0/0 from_port 3389 protocol tcp security_group_id ${aws_security_group.web.id} to_port 3389 type ingress {"
+    },
+    {
+      "concept": "Management access source restriction (RDP)",
+      "vendor": "Terraform (AWS)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "resource aws_vpc_security_group_ingress_rule {any} cidr_ipv4 {enum:source} from_port 3389 ip_protocol tcp security_group_id {any} to_port 3389",
+      "constant_value": "{\"0.0.0.0/0\": false, \"*\": true}",
+      "example_line": "resource aws_vpc_security_group_ingress_rule ssh cidr_ipv4 0.0.0.0/0 from_port 3389 ip_protocol tcp security_group_id ${aws_security_group.web.id} to_port 3389 {"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Terraform (AWS)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "ingress cidr_blocks {enum:source} from_port 0 protocol -1 to_port 0",
+      "constant_value": "{\"0.0.0.0/0\": true}",
+      "example_line": "ingress cidr_blocks 0.0.0.0/0 from_port 0 protocol -1 to_port 0 {"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Terraform (AWS)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "ingress cidr_blocks {enum:source} from_port 0 protocol tcp to_port 65535",
+      "constant_value": "{\"0.0.0.0/0\": true}",
+      "example_line": "ingress cidr_blocks 0.0.0.0/0 from_port 0 protocol tcp to_port 65535 {"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Terraform (AWS)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "ingress from_port 0 ipv6_cidr_blocks {enum:source} protocol -1 to_port 0",
+      "constant_value": "{\"::/0\": true}",
+      "example_line": "ingress from_port 0 ipv6_cidr_blocks ::/0 protocol -1 to_port 0 {"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Terraform (AWS)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "resource aws_security_group_rule {any} cidr_blocks {enum:source} from_port 0 protocol -1 security_group_id {any} to_port 0 type ingress",
+      "constant_value": "{\"0.0.0.0/0\": true}",
+      "example_line": "resource aws_security_group_rule all cidr_blocks 0.0.0.0/0 from_port 0 protocol -1 security_group_id ${aws_security_group.web.id} to_port 0 type ingress {"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Terraform (AWS)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "resource aws_vpc_security_group_ingress_rule {any} cidr_ipv4 {enum:source} ip_protocol -1 security_group_id {any}",
+      "constant_value": "{\"0.0.0.0/0\": true}",
+      "example_line": "resource aws_vpc_security_group_ingress_rule all cidr_ipv4 0.0.0.0/0 ip_protocol -1 security_group_id ${aws_security_group.web.id} {"
+    },
+    {
+      "concept": "Management access source restriction",
+      "vendor": "Terraform (Azure)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "security_rule access Allow destination_address_prefix {any} destination_port_range {enum:port} direction Inbound name {any} priority {any} protocol {any} source_address_prefix * source_port_range {any}",
+      "constant_value": "{\"22\": false, \"23\": false, \"3389\": false}",
+      "example_line": "security_rule access Allow destination_address_prefix x destination_port_range 22 direction Inbound name x priority x protocol Tcp source_address_prefix * source_port_range x {"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Terraform (Azure)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "security_rule access {enum:access} destination_address_prefix {any} destination_port_range * direction Inbound name {any} priority {any} protocol {any} source_address_prefix * source_port_range {any}",
+      "constant_value": "{\"allow\": true}",
+      "example_line": "security_rule access Allow destination_address_prefix x destination_port_range * direction Inbound name x priority x protocol * source_address_prefix * source_port_range x {"
+    },
+    {
+      "concept": "Management access source restriction",
+      "vendor": "Terraform (Azure)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "resource azurerm_network_security_rule {any} access Allow destination_address_prefix {any} destination_port_range {enum:port} direction Inbound name {any} network_security_group_name {any} priority {any} protocol {any} resource_group_name {any} source_address_prefix * source_port_range {any}",
+      "constant_value": "{\"22\": false, \"23\": false, \"3389\": false}",
+      "example_line": "resource azurerm_network_security_rule ssh access Allow destination_address_prefix x destination_port_range 22 direction Inbound name x network_security_group_name ${azurerm_network_security_group.web.name} priority x protocol Tcp resource_group_name ${azurerm_resource_group.main.name} source_address_prefix * source_port_range x {"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Terraform (Azure)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "resource azurerm_network_security_rule {any} access {enum:access} destination_address_prefix {any} destination_port_range * direction Inbound name {any} network_security_group_name {any} priority {any} protocol {any} resource_group_name {any} source_address_prefix * source_port_range {any}",
+      "constant_value": "{\"allow\": true}",
+      "example_line": "resource azurerm_network_security_rule ssh access Allow destination_address_prefix x destination_port_range * direction Inbound name x network_security_group_name ${azurerm_network_security_group.web.name} priority x protocol * resource_group_name ${azurerm_resource_group.main.name} source_address_prefix * source_port_range x {"
+    },
+    {
+      "concept": "Management access source restriction",
+      "vendor": "Terraform (Azure)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "security_rule access Allow destination_address_prefix {any} destination_port_range {enum:port} direction Inbound name {any} priority {any} protocol {any} source_address_prefix Internet source_port_range {any}",
+      "constant_value": "{\"22\": false, \"23\": false, \"3389\": false}",
+      "example_line": "security_rule access Allow destination_address_prefix x destination_port_range 22 direction Inbound name x priority x protocol Tcp source_address_prefix Internet source_port_range x {"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Terraform (Azure)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "security_rule access {enum:access} destination_address_prefix {any} destination_port_range * direction Inbound name {any} priority {any} protocol {any} source_address_prefix Internet source_port_range {any}",
+      "constant_value": "{\"allow\": true}",
+      "example_line": "security_rule access Allow destination_address_prefix x destination_port_range * direction Inbound name x priority x protocol * source_address_prefix Internet source_port_range x {"
+    },
+    {
+      "concept": "Management access source restriction",
+      "vendor": "Terraform (Azure)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "resource azurerm_network_security_rule {any} access Allow destination_address_prefix {any} destination_port_range {enum:port} direction Inbound name {any} network_security_group_name {any} priority {any} protocol {any} resource_group_name {any} source_address_prefix Internet source_port_range {any}",
+      "constant_value": "{\"22\": false, \"23\": false, \"3389\": false}",
+      "example_line": "resource azurerm_network_security_rule ssh access Allow destination_address_prefix x destination_port_range 22 direction Inbound name x network_security_group_name ${azurerm_network_security_group.web.name} priority x protocol Tcp resource_group_name ${azurerm_resource_group.main.name} source_address_prefix Internet source_port_range x {"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Terraform (Azure)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "resource azurerm_network_security_rule {any} access {enum:access} destination_address_prefix {any} destination_port_range * direction Inbound name {any} network_security_group_name {any} priority {any} protocol {any} resource_group_name {any} source_address_prefix Internet source_port_range {any}",
+      "constant_value": "{\"allow\": true}",
+      "example_line": "resource azurerm_network_security_rule ssh access Allow destination_address_prefix x destination_port_range * direction Inbound name x network_security_group_name ${azurerm_network_security_group.web.name} priority x protocol * resource_group_name ${azurerm_resource_group.main.name} source_address_prefix Internet source_port_range x {"
+    },
+    {
+      "concept": "Management access source restriction",
+      "vendor": "Terraform (Azure)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "security_rule access Allow destination_address_prefix {any} destination_port_range {enum:port} direction Inbound name {any} priority {any} protocol {any} source_address_prefix 0.0.0.0/0 source_port_range {any}",
+      "constant_value": "{\"22\": false, \"23\": false, \"3389\": false}",
+      "example_line": "security_rule access Allow destination_address_prefix x destination_port_range 22 direction Inbound name x priority x protocol Tcp source_address_prefix 0.0.0.0/0 source_port_range x {"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Terraform (Azure)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "security_rule access {enum:access} destination_address_prefix {any} destination_port_range * direction Inbound name {any} priority {any} protocol {any} source_address_prefix 0.0.0.0/0 source_port_range {any}",
+      "constant_value": "{\"allow\": true}",
+      "example_line": "security_rule access Allow destination_address_prefix x destination_port_range * direction Inbound name x priority x protocol * source_address_prefix 0.0.0.0/0 source_port_range x {"
+    },
+    {
+      "concept": "Management access source restriction",
+      "vendor": "Terraform (Azure)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "resource azurerm_network_security_rule {any} access Allow destination_address_prefix {any} destination_port_range {enum:port} direction Inbound name {any} network_security_group_name {any} priority {any} protocol {any} resource_group_name {any} source_address_prefix 0.0.0.0/0 source_port_range {any}",
+      "constant_value": "{\"22\": false, \"23\": false, \"3389\": false}",
+      "example_line": "resource azurerm_network_security_rule ssh access Allow destination_address_prefix x destination_port_range 22 direction Inbound name x network_security_group_name ${azurerm_network_security_group.web.name} priority x protocol Tcp resource_group_name ${azurerm_resource_group.main.name} source_address_prefix 0.0.0.0/0 source_port_range x {"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Terraform (Azure)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "resource azurerm_network_security_rule {any} access {enum:access} destination_address_prefix {any} destination_port_range * direction Inbound name {any} network_security_group_name {any} priority {any} protocol {any} resource_group_name {any} source_address_prefix 0.0.0.0/0 source_port_range {any}",
+      "constant_value": "{\"allow\": true}",
+      "example_line": "resource azurerm_network_security_rule ssh access Allow destination_address_prefix x destination_port_range * direction Inbound name x network_security_group_name ${azurerm_network_security_group.web.name} priority x protocol * resource_group_name ${azurerm_resource_group.main.name} source_address_prefix 0.0.0.0/0 source_port_range x {"
+    },
+    {
+      "concept": "Management access source restriction",
+      "vendor": "Terraform (GCP)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "allow ports {enum:port} protocol tcp",
+      "scope_template": "resource google_compute_firewall {any} name {any} network {any} source_ranges 0.0.0.0/0",
+      "constant_value": "{\"22\": false, \"23\": false, \"3389\": false}",
+      "example_line": "allow ports 22 protocol tcp {"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Terraform (GCP)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "allow protocol {enum:protocol}",
+      "scope_template": "resource google_compute_firewall {any} name {any} network {any} source_ranges 0.0.0.0/0",
+      "constant_value": "{\"all\": true}",
+      "example_line": "allow protocol all {"
+    },
+    {
+      "concept": "Management access source restriction",
+      "vendor": "Terraform (GCP)",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "allow ports {enum:port} protocol tcp",
+      "scope_template": "resource google_compute_firewall {any} direction INGRESS name {any} network {any} source_ranges 0.0.0.0/0",
+      "constant_value": "{\"22\": false, \"23\": false, \"3389\": false}",
+      "example_line": "allow ports 22 protocol tcp {"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Terraform (GCP)",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "allow protocol {enum:protocol}",
+      "scope_template": "resource google_compute_firewall {any} direction INGRESS name {any} network {any} source_ranges 0.0.0.0/0",
+      "constant_value": "{\"all\": true}",
+      "example_line": "allow protocol all {"
     }
   ]
 }

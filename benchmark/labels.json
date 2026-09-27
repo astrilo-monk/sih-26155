@@ -11,6 +11,51 @@
     }
   },
   "fixtures": {
+    "backend/tests/fixtures/cloud_json/azure_nsg_insecure.json": {
+      "fail": ["MGMT-003", "BOUNDARY-001"],
+      "pass": []
+    },
+    "backend/tests/fixtures/cloud_json/azure_nsg_secure.json": {
+      "fail": [],
+      "pass": ["MGMT-003", "BOUNDARY-001"]
+    },
+    "backend/tests/fixtures/cloud_json/gcp_firewall_insecure.json": {
+      "fail": ["MGMT-003", "BOUNDARY-001"],
+      "pass": []
+    },
+    "backend/tests/fixtures/cloud_json/gcp_firewall_secure.json": {
+      "fail": [],
+      "pass": ["MGMT-003", "BOUNDARY-001"]
+    },
+    "backend/tests/fixtures/terraform/aws_insecure.tf": {
+      "fail": ["MGMT-003", "BOUNDARY-001"],
+      "pass": []
+    },
+    "backend/tests/fixtures/terraform/aws_secure.tf": {
+      "fail": [],
+      "pass": ["MGMT-003", "BOUNDARY-001"]
+    },
+    "backend/tests/fixtures/terraform/azure_insecure.tf": {
+      "fail": ["MGMT-003", "BOUNDARY-001"],
+      "pass": []
+    },
+    "backend/tests/fixtures/terraform/azure_secure.tf": {
+      "fail": [],
+      "pass": ["MGMT-003", "BOUNDARY-001"]
+    },
+    "backend/tests/fixtures/terraform/gcp_insecure.tf": {
+      "fail": ["MGMT-003", "BOUNDARY-001"],
+      "pass": []
+    },
+    "backend/tests/fixtures/terraform/gcp_secure.tf": {
+      "fail": [],
+      "pass": ["MGMT-003", "BOUNDARY-001"]
+    },
+    "backend/tests/fixtures/seed_dialects/routeros_credentials.rsc": {
+      "fail": ["MGMT-004", "MGMT-005", "MGMT-011", "AUTH-003"],
+      "pass": [],
+      "excluded": {"second community": "MtRoComm7 is a custom name; MGMT-004 is one verdict per device, decided by the default community renamed 'public' on line 4"}
+    },
     "teach/arista_eos_5_configs/arista_01_secure.conf": {
       "fail": ["MGMT-011", "MGMT-008"],
       "pass": ["MGMT-001", "MGMT-002", "MGMT-003", "MGMT-007", "MGMT-009", "LOG-001", "LOG-002", "BOUNDARY-002", "AUTH-003"],

@@ -104,6 +104,8 @@ LEAK_CASES = [
     ("user admin group administrators password ciphertext AQBapArubaCt1==", "AQBapArubaCt1=="),
     # MikroTik / structured formats
     ("/user add name=ops password=MtPass1 group=full", "MtPass1"),
+    ("/snmp community set [ find default=yes ] name=MtComm1", "MtComm1"),
+    ("/snmp community add name=MtComm2 addresses=10.0.0.0/8", "MtComm2"),
     ('    "password": "JsonPass1",', "JsonPass1"),
     ("<phash>$1$PanHash$xyz</phash>", "$1$PanHash$xyz"),
     ("<key>PanXmlKey1</key>", "PanXmlKey1"),

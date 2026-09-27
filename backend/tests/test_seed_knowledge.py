@@ -531,7 +531,7 @@ def test_a_cloud_security_group_is_read_once_flattened(seeded_adaptive_db):
     assert _result(scan, "MGMT-003")["status"] == "fail" and _result(scan, "MGMT-003")["assurance"] == "confirmed"
     boundary = _result(scan, "BOUNDARY-001")
     assert boundary["status"] == "fail" and boundary["assurance"] == "confirmed"
-    assert boundary["evidence"]["lines"] == ["SecurityGroups IpPermissions IpProtocol -1 CidrIp 0.0.0.0/0"]
+    assert boundary["evidence"]["lines"] == ["SecurityGroups IpPermissions IpProtocol -1 IpRanges CidrIp 0.0.0.0/0"]
 
 
 def test_a_restricted_security_group_passes_and_egress_is_not_a_finding(seeded_adaptive_db):

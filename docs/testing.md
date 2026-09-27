@@ -25,7 +25,11 @@ production default with the `seeded_adaptive_db` fixture.
 | Derived remediation: a verified change from the configuration alone on Junos / PAN-OS / RouterOS / Huawei, the words come from the file's own block path, a setting that must exist is never deleted to silence a check, a block opener is never removed alone, a provisional finding cannot be derived from, confirmed vendors keep recipes, the upload and the scan never move | `test_derived_remediation.py` |
 | Generic engine on hierarchical, terminator-separated dialects | `test_generic_hierarchical.py` |
 | Resolution queue: the initial score is unchanged, the queue is exactly what coverage left out, a line can be picked and its meaning stated, an answer the line does not support is refused, teaching persists and the next scan reuses it, the resolved control becomes PASS or FAIL with recalculated posture and coverage, the uploaded configuration is unchanged, prose is reported unreadable and never scored | `test_resolution_queue.py` |
-| Shipped seed knowledge: loading on a fresh database, idempotence, never overwriting what was taught, generalization across eight dialects, no accidental or secret matches, unchanged Cisco / FortiGate and unknown-vendor behaviour, the fresh-deployment demo and teaching on top of it | `test_seed_knowledge.py`, fixtures in `tests/fixtures/seed_dialects/` |
+| Shipped seed knowledge: loading on a fresh database, idempotence, never overwriting what was taught, generalization across eleven dialects, no accidental or secret matches, unchanged Cisco / FortiGate and unknown-vendor behaviour, the fresh-deployment demo and teaching on top of it | `test_seed_knowledge.py`, fixtures in `tests/fixtures/seed_dialects/` |
+| Brace-block Junos read by set-style seeds (same verdicts as its set twin, the leaf's own line cited), `inactive:` and `/* */` | `test_structured_braces.py` |
+| RouterOS default SNMP community and plaintext user passwords; neither secret reaches a recognizer, the scan, the PDF or the ledger | `test_mikrotik_credentials.py` |
+| Terraform: blocks flattened in place, AWS / Azure / GCP rules decided on the rule's own line, unresolved variables never decide, device-only checks N/A | `test_terraform.py`, fixtures in `tests/fixtures/terraform/` |
+| Azure NSG and GCP firewall JSON exports: one rule per line, only an open Allow / INGRESS rule counts (deny, outbound, disabled do not), device-only checks N/A | `test_cloud_json.py`, fixtures in `tests/fixtures/cloud_json/` |
 | Recognizer generalization: one recognizer over many addresses, names and numbers; indentation, whitespace and statement order ignored; positive and negative forms opposite; the same leaf word in another block not matched; a value-sensitive setting giving different control results from one recognizer; half a multi-fact control left undecided; a taught concept reused on the next scan; a line that states nothing teaching only a setting it names, while a line that states an on/off may be named in any words; and the acceptance loop -five concepts taught through the API, a configuration of seven variant lines scanned, only the genuinely new control left in the queue | `test_recognizer_generalization.py` |
 | Compliance report (PDF): a PDF per device and a zip for several, a hostname cannot escape the download name, no secret of the configuration reaches the document or the rendered bytes, serial numbers are not invented, provisional readings are never shown as PASS/FAIL, no vendor commands for an unconfirmed vendor, the deterministic change and its rescan checks for a confirmed one, unmapped frameworks named, undecided checks listed, a prose file reported unreadable | `test_pdf_report.py` |
 | Parsers, pipeline, ACLs, FortiGate model and firmware from the `#config-version=` header | `test_pipeline.py`, `test_cisco_acl.py` |
@@ -79,7 +83,7 @@ once.
 
 ```powershell
 cd backend
-venv\Scripts\python -m pytest tests -q -n auto   # 1509 passed, 2 skipped (~7 min in parallel)
+venv\Scripts\python -m pytest tests -q -n auto   # 1558 passed, 2 skipped (~7 min in parallel)
 
 cd ..\frontend
 npm test                                    # 149 passed

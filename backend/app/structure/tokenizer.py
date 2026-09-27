@@ -118,7 +118,20 @@ def tokenize_line(text: str, line: int = 1, scope_path: tuple[str, ...] = ()) ->
     return statement
 
 
+def _without_block_comments(raw_lines: list[str]) -> list[str]:
+    """``/* … */`` comment lines blanked (same line numbers): they are not ``/section`` headers."""
+    out, inside = [], False
+    for raw in raw_lines:
+        stripped = raw.strip()
+        if inside or stripped.startswith("/*"):
+            inside = "*/" not in stripped
+            raw = ""
+        out.append(raw)
+    return out
+
+
 def tokenize(raw_lines: list[str]) -> list[Statement]:
+    raw_lines = _without_block_comments(raw_lines)
     paths = structural_paths(raw_lines)
     statements: list[Statement] = []
     section: tuple[str, ...] = ()
@@ -135,6 +148,8 @@ def tokenize(raw_lines: list[str]) -> list[Statement]:
                 section = (" ".join(stripped.split()),)
                 continue
             statement = tokenize_line(inline.group(2), index + 1, (" ".join(inline.group(1).split()),))
+        elif stripped.startswith("inactive:") or any(h.startswith("inactive:") for h in paths[index]):
+            continue  # a deactivated line or block stays in the file but configures nothing
         else:
             statement = tokenize_line(raw, index + 1, section + paths[index])
         if statement is None:

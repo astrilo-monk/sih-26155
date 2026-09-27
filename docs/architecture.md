@@ -147,7 +147,32 @@ polarity)`:
 * `set` dropped, `key=value` split, IPs, numbers (with units) and quoted strings as values;
 * polarity from `no` / `unset` / `delete` / `undo`, `enable(d)` / `disable(d)` / `on` / `off` / `yes` / `no`,
   switches such as `disabled=yes`;
-* descriptions, remarks, comments and banner bodies never yield keywords.
+* descriptions, remarks, comments (`#`, `!`, `/* … */`) and banner bodies never yield keywords;
+* a line or block marked `inactive:` configures nothing and yields no statement.
+
+**JSON exports** (AWS security groups, Azure NSGs, GCP firewall rules, SONiC `config_db.json`) are flattened before
+tokenizing (`app/structure/structured.py: flatten_json`): one line per object, the keys leading to it first, then
+its own `key value` pairs, keys sorted. An object that holds only scalars (or lists of scalars) and has no `name`
+is inlined into its parent under its own key (`IpRanges CidrIp 0.0.0.0/0`, GCP `allowed IPProtocol tcp ports 22`),
+so a GCP rule keeps its ports and its source on one line and `allowed` never reads like `denied`. A named object (an
+Azure security rule) is its own line. Metadata that is never a setting (`etag`, `id`, `selfLink`,
+`creationTimestamp`, `kind`, `provisioningState`, `resourceGuid`) and free-text `description` are dropped.
+
+**Terraform (HCL)** is flattened before tokenizing (`app/structure/structured.py: flatten_hcl`), chosen from
+structure (labelled blocks and `key = value` assignments, no `;` statements). Each block's header line becomes its
+type, labels and own pairs, keys sorted (`ingress cidr_blocks 0.0.0.0/0 from_port 22 protocol tcp to_port 22 {`);
+assignment lines are blanked and braces kept, so the text keeps the file's line numbers and a child block is read
+inside its parent (a GCP `allow { }` inside the `google_compute_firewall` that states `source_ranges`). A reference
+the file does not resolve (`var.x`, `"${local.p}/32"`, a function call, a heredoc) is kept as `${…}`, which no `{enum}`
+slot matches, so it never decides a result. Unlike JSON, which is rewritten one line per object, evidence cites
+the rule block in the uploaded `.tf` file.
+
+A `;`-terminated leaf inside brace blocks is also matched by unscoped recognizers in its **set form**
+(`snmp { community public { authorization read-only; } }` → `set snmp community public authorization read-only`,
+`app/facts/recognizers.py: set_form`), so knowledge taught in either Junos form reads both. The statement keeps
+its own line number, so evidence cites the line in the uploaded file. The choice is structural (a terminated
+leaf inside a block), never a vendor name: IOS, FortiGate and RouterOS lines have no terminator. When a block
+header already answered a setting (`user admin {`), a leaf under it does not answer the same setting again.
 
 `app/facts/heuristics.py` reads statements with the synonym lexicon (`app/facts/lexicon.py`, whole tokens only) and
 produces HEURISTIC facts only with a predicate keyword, a typed value and a resolved polarity. Disagreeing
@@ -167,7 +192,7 @@ the single line, and none of them lets an absent line state anything:
 
 ## 4. SecurityFacts
 
-`app/facts/predicates.py` defines 16 predicates, each consumed by a control (for example
+`app/facts/predicates.py` defines 23 predicates, each consumed by a control (for example
 `mgmt.remote_access.protocol_enabled` with subject `telnet`, `log.remote.destination`, `crypto.ipsec.proposal`).
 A `SecurityFact` has predicate, subject, scope, value, unit, assurance, cited evidence lines and provenance.
 
@@ -259,7 +284,7 @@ completes.
 
 ## 8. Human-in-the-loop: recognizers
 
-A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships 161 reviewed recognizers for
+A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships 226 reviewed recognizers for
 eleven dialects that have no dedicated parser (Junos, PAN-OS, Arista EOS, Huawei VRP, RouterOS, Aruba AOS-CX,
 Check Point Gaia, Extreme EXOS, Cisco NX-OS, ASA, IOS-XR) and AWS security groups -one generalized entry per concept per dialect, never one
 per line;

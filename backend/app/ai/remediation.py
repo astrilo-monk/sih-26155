@@ -21,7 +21,7 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 
-from app.adaptive.context import structural_paths
+from app.adaptive.context import redaction_paths
 from app.ai.client import ERROR_INVALID_OUTPUT, ERROR_REQUEST_FAILED, StructuredResponse, request_structured
 # the excerpt rule of the judge: the cited lines' block siblings plus their enclosing block headers
 from app.ai.judge import _excerpt
@@ -112,7 +112,7 @@ def propose_candidate(control: Control, raw_lines: list[str], evidence_lines: li
         return None, "the cited lines carry no configuration statement"
 
     # redact the whole configuration first so every secret value is known, then scrub the excerpt as a whole
-    redactor, paths = Redactor(), structural_paths(raw_lines)
+    redactor, paths = Redactor(), redaction_paths(raw_lines)
     redacted = [redactor.line(text.rstrip(), paths[i]) for i, text in enumerate(raw_lines)]
     numbers = sorted({n for line in cited for n in _excerpt(raw_lines, paths, list(statements.values()),
                                                             statements[line])})

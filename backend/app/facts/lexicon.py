@@ -24,7 +24,11 @@ STATE_WORDS = frozenset({"state", "status", "admin-state", "admin-status", "serv
 # Traffic rules mention protocols without configuring management
 RULE_WORDS = frozenset({"permit", "deny", "accept", "action", "rule", "rules", "rulebase", "access-list", "acl",
                         # cloud security groups / NSGs, as flattened JSON (app.structure.structured)
-                        "ippermissions", "securityrules"})
+                        "ippermissions", "securityrules",
+                        # Terraform (HCL) rule blocks: ``ingress { … }``, ``security_rule { … }``
+                        "ingress", "security_rule",
+                        # GCP firewall exports: ``allowed [{"IPProtocol": …}]`` / ``denied``
+                        "allowed", "denied"})
 
 SOURCE_RESTRICTION = frozenset({
     "source-restriction", "allowed-source", "allowed-sources", "allowed-hosts", "trusted-host", "trusthost",
@@ -109,6 +113,8 @@ SOURCE_RELATED = SOURCE_RESTRICTION | RESTRICTED | frozenset({
     "access-profile",
     # a cloud rule names its source prefix: AWS ``CidrIp``, Azure ``sourceAddressPrefix``, GCP ``sourceRanges``
     "cidrip", "cidripv6", "sourceaddressprefix", "sourceranges",
+    # the same keys in Terraform: ``cidr_blocks``, ``cidr_ipv4``, ``source_address_prefix``, ``source_ranges``
+    "cidr_blocks", "ipv6_cidr_blocks", "cidr_ipv4", "cidr_ipv6", "source_address_prefix", "source_ranges",
 })
 IDLE_RELATED = IDLE | TIMEOUT_KEYWORDS | frozenset({
     "timeout", "lock", "autolock", "logout", "autologout", "inactive",

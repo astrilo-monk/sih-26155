@@ -1,0 +1,51 @@
+{
+  "etag": "W/\"4f1c2a90-0000-0000-0000-000000000001\"",
+  "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-web/providers/Microsoft.Network/networkSecurityGroups/web-nsg",
+  "location": "westeurope",
+  "name": "web-nsg",
+  "provisioningState": "Succeeded",
+  "resourceGroup": "rg-web",
+  "securityRules": [
+    {
+      "access": "Allow",
+      "destinationAddressPrefix": "*",
+      "destinationAddressPrefixes": [],
+      "destinationPortRange": "22",
+      "destinationPortRanges": [],
+      "direction": "Inbound",
+      "etag": "W/\"4f1c2a90-0000-0000-0000-000000000002\"",
+      "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-web/providers/Microsoft.Network/networkSecurityGroups/web-nsg/securityRules/ssh-admin",
+      "name": "ssh-admin",
+      "priority": 100,
+      "protocol": "Tcp",
+      "provisioningState": "Succeeded",
+      "resourceGroup": "rg-web",
+      "sourceAddressPrefix": "10.20.0.0/16",
+      "sourceAddressPrefixes": [],
+      "sourcePortRange": "*",
+      "sourcePortRanges": [],
+      "type": "Microsoft.Network/networkSecurityGroups/securityRules"
+    },
+    {
+      "access": "Deny",
+      "destinationAddressPrefix": "*",
+      "destinationAddressPrefixes": [],
+      "destinationPortRange": "*",
+      "destinationPortRanges": [],
+      "direction": "Inbound",
+      "etag": "W/\"4f1c2a90-0000-0000-0000-000000000003\"",
+      "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-web/providers/Microsoft.Network/networkSecurityGroups/web-nsg/securityRules/deny-internet",
+      "name": "deny-internet",
+      "priority": 4000,
+      "protocol": "*",
+      "provisioningState": "Succeeded",
+      "resourceGroup": "rg-web",
+      "sourceAddressPrefix": "Internet",
+      "sourceAddressPrefixes": [],
+      "sourcePortRange": "*",
+      "sourcePortRanges": [],
+      "type": "Microsoft.Network/networkSecurityGroups/securityRules"
+    }
+  ],
+  "type": "Microsoft.Network/networkSecurityGroups"
+}

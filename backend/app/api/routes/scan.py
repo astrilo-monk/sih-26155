@@ -51,12 +51,12 @@ from app.api.schemas import (
 from app import config as app_config
 from app.config import settings
 from app.adaptive import capture_unrecognized_lines
-from app.adaptive.context import structural_paths
+from app.adaptive.context import redaction_paths
 from app.ai.redaction import Redactor, placeholder
 from app import ledger
 from app.db.scans import earlier_scans, load_scan, save_scan
 from app.facts.heuristics import generic_hostname, stated_identity
-from app.structure.structured import flatten_json
+from app.structure.structured import flatten_hcl, flatten_json
 from app.adaptive.interpreter import interpret_lines
 from app.adaptive.mapper import REVIEWABLE_SOURCES, determine_tier
 from app.adaptive.relevance import is_security_relevant
@@ -86,7 +86,7 @@ def config_redactor(configs) -> Redactor:
     """
     redactor = Redactor()
     for cfg in configs or []:
-        for raw, path in zip(cfg.raw_lines, structural_paths(cfg.raw_lines)):
+        for raw, path in zip(cfg.raw_lines, redaction_paths(cfg.raw_lines)):
             redactor.line(raw, path)
         for community in cfg.snmp.communities:
             redactor.add_secret(community.name)
@@ -117,7 +117,7 @@ def redact_config_text(redactor: Redactor, text: Optional[str]) -> Optional[str]
         return None
     lines = text.split("\n")
     return "\n".join(display_scrub(redactor, redactor.line(line, path))
-                     for line, path in zip(lines, structural_paths(lines)))
+                     for line, path in zip(lines, redaction_paths(lines)))
 
 
 def _finding_to_schema(f, redactor: Redactor, framework: Optional[str] = None) -> FindingSchema:
@@ -383,8 +383,9 @@ def _process_unknown_vendor(raw_config: str, filename: str) -> NormalizedConfig:
     Creates a minimal NormalizedConfig preserving the raw config and runs
     Phase 1 candidate capture. Enrichment happens in ``AdaptiveService``.
     """
-    # a JSON export (cloud security group, NSG, config_db) becomes one statement per object
-    if (flat := flatten_json(raw_config)) is not None:
+    # a JSON export (cloud security group, NSG, config_db) becomes one statement per object, a Terraform
+    # file one statement per block (on the block's own line, so evidence cites the uploaded file)
+    if (flat := flatten_json(raw_config)) is not None or (flat := flatten_hcl(raw_config)) is not None:
         raw_config = "\n".join(flat)
     raw_lines = raw_config.splitlines()
 

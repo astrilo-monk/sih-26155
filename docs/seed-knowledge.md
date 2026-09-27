@@ -135,18 +135,23 @@ parser's password fact does; every path to the AI redacts evidence first.
 
 ## What is covered
 
-161 recognizers over twelve dialects that have **no dedicated parser** and stay generic/unconfirmed. The `vendor`
+226 recognizers over seventeen dialects that have **no dedicated parser** and stay generic/unconfirmed. The `vendor`
 field is a label for readability, never a claim of parser support and never used to select a code path.
 
 | Dialect | Concepts read |
 |---|---|
-| Juniper Junos | Brace and `set` forms: Telnet, HTTP management, SSH version, session idle timeout, remote syslog, NTP server, LLDP (on, or `lldp disable`), RADIUS / TACACS+ servers, `authentication-order` (one method or a bracketed list), `allow-address` and `allow-sources` source restriction, login `message` banner, `encrypted-password` storage (set form), `host-inbound-traffic system-services` on an `untrust`/`outside`/`internet` zone (MGMT-010) |
+| Juniper Junos | Brace and `set` forms (each `set` seed also reads the brace form): Telnet, HTTP management, SSH version, session idle timeout, remote syslog, NTP server, LLDP (on, or `lldp disable`), RADIUS / TACACS+ servers, `authentication-order` (one method or a bracketed list), `allow-address` and `allow-sources` source restriction, login `message` banner, `encrypted-password` storage (set form), `host-inbound-traffic system-services` on an `untrust`/`outside`/`internet` zone (MGMT-010) |
 | Palo Alto PAN-OS | Telnet (service and interface profile), HTTP management (service and interface profile), SSH version, session idle timeout (two spellings), remote syslog (`log-settings syslog` server profiles, shared and per vsys, plus two `deviceconfig` spellings), NTP server, NTP authentication, `permitted-ip` (system and interface profile; `0.0.0.0/0` reads as unrestricted), login banner, `phash` password storage, LLDP per interface, TACACS+ and RADIUS server profiles |
 | Arista EOS | Telnet, HTTP management (both polarities), SSH version, session idle timeout, remote syslog, NTP server, NTP authentication, IP source routing, LLDP, login banner, management ACL applied under `management ssh`, permissive any-any rule, local-only login, password storage |
 | Huawei VRP | Telnet (`enable` and `undo`), HTTP management (`enable` and `undo`), remote syslog, NTP server, NTP authentication, session idle timeout, IP source routing, LLDP, login banner, password storage, permissive ACL rule |
-| MikroTik RouterOS | Telnet, HTTP management (`www`), NTP server (two spellings), remote syslog, LLDP, login note, permissive input rule |
+| MikroTik RouterOS | Telnet (also with `port=`), HTTP management (`www`), NTP server (two spellings), remote syslog, LLDP, login note, permissive input rule, SNMP community (`/snmp community set [ find … ] name=` and `add name=`, read-only), a password written in the file (`/user set|add … password=`, either side of `group=`) |
 | HPE Aruba AOS-CX | Telnet, HTTP management, NTP authentication, login banner, permissive any-any rule, remote syslog, LLDP, local-only login, password storage |
 | Check Point Gaia | Telnet, HTTP management, remote syslog, NTP server, NTP authentication, SNMP source restriction, LLDP, IP source routing, session idle timeout, login banner, permissive access rule |
+| Terraform (AWS) | `aws_security_group` `ingress { }`, `aws_security_group_rule` (`type = "ingress"`), `aws_vpc_security_group_ingress_rule`: SSH / Telnet / RDP from `0.0.0.0/0` or `::/0` (or restricted to a prefix: PASS), any protocol (`-1`) or every TCP port from anywhere. A rule with other attributes (`self`, `security_groups`, several CIDRs) matches no template and stays undecided |
+| Terraform (Azure) | `security_rule { }` inside `azurerm_network_security_group` and `azurerm_network_security_rule`: an Inbound Allow on port 22 / 23 / 3389 or on `*` from `*`, `Internet` or `0.0.0.0/0`. Open rules only: `*` cannot fill an `{enum}` slot (it is the table's wildcard), so the source is literal and a restricted rule is not read (undecided, never PASS) |
+| Terraform (GCP) | `google_compute_firewall` with `source_ranges = ["0.0.0.0/0"]` (with or without `direction = "INGRESS"`), read on its `allow { }` block: port 22 / 23 / 3389 or `protocol = "all"`. Open rules only |
+| Azure NSG (JSON) | `az network nsg show` (`securityRules`) and `az network nsg rule list`: an `Allow` / `Inbound` rule on port 22 / 23 / 3389 or on `*`, from `*`, `Internet` or `0.0.0.0/0`. Open rules only (as for Terraform Azure); `defaultSecurityRules` are not read. Format: [az network nsg](https://learn.microsoft.com/cli/azure/network/nsg) |
+| GCP firewall rules (JSON) | `gcloud compute firewall-rules list --format=json`: an `allowed` rule, `direction: INGRESS`, `disabled: false`, from `0.0.0.0/0`, on port 22 / 23 / 3389 or `IPProtocol: all` (with or without `logConfig`, with or without one `targetTags`). A `denied` or disabled rule is not read. Format: [gcloud compute firewall-rules](https://cloud.google.com/sdk/gcloud/reference/compute/firewall-rules/list) |
 | AWS security group (JSON) | any-protocol rule open to `0.0.0.0/0`, SSH / Telnet / RDP open to the world (or restricted to a prefix). The 20 checks a security group cannot express are N/A with the reason (`backend/data/platform_profiles.json`) |
 | Extreme Networks EXOS | Telnet, HTTP management (`web`), remote syslog, NTP server, LLDP, login banner, permissive any-any rule, session idle timeout, password storage, SSH `access-profile` source restriction |
 | Cisco NX-OS | remote syslog (`logging server`), TACACS+ server, session idle timeout under `line`, permissive any-any rule, NTP server, `username … password 0` or `5` storage, `aaa authentication login default group`, `access-class … in` under `line vty`, `feature telnet` and `feature lldp` (on or off) |
@@ -242,13 +247,22 @@ interface names. Passing the gates makes a recognizer safe to store, not worth s
 * **Read from `teach/` and deliberately left out:** `ssh server timeout` (Huawei, Aruba) is the SSH login
   timeout, not an idle timeout; `/ip service set ssh address=…` (RouterOS) needs `address` as a
   source-restriction word, which would let any interface address teach it; `snmp-agent acl` (Huawei) binds
-  SNMP, not management logins; `enable ssh2` (EXOS) names no version number; a RouterOS `/user add …
-  password=` states no storage type.
+  SNMP, not management logins; `enable ssh2` (EXOS) names no version number.
+* **RouterOS passwords and communities (added 2026-09-27).** `/user set|add … password=<value>` is read as a
+  **plaintext** password: an export never shows a stored password, so a value in the file is the cleartext itself.
+  The `{enum:storage}` slot captures the word `password` (table `{"password": "plaintext"}`) and `{any}` swallows
+  the value, so neither the recognizer nor any fact holds it. A community read by
+  `/snmp community … name=` fails MGMT-004 only for a default name (`public`, …). `add … write-access=yes` (RW) is
+  not seeded: its options come in any order. The secret gate's one exception: a slot's argument is template
+  syntax, so `name {community:RO}` is checked as `name {community}` (`app/db/mappings.py: _holds_secret`);
+  every other text is checked unchanged. Redaction scopes a line by its RouterOS `/section` too
+  (`app/adaptive/context.py: redaction_paths`), so a custom community name never leaves the process.
 * **Read from Batfish's Junos configs and deliberately left out:** `set system ntp trusted-key N` names a key,
   and the gate will not read naming a key as "NTP is authenticated"; `set system services telnet
   connection-limit 5` does switch Telnet on in Junos, but the line states a value for another setting, so the
-  gate refuses it (only the bare `set system services telnet` is seeded); the brace form of
-  `encrypted-password` has no keyword of its own to anchor a template. Any-any security policies
+  gate refuses it (only the bare `set system services telnet` is seeded). The brace form of
+  `encrypted-password` has no keyword of its own to anchor a template; it is read through the set-form seed,
+  since every set-form seed also reads brace files (see `docs/architecture.md`, section 3). Any-any security policies
   (`… policy P match source-address any` / `then permit`) are read by the lexicon heuristics, not a seed.
 * **Read from Batfish's NX-OS and ASA configs and deliberately left out:** `nxapi http port 80` states a port,
   not the switch; ASA `telnet <address> <mask> <interface>` has one keyword, below the gate's minimum; ASA

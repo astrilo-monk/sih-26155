@@ -1,10 +1,46 @@
 {
-  "_README": "Platforms that cannot have some settings at all. A profile matches when every statement of a configuration starts with its 'root' (structured documents are flattened to 'Root Key ... value' lines before analysis). A matched profile turns an undecided result (UNKNOWN / NOT_CONFIGURED) of the listed controls into N/A with the reason; it never overrides a PASS or FAIL backed by a line. Adding a platform (Azure NSG, GCP firewall rules) is a new entry here, not code.",
+  "_README": "Platforms that cannot have some settings at all. A profile matches when every top-level statement of a configuration starts with its 'root' (or one of its 'roots') (structured documents are flattened to 'Root Key ... value' lines before analysis). A matched profile turns an undecided result (UNKNOWN / NOT_CONFIGURED) of the listed controls into N/A with the reason; it never overrides a PASS or FAIL backed by a line. Adding a platform (Azure NSG, GCP firewall rules) is a new entry here, not code.",
   "profiles": [
     {
       "name": "AWS security group",
       "root": "SecurityGroups",
       "reason": "An AWS security group only filters traffic to and from its resources: it has no management plane, accounts, logging or time settings of its own, so this check does not apply",
+      "not_applicable": [
+        "MGMT-001", "MGMT-002", "MGMT-004", "MGMT-005", "MGMT-006", "MGMT-007", "MGMT-008", "MGMT-009", "MGMT-011",
+        "AUTH-001", "AUTH-002", "AUTH-003",
+        "BOUNDARY-002", "BOUNDARY-003", "BOUNDARY-004",
+        "LOG-001", "LOG-002", "LOG-003",
+        "CRYPTO-001", "CRYPTO-002"
+      ]
+    },
+    {
+      "name": "Terraform (HCL)",
+      "roots": ["terraform", "provider", "resource", "data", "variable", "output", "locals", "module", "moved", "import", "check"],
+      "reason": "A Terraform file declares cloud resources (security groups, network security rules, firewall rules): it has no device management plane, accounts, logging or time settings of its own, so this check does not apply",
+      "not_applicable": [
+        "MGMT-001", "MGMT-002", "MGMT-004", "MGMT-005", "MGMT-006", "MGMT-007", "MGMT-008", "MGMT-009", "MGMT-011",
+        "AUTH-001", "AUTH-002", "AUTH-003",
+        "BOUNDARY-002", "BOUNDARY-003", "BOUNDARY-004",
+        "LOG-001", "LOG-002", "LOG-003",
+        "CRYPTO-001", "CRYPTO-002"
+      ]
+    },
+    {
+      "name": "Azure network security group",
+      "roots": ["securityRules", "defaultSecurityRules", "location", "name", "access"],
+      "reason": "An Azure network security group only filters traffic to and from its subnets and interfaces: it has no management plane, accounts, logging or time settings of its own, so this check does not apply",
+      "not_applicable": [
+        "MGMT-001", "MGMT-002", "MGMT-004", "MGMT-005", "MGMT-006", "MGMT-007", "MGMT-008", "MGMT-009", "MGMT-011",
+        "AUTH-001", "AUTH-002", "AUTH-003",
+        "BOUNDARY-002", "BOUNDARY-003", "BOUNDARY-004",
+        "LOG-001", "LOG-002", "LOG-003",
+        "CRYPTO-001", "CRYPTO-002"
+      ]
+    },
+    {
+      "name": "GCP firewall rules",
+      "roots": ["allowed", "denied"],
+      "reason": "GCP firewall rules only filter traffic to and from a VPC network's instances: they have no management plane, accounts, logging or time settings of their own, so this check does not apply",
       "not_applicable": [
         "MGMT-001", "MGMT-002", "MGMT-004", "MGMT-005", "MGMT-006", "MGMT-007", "MGMT-008", "MGMT-009", "MGMT-011",
         "AUTH-001", "AUTH-002", "AUTH-003",

@@ -10,7 +10,7 @@ only carries the raw lines, captured lines and adaptive records; controls never 
 
 ## `SecurityFact` -`app/facts/predicates.py`
 ```python
-predicate: str        # one of 16 predicates, each consumed by a control
+predicate: str        # one of 23 predicates, each consumed by a control
 value: Any            # concrete value | None (undetermined) | NOT_SET (parser-read absence)
 assurance: Assurance  # parser | confirmed | default | heuristic | ai_verified
 evidence: Evidence    # cited line numbers and text

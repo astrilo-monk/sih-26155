@@ -183,12 +183,16 @@ def rejection_key(raw_line: str) -> str:
 
 
 _SLOT_TOKEN = re.compile(r"^\{[a-z]+(?::[\w-]+)?\}$")
+_SLOT_ARGUMENT = re.compile(r"\{([a-z]+):[\w-]+\}")
 
 
 def _holds_secret(text: str, allowed: frozenset[str] = frozenset()) -> bool:
     """True when redaction would remove a value. A value that is only template slots (``secret {enum:type}
     {any}``) or an existing placeholder (``<SECRET:type0>``) holds no secret, so a recognizer can read how a
     password is stored without ever storing one. ``allowed`` values are known not to be secrets."""
+    # a slot's argument is template syntax: ``name {community:RO}`` must not read as the keyword
+    # ``community:`` followed by the secret ``RO}``
+    text = _SLOT_ARGUMENT.sub(r"{\1}", text)
     redactor = Redactor()
     if redactor.line(text) == text:
         return False

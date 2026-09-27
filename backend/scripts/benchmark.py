@@ -104,7 +104,7 @@ def markdown(report: dict) -> str:
            "Shipped knowledge only, no AI. A miss means the engine called an insecure setting fine; a false alarm "
            "means it failed a secure one.", ""]
     for group, title in (("planted", "Planted vulnerabilities (labelled with the demo files, before any scan)"),
-                         ("fixtures", "Labelled fixtures, 8 vendors (labels written by reading each file)")):
+                         ("fixtures", "Labelled fixtures: 8 vendors, Terraform for AWS, Azure, GCP, and Azure NSG / GCP firewall exports (labels written by reading each file)")):
         fails, passes = totals(report[group])
         out += [f"## {title}", "", _line(fails, passes), "",
                 "| File | Vendor path | Detected | Suspected | Undecided | Missed | False alarms | Time |",

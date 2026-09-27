@@ -71,3 +71,19 @@ def structural_paths(raw_lines: list[str]) -> list[tuple[str, ...]]:
             stack.append((_header(stripped), indent, _INDENT))
 
     return paths
+
+
+def redaction_paths(raw_lines: list[str]) -> list[tuple[str, ...]]:
+    """``structural_paths`` plus the RouterOS ``/section`` a line is in, for redaction only.
+
+    ``/snmp community`` followed by ``add name=…`` puts a community string in a line that names no SNMP
+    itself; a one-line ``/snmp community set … name=…`` is its own section. The tokenizer scopes
+    sections itself, so this never changes how a line is read."""
+    section: tuple[str, ...] = ()
+    out = []
+    for raw, path in zip(raw_lines, structural_paths(raw_lines)):
+        stripped = raw.strip()
+        if stripped.startswith("/") and not stripped.startswith("/*"):
+            section = (_header(stripped),)
+        out.append(section + path)
+    return out

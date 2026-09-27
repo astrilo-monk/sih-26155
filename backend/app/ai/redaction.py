@@ -135,7 +135,8 @@ _AUTH_TEXT = re.compile(r"(?<![\w-])(?P<head>authentication\s+text\s+)(?P<value>
 _PEER_MD5 = re.compile(r"(?<![\w-])(?P<head>(?:neighbor|peer)\s+\S+\s+(?:\S+\s+)*?md5\s+)(?P<value>(?!<SECRET:)[^\s;]+)",
                        re.IGNORECASE)
 _SNMP_COMMUNITY_SCOPE = re.compile(r"snmp.*communit", re.IGNORECASE)
-_SET_NAME = re.compile(r'(?<![\w-])(?P<head>set\s+name\s+)(?P<value>"[^"]*"|\'[^\']*\'|[^\s;]+)', re.IGNORECASE)
+# FortiOS ``set name <community>``, RouterOS ``set [ find default=yes ] name=<community>`` / ``add name=<community>``
+_SET_NAME = re.compile(r'(?<![\w-])(?P<head>name(?:\s+|\s*=\s*))(?P<value>"[^"]*"|\'[^\']*\'|[^\s;\]]+)', re.IGNORECASE)
 
 
 def placeholder(kind: str) -> str:
@@ -189,7 +190,8 @@ class Redactor:
         text = _AUTH_TEXT.sub(lambda m: self._swap(m, "password"), text)
         text = _EXOS_ACCOUNT.sub(lambda m: self._swap(m, "password"), text)
         text = _PEER_MD5.sub(lambda m: self._swap(m, "key"), text)
-        if any(_SNMP_COMMUNITY_SCOPE.search(h) for h in scope):
+        # a one-line RouterOS command is its own section: ``/snmp community set … name=…``
+        if any(_SNMP_COMMUNITY_SCOPE.search(h) for h in (*scope, *(text.lstrip()[:1] == "/" and [text] or []))):
             text = _SET_NAME.sub(lambda m: self._swap(m, "snmp-community"), text)
         return self._keyword_values(text, prose)
 

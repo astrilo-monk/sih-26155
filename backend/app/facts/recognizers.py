@@ -314,6 +314,26 @@ def enclosing_header(s: Statement) -> Optional[str]:
     return headers[-1] if headers else None
 
 
+def set_form(s: Statement) -> Optional[str]:
+    """A brace-block leaf written as one flat ``set`` line, else None.
+
+    ``snmp { community public { authorization read-only; } }`` states what
+    ``set snmp community public authorization read-only`` states, so syntax taught in either form reads
+    both. Decided from structure (a ``;``-terminated leaf inside a block), never from a vendor name: IOS,
+    FortiGate and RouterOS lines carry no terminator. The statement keeps its own line number."""
+    headers = s.scope_path[:-1] if s.block else s.scope_path
+    text = s.text.strip()
+    if not headers or not text.endswith(";"):
+        return None
+    return " ".join(["set", *headers, text.rstrip(";").strip()])
+
+
+def _texts(r, s: Statement) -> list[str]:
+    """The texts recognizer ``r`` may match: a scoped one reads the line inside its block only."""
+    flat = None if r.scope_template else set_form(s)
+    return [s.text, flat] if flat else [s.text]
+
+
 def _scope_matches(scope_template: str, s: Statement) -> bool:
     """The scope is the block the statement is *in*, never some outer ancestor: an NTP ``server``
     recognizer must not answer ``ntp { traceoptions { server … } }``."""
@@ -341,15 +361,23 @@ def recognize(raw_lines: list[str], extra: Iterable = ()):
     current = set(_fingerprint(statements).split())
     candidates, recognized, matched = [], set(), []
     external = external_interfaces(statements)
+    answered_blocks: set[tuple] = set()  # (predicate, block path) a block header's own line already answered
 
     for s in statements:
         for r in recognizers:
             try:
                 if (normalize_line(s.text) in r.negatives or not _dialect_matches(r.dialect_fingerprint, current)
-                        or r.scope_template and not _scope_matches(r.scope_template, s)
-                        or (slot := match_recognizer(r.command_pattern, s.text)) is None):
+                        or r.scope_template and not _scope_matches(r.scope_template, s)):
                     continue
-                value = recognizer_value(r, slot)
+                texts = _texts(r, s)
+                via = next((t for t in texts if match_recognizer(r.command_pattern, t)), None)
+                if via is None:
+                    continue
+                headers = s.scope_path[:-1] if s.block else s.scope_path
+                if via is not s.text and any((r.predicate, headers[:k]) in answered_blocks
+                                             for k in range(1, len(headers) + 1)):
+                    continue  # ``user admin { class …; }``: the header already stated this account
+                value = recognizer_value(r, match_recognizer(r.command_pattern, via))
             except (PatternError, ValueError, AttributeError) as e:
                 logger.warning("Recognizer #%s skipped: %s", getattr(r, "id", None), e)
                 continue
@@ -364,6 +392,8 @@ def recognize(raw_lines: list[str], extra: Iterable = ()):
             value = stated_value(r, value, s)
             recognized.add(s.line)
             matched.append(r)
+            if s.text.rstrip().endswith("{"):
+                answered_blocks.add((r.predicate, (*headers, " ".join(s.text.strip()[:-1].split()))))
             # every community (every exposed zone) is its own fact: two of them are not a conflict about one setting
             scope = f"{PER_STATEMENT[r.predicate]} at line {s.line}" if r.predicate in PER_STATEMENT else None
             # a discovery protocol on an interface an external zone holds: the judge needs to know it is external
@@ -388,7 +418,7 @@ def understood_dialect(raw_lines: list[str]) -> Optional[tuple[str, list]]:
     matched = [r for s in statements for r in recognizers
                if normalize_line(s.text) not in r.negatives and _dialect_matches(r.dialect_fingerprint, current)
                and not (r.scope_template and not _scope_matches(r.scope_template, s))
-               and _safe_match(r, s.text)]
+               and any(_safe_match(r, t) for t in _texts(r, s))]
     return _dialect(matched, recognizers, current)
 
 

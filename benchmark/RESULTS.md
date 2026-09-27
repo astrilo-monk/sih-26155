@@ -9,39 +9,51 @@ Shipped knowledge only, no AI. A miss means the engine called an insecure settin
 
 | File | Vendor path | Detected | Suspected | Undecided | Missed | False alarms | Time |
 |---|---|---|---|---|---|---|---|
-| `demo-sih/cisco_edge_vulnerable.cfg` | cisco_ios | 10/10 | 0 | 0 | 0 | 0 | 411 ms |
-| `demo-sih/paloalto_fw_vulnerable.cfg` | unknown | 8/10 | 2 | 0 | 0 | 0 | 1976 ms |
+| `demo-sih/cisco_edge_vulnerable.cfg` | cisco_ios | 10/10 | 0 | 0 | 0 | 0 | 599 ms |
+| `demo-sih/paloalto_fw_vulnerable.cfg` | unknown | 8/10 | 2 | 0 | 0 | 0 | 3740 ms |
 
 Not detected as a decided FAIL:
 
 - `paloalto_fw_vulnerable.cfg` BOUNDARY-001: provisional
 - `paloalto_fw_vulnerable.cfg` CRYPTO-001: provisional
 
-## Labelled fixtures, 8 vendors (labels written by reading each file)
+## Labelled fixtures: 8 vendors, Terraform for AWS, Azure, GCP, and Azure NSG / GCP firewall exports (labels written by reading each file)
 
-**70/87** insecure settings detected as a decided FAIL (0 more flagged as suspected, 17 left undecided, **0 missed**) · **0 false alarms** on 68 secure settings (61 confirmed secure, 7 undecided)
+**83/101** insecure settings detected as a decided FAIL (0 more flagged as suspected, 18 left undecided, **0 missed**) · **0 false alarms** on 78 secure settings (62 confirmed secure, 16 undecided)
 
 | File | Vendor path | Detected | Suspected | Undecided | Missed | False alarms | Time |
 |---|---|---|---|---|---|---|---|
-| `teach/arista_eos_5_configs/arista_01_secure.conf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 614 ms |
-| `teach/arista_eos_5_configs/arista_02_insecure.conf` | unknown | 11/13 | 0 | 2 | 0 | 0 | 606 ms |
-| `teach/checkpoint_gaia_5_configs/checkpoint_01_secure.conf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 282 ms |
-| `teach/checkpoint_gaia_5_configs/checkpoint_02_insecure.conf` | unknown | 9/9 | 0 | 0 | 0 | 0 | 578 ms |
-| `teach/extreme_networks_exos_5_configs/extreme_01_secure.conf` | unknown | 1/2 | 0 | 1 | 0 | 0 | 361 ms |
-| `teach/extreme_networks_exos_5_configs/extreme_02_insecure.conf` | unknown | 7/11 | 0 | 4 | 0 | 0 | 539 ms |
-| `teach/hpe_aruba_aoscx_5_configs/aruba_01_secure.conf` | unknown | 3/3 | 0 | 0 | 0 | 0 | 432 ms |
-| `teach/hpe_aruba_aoscx_5_configs/aruba_02_insecure.conf` | unknown | 8/10 | 0 | 2 | 0 | 0 | 376 ms |
-| `teach/huawei_vrp_5_configs/huawei_01_secure.conf` | unknown | 0/0 | 0 | 0 | 0 | 0 | 433 ms |
-| `teach/huawei_vrp_5_configs/huawei_02_insecure.conf` | unknown | 9/9 | 0 | 0 | 0 | 0 | 614 ms |
-| `teach/juniper_junos_5_configs/juniper_01_secure.conf` | unknown | 2/3 | 0 | 1 | 0 | 0 | 386 ms |
-| `teach/juniper_junos_5_configs/juniper_02_insecure.conf` | unknown | 5/6 | 0 | 1 | 0 | 0 | 438 ms |
-| `teach/mikrotik_routeros_5_configs/mikrotik_01_secure.rsc` | unknown | 0/2 | 0 | 2 | 0 | 0 | 489 ms |
-| `teach/mikrotik_routeros_5_configs/mikrotik_02_insecure.rsc` | unknown | 5/8 | 0 | 3 | 0 | 0 | 562 ms |
-| `teach/paloalto_pan_os_5_configs/paloalto_01_secure.conf` | unknown | 1/1 | 0 | 0 | 0 | 0 | 422 ms |
-| `teach/paloalto_pan_os_5_configs/paloalto_02_insecure.conf` | unknown | 5/6 | 0 | 1 | 0 | 0 | 657 ms |
+| `backend/tests/fixtures/cloud_json/azure_nsg_insecure.json` | unknown | 2/2 | 0 | 0 | 0 | 0 | 176 ms |
+| `backend/tests/fixtures/cloud_json/azure_nsg_secure.json` | unknown | 0/0 | 0 | 0 | 0 | 0 | 201 ms |
+| `backend/tests/fixtures/cloud_json/gcp_firewall_insecure.json` | unknown | 2/2 | 0 | 0 | 0 | 0 | 140 ms |
+| `backend/tests/fixtures/cloud_json/gcp_firewall_secure.json` | unknown | 0/0 | 0 | 0 | 0 | 0 | 176 ms |
+| `backend/tests/fixtures/terraform/aws_insecure.tf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 286 ms |
+| `backend/tests/fixtures/terraform/aws_secure.tf` | unknown | 0/0 | 0 | 0 | 0 | 0 | 152 ms |
+| `backend/tests/fixtures/terraform/azure_insecure.tf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 219 ms |
+| `backend/tests/fixtures/terraform/azure_secure.tf` | unknown | 0/0 | 0 | 0 | 0 | 0 | 198 ms |
+| `backend/tests/fixtures/terraform/gcp_insecure.tf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 189 ms |
+| `backend/tests/fixtures/terraform/gcp_secure.tf` | unknown | 0/0 | 0 | 0 | 0 | 0 | 175 ms |
+| `backend/tests/fixtures/seed_dialects/routeros_credentials.rsc` | unknown | 3/4 | 0 | 1 | 0 | 0 | 280 ms |
+| `teach/arista_eos_5_configs/arista_01_secure.conf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 1242 ms |
+| `teach/arista_eos_5_configs/arista_02_insecure.conf` | unknown | 11/13 | 0 | 2 | 0 | 0 | 1320 ms |
+| `teach/checkpoint_gaia_5_configs/checkpoint_01_secure.conf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 536 ms |
+| `teach/checkpoint_gaia_5_configs/checkpoint_02_insecure.conf` | unknown | 9/9 | 0 | 0 | 0 | 0 | 1112 ms |
+| `teach/extreme_networks_exos_5_configs/extreme_01_secure.conf` | unknown | 1/2 | 0 | 1 | 0 | 0 | 689 ms |
+| `teach/extreme_networks_exos_5_configs/extreme_02_insecure.conf` | unknown | 7/11 | 0 | 4 | 0 | 0 | 1026 ms |
+| `teach/hpe_aruba_aoscx_5_configs/aruba_01_secure.conf` | unknown | 3/3 | 0 | 0 | 0 | 0 | 829 ms |
+| `teach/hpe_aruba_aoscx_5_configs/aruba_02_insecure.conf` | unknown | 8/10 | 0 | 2 | 0 | 0 | 706 ms |
+| `teach/huawei_vrp_5_configs/huawei_01_secure.conf` | unknown | 0/0 | 0 | 0 | 0 | 0 | 1067 ms |
+| `teach/huawei_vrp_5_configs/huawei_02_insecure.conf` | unknown | 9/9 | 0 | 0 | 0 | 0 | 1199 ms |
+| `teach/juniper_junos_5_configs/juniper_01_secure.conf` | unknown | 2/3 | 0 | 1 | 0 | 0 | 904 ms |
+| `teach/juniper_junos_5_configs/juniper_02_insecure.conf` | unknown | 5/6 | 0 | 1 | 0 | 0 | 1017 ms |
+| `teach/mikrotik_routeros_5_configs/mikrotik_01_secure.rsc` | unknown | 0/2 | 0 | 2 | 0 | 0 | 948 ms |
+| `teach/mikrotik_routeros_5_configs/mikrotik_02_insecure.rsc` | unknown | 5/8 | 0 | 3 | 0 | 0 | 1157 ms |
+| `teach/paloalto_pan_os_5_configs/paloalto_01_secure.conf` | unknown | 1/1 | 0 | 0 | 0 | 0 | 889 ms |
+| `teach/paloalto_pan_os_5_configs/paloalto_02_insecure.conf` | unknown | 5/6 | 0 | 1 | 0 | 0 | 1250 ms |
 
 Not detected as a decided FAIL:
 
+- `routeros_credentials.rsc` AUTH-003: undecided
 - `arista_02_insecure.conf` MGMT-001: undecided
 - `arista_02_insecure.conf` MGMT-003: undecided
 - `extreme_01_secure.conf` LOG-002: undecided

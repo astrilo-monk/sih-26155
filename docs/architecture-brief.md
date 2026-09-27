@@ -26,11 +26,11 @@ when learned knowledge understands the file's dialect and knows how that dialect
 ```text
 Ingest ... uploaded file (single or bulk, CLI text or JSON export)
        ... or read from the live device over SSH (Netmiko / NAPALM, 12 platforms, read-only)
-  -> UTF-8, <= 2 MB, JSON flattened to one statement per object, secrets redacted before any AI call
+  -> UTF-8, <= 2 MB, JSON and Terraform flattened to one statement per rule, secrets redacted before any AI call
   -> Vendor identification: fingerprint + grammar coverage (a look-alike is never "confirmed")
   -> Confirmed vendor ..... dedicated parser (Cisco IOS, FortiGate)
   -> Anything else ........ generic tokenizer (braces, indentation, set-style, /menu paths)
-                            -> recognizers, 161 shipped + whatever was taught   [pattern recognition]
+                            -> recognizers, 226 shipped + whatever was taught   [pattern recognition]
                             -> lexicon heuristics                              [provisional]
                             -> AI judge on what is still undecided             [budgeted, must cite]
   -> Security Baseline Model: facts with value, scope, evidence lines, assurance
@@ -48,12 +48,12 @@ stored or logged, and nothing is ever written back to a device.
 
 ## 3. The Security Baseline Model
 
-The vendor-neutral schema is a fact vocabulary of **16 predicates** (`app/facts/predicates.py`), among them
+The vendor-neutral schema is a fact vocabulary of **23 predicates** (`app/facts/predicates.py`), among them
 `mgmt.remote_access.protocol_enabled[telnet]`, `mgmt.ssh.version`, `mgmt.session.idle_timeout` (minutes),
 `auth.password.storage`, `boundary.policy.permit_any`. Cisco `transport input telnet`, Junos
 `services { telnet; }`, EXOS `enable telnet` and Gaia `set telnet-server enabled true` all land on one fact.
-Structured exports (AWS security groups, Azure NSGs, SONiC `config_db.json`) are flattened first, so each rule
-object reads as a single statement. Deviation analysis then compares facts to the chosen benchmark, exactly as the
+Structured exports (AWS security groups, Azure NSGs, GCP firewall rules, SONiC `config_db.json`) and Terraform files are flattened first,
+so each rule object reads as a single statement. Deviation analysis then compares facts to the chosen benchmark, exactly as the
 problem statement describes: parsed `ssh_version` against what CIS requires.
 
 ## 4. Dynamic adaptation: the training loop
@@ -67,7 +67,7 @@ Safety gates (`validate_recognizer`) reject anything that would match too much: 
 a value table, a unit for durations, and no secret is ever stored. The recognizer saves to SQLite or Postgres and
 answers the **very next scan**: decisive, deterministic, no AI call, **no redeployment**, reversible later.
 
-Shipped seed knowledge is the same mechanism reviewed in Git rather than taught at runtime: **161 recognizers**
+Shipped seed knowledge is the same mechanism reviewed in Git rather than taught at runtime: **226 recognizers**
 across Juniper Junos, Palo Alto PAN-OS, Arista EOS, Huawei VRP, HPE Aruba AOS-CX, Check Point Gaia, Extreme EXOS,
 MikroTik RouterOS, Cisco NX-OS, ASA and IOS-XR, and AWS security groups. A fresh deployment reads those dialects before anyone teaches it.
 
@@ -99,10 +99,10 @@ still knows the password is Type 7 without the value leaving the process.
 ## 7. Technology and scale
 
 Python 3.10, FastAPI, ReportLab, Netmiko (NAPALM optional), SQLite or Postgres via psycopg, Groq LLM API
-(optional), React 19 and Vite with no runtime UI dependencies. **1227 backend tests** (pytest) and **119 frontend**
+(optional), React 19 and Vite with no runtime UI dependencies. **1558 backend tests** (pytest) and **149 frontend**
 (Vitest). Everything runs without AI; AI only raises coverage.
 
 Honest scope: two vendors have dedicated parsers (Cisco IOS, FortiGate). Everything else is read generically,
-with eight dialects and AWS security groups already answering decisively from shipped recognizers. Any other
+with eleven dialects and AWS security groups already answering decisively from shipped recognizers. Any other
 configuration is still ingested, tokenized and evaluated; what cannot be decided is reported as undecided rather
 than guessed, until somebody teaches the line that settles it.

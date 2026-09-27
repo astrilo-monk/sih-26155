@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-from app.adaptive.context import _header, structural_paths
+from app.adaptive.context import _header, redaction_paths
 from app.ai.client import ERROR_REQUEST_FAILED, StructuredResponse, request_structured
 from app.ai.redaction import Redactor
 from app.analysis.scoring import WEIGHTS
@@ -156,7 +156,7 @@ def judge_config(config: NormalizedConfig, results: list[ControlResult], budget:
         return
     # Redact the whole configuration first so every secret is known, then scrub each excerpt as a whole:
     # a value redacted on one line is also removed where another line repeats it
-    redactor, paths = Redactor(), structural_paths(raw)
+    redactor, paths = Redactor(), redaction_paths(raw)
     redacted = [redactor.line(text.rstrip(), paths[i]) for i, text in enumerate(raw)]
     found: list[tuple[str, _Candidate]] = []
 

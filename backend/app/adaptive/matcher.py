@@ -81,7 +81,8 @@ _NEGATION_PREFIX = r"(?P<slot>(?:no|unset|delete|undo)[\s=]+)?"
 # Statement terminators: punctuation in every dialect that uses them, never part of a token
 TERMINATORS = ";"
 
-MAX_PATTERN_LENGTH = 256
+# a Terraform rule (azurerm_network_security_rule) states a dozen keys; the token cap below bounds the regex
+MAX_PATTERN_LENGTH = 320
 MAX_PATTERN_TOKENS = 32
 
 # A similar-but-not-identical learned pattern is surfaced as a candidate when
