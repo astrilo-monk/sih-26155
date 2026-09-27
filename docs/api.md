@@ -55,6 +55,9 @@ Upload one or more raw configuration files for analysis.
     `path_id`, `title`, `outcome`, `severity`, `steps[]` (`title`, `how`, `controls[]` with `control_id`, `title`,
     up to 3 redacted `lines`), `break_with` (the checks of the cheapest step: fixing them all closes the path) and
     `break_step`. A path appears only when every step is a decided FAIL; heuristic and AI verdicts never open one.
+  * `path_validation`: `{commit, generated}` of the recorded proof that every chain appears on its positive
+    configuration and a copy with only the fix shows none of it (`backend/data/path_validation.json`, written by
+    `backend/scripts/build_path_validation.py`); `null` when the record is older than the chain catalog.
   * `fleet_findings[]`: problems visible only across devices, for scans of two or more (`app/analysis/fleet_checks.py`):
     `check` (`shared-snmp-community`, `ntp-mismatch`, `syslog-mismatch`), `severity`, `title`, `why`, and `devices[]`
     (`config_index`, `lines`, `value`). Decided facts only. A shared community string is matched by hash and its

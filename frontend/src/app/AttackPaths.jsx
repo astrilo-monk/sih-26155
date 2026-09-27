@@ -103,6 +103,12 @@ export function AttackPathsPage({ scan, labels, go }) {
             </div>
           </div>
           <AttackPaths paths={paths} labels={labels} onFix={scan.archived ? null : () => go('fix')} />
+          {scan.path_validation && (
+            <p className="muted path-proof">
+              Each path and its fix were checked against a positive and a negative configuration (commit{' '}
+              <span className="mono">{scan.path_validation.commit}</span>, {scan.path_validation.generated}).
+            </p>
+          )}
         </>
       ) : (
         <p className="muted">No attack path: the confirmed problems on {labels.length > 1 ? 'these devices' : 'this device'} do

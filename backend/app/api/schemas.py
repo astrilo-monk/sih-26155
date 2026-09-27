@@ -259,6 +259,8 @@ class ScanResultResponse(BaseModel):
     unresolved_count: int = 0
     # Potential attack paths: chains of decided FAILs on one device (app/analysis/attack_paths.py)
     attack_paths: list[dict] = []
+    # The recorded proof of every chain and its fix (data/path_validation.json): commit and date, None when stale
+    path_validation: Optional[dict] = None
     # Problems across devices (app/analysis/fleet_checks.py): shared SNMP community, mismatched NTP / syslog
     fleet_findings: list[dict] = []
     # The organisation policy this scan was checked against (app/controls/policy.py); None = the defaults

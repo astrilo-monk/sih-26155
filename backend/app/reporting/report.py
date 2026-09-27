@@ -335,6 +335,9 @@ def attack_paths_block(scan, index: int) -> list[Block]:
         blocks.append(("table", (["#", "Step", "Checks", "Evidence"], rows)))
         blocks.append(("p", f"Break it: fix {' and '.join(path['break_with'])} (the \"{path['break_step']}\" step) "
                             "and the whole path closes."))
+    if proof := getattr(scan, "path_validation", None):
+        blocks.append(("p", "Each path and its fix were checked against a positive and a negative configuration "
+                            f"(commit {proof['commit']}, {proof['generated']})."))
     return blocks
 
 

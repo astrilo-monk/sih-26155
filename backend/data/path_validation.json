@@ -1,0 +1,51 @@
+{
+  "generated": "2026-09-28",
+  "commit": "12f7e35",
+  "catalog_hash": "dbb385d9579e239c",
+  "passed": true,
+  "chains": {
+    "password-guessing": [
+      {
+        "case": "password-guessing",
+        "positive": "password_guessing_pos.cfg",
+        "negative": "password_guessing_neg.cfg",
+        "fix_step": "Reach the login",
+        "passed": true
+      }
+    ],
+    "perimeter-bypass": [
+      {
+        "case": "perimeter-bypass",
+        "positive": "perimeter_bypass_pos.cfg",
+        "negative": "perimeter_bypass_neg.cfg",
+        "fix_step": "Pass the filter",
+        "passed": true
+      }
+    ],
+    "remote-takeover": [
+      {
+        "case": "remote-takeover",
+        "positive": "remote_takeover_pos.cfg",
+        "negative": "remote_takeover_neg.cfg",
+        "fix_step": "Reach the login",
+        "passed": true
+      }
+    ],
+    "snmp-exposure": [
+      {
+        "case": "snmp-exposure",
+        "positive": "snmp_exposure_pos.cfg",
+        "negative": "snmp_exposure_neg.cfg",
+        "fix_step": "Guess the community",
+        "passed": true
+      },
+      {
+        "case": "snmp-exposure (seed knowledge)",
+        "positive": "snmp_exposure_junos_pos.conf",
+        "negative": "snmp_exposure_junos_neg.conf",
+        "fix_step": "Guess the community",
+        "passed": true
+      }
+    ]
+  }
+}

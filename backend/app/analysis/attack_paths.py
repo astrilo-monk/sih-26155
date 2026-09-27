@@ -13,11 +13,15 @@ every check of one step breaks the whole chain.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
+from pathlib import Path
 
 from app.controls.catalog import CONTROLS
 
 DECISIVE = {"parser", "confirmed", "default"}
+_VALIDATION = Path(__file__).resolve().parents[2] / "data" / "path_validation.json"
 
 
 @dataclass(frozen=True)
@@ -71,6 +75,20 @@ CHAINS: tuple[Chain, ...] = (
                                         "route", ("BOUNDARY-002", "BOUNDARY-004")),
           )),
 )
+
+
+def catalog_hash() -> str:
+    """Fingerprint of the chain catalog: ``data/path_validation.json`` is stale once it changes."""
+    return hashlib.sha256(repr(CHAINS).encode()).hexdigest()[:16]
+
+
+def validation() -> dict | None:
+    """The recorded proof of every chain (``scripts/build_path_validation.py``), only while it matches the catalog."""
+    try:
+        record = json.loads(_VALIDATION.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return record if record.get("catalog_hash") == catalog_hash() and record.get("passed") else None
 
 
 def attack_paths(results: list[dict]) -> list[dict]:

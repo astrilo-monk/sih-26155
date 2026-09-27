@@ -37,3 +37,11 @@ it('has its own page, which says so when nothing chains', () => {
   screen.getByRole('heading', { name: 'How the problems add up' });
   screen.getByText(/No attack path: the confirmed problems on this device do not chain into one/);
 });
+
+it('says each path and its fix were proved, with the commit of that proof', () => {
+  cleanup();
+  render(<AttackPathsPage scan={{ attack_paths: [PATH], path_validation: { commit: 'abc1234', generated: '2026-09-28' } }}
+    labels={['r1']} go={() => {}} />);
+  screen.getByText(/checked against a positive and a negative configuration/);
+  screen.getByText('abc1234');
+});
