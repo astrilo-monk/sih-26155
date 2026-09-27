@@ -22,6 +22,7 @@ from typing import Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.parsers.detector import STATUS_UNVERIFIED, VendorIdentification, identify_vendor
 from app.analysis.attack_paths import attack_paths, validation
+from app.analysis.cve import known_cves
 from app.analysis.drift import scan_drift
 from app.analysis.fleet_checks import fleet_findings
 from app.controls import policy as org_policy
@@ -535,7 +536,9 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
         devices=[{**device, **_device_posture(device_results[idx]),
                   "risk": device_risk([r.model_dump() for r in results_schema if r.config_index == idx],
                                       [p for p in posture_fields["attack_paths"] if p["config_index"] == idx],
-                                      **entry.get("context", {}))}
+                                      **entry.get("context", {})),
+                  # context only, added after every score above: never read by posture, risk or findings
+                  "known_cves": known_cves(configs[idx].device.vendor.value, configs[idx].device.os_version)}
                  for idx, device in enumerate(result.devices)],
         findings=[_finding_to_schema(f, redactors[f.config_index], selected) for f in result.findings],
         adaptive=adaptive,

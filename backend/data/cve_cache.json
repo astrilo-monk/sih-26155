@@ -1,0 +1,2082 @@
+{
+ "generated": "2026-09-28",
+ "source": "NVD CVE API 2.0 (https://services.nvd.nist.gov/rest/json/cves/2.0)",
+ "filter": "virtualMatchString per platform with versions from the train up to the next one; CVSS v3 CRITICAL and HIGH; the 5 highest base scores per train",
+ "platforms": {
+  "cisco_ios": "cpe:2.3:o:cisco:ios",
+  "cisco_ios_xe": "cpe:2.3:o:cisco:ios_xe",
+  "fortios": "cpe:2.3:o:fortinet:fortios"
+ },
+ "trains": {
+  "cisco_ios 12.2": {
+   "critical": 4,
+   "high": 57,
+   "top": [
+    {
+     "id": "CVE-2017-12240",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2017-09-29",
+     "summary": "The DHCP relay subsystem of Cisco IOS 12.2 through 15.6 and Cisco IOS XE Software contains a vulnerability that could allow an unauthenticated, remote attacker to execute arbitrary code and gain full control of an affected system. The attac\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-12240"
+    },
+    {
+     "id": "CVE-2017-3881",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2017-03-17",
+     "summary": "A vulnerability in the Cisco Cluster Management Protocol (CMP) processing code in Cisco IOS and Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause a reload of an affected device or remotely execute code with elev\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-3881"
+    },
+    {
+     "id": "CVE-2020-3198",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-06-03",
+     "summary": "Multiple vulnerabilities in Cisco IOS Software for Cisco 809 and 829 Industrial Integrated Services Routers (Industrial ISRs) and Cisco 1000 Series Connected Grid Routers (CGR1000) could allow an unauthenticated, remote attacker or an authe\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3198"
+    },
+    {
+     "id": "CVE-2017-6736",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "The Simple Network Management Protocol (SNMP) subsystem of Cisco IOS and IOS XE Software contains multiple vulnerabilities that could allow an authenticated, remote attacker to remotely execute code on an affected system or cause an affecte\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6736"
+    },
+    {
+     "id": "CVE-2017-6737",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "A vulnerability in the SNMP implementation of could allow an authenticated, remote attacker to cause a reload of the affected system or to remotely execute code. An attacker could exploit this vulnerability by sending a crafted SNMP packet \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6737"
+    }
+   ]
+  },
+  "cisco_ios 12.4": {
+   "critical": 2,
+   "high": 36,
+   "top": [
+    {
+     "id": "CVE-2017-12240",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2017-09-29",
+     "summary": "The DHCP relay subsystem of Cisco IOS 12.2 through 15.6 and Cisco IOS XE Software contains a vulnerability that could allow an unauthenticated, remote attacker to execute arbitrary code and gain full control of an affected system. The attac\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-12240"
+    },
+    {
+     "id": "CVE-2017-3881",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2017-03-17",
+     "summary": "A vulnerability in the Cisco Cluster Management Protocol (CMP) processing code in Cisco IOS and Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause a reload of an affected device or remotely execute code with elev\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-3881"
+    },
+    {
+     "id": "CVE-2017-6736",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "The Simple Network Management Protocol (SNMP) subsystem of Cisco IOS and IOS XE Software contains multiple vulnerabilities that could allow an authenticated, remote attacker to remotely execute code on an affected system or cause an affecte\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6736"
+    },
+    {
+     "id": "CVE-2017-6737",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "A vulnerability in the SNMP implementation of could allow an authenticated, remote attacker to cause a reload of the affected system or to remotely execute code. An attacker could exploit this vulnerability by sending a crafted SNMP packet \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6737"
+    },
+    {
+     "id": "CVE-2017-6738",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "The Simple Network Management Protocol (SNMP) subsystem of Cisco IOS and IOS XE Software contains multiple vulnerabilities that could allow an authenticated, remote attacker to remotely execute code on an affected system or cause an affecte\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6738"
+    }
+   ]
+  },
+  "cisco_ios 15.0": {
+   "critical": 4,
+   "high": 56,
+   "top": [
+    {
+     "id": "CVE-2017-12240",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2017-09-29",
+     "summary": "The DHCP relay subsystem of Cisco IOS 12.2 through 15.6 and Cisco IOS XE Software contains a vulnerability that could allow an unauthenticated, remote attacker to execute arbitrary code and gain full control of an affected system. The attac\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-12240"
+    },
+    {
+     "id": "CVE-2017-3881",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2017-03-17",
+     "summary": "A vulnerability in the Cisco Cluster Management Protocol (CMP) processing code in Cisco IOS and Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause a reload of an affected device or remotely execute code with elev\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-3881"
+    },
+    {
+     "id": "CVE-2020-3198",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-06-03",
+     "summary": "Multiple vulnerabilities in Cisco IOS Software for Cisco 809 and 829 Industrial Integrated Services Routers (Industrial ISRs) and Cisco 1000 Series Connected Grid Routers (CGR1000) could allow an unauthenticated, remote attacker or an authe\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3198"
+    },
+    {
+     "id": "CVE-2017-6736",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "The Simple Network Management Protocol (SNMP) subsystem of Cisco IOS and IOS XE Software contains multiple vulnerabilities that could allow an authenticated, remote attacker to remotely execute code on an affected system or cause an affecte\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6736"
+    },
+    {
+     "id": "CVE-2017-6737",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "A vulnerability in the SNMP implementation of could allow an authenticated, remote attacker to cause a reload of the affected system or to remotely execute code. An attacker could exploit this vulnerability by sending a crafted SNMP packet \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6737"
+    }
+   ]
+  },
+  "cisco_ios 15.1": {
+   "critical": 3,
+   "high": 60,
+   "top": [
+    {
+     "id": "CVE-2017-12240",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2017-09-29",
+     "summary": "The DHCP relay subsystem of Cisco IOS 12.2 through 15.6 and Cisco IOS XE Software contains a vulnerability that could allow an unauthenticated, remote attacker to execute arbitrary code and gain full control of an affected system. The attac\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-12240"
+    },
+    {
+     "id": "CVE-2017-3881",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2017-03-17",
+     "summary": "A vulnerability in the Cisco Cluster Management Protocol (CMP) processing code in Cisco IOS and Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause a reload of an affected device or remotely execute code with elev\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-3881"
+    },
+    {
+     "id": "CVE-2017-6736",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "The Simple Network Management Protocol (SNMP) subsystem of Cisco IOS and IOS XE Software contains multiple vulnerabilities that could allow an authenticated, remote attacker to remotely execute code on an affected system or cause an affecte\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6736"
+    },
+    {
+     "id": "CVE-2017-6737",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "A vulnerability in the SNMP implementation of could allow an authenticated, remote attacker to cause a reload of the affected system or to remotely execute code. An attacker could exploit this vulnerability by sending a crafted SNMP packet \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6737"
+    },
+    {
+     "id": "CVE-2017-6738",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "The Simple Network Management Protocol (SNMP) subsystem of Cisco IOS and IOS XE Software contains multiple vulnerabilities that could allow an authenticated, remote attacker to remotely execute code on an affected system or cause an affecte\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6738"
+    }
+   ]
+  },
+  "cisco_ios 15.2": {
+   "critical": 3,
+   "high": 71,
+   "top": [
+    {
+     "id": "CVE-2017-12240",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2017-09-29",
+     "summary": "The DHCP relay subsystem of Cisco IOS 12.2 through 15.6 and Cisco IOS XE Software contains a vulnerability that could allow an unauthenticated, remote attacker to execute arbitrary code and gain full control of an affected system. The attac\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-12240"
+    },
+    {
+     "id": "CVE-2018-0171",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2018-03-28",
+     "summary": "A vulnerability in the Smart Install feature of Cisco IOS Software and Cisco IOS XE Software could allow an unauthenticated, remote attacker to trigger a reload of an affected device, resulting in a denial of service (DoS) condition, or to \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2018-0171"
+    },
+    {
+     "id": "CVE-2017-6736",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "The Simple Network Management Protocol (SNMP) subsystem of Cisco IOS and IOS XE Software contains multiple vulnerabilities that could allow an authenticated, remote attacker to remotely execute code on an affected system or cause an affecte\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6736"
+    },
+    {
+     "id": "CVE-2017-6737",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "A vulnerability in the SNMP implementation of could allow an authenticated, remote attacker to cause a reload of the affected system or to remotely execute code. An attacker could exploit this vulnerability by sending a crafted SNMP packet \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6737"
+    },
+    {
+     "id": "CVE-2017-6738",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "The Simple Network Management Protocol (SNMP) subsystem of Cisco IOS and IOS XE Software contains multiple vulnerabilities that could allow an authenticated, remote attacker to remotely execute code on an affected system or cause an affecte\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6738"
+    }
+   ]
+  },
+  "cisco_ios 15.3": {
+   "critical": 3,
+   "high": 63,
+   "top": [
+    {
+     "id": "CVE-2017-12240",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2017-09-29",
+     "summary": "The DHCP relay subsystem of Cisco IOS 12.2 through 15.6 and Cisco IOS XE Software contains a vulnerability that could allow an unauthenticated, remote attacker to execute arbitrary code and gain full control of an affected system. The attac\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-12240"
+    },
+    {
+     "id": "CVE-2020-3198",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-06-03",
+     "summary": "Multiple vulnerabilities in Cisco IOS Software for Cisco 809 and 829 Industrial Integrated Services Routers (Industrial ISRs) and Cisco 1000 Series Connected Grid Routers (CGR1000) could allow an unauthenticated, remote attacker or an authe\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3198"
+    },
+    {
+     "id": "CVE-2017-6736",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "The Simple Network Management Protocol (SNMP) subsystem of Cisco IOS and IOS XE Software contains multiple vulnerabilities that could allow an authenticated, remote attacker to remotely execute code on an affected system or cause an affecte\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6736"
+    },
+    {
+     "id": "CVE-2017-6737",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "A vulnerability in the SNMP implementation of could allow an authenticated, remote attacker to cause a reload of the affected system or to remotely execute code. An attacker could exploit this vulnerability by sending a crafted SNMP packet \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6737"
+    },
+    {
+     "id": "CVE-2017-6738",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "The Simple Network Management Protocol (SNMP) subsystem of Cisco IOS and IOS XE Software contains multiple vulnerabilities that could allow an authenticated, remote attacker to remotely execute code on an affected system or cause an affecte\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6738"
+    }
+   ]
+  },
+  "cisco_ios 15.4": {
+   "critical": 3,
+   "high": 53,
+   "top": [
+    {
+     "id": "CVE-2017-12240",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2017-09-29",
+     "summary": "The DHCP relay subsystem of Cisco IOS 12.2 through 15.6 and Cisco IOS XE Software contains a vulnerability that could allow an unauthenticated, remote attacker to execute arbitrary code and gain full control of an affected system. The attac\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-12240"
+    },
+    {
+     "id": "CVE-2020-3198",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-06-03",
+     "summary": "Multiple vulnerabilities in Cisco IOS Software for Cisco 809 and 829 Industrial Integrated Services Routers (Industrial ISRs) and Cisco 1000 Series Connected Grid Routers (CGR1000) could allow an unauthenticated, remote attacker or an authe\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3198"
+    },
+    {
+     "id": "CVE-2017-6736",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "The Simple Network Management Protocol (SNMP) subsystem of Cisco IOS and IOS XE Software contains multiple vulnerabilities that could allow an authenticated, remote attacker to remotely execute code on an affected system or cause an affecte\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6736"
+    },
+    {
+     "id": "CVE-2017-6737",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "A vulnerability in the SNMP implementation of could allow an authenticated, remote attacker to cause a reload of the affected system or to remotely execute code. An attacker could exploit this vulnerability by sending a crafted SNMP packet \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6737"
+    },
+    {
+     "id": "CVE-2017-6738",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "The Simple Network Management Protocol (SNMP) subsystem of Cisco IOS and IOS XE Software contains multiple vulnerabilities that could allow an authenticated, remote attacker to remotely execute code on an affected system or cause an affecte\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6738"
+    }
+   ]
+  },
+  "cisco_ios 15.5": {
+   "critical": 3,
+   "high": 61,
+   "top": [
+    {
+     "id": "CVE-2017-12240",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2017-09-29",
+     "summary": "The DHCP relay subsystem of Cisco IOS 12.2 through 15.6 and Cisco IOS XE Software contains a vulnerability that could allow an unauthenticated, remote attacker to execute arbitrary code and gain full control of an affected system. The attac\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-12240"
+    },
+    {
+     "id": "CVE-2020-3198",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-06-03",
+     "summary": "Multiple vulnerabilities in Cisco IOS Software for Cisco 809 and 829 Industrial Integrated Services Routers (Industrial ISRs) and Cisco 1000 Series Connected Grid Routers (CGR1000) could allow an unauthenticated, remote attacker or an authe\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3198"
+    },
+    {
+     "id": "CVE-2017-6736",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "The Simple Network Management Protocol (SNMP) subsystem of Cisco IOS and IOS XE Software contains multiple vulnerabilities that could allow an authenticated, remote attacker to remotely execute code on an affected system or cause an affecte\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6736"
+    },
+    {
+     "id": "CVE-2017-6737",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "A vulnerability in the SNMP implementation of could allow an authenticated, remote attacker to cause a reload of the affected system or to remotely execute code. An attacker could exploit this vulnerability by sending a crafted SNMP packet \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6737"
+    },
+    {
+     "id": "CVE-2017-6738",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "The Simple Network Management Protocol (SNMP) subsystem of Cisco IOS and IOS XE Software contains multiple vulnerabilities that could allow an authenticated, remote attacker to remotely execute code on an affected system or cause an affecte\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6738"
+    }
+   ]
+  },
+  "cisco_ios 15.6": {
+   "critical": 3,
+   "high": 59,
+   "top": [
+    {
+     "id": "CVE-2017-12240",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2017-09-29",
+     "summary": "The DHCP relay subsystem of Cisco IOS 12.2 through 15.6 and Cisco IOS XE Software contains a vulnerability that could allow an unauthenticated, remote attacker to execute arbitrary code and gain full control of an affected system. The attac\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-12240"
+    },
+    {
+     "id": "CVE-2020-3198",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-06-03",
+     "summary": "Multiple vulnerabilities in Cisco IOS Software for Cisco 809 and 829 Industrial Integrated Services Routers (Industrial ISRs) and Cisco 1000 Series Connected Grid Routers (CGR1000) could allow an unauthenticated, remote attacker or an authe\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3198"
+    },
+    {
+     "id": "CVE-2017-6736",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "The Simple Network Management Protocol (SNMP) subsystem of Cisco IOS and IOS XE Software contains multiple vulnerabilities that could allow an authenticated, remote attacker to remotely execute code on an affected system or cause an affecte\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6736"
+    },
+    {
+     "id": "CVE-2017-6737",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "A vulnerability in the SNMP implementation of could allow an authenticated, remote attacker to cause a reload of the affected system or to remotely execute code. An attacker could exploit this vulnerability by sending a crafted SNMP packet \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6737"
+    },
+    {
+     "id": "CVE-2017-6738",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2017-07-17",
+     "summary": "The Simple Network Management Protocol (SNMP) subsystem of Cisco IOS and IOS XE Software contains multiple vulnerabilities that could allow an authenticated, remote attacker to remotely execute code on an affected system or cause an affecte\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-6738"
+    }
+   ]
+  },
+  "cisco_ios 15.7": {
+   "critical": 2,
+   "high": 25,
+   "top": [
+    {
+     "id": "CVE-2020-3198",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-06-03",
+     "summary": "Multiple vulnerabilities in Cisco IOS Software for Cisco 809 and 829 Industrial Integrated Services Routers (Industrial ISRs) and Cisco 1000 Series Connected Grid Routers (CGR1000) could allow an unauthenticated, remote attacker or an authe\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3198"
+    },
+    {
+     "id": "CVE-2019-12648",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2019-09-25",
+     "summary": "A vulnerability in the IOx application environment for Cisco IOS Software could allow an authenticated, remote attacker to gain unauthorized access to the Guest Operating System (Guest OS) running on an affected device. The vulnerability is\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2019-12648"
+    },
+    {
+     "id": "CVE-2019-16009",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-09-23",
+     "summary": "A vulnerability in the web UI of Cisco IOS and Cisco IOS XE Software could allow an unauthenticated, remote attacker to conduct a cross-site request forgery (CSRF) attack on an affected system. The vulnerability is due to insufficient CSRF \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2019-16009"
+    },
+    {
+     "id": "CVE-2020-3199",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-06-03",
+     "summary": "Multiple vulnerabilities in the Cisco IOx application environment of Cisco 809 and 829 Industrial Integrated Services Routers (Industrial ISRs) and Cisco 1000 Series Connected Grid Routers (CGR1000) that are running Cisco IOS Software could\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3199"
+    },
+    {
+     "id": "CVE-2020-3205",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-06-03",
+     "summary": "A vulnerability in the implementation of the inter-VM channel of Cisco IOS Software for Cisco 809 and 829 Industrial Integrated Services Routers (Industrial ISRs) and Cisco 1000 Series Connected Grid Routers (CGR1000) could allow an unauthe\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3205"
+    }
+   ]
+  },
+  "cisco_ios 15.8": {
+   "critical": 3,
+   "high": 24,
+   "top": [
+    {
+     "id": "CVE-2020-3198",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-06-03",
+     "summary": "Multiple vulnerabilities in Cisco IOS Software for Cisco 809 and 829 Industrial Integrated Services Routers (Industrial ISRs) and Cisco 1000 Series Connected Grid Routers (CGR1000) could allow an unauthenticated, remote attacker or an authe\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3198"
+    },
+    {
+     "id": "CVE-2020-3258",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-06-03",
+     "summary": "Multiple vulnerabilities in Cisco IOS Software for Cisco 809 and 829 Industrial Integrated Services Routers (Industrial ISRs) and Cisco 1000 Series Connected Grid Routers (CGR1000) could allow an unauthenticated, remote attacker or an authe\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3258"
+    },
+    {
+     "id": "CVE-2019-16009",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-09-23",
+     "summary": "A vulnerability in the web UI of Cisco IOS and Cisco IOS XE Software could allow an unauthenticated, remote attacker to conduct a cross-site request forgery (CSRF) attack on an affected system. The vulnerability is due to insufficient CSRF \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2019-16009"
+    },
+    {
+     "id": "CVE-2020-3199",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-06-03",
+     "summary": "Multiple vulnerabilities in the Cisco IOx application environment of Cisco 809 and 829 Industrial Integrated Services Routers (Industrial ISRs) and Cisco 1000 Series Connected Grid Routers (CGR1000) that are running Cisco IOS Software could\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3199"
+    },
+    {
+     "id": "CVE-2020-3205",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-06-03",
+     "summary": "A vulnerability in the implementation of the inter-VM channel of Cisco IOS Software for Cisco 809 and 829 Industrial Integrated Services Routers (Industrial ISRs) and Cisco 1000 Series Connected Grid Routers (CGR1000) could allow an unauthe\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3205"
+    }
+   ]
+  },
+  "cisco_ios 15.9": {
+   "critical": 3,
+   "high": 18,
+   "top": [
+    {
+     "id": "CVE-2020-3198",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-06-03",
+     "summary": "Multiple vulnerabilities in Cisco IOS Software for Cisco 809 and 829 Industrial Integrated Services Routers (Industrial ISRs) and Cisco 1000 Series Connected Grid Routers (CGR1000) could allow an unauthenticated, remote attacker or an authe\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3198"
+    },
+    {
+     "id": "CVE-2020-3258",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-06-03",
+     "summary": "Multiple vulnerabilities in Cisco IOS Software for Cisco 809 and 829 Industrial Integrated Services Routers (Industrial ISRs) and Cisco 1000 Series Connected Grid Routers (CGR1000) could allow an unauthenticated, remote attacker or an authe\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3258"
+    },
+    {
+     "id": "CVE-2019-16009",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-09-23",
+     "summary": "A vulnerability in the web UI of Cisco IOS and Cisco IOS XE Software could allow an unauthenticated, remote attacker to conduct a cross-site request forgery (CSRF) attack on an affected system. The vulnerability is due to insufficient CSRF \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2019-16009"
+    },
+    {
+     "id": "CVE-2020-3199",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-06-03",
+     "summary": "Multiple vulnerabilities in the Cisco IOx application environment of Cisco 809 and 829 Industrial Integrated Services Routers (Industrial ISRs) and Cisco 1000 Series Connected Grid Routers (CGR1000) that are running Cisco IOS Software could\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3199"
+    },
+    {
+     "id": "CVE-2020-3205",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-06-03",
+     "summary": "A vulnerability in the implementation of the inter-VM channel of Cisco IOS Software for Cisco 809 and 829 Industrial Integrated Services Routers (Industrial ISRs) and Cisco 1000 Series Connected Grid Routers (CGR1000) could allow an unauthe\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3205"
+    }
+   ]
+  },
+  "cisco_ios_xe 16.3": {
+   "critical": 5,
+   "high": 73,
+   "top": [
+    {
+     "id": "CVE-2017-12229",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2017-09-29",
+     "summary": "A vulnerability in the REST API of the web-based user interface (web UI) of Cisco IOS XE 3.1 through 16.5 could allow an unauthenticated, remote attacker to bypass authentication to the REST API of the web UI of the affected software. The v\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-12229"
+    },
+    {
+     "id": "CVE-2020-3227",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-06-03",
+     "summary": "A vulnerability in the authorization controls for the Cisco IOx application hosting infrastructure in Cisco IOS XE Software could allow an unauthenticated, remote attacker to execute Cisco IOx API commands without proper authorization. The \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3227"
+    },
+    {
+     "id": "CVE-2021-1619",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2021-09-23",
+     "summary": "A vulnerability in the authentication, authorization, and accounting (AAA) function of Cisco IOS XE Software could allow an unauthenticated, remote attacker to bypass NETCONF or RESTCONF authentication and do either of the following: Instal\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-1619"
+    },
+    {
+     "id": "CVE-2019-1743",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2019-03-28",
+     "summary": "A vulnerability in the web UI framework of Cisco IOS XE Software could allow an authenticated, remote attacker to make unauthorized changes to the filesystem of the affected device. The vulnerability is due to improper input validation. An \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2019-1743"
+    },
+    {
+     "id": "CVE-2019-1904",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2019-06-21",
+     "summary": "A vulnerability in the web-based UI (web UI) of Cisco IOS XE Software could allow an unauthenticated, remote attacker to conduct a cross-site request forgery (CSRF) attack on an affected system. The vulnerability is due to insufficient CSRF\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2019-1904"
+    }
+   ]
+  },
+  "cisco_ios_xe 16.4": {
+   "critical": 4,
+   "high": 62,
+   "top": [
+    {
+     "id": "CVE-2020-3227",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-06-03",
+     "summary": "A vulnerability in the authorization controls for the Cisco IOx application hosting infrastructure in Cisco IOS XE Software could allow an unauthenticated, remote attacker to execute Cisco IOx API commands without proper authorization. The \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3227"
+    },
+    {
+     "id": "CVE-2021-1619",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2021-09-23",
+     "summary": "A vulnerability in the authentication, authorization, and accounting (AAA) function of Cisco IOS XE Software could allow an unauthenticated, remote attacker to bypass NETCONF or RESTCONF authentication and do either of the following: Instal\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-1619"
+    },
+    {
+     "id": "CVE-2019-1743",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2019-03-28",
+     "summary": "A vulnerability in the web UI framework of Cisco IOS XE Software could allow an authenticated, remote attacker to make unauthorized changes to the filesystem of the affected device. The vulnerability is due to improper input validation. An \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2019-1743"
+    },
+    {
+     "id": "CVE-2020-3217",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-06-03",
+     "summary": "A vulnerability in the Topology Discovery Service of Cisco One Platform Kit (onePK) in Cisco IOS Software, Cisco IOS XE Software, Cisco IOS XR Software, and Cisco NX-OS Software could allow an unauthenticated, adjacent attacker to execute a\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3217"
+    },
+    {
+     "id": "CVE-2020-3219",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-06-03",
+     "summary": "A vulnerability in the web UI of Cisco IOS XE Software could allow an authenticated, remote attacker to inject and execute arbitrary commands with administrative privileges on the underlying operating system of an affected device. The vulne\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3219"
+    }
+   ]
+  },
+  "cisco_ios_xe 16.5": {
+   "critical": 8,
+   "high": 63,
+   "top": [
+    {
+     "id": "CVE-2017-12229",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2017-09-29",
+     "summary": "A vulnerability in the REST API of the web-based user interface (web UI) of Cisco IOS XE 3.1 through 16.5 could allow an unauthenticated, remote attacker to bypass authentication to the REST API of the web UI of the affected software. The v\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-12229"
+    },
+    {
+     "id": "CVE-2017-12236",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2017-09-29",
+     "summary": "A vulnerability in the implementation of the Locator/ID Separation Protocol (LISP) in Cisco IOS XE 3.2 through 16.5 could allow an unauthenticated, remote attacker using an x tunnel router to bypass authentication checks performed when regi\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2017-12236"
+    },
+    {
+     "id": "CVE-2018-0150",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2018-03-28",
+     "summary": "A vulnerability in Cisco IOS XE Software could allow an unauthenticated, remote attacker to log in to a device running an affected release of Cisco IOS XE Software with the default username and password that are used at initial boot, aka a \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2018-0150"
+    },
+    {
+     "id": "CVE-2018-0151",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2018-03-28",
+     "summary": "A vulnerability in the quality of service (QoS) subsystem of Cisco IOS Software and Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause a denial of service (DoS) condition or execute arbitrary code with elevated p\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2018-0151"
+    },
+    {
+     "id": "CVE-2020-3227",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-06-03",
+     "summary": "A vulnerability in the authorization controls for the Cisco IOx application hosting infrastructure in Cisco IOS XE Software could allow an unauthenticated, remote attacker to execute Cisco IOx API commands without proper authorization. The \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3227"
+    }
+   ]
+  },
+  "cisco_ios_xe 16.6": {
+   "critical": 6,
+   "high": 69,
+   "top": [
+    {
+     "id": "CVE-2019-12643",
+     "score": 10.0,
+     "severity": "CRITICAL",
+     "published": "2019-08-28",
+     "summary": "A vulnerability in the Cisco REST API virtual service container for Cisco IOS XE Software could allow an unauthenticated, remote attacker to bypass authentication on the managed Cisco IOS XE device. The vulnerability is due to an improper c\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2019-12643"
+    },
+    {
+     "id": "CVE-2021-34770",
+     "score": 10.0,
+     "severity": "CRITICAL",
+     "published": "2021-09-23",
+     "summary": "A vulnerability in the Control and Provisioning of Wireless Access Points (CAPWAP) protocol processing of Cisco IOS XE Software for Cisco Catalyst 9000 Family Wireless Controllers could allow an unauthenticated, remote attacker to execute a\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-34770"
+    },
+    {
+     "id": "CVE-2020-3227",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-06-03",
+     "summary": "A vulnerability in the authorization controls for the Cisco IOx application hosting infrastructure in Cisco IOS XE Software could allow an unauthenticated, remote attacker to execute Cisco IOx API commands without proper authorization. The \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3227"
+    },
+    {
+     "id": "CVE-2021-1619",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2021-09-23",
+     "summary": "A vulnerability in the authentication, authorization, and accounting (AAA) function of Cisco IOS XE Software could allow an unauthenticated, remote attacker to bypass NETCONF or RESTCONF authentication and do either of the following: Instal\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-1619"
+    },
+    {
+     "id": "CVE-2019-12650",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2019-09-25",
+     "summary": "Multiple vulnerabilities in the web-based user interface (Web UI) of Cisco IOS XE Software could allow an authenticated, remote attacker to execute commands with elevated privileges on the affected device. For more information about these v\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2019-12650"
+    }
+   ]
+  },
+  "cisco_ios_xe 16.7": {
+   "critical": 5,
+   "high": 63,
+   "top": [
+    {
+     "id": "CVE-2018-0315",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2018-06-07",
+     "summary": "A vulnerability in the authentication, authorization, and accounting (AAA) security services of Cisco IOS XE Software could allow an unauthenticated, remote attacker to execute arbitrary code on an affected device or cause an affected devic\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2018-0315"
+    },
+    {
+     "id": "CVE-2020-3227",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-06-03",
+     "summary": "A vulnerability in the authorization controls for the Cisco IOx application hosting infrastructure in Cisco IOS XE Software could allow an unauthenticated, remote attacker to execute Cisco IOx API commands without proper authorization. The \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3227"
+    },
+    {
+     "id": "CVE-2021-1619",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2021-09-23",
+     "summary": "A vulnerability in the authentication, authorization, and accounting (AAA) function of Cisco IOS XE Software could allow an unauthenticated, remote attacker to bypass NETCONF or RESTCONF authentication and do either of the following: Instal\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-1619"
+    },
+    {
+     "id": "CVE-2019-1743",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2019-03-28",
+     "summary": "A vulnerability in the web UI framework of Cisco IOS XE Software could allow an authenticated, remote attacker to make unauthorized changes to the filesystem of the affected device. The vulnerability is due to improper input validation. An \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2019-1743"
+    },
+    {
+     "id": "CVE-2019-1753",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2019-03-28",
+     "summary": "A vulnerability in the web UI of Cisco IOS XE Software could allow an authenticated but unprivileged (level 1), remote attacker to run privileged Cisco IOS commands by using the web UI. The vulnerability is due to a failure to validate and \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2019-1753"
+    }
+   ]
+  },
+  "cisco_ios_xe 16.8": {
+   "critical": 5,
+   "high": 65,
+   "top": [
+    {
+     "id": "CVE-2018-0315",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2018-06-07",
+     "summary": "A vulnerability in the authentication, authorization, and accounting (AAA) security services of Cisco IOS XE Software could allow an unauthenticated, remote attacker to execute arbitrary code on an affected device or cause an affected devic\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2018-0315"
+    },
+    {
+     "id": "CVE-2020-3227",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-06-03",
+     "summary": "A vulnerability in the authorization controls for the Cisco IOx application hosting infrastructure in Cisco IOS XE Software could allow an unauthenticated, remote attacker to execute Cisco IOx API commands without proper authorization. The \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3227"
+    },
+    {
+     "id": "CVE-2021-1619",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2021-09-23",
+     "summary": "A vulnerability in the authentication, authorization, and accounting (AAA) function of Cisco IOS XE Software could allow an unauthenticated, remote attacker to bypass NETCONF or RESTCONF authentication and do either of the following: Instal\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-1619"
+    },
+    {
+     "id": "CVE-2019-1743",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2019-03-28",
+     "summary": "A vulnerability in the web UI framework of Cisco IOS XE Software could allow an authenticated, remote attacker to make unauthorized changes to the filesystem of the affected device. The vulnerability is due to improper input validation. An \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2019-1743"
+    },
+    {
+     "id": "CVE-2019-1753",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2019-03-28",
+     "summary": "A vulnerability in the web UI of Cisco IOS XE Software could allow an authenticated but unprivileged (level 1), remote attacker to run privileged Cisco IOS commands by using the web UI. The vulnerability is due to a failure to validate and \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2019-1753"
+    }
+   ]
+  },
+  "cisco_ios_xe 16.9": {
+   "critical": 4,
+   "high": 72,
+   "top": [
+    {
+     "id": "CVE-2020-3227",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-06-03",
+     "summary": "A vulnerability in the authorization controls for the Cisco IOx application hosting infrastructure in Cisco IOS XE Software could allow an unauthenticated, remote attacker to execute Cisco IOx API commands without proper authorization. The \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3227"
+    },
+    {
+     "id": "CVE-2021-1619",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2021-09-23",
+     "summary": "A vulnerability in the authentication, authorization, and accounting (AAA) function of Cisco IOS XE Software could allow an unauthenticated, remote attacker to bypass NETCONF or RESTCONF authentication and do either of the following: Instal\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-1619"
+    },
+    {
+     "id": "CVE-2019-1754",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2019-03-28",
+     "summary": "A vulnerability in the authorization subsystem of Cisco IOS XE Software could allow an authenticated but unprivileged (level 1), remote attacker to run privileged Cisco IOS commands by using the web UI. The vulnerability is due to improper \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2019-1754"
+    },
+    {
+     "id": "CVE-2020-3141",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-09-24",
+     "summary": "Multiple vulnerabilities in the web management framework of Cisco IOS XE Software could allow an authenticated, remote attacker with read-only privileges to elevate privileges to the level of an Administrator user on an affected device. For\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3141"
+    },
+    {
+     "id": "CVE-2020-3219",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-06-03",
+     "summary": "A vulnerability in the web UI of Cisco IOS XE Software could allow an authenticated, remote attacker to inject and execute arbitrary commands with administrative privileges on the underlying operating system of an affected device. The vulne\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3219"
+    }
+   ]
+  },
+  "cisco_ios_xe 16.10": {
+   "critical": 5,
+   "high": 63,
+   "top": [
+    {
+     "id": "CVE-2021-34770",
+     "score": 10.0,
+     "severity": "CRITICAL",
+     "published": "2021-09-23",
+     "summary": "A vulnerability in the Control and Provisioning of Wireless Access Points (CAPWAP) protocol processing of Cisco IOS XE Software for Cisco Catalyst 9000 Family Wireless Controllers could allow an unauthenticated, remote attacker to execute a\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-34770"
+    },
+    {
+     "id": "CVE-2020-3227",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-06-03",
+     "summary": "A vulnerability in the authorization controls for the Cisco IOx application hosting infrastructure in Cisco IOS XE Software could allow an unauthenticated, remote attacker to execute Cisco IOx API commands without proper authorization. The \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3227"
+    },
+    {
+     "id": "CVE-2021-1619",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2021-09-23",
+     "summary": "A vulnerability in the authentication, authorization, and accounting (AAA) function of Cisco IOS XE Software could allow an unauthenticated, remote attacker to bypass NETCONF or RESTCONF authentication and do either of the following: Instal\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-1619"
+    },
+    {
+     "id": "CVE-2020-3219",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-06-03",
+     "summary": "A vulnerability in the web UI of Cisco IOS XE Software could allow an authenticated, remote attacker to inject and execute arbitrary commands with administrative privileges on the underlying operating system of an affected device. The vulne\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3219"
+    },
+    {
+     "id": "CVE-2020-3229",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-06-03",
+     "summary": "A vulnerability in Role Based Access Control (RBAC) functionality of Cisco IOS XE Web Management Software could allow a Read-Only authenticated, remote attacker to execute commands or configuration changes as an Admin user. The vulnerabilit\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3229"
+    }
+   ]
+  },
+  "cisco_ios_xe 16.11": {
+   "critical": 7,
+   "high": 68,
+   "top": [
+    {
+     "id": "CVE-2021-34770",
+     "score": 10.0,
+     "severity": "CRITICAL",
+     "published": "2021-09-23",
+     "summary": "A vulnerability in the Control and Provisioning of Wireless Access Points (CAPWAP) protocol processing of Cisco IOS XE Software for Cisco Catalyst 9000 Family Wireless Controllers could allow an unauthenticated, remote attacker to execute a\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-34770"
+    },
+    {
+     "id": "CVE-2023-20198",
+     "score": 10.0,
+     "severity": "CRITICAL",
+     "published": "2023-10-16",
+     "summary": "Cisco is providing an update for the ongoing investigation into observed exploitation of the web UI feature in Cisco IOS XE Software. We are updating the list of fixed releases and adding the Software Checker. Our investigation has determin\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20198"
+    },
+    {
+     "id": "CVE-2020-3227",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-06-03",
+     "summary": "A vulnerability in the authorization controls for the Cisco IOx application hosting infrastructure in Cisco IOS XE Software could allow an unauthenticated, remote attacker to execute Cisco IOx API commands without proper authorization. The \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3227"
+    },
+    {
+     "id": "CVE-2021-1619",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2021-09-23",
+     "summary": "A vulnerability in the authentication, authorization, and accounting (AAA) function of Cisco IOS XE Software could allow an unauthenticated, remote attacker to bypass NETCONF or RESTCONF authentication and do either of the following: Instal\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-1619"
+    },
+    {
+     "id": "CVE-2020-3219",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-06-03",
+     "summary": "A vulnerability in the web UI of Cisco IOS XE Software could allow an authenticated, remote attacker to inject and execute arbitrary commands with administrative privileges on the underlying operating system of an affected device. The vulne\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3219"
+    }
+   ]
+  },
+  "cisco_ios_xe 16.12": {
+   "critical": 8,
+   "high": 85,
+   "top": [
+    {
+     "id": "CVE-2021-34770",
+     "score": 10.0,
+     "severity": "CRITICAL",
+     "published": "2021-09-23",
+     "summary": "A vulnerability in the Control and Provisioning of Wireless Access Points (CAPWAP) protocol processing of Cisco IOS XE Software for Cisco Catalyst 9000 Family Wireless Controllers could allow an unauthenticated, remote attacker to execute a\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-34770"
+    },
+    {
+     "id": "CVE-2023-20198",
+     "score": 10.0,
+     "severity": "CRITICAL",
+     "published": "2023-10-16",
+     "summary": "Cisco is providing an update for the ongoing investigation into observed exploitation of the web UI feature in Cisco IOS XE Software. We are updating the list of fixed releases and adding the Software Checker. Our investigation has determin\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20198"
+    },
+    {
+     "id": "CVE-2020-3227",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-06-03",
+     "summary": "A vulnerability in the authorization controls for the Cisco IOx application hosting infrastructure in Cisco IOS XE Software could allow an unauthenticated, remote attacker to execute Cisco IOx API commands without proper authorization. The \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3227"
+    },
+    {
+     "id": "CVE-2021-1619",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2021-09-23",
+     "summary": "A vulnerability in the authentication, authorization, and accounting (AAA) function of Cisco IOS XE Software could allow an unauthenticated, remote attacker to bypass NETCONF or RESTCONF authentication and do either of the following: Instal\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-1619"
+    },
+    {
+     "id": "CVE-2020-3217",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-06-03",
+     "summary": "A vulnerability in the Topology Discovery Service of Cisco One Platform Kit (onePK) in Cisco IOS Software, Cisco IOS XE Software, Cisco IOS XR Software, and Cisco NX-OS Software could allow an unauthenticated, adjacent attacker to execute a\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3217"
+    }
+   ]
+  },
+  "cisco_ios_xe 17.1": {
+   "critical": 5,
+   "high": 55,
+   "top": [
+    {
+     "id": "CVE-2021-34770",
+     "score": 10.0,
+     "severity": "CRITICAL",
+     "published": "2021-09-23",
+     "summary": "A vulnerability in the Control and Provisioning of Wireless Access Points (CAPWAP) protocol processing of Cisco IOS XE Software for Cisco Catalyst 9000 Family Wireless Controllers could allow an unauthenticated, remote attacker to execute a\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-34770"
+    },
+    {
+     "id": "CVE-2021-1619",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2021-09-23",
+     "summary": "A vulnerability in the authentication, authorization, and accounting (AAA) function of Cisco IOS XE Software could allow an unauthenticated, remote attacker to bypass NETCONF or RESTCONF authentication and do either of the following: Instal\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-1619"
+    },
+    {
+     "id": "CVE-2019-12650",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2019-09-25",
+     "summary": "Multiple vulnerabilities in the web-based user interface (Web UI) of Cisco IOS XE Software could allow an authenticated, remote attacker to execute commands with elevated privileges on the affected device. For more information about these v\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2019-12650"
+    },
+    {
+     "id": "CVE-2020-3425",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-09-24",
+     "summary": "Multiple vulnerabilities in the web management framework of Cisco IOS XE Software could allow an authenticated, remote attacker with read-only privileges to elevate privileges to the level of an Administrator user on an affected device. For\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3425"
+    },
+    {
+     "id": "CVE-2020-3414",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2020-09-24",
+     "summary": "A vulnerability in the packet processing of Cisco IOS XE Software for Cisco 4461 Integrated Services Routers could allow an unauthenticated, remote attacker to cause an affected device to reload, resulting in a denial of service (DoS) condi\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3414"
+    }
+   ]
+  },
+  "cisco_ios_xe 17.2": {
+   "critical": 6,
+   "high": 60,
+   "top": [
+    {
+     "id": "CVE-2021-34770",
+     "score": 10.0,
+     "severity": "CRITICAL",
+     "published": "2021-09-23",
+     "summary": "A vulnerability in the Control and Provisioning of Wireless Access Points (CAPWAP) protocol processing of Cisco IOS XE Software for Cisco Catalyst 9000 Family Wireless Controllers could allow an unauthenticated, remote attacker to execute a\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-34770"
+    },
+    {
+     "id": "CVE-2023-20198",
+     "score": 10.0,
+     "severity": "CRITICAL",
+     "published": "2023-10-16",
+     "summary": "Cisco is providing an update for the ongoing investigation into observed exploitation of the web UI feature in Cisco IOS XE Software. We are updating the list of fixed releases and adding the Software Checker. Our investigation has determin\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20198"
+    },
+    {
+     "id": "CVE-2021-1619",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2021-09-23",
+     "summary": "A vulnerability in the authentication, authorization, and accounting (AAA) function of Cisco IOS XE Software could allow an unauthenticated, remote attacker to bypass NETCONF or RESTCONF authentication and do either of the following: Instal\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-1619"
+    },
+    {
+     "id": "CVE-2020-3141",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-09-24",
+     "summary": "Multiple vulnerabilities in the web management framework of Cisco IOS XE Software could allow an authenticated, remote attacker with read-only privileges to elevate privileges to the level of an Administrator user on an affected device. For\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3141"
+    },
+    {
+     "id": "CVE-2020-3400",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-09-24",
+     "summary": "A vulnerability in the web UI feature of Cisco IOS XE Software could allow an authenticated, remote attacker to utilize parts of the web UI for which they are not authorized.The vulnerability is due to insufficient authorization of web UI a\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3400"
+    }
+   ]
+  },
+  "cisco_ios_xe 17.3": {
+   "critical": 6,
+   "high": 57,
+   "top": [
+    {
+     "id": "CVE-2021-34770",
+     "score": 10.0,
+     "severity": "CRITICAL",
+     "published": "2021-09-23",
+     "summary": "A vulnerability in the Control and Provisioning of Wireless Access Points (CAPWAP) protocol processing of Cisco IOS XE Software for Cisco Catalyst 9000 Family Wireless Controllers could allow an unauthenticated, remote attacker to execute a\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-34770"
+    },
+    {
+     "id": "CVE-2023-20198",
+     "score": 10.0,
+     "severity": "CRITICAL",
+     "published": "2023-10-16",
+     "summary": "Cisco is providing an update for the ongoing investigation into observed exploitation of the web UI feature in Cisco IOS XE Software. We are updating the list of fixed releases and adding the Software Checker. Our investigation has determin\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20198"
+    },
+    {
+     "id": "CVE-2020-3141",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-09-24",
+     "summary": "Multiple vulnerabilities in the web management framework of Cisco IOS XE Software could allow an authenticated, remote attacker with read-only privileges to elevate privileges to the level of an Administrator user on an affected device. For\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3141"
+    },
+    {
+     "id": "CVE-2023-20231",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2023-09-27",
+     "summary": "A vulnerability in the web UI of Cisco IOS XE Software could allow an authenticated, remote attacker to perform an injection attack against an affected device.\r\n\r This vulnerability is due to insufficient input validation. An attacker could\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20231"
+    },
+    {
+     "id": "CVE-2021-1373",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2021-03-24",
+     "summary": "A vulnerability in the Control and Provisioning of Wireless Access Points (CAPWAP) protocol processing of Cisco IOS XE Wireless Controller Software for the Cisco Catalyst 9000 Family Wireless Controllers could allow an unauthenticated, remo\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-1373"
+    }
+   ]
+  },
+  "cisco_ios_xe 17.4": {
+   "critical": 3,
+   "high": 45,
+   "top": [
+    {
+     "id": "CVE-2020-3141",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2020-09-24",
+     "summary": "Multiple vulnerabilities in the web management framework of Cisco IOS XE Software could allow an authenticated, remote attacker with read-only privileges to elevate privileges to the level of an Administrator user on an affected device. For\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-3141"
+    },
+    {
+     "id": "CVE-2023-20231",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2023-09-27",
+     "summary": "A vulnerability in the web UI of Cisco IOS XE Software could allow an authenticated, remote attacker to perform an injection attack against an affected device.\r\n\r This vulnerability is due to insufficient input validation. An attacker could\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20231"
+    },
+    {
+     "id": "CVE-2021-1565",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2021-09-23",
+     "summary": "Multiple vulnerabilities in the Control and Provisioning of Wireless Access Points (CAPWAP) protocol processing of Cisco IOS XE Software for Cisco Catalyst 9000 Family Wireless Controllers could allow an unauthenticated, remote attacker to \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-1565"
+    },
+    {
+     "id": "CVE-2021-34768",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2021-09-23",
+     "summary": "Multiple vulnerabilities in the Control and Provisioning of Wireless Access Points (CAPWAP) protocol processing of Cisco IOS XE Software for Cisco Catalyst 9000 Family Wireless Controllers could allow an unauthenticated, remote attacker to \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-34768"
+    },
+    {
+     "id": "CVE-2021-34769",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2021-09-23",
+     "summary": "Multiple vulnerabilities in the Control and Provisioning of Wireless Access Points (CAPWAP) protocol processing of Cisco IOS XE Software for Cisco Catalyst 9000 Family Wireless Controllers could allow an unauthenticated, remote attacker to \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-34769"
+    }
+   ]
+  },
+  "cisco_ios_xe 17.5": {
+   "critical": 4,
+   "high": 40,
+   "top": [
+    {
+     "id": "CVE-2023-20198",
+     "score": 10.0,
+     "severity": "CRITICAL",
+     "published": "2023-10-16",
+     "summary": "Cisco is providing an update for the ongoing investigation into observed exploitation of the web UI feature in Cisco IOS XE Software. We are updating the list of fixed releases and adding the Software Checker. Our investigation has determin\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20198"
+    },
+    {
+     "id": "CVE-2023-20231",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2023-09-27",
+     "summary": "A vulnerability in the web UI of Cisco IOS XE Software could allow an authenticated, remote attacker to perform an injection attack against an affected device.\r\n\r This vulnerability is due to insufficient input validation. An attacker could\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20231"
+    },
+    {
+     "id": "CVE-2021-1565",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2021-09-23",
+     "summary": "Multiple vulnerabilities in the Control and Provisioning of Wireless Access Points (CAPWAP) protocol processing of Cisco IOS XE Software for Cisco Catalyst 9000 Family Wireless Controllers could allow an unauthenticated, remote attacker to \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-1565"
+    },
+    {
+     "id": "CVE-2021-34768",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2021-09-23",
+     "summary": "Multiple vulnerabilities in the Control and Provisioning of Wireless Access Points (CAPWAP) protocol processing of Cisco IOS XE Software for Cisco Catalyst 9000 Family Wireless Controllers could allow an unauthenticated, remote attacker to \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-34768"
+    },
+    {
+     "id": "CVE-2021-34769",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2021-09-23",
+     "summary": "Multiple vulnerabilities in the Control and Provisioning of Wireless Access Points (CAPWAP) protocol processing of Cisco IOS XE Software for Cisco Catalyst 9000 Family Wireless Controllers could allow an unauthenticated, remote attacker to \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-34769"
+    }
+   ]
+  },
+  "cisco_ios_xe 17.6": {
+   "critical": 4,
+   "high": 35,
+   "top": [
+    {
+     "id": "CVE-2023-20198",
+     "score": 10.0,
+     "severity": "CRITICAL",
+     "published": "2023-10-16",
+     "summary": "Cisco is providing an update for the ongoing investigation into observed exploitation of the web UI feature in Cisco IOS XE Software. We are updating the list of fixed releases and adding the Software Checker. Our investigation has determin\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20198"
+    },
+    {
+     "id": "CVE-2023-20231",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2023-09-27",
+     "summary": "A vulnerability in the web UI of Cisco IOS XE Software could allow an authenticated, remote attacker to perform an injection attack against an affected device.\r\n\r This vulnerability is due to insufficient input validation. An attacker could\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20231"
+    },
+    {
+     "id": "CVE-2022-20848",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2022-09-30",
+     "summary": "A vulnerability in the UDP processing functionality of Cisco IOS XE Software for Embedded Wireless Controllers on Catalyst 9100 Series Access Points could allow an unauthenticated, remote attacker to cause a denial of service (DoS) conditio\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-20848"
+    },
+    {
+     "id": "CVE-2023-20027",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2023-03-23",
+     "summary": "A vulnerability in the implementation of the IPv4 Virtual Fragmentation Reassembly (VFR) feature of Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause a denial of service (DoS) condition on an affected device. Th\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20027"
+    },
+    {
+     "id": "CVE-2023-20187",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2023-09-27",
+     "summary": "A vulnerability in the Multicast Leaf Recycle Elimination (mLRE) feature of Cisco IOS XE Software for Cisco ASR 1000 Series Aggregation Services Routers could allow an unauthenticated, remote attacker to cause the affected device to reload,\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20187"
+    }
+   ]
+  },
+  "cisco_ios_xe 17.7": {
+   "critical": 3,
+   "high": 24,
+   "top": [
+    {
+     "id": "CVE-2023-20231",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2023-09-27",
+     "summary": "A vulnerability in the web UI of Cisco IOS XE Software could allow an authenticated, remote attacker to perform an injection attack against an affected device.\r\n\r This vulnerability is due to insufficient input validation. An attacker could\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20231"
+    },
+    {
+     "id": "CVE-2023-20027",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2023-03-23",
+     "summary": "A vulnerability in the implementation of the IPv4 Virtual Fragmentation Reassembly (VFR) feature of Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause a denial of service (DoS) condition on an affected device. Th\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20027"
+    },
+    {
+     "id": "CVE-2023-20187",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2023-09-27",
+     "summary": "A vulnerability in the Multicast Leaf Recycle Elimination (mLRE) feature of Cisco IOS XE Software for Cisco ASR 1000 Series Aggregation Services Routers could allow an unauthenticated, remote attacker to cause the affected device to reload,\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20187"
+    },
+    {
+     "id": "CVE-2023-20226",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2023-09-27",
+     "summary": "A vulnerability in Application Quality of Experience (AppQoE) and Unified Threat Defense (UTD) on Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause an affected device to reload unexpectedly, resulting in a denia\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20226"
+    },
+    {
+     "id": "CVE-2024-20259",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2024-03-27",
+     "summary": "A vulnerability in the DHCP snooping feature of Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause an affected device to reload unexpectedly, resulting in a denial of service (DoS) condition.\r\n\r This vulnerabilit\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-20259"
+    }
+   ]
+  },
+  "cisco_ios_xe 17.8": {
+   "critical": 4,
+   "high": 24,
+   "top": [
+    {
+     "id": "CVE-2023-20198",
+     "score": 10.0,
+     "severity": "CRITICAL",
+     "published": "2023-10-16",
+     "summary": "Cisco is providing an update for the ongoing investigation into observed exploitation of the web UI feature in Cisco IOS XE Software. We are updating the list of fixed releases and adding the Software Checker. Our investigation has determin\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20198"
+    },
+    {
+     "id": "CVE-2023-20231",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2023-09-27",
+     "summary": "A vulnerability in the web UI of Cisco IOS XE Software could allow an authenticated, remote attacker to perform an injection attack against an affected device.\r\n\r This vulnerability is due to insufficient input validation. An attacker could\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20231"
+    },
+    {
+     "id": "CVE-2023-20027",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2023-03-23",
+     "summary": "A vulnerability in the implementation of the IPv4 Virtual Fragmentation Reassembly (VFR) feature of Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause a denial of service (DoS) condition on an affected device. Th\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20027"
+    },
+    {
+     "id": "CVE-2023-20187",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2023-09-27",
+     "summary": "A vulnerability in the Multicast Leaf Recycle Elimination (mLRE) feature of Cisco IOS XE Software for Cisco ASR 1000 Series Aggregation Services Routers could allow an unauthenticated, remote attacker to cause the affected device to reload,\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20187"
+    },
+    {
+     "id": "CVE-2023-20226",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2023-09-27",
+     "summary": "A vulnerability in Application Quality of Experience (AppQoE) and Unified Threat Defense (UTD) on Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause an affected device to reload unexpectedly, resulting in a denia\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20226"
+    }
+   ]
+  },
+  "cisco_ios_xe 17.9": {
+   "critical": 4,
+   "high": 26,
+   "top": [
+    {
+     "id": "CVE-2023-20198",
+     "score": 10.0,
+     "severity": "CRITICAL",
+     "published": "2023-10-16",
+     "summary": "Cisco is providing an update for the ongoing investigation into observed exploitation of the web UI feature in Cisco IOS XE Software. We are updating the list of fixed releases and adding the Software Checker. Our investigation has determin\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20198"
+    },
+    {
+     "id": "CVE-2023-20231",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2023-09-27",
+     "summary": "A vulnerability in the web UI of Cisco IOS XE Software could allow an authenticated, remote attacker to perform an injection attack against an affected device.\r\n\r This vulnerability is due to insufficient input validation. An attacker could\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20231"
+    },
+    {
+     "id": "CVE-2022-20848",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2022-09-30",
+     "summary": "A vulnerability in the UDP processing functionality of Cisco IOS XE Software for Embedded Wireless Controllers on Catalyst 9100 Series Access Points could allow an unauthenticated, remote attacker to cause a denial of service (DoS) conditio\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-20848"
+    },
+    {
+     "id": "CVE-2022-20919",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2022-09-30",
+     "summary": "A vulnerability in the processing of malformed Common Industrial Protocol (CIP) packets that are sent to Cisco IOS Software and Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause an affected device to unexpectedl\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-20919"
+    },
+    {
+     "id": "CVE-2023-20072",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2023-03-23",
+     "summary": "A vulnerability in the fragmentation handling code of tunnel protocol packets in Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause an affected system to reload, resulting in a denial of service (DoS) condition. \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20072"
+    }
+   ]
+  },
+  "cisco_ios_xe 17.10": {
+   "critical": 3,
+   "high": 23,
+   "top": [
+    {
+     "id": "CVE-2023-20231",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2023-09-27",
+     "summary": "A vulnerability in the web UI of Cisco IOS XE Software could allow an authenticated, remote attacker to perform an injection attack against an affected device.\r\n\r This vulnerability is due to insufficient input validation. An attacker could\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20231"
+    },
+    {
+     "id": "CVE-2023-20187",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2023-09-27",
+     "summary": "A vulnerability in the Multicast Leaf Recycle Elimination (mLRE) feature of Cisco IOS XE Software for Cisco ASR 1000 Series Aggregation Services Routers could allow an unauthenticated, remote attacker to cause the affected device to reload,\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20187"
+    },
+    {
+     "id": "CVE-2023-20226",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2023-09-27",
+     "summary": "A vulnerability in Application Quality of Experience (AppQoE) and Unified Threat Defense (UTD) on Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause an affected device to reload unexpectedly, resulting in a denia\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20226"
+    },
+    {
+     "id": "CVE-2024-20259",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2024-03-27",
+     "summary": "A vulnerability in the DHCP snooping feature of Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause an affected device to reload unexpectedly, resulting in a denial of service (DoS) condition.\r\n\r This vulnerabilit\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-20259"
+    },
+    {
+     "id": "CVE-2024-20271",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2024-03-27",
+     "summary": "A vulnerability in the IP packet processing of Cisco Access Point (AP) Software could allow an unauthenticated, remote attacker to cause a denial of service (DoS) condition on an affected device.\r\n\r This vulnerability is due to insufficient\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-20271"
+    }
+   ]
+  },
+  "cisco_ios_xe 17.11": {
+   "critical": 3,
+   "high": 22,
+   "top": [
+    {
+     "id": "CVE-2023-20187",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2023-09-27",
+     "summary": "A vulnerability in the Multicast Leaf Recycle Elimination (mLRE) feature of Cisco IOS XE Software for Cisco ASR 1000 Series Aggregation Services Routers could allow an unauthenticated, remote attacker to cause the affected device to reload,\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20187"
+    },
+    {
+     "id": "CVE-2024-20259",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2024-03-27",
+     "summary": "A vulnerability in the DHCP snooping feature of Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause an affected device to reload unexpectedly, resulting in a denial of service (DoS) condition.\r\n\r This vulnerabilit\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-20259"
+    },
+    {
+     "id": "CVE-2024-20271",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2024-03-27",
+     "summary": "A vulnerability in the IP packet processing of Cisco Access Point (AP) Software could allow an unauthenticated, remote attacker to cause a denial of service (DoS) condition on an affected device.\r\n\r This vulnerability is due to insufficient\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-20271"
+    },
+    {
+     "id": "CVE-2024-20308",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2024-03-27",
+     "summary": "A vulnerability in the IKEv1 fragmentation code of Cisco IOS Software and Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause a heap underflow, resulting in an affected device reloading.\r\n\r This vulnerability exis\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-20308"
+    },
+    {
+     "id": "CVE-2024-20311",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2024-03-27",
+     "summary": "A vulnerability in the Locator ID Separation Protocol (LISP) feature of Cisco IOS Software and Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause an affected device to reload.\r\n\r This vulnerability is due to the \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-20311"
+    }
+   ]
+  },
+  "cisco_ios_xe 17.12": {
+   "critical": 2,
+   "high": 17,
+   "top": [
+    {
+     "id": "CVE-2024-20259",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2024-03-27",
+     "summary": "A vulnerability in the DHCP snooping feature of Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause an affected device to reload unexpectedly, resulting in a denial of service (DoS) condition.\r\n\r This vulnerabilit\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-20259"
+    },
+    {
+     "id": "CVE-2024-20271",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2024-03-27",
+     "summary": "A vulnerability in the IP packet processing of Cisco Access Point (AP) Software could allow an unauthenticated, remote attacker to cause a denial of service (DoS) condition on an affected device.\r\n\r This vulnerability is due to insufficient\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-20271"
+    },
+    {
+     "id": "CVE-2024-20308",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2024-03-27",
+     "summary": "A vulnerability in the IKEv1 fragmentation code of Cisco IOS Software and Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause a heap underflow, resulting in an affected device reloading.\r\n\r This vulnerability exis\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-20308"
+    },
+    {
+     "id": "CVE-2024-20314",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2024-03-27",
+     "summary": "A vulnerability in the IPv4 Software-Defined Access (SD-Access) fabric edge node feature of Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause high CPU utilization and stop all traffic processing, resulting in a \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-20314"
+    },
+    {
+     "id": "CVE-2024-20433",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2024-09-25",
+     "summary": "A vulnerability in the Resource Reservation Protocol (RSVP) feature of Cisco IOS Software and Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause an affected device to reload unexpectedly, resulting in a denial of\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-20433"
+    }
+   ]
+  },
+  "cisco_ios_xe 17.13": {
+   "critical": 2,
+   "high": 9,
+   "top": [
+    {
+     "id": "CVE-2024-20433",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2024-09-25",
+     "summary": "A vulnerability in the Resource Reservation Protocol (RSVP) feature of Cisco IOS Software and Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause an affected device to reload unexpectedly, resulting in a denial of\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-20433"
+    },
+    {
+     "id": "CVE-2024-20455",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2024-09-25",
+     "summary": "A vulnerability in the process that classifies traffic that is going to the Unified Threat Defense (UTD) component of Cisco IOS XE Software in controller mode could allow an unauthenticated, remote attacker to cause a denial of service (DoS\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-20455"
+    },
+    {
+     "id": "CVE-2024-20464",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2024-09-25",
+     "summary": "A vulnerability in the Protocol Independent Multicast (PIM) feature of Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause a denial of service (DoS) condition on an affected device.\r\n\r This vulnerability is due to\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-20464"
+    },
+    {
+     "id": "CVE-2024-20480",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2024-09-25",
+     "summary": "A vulnerability in the DHCP Snooping feature of Cisco IOS XE Software on Software-Defined Access (SD-Access) fabric edge nodes could allow an unauthenticated, remote attacker to cause high CPU utilization on an affected device, resulting in\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-20480"
+    },
+    {
+     "id": "CVE-2023-44487",
+     "score": 7.5,
+     "severity": "HIGH",
+     "published": "2023-10-10",
+     "summary": "The HTTP/2 protocol allows a denial of service (server resource consumption) because request cancellation can reset many streams quickly, as exploited in the wild in August through October 2023.",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-44487"
+    }
+   ]
+  },
+  "cisco_ios_xe 17.14": {
+   "critical": 1,
+   "high": 7,
+   "top": [
+    {
+     "id": "CVE-2024-20433",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2024-09-25",
+     "summary": "A vulnerability in the Resource Reservation Protocol (RSVP) feature of Cisco IOS Software and Cisco IOS XE Software could allow an unauthenticated, remote attacker to cause an affected device to reload unexpectedly, resulting in a denial of\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-20433"
+    },
+    {
+     "id": "CVE-2024-20480",
+     "score": 8.6,
+     "severity": "HIGH",
+     "published": "2024-09-25",
+     "summary": "A vulnerability in the DHCP Snooping feature of Cisco IOS XE Software on Software-Defined Access (SD-Access) fabric edge nodes could allow an unauthenticated, remote attacker to cause high CPU utilization on an affected device, resulting in\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-20480"
+    },
+    {
+     "id": "CVE-2023-44487",
+     "score": 7.5,
+     "severity": "HIGH",
+     "published": "2023-10-10",
+     "summary": "The HTTP/2 protocol allows a denial of service (server resource consumption) because request cancellation can reset many streams quickly, as exploited in the wild in August through October 2023.",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-44487"
+    },
+    {
+     "id": "CVE-2025-20197",
+     "score": 6.7,
+     "severity": "MEDIUM",
+     "published": "2025-05-07",
+     "summary": "A vulnerability in the CLI of Cisco IOS XE Software could allow an authenticated, local attacker with privilege level 15 to elevate privileges to root on the underlying operating system of an affected device.\r\n\r This vulnerability is due to\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-20197"
+    },
+    {
+     "id": "CVE-2025-20200",
+     "score": 6.7,
+     "severity": "MEDIUM",
+     "published": "2025-05-07",
+     "summary": "A vulnerability\u00a0in the CLI of Cisco IOS XE Software could allow an authenticated, local attacker with privilege level 15 to elevate privileges to root on the underlying operating system of an affected device.\r\n\r This vulnerability is due to\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-20200"
+    }
+   ]
+  },
+  "cisco_ios_xe 17.15": {
+   "critical": 1,
+   "high": 5,
+   "top": [
+    {
+     "id": "CVE-2023-44487",
+     "score": 7.5,
+     "severity": "HIGH",
+     "published": "2023-10-10",
+     "summary": "The HTTP/2 protocol allows a denial of service (server resource consumption) because request cancellation can reset many streams quickly, as exploited in the wild in August through October 2023.",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-44487"
+    },
+    {
+     "id": "CVE-2025-20197",
+     "score": 6.7,
+     "severity": "MEDIUM",
+     "published": "2025-05-07",
+     "summary": "A vulnerability in the CLI of Cisco IOS XE Software could allow an authenticated, local attacker with privilege level 15 to elevate privileges to root on the underlying operating system of an affected device.\r\n\r This vulnerability is due to\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-20197"
+    },
+    {
+     "id": "CVE-2025-20200",
+     "score": 6.7,
+     "severity": "MEDIUM",
+     "published": "2025-05-07",
+     "summary": "A vulnerability\u00a0in the CLI of Cisco IOS XE Software could allow an authenticated, local attacker with privilege level 15 to elevate privileges to root on the underlying operating system of an affected device.\r\n\r This vulnerability is due to\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-20200"
+    },
+    {
+     "id": "CVE-2025-20221",
+     "score": 5.3,
+     "severity": "MEDIUM",
+     "published": "2025-05-07",
+     "summary": "A vulnerability in the packet filtering features of Cisco IOS XE SD-WAN Software could allow an unauthenticated, remote attacker to bypass Layer 3 and Layer 4 traffic filters. \r\n\r This vulnerability is due to improper traffic filtering cond\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-20221"
+    },
+    {
+     "id": "CVE-2025-20198",
+     "score": 4.6,
+     "severity": "MEDIUM",
+     "published": "2025-05-07",
+     "summary": "A vulnerability\u00a0in the CLI of Cisco IOS XE Software could allow an authenticated, local attacker with privilege level 15 to elevate privileges to root on the underlying operating system of an affected device.\r\n\r This vulnerability is due to\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-20198"
+    }
+   ]
+  },
+  "fortios 5.6": {
+   "critical": 4,
+   "high": 20,
+   "top": [
+    {
+     "id": "CVE-2018-1352",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2019-02-08",
+     "summary": "A format string vulnerability in Fortinet FortiOS 5.6.0 allows attacker to execute unauthorized code or commands via the SSH username variable.",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2018-1352"
+    },
+    {
+     "id": "CVE-2020-12812",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-07-24",
+     "summary": "An improper authentication vulnerability in SSL VPN in FortiOS 6.4.0, 6.2.0 to 6.2.3, 6.0.9 and below may result in a user being able to log in successfully without being prompted for the second factor of authentication (FortiToken) if they\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-12812"
+    },
+    {
+     "id": "CVE-2022-42475",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2023-01-02",
+     "summary": "A heap-based buffer overflow vulnerability [CWE-122]\u00a0in FortiOS SSL-VPN 7.2.0 through 7.2.2, 7.0.0 through 7.0.8, 6.4.0 through 6.4.10, 6.2.0 through 6.2.11, 6.0.15 and earlier  and FortiProxy SSL-VPN 7.2.0 through 7.2.1, 7.0.7 and earlier \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-42475"
+    },
+    {
+     "id": "CVE-2018-13379",
+     "score": 9.1,
+     "severity": "CRITICAL",
+     "published": "2019-06-04",
+     "summary": "An Improper Limitation of a Pathname to a Restricted Directory (\"Path Traversal\") in Fortinet FortiOS 6.0.0 to 6.0.4, 5.6.3 to 5.6.7 and 5.4.6 to 5.4.12 and FortiProxy 2.0.0, 1.2.0 to 1.2.8, 1.1.0 to 1.1.6, 1.0.0 to 1.0.7 under SSL VPN web \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2018-13379"
+    },
+    {
+     "id": "CVE-2018-13382",
+     "score": 9.1,
+     "severity": "CRITICAL",
+     "published": "2019-06-04",
+     "summary": "An Improper Authorization vulnerability in Fortinet FortiOS 6.0.0 to 6.0.4, 5.6.0 to 5.6.8 and 5.4.1 to 5.4.10 and FortiProxy 2.0.0, 1.2.0 to 1.2.8, 1.1.0 to 1.1.6, 1.0.0 to 1.0.7 under SSL VPN web portal allows an unauthenticated attacker \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2018-13382"
+    }
+   ]
+  },
+  "fortios 6.0": {
+   "critical": 8,
+   "high": 35,
+   "top": [
+    {
+     "id": "CVE-2020-12812",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-07-24",
+     "summary": "An improper authentication vulnerability in SSL VPN in FortiOS 6.4.0, 6.2.0 to 6.2.3, 6.0.9 and below may result in a user being able to log in successfully without being prompted for the second factor of authentication (FortiToken) if they\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-12812"
+    },
+    {
+     "id": "CVE-2022-42475",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2023-01-02",
+     "summary": "A heap-based buffer overflow vulnerability [CWE-122]\u00a0in FortiOS SSL-VPN 7.2.0 through 7.2.2, 7.0.0 through 7.0.8, 6.4.0 through 6.4.10, 6.2.0 through 6.2.11, 6.0.15 and earlier  and FortiProxy SSL-VPN 7.2.0 through 7.2.1, 7.0.7 and earlier \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-42475"
+    },
+    {
+     "id": "CVE-2023-27997",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2023-06-13",
+     "summary": "A heap-based buffer overflow vulnerability [CWE-122] in FortiOS version 7.2.4 and below, version 7.0.11 and below, version 6.4.12 and below, version 6.0.16 and below and FortiProxy version 7.2.3 and below, version 7.0.9 and below, version 2\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-27997"
+    },
+    {
+     "id": "CVE-2024-21762",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2024-02-09",
+     "summary": "A out-of-bounds write in Fortinet FortiOS versions 7.4.0 through 7.4.2, 7.2.0 through 7.2.6, 7.0.0 through 7.0.13, 6.4.0 through 6.4.14, 6.2.0 through 6.2.15, 6.0.0 through 6.0.17, FortiProxy versions 7.4.0 through 7.4.2, 7.2.0 through 7.2.\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-21762"
+    },
+    {
+     "id": "CVE-2018-13379",
+     "score": 9.1,
+     "severity": "CRITICAL",
+     "published": "2019-06-04",
+     "summary": "An Improper Limitation of a Pathname to a Restricted Directory (\"Path Traversal\") in Fortinet FortiOS 6.0.0 to 6.0.4, 5.6.3 to 5.6.7 and 5.4.6 to 5.4.12 and FortiProxy 2.0.0, 1.2.0 to 1.2.8, 1.1.0 to 1.1.6, 1.0.0 to 1.0.7 under SSL VPN web \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2018-13379"
+    }
+   ]
+  },
+  "fortios 6.2": {
+   "critical": 8,
+   "high": 38,
+   "top": [
+    {
+     "id": "CVE-2020-12812",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-07-24",
+     "summary": "An improper authentication vulnerability in SSL VPN in FortiOS 6.4.0, 6.2.0 to 6.2.3, 6.0.9 and below may result in a user being able to log in successfully without being prompted for the second factor of authentication (FortiToken) if they\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-12812"
+    },
+    {
+     "id": "CVE-2022-42475",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2023-01-02",
+     "summary": "A heap-based buffer overflow vulnerability [CWE-122]\u00a0in FortiOS SSL-VPN 7.2.0 through 7.2.2, 7.0.0 through 7.0.8, 6.4.0 through 6.4.10, 6.2.0 through 6.2.11, 6.0.15 and earlier  and FortiProxy SSL-VPN 7.2.0 through 7.2.1, 7.0.7 and earlier \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-42475"
+    },
+    {
+     "id": "CVE-2023-27997",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2023-06-13",
+     "summary": "A heap-based buffer overflow vulnerability [CWE-122] in FortiOS version 7.2.4 and below, version 7.0.11 and below, version 6.4.12 and below, version 6.0.16 and below and FortiProxy version 7.2.3 and below, version 7.0.9 and below, version 2\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-27997"
+    },
+    {
+     "id": "CVE-2023-42789",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2024-03-12",
+     "summary": "A out-of-bounds write vulnerability in Fortinet FortiOS 7.4.0 through 7.4.1, FortiOS 7.2.0 through 7.2.5, FortiOS 7.0.0 through 7.0.12, FortiOS 6.4.0 through 6.4.14, FortiOS 6.2.0 through 6.2.15, FortiProxy 7.4.0, FortiProxy 7.2.0 through 7\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-42789"
+    },
+    {
+     "id": "CVE-2024-21762",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2024-02-09",
+     "summary": "A out-of-bounds write in Fortinet FortiOS versions 7.4.0 through 7.4.2, 7.2.0 through 7.2.6, 7.0.0 through 7.0.13, 6.4.0 through 6.4.14, 6.2.0 through 6.2.15, 6.0.0 through 6.0.17, FortiProxy versions 7.4.0 through 7.4.2, 7.2.0 through 7.2.\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-21762"
+    }
+   ]
+  },
+  "fortios 6.4": {
+   "critical": 11,
+   "high": 48,
+   "top": [
+    {
+     "id": "CVE-2020-12812",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2020-07-24",
+     "summary": "An improper authentication vulnerability in SSL VPN in FortiOS 6.4.0, 6.2.0 to 6.2.3, 6.0.9 and below may result in a user being able to log in successfully without being prompted for the second factor of authentication (FortiToken) if they\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-12812"
+    },
+    {
+     "id": "CVE-2022-42475",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2023-01-02",
+     "summary": "A heap-based buffer overflow vulnerability [CWE-122]\u00a0in FortiOS SSL-VPN 7.2.0 through 7.2.2, 7.0.0 through 7.0.8, 6.4.0 through 6.4.10, 6.2.0 through 6.2.11, 6.0.15 and earlier  and FortiProxy SSL-VPN 7.2.0 through 7.2.1, 7.0.7 and earlier \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-42475"
+    },
+    {
+     "id": "CVE-2023-27997",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2023-06-13",
+     "summary": "A heap-based buffer overflow vulnerability [CWE-122] in FortiOS version 7.2.4 and below, version 7.0.11 and below, version 6.4.12 and below, version 6.0.16 and below and FortiProxy version 7.2.3 and below, version 7.0.9 and below, version 2\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-27997"
+    },
+    {
+     "id": "CVE-2023-42789",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2024-03-12",
+     "summary": "A out-of-bounds write vulnerability in Fortinet FortiOS 7.4.0 through 7.4.1, FortiOS 7.2.0 through 7.2.5, FortiOS 7.0.0 through 7.0.12, FortiOS 6.4.0 through 6.4.14, FortiOS 6.2.0 through 6.2.15, FortiProxy 7.4.0, FortiProxy 7.2.0 through 7\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-42789"
+    },
+    {
+     "id": "CVE-2024-21762",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2024-02-09",
+     "summary": "A out-of-bounds write in Fortinet FortiOS versions 7.4.0 through 7.4.2, 7.2.0 through 7.2.6, 7.0.0 through 7.0.13, 6.4.0 through 6.4.14, 6.2.0 through 6.2.15, 6.0.0 through 6.0.17, FortiProxy versions 7.4.0 through 7.4.2, 7.2.0 through 7.2.\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-21762"
+    }
+   ]
+  },
+  "fortios 7.0": {
+   "critical": 15,
+   "high": 50,
+   "top": [
+    {
+     "id": "CVE-2022-40684",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2022-10-18",
+     "summary": "An authentication bypass using an alternate path or channel [CWE-288] in Fortinet FortiOS version 7.2.0 through 7.2.1 and 7.0.0 through 7.0.6, FortiProxy version 7.2.0 and version 7.0.0 through 7.0.6 and FortiSwitchManager version 7.2.0 and\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-40684"
+    },
+    {
+     "id": "CVE-2022-42475",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2023-01-02",
+     "summary": "A heap-based buffer overflow vulnerability [CWE-122]\u00a0in FortiOS SSL-VPN 7.2.0 through 7.2.2, 7.0.0 through 7.0.8, 6.4.0 through 6.4.10, 6.2.0 through 6.2.11, 6.0.15 and earlier  and FortiProxy SSL-VPN 7.2.0 through 7.2.1, 7.0.7 and earlier \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-42475"
+    },
+    {
+     "id": "CVE-2023-27997",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2023-06-13",
+     "summary": "A heap-based buffer overflow vulnerability [CWE-122] in FortiOS version 7.2.4 and below, version 7.0.11 and below, version 6.4.12 and below, version 6.0.16 and below and FortiProxy version 7.2.3 and below, version 7.0.9 and below, version 2\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-27997"
+    },
+    {
+     "id": "CVE-2023-33308",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2023-07-26",
+     "summary": "A stack-based overflow vulnerability [CWE-124] in Fortinet FortiOS version 7.0.0 through 7.0.10 and 7.2.0 through 7.2.3 and FortiProxy version 7.0.0 through 7.0.9 and 7.2.0 through 7.2.2 allows a remote unauthenticated attacker to execute a\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-33308"
+    },
+    {
+     "id": "CVE-2023-42789",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2024-03-12",
+     "summary": "A out-of-bounds write vulnerability in Fortinet FortiOS 7.4.0 through 7.4.1, FortiOS 7.2.0 through 7.2.5, FortiOS 7.0.0 through 7.0.12, FortiOS 6.4.0 through 6.4.14, FortiOS 6.2.0 through 6.2.15, FortiProxy 7.4.0, FortiProxy 7.2.0 through 7\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-42789"
+    }
+   ]
+  },
+  "fortios 7.2": {
+   "critical": 13,
+   "high": 43,
+   "top": [
+    {
+     "id": "CVE-2022-40684",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2022-10-18",
+     "summary": "An authentication bypass using an alternate path or channel [CWE-288] in Fortinet FortiOS version 7.2.0 through 7.2.1 and 7.0.0 through 7.0.6, FortiProxy version 7.2.0 and version 7.0.0 through 7.0.6 and FortiSwitchManager version 7.2.0 and\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-40684"
+    },
+    {
+     "id": "CVE-2022-42475",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2023-01-02",
+     "summary": "A heap-based buffer overflow vulnerability [CWE-122]\u00a0in FortiOS SSL-VPN 7.2.0 through 7.2.2, 7.0.0 through 7.0.8, 6.4.0 through 6.4.10, 6.2.0 through 6.2.11, 6.0.15 and earlier  and FortiProxy SSL-VPN 7.2.0 through 7.2.1, 7.0.7 and earlier \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-42475"
+    },
+    {
+     "id": "CVE-2023-27997",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2023-06-13",
+     "summary": "A heap-based buffer overflow vulnerability [CWE-122] in FortiOS version 7.2.4 and below, version 7.0.11 and below, version 6.4.12 and below, version 6.0.16 and below and FortiProxy version 7.2.3 and below, version 7.0.9 and below, version 2\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-27997"
+    },
+    {
+     "id": "CVE-2023-33308",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2023-07-26",
+     "summary": "A stack-based overflow vulnerability [CWE-124] in Fortinet FortiOS version 7.0.0 through 7.0.10 and 7.2.0 through 7.2.3 and FortiProxy version 7.0.0 through 7.0.9 and 7.2.0 through 7.2.2 allows a remote unauthenticated attacker to execute a\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-33308"
+    },
+    {
+     "id": "CVE-2023-42789",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2024-03-12",
+     "summary": "A out-of-bounds write vulnerability in Fortinet FortiOS 7.4.0 through 7.4.1, FortiOS 7.2.0 through 7.2.5, FortiOS 7.0.0 through 7.0.12, FortiOS 6.4.0 through 6.4.14, FortiOS 6.2.0 through 6.2.15, FortiProxy 7.4.0, FortiProxy 7.2.0 through 7\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-42789"
+    }
+   ]
+  },
+  "fortios 7.4": {
+   "critical": 7,
+   "high": 27,
+   "top": [
+    {
+     "id": "CVE-2023-42789",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2024-03-12",
+     "summary": "A out-of-bounds write vulnerability in Fortinet FortiOS 7.4.0 through 7.4.1, FortiOS 7.2.0 through 7.2.5, FortiOS 7.0.0 through 7.0.12, FortiOS 6.4.0 through 6.4.14, FortiOS 6.2.0 through 6.2.15, FortiProxy 7.4.0, FortiProxy 7.2.0 through 7\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-42789"
+    },
+    {
+     "id": "CVE-2024-21762",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2024-02-09",
+     "summary": "A out-of-bounds write in Fortinet FortiOS versions 7.4.0 through 7.4.2, 7.2.0 through 7.2.6, 7.0.0 through 7.0.13, 6.4.0 through 6.4.14, 6.2.0 through 6.2.15, 6.0.0 through 6.0.17, FortiProxy versions 7.4.0 through 7.4.2, 7.2.0 through 7.2.\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-21762"
+    },
+    {
+     "id": "CVE-2024-23113",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2024-02-15",
+     "summary": "A use of externally-controlled format string in Fortinet FortiOS versions 7.4.0 through 7.4.2, 7.2.0 through 7.2.6, 7.0.0 through 7.0.13, FortiProxy versions 7.4.0 through 7.4.2, 7.2.0 through 7.2.8, 7.0.0 through 7.0.14, FortiPAM versions \u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-23113"
+    },
+    {
+     "id": "CVE-2025-22252",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2025-05-28",
+     "summary": "A missing authentication for critical function in Fortinet FortiProxy versions 7.6.0 through 7.6.1, FortiSwitchManager version 7.2.5, and FortiOS versions 7.4.4 through 7.4.6 and version 7.6.0 may allow an attacker with knowledge of an exis\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-22252"
+    },
+    {
+     "id": "CVE-2024-48886",
+     "score": 9.0,
+     "severity": "CRITICAL",
+     "published": "2025-01-14",
+     "summary": "A weak authentication in Fortinet FortiOS versions 7.4.0 through 7.4.4, 7.2.0 through 7.2.8, 7.0.0 through 7.0.15, 6.4.0 through 6.4.15, FortiProxy versions 7.4.0 through 7.4.4, 7.2.0 through 7.2.10, 7.0.0 through 7.0.17, 2.0.0 through 2.0.\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-48886"
+    }
+   ]
+  },
+  "fortios 7.6": {
+   "critical": 2,
+   "high": 9,
+   "top": [
+    {
+     "id": "CVE-2025-22252",
+     "score": 9.8,
+     "severity": "CRITICAL",
+     "published": "2025-05-28",
+     "summary": "A missing authentication for critical function in Fortinet FortiProxy versions 7.6.0 through 7.6.1, FortiSwitchManager version 7.2.5, and FortiOS versions 7.4.4 through 7.4.6 and version 7.6.0 may allow an attacker with knowledge of an exis\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-22252"
+    },
+    {
+     "id": "CVE-2024-40591",
+     "score": 8.8,
+     "severity": "HIGH",
+     "published": "2025-02-11",
+     "summary": "An incorrect privilege assignment vulnerability [CWE-266] in Fortinet FortiOS version 7.6.0, 7.4.0 through 7.4.4, 7.2.0 through 7.2.9 and before 7.0.15 allows an authenticated admin whose access profile has the Security Fabric permission to\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-40591"
+    },
+    {
+     "id": "CVE-2025-25249",
+     "score": 8.1,
+     "severity": "HIGH",
+     "published": "2026-01-13",
+     "summary": "A heap-based buffer overflow vulnerability in Fortinet FortiOS 7.6.0 through 7.6.3, FortiOS 7.4.0 through 7.4.8, FortiOS 7.2.0 through 7.2.11, FortiOS 7.0.0 through 7.0.17, FortiOS 6.4 all versions, FortiSwitchManager 7.2.0 through 7.2.6, F\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-25249"
+    },
+    {
+     "id": "CVE-2024-46670",
+     "score": 7.5,
+     "severity": "HIGH",
+     "published": "2025-01-14",
+     "summary": "An\u00a0Out-of-bounds Read vulnerability [CWE-125] in FortiOS version 7.6.0, version 7.4.4 and below, version 7.2.9 and below and FortiSASE FortiOS tenant version 24.3.b IPsec IKE service may allow an unauthenticated remote attacker to trigger m\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-46670"
+    },
+    {
+     "id": "CVE-2024-48884",
+     "score": 7.5,
+     "severity": "HIGH",
+     "published": "2025-01-14",
+     "summary": "A improper limitation of a pathname to a restricted directory ('path traversal') vulnerability in Fortinet FortiManager 7.6.0 through 7.6.1, FortiManager 7.4.1 through 7.4.3, FortiManager Cloud 7.4.1 through 7.4.3, FortiOS 7.6.0, FortiOS 7.\u2026",
+     "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-48884"
+    }
+   ]
+  }
+ }
+}

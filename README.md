@@ -35,7 +35,7 @@ NetAuditAI only ever **reads** a device, and never executes a change on one.
 * **Your own baseline.** An organisation policy file tightens the limits (idle timeout, login attempts, password
   length) and names approved NTP / syslog servers; it can only tighten, never loosen ([docs/policy.md](docs/policy.md)).
 * **Runs offline and in CI.** `LOCAL_AI_URL` sends every AI call to a local model (Ollama, llama.cpp) so nothing
-  leaves the network; `python -m app.cli scan` fails a pipeline on a decided problem and writes SARIF
+  leaves the network; known CVEs for the stated OS version come from a committed NVD cache, never a live call; `python -m app.cli scan` fails a pipeline on a decided problem and writes SARIF
   ([docs/cli.md](docs/cli.md)).
 
 ## Status

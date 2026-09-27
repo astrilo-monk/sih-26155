@@ -103,6 +103,12 @@ def identification_block(scan, index: int) -> list[Block]:
         rows.append(["Parse coverage", f"{round(identification.parse_coverage * 100)}% of lines read by the parser "
                                        f"({identification.uncovered_lines} outside its grammar)"])
     blocks: list[Block] = [("h2", "1. Device identification"), ("table", (["Item", "Value"], rows))]
+    if cves := device.get("known_cves"):
+        blocks.append(("h3", f"Known vulnerabilities for this software version ({cves['train']})"))
+        blocks.append(("p", f"{cves['critical']} critical and {cves['high']} high CVEs list this release train in NVD "
+                            f"(cache of {cves['cache_date']}). {cves['caveat']}"))
+        blocks.append(("table", (["CVE", "CVSS", "Summary"],
+                                 [[f"{c['id']} ({c['url']})", str(c["score"]), c["summary"]] for c in cves["top"]])))
     if not device.get("serial"):
         blocks.append(("note", "A configuration file rarely carries the serial number: upload it together with "
                                "'show version' or 'show inventory' output to have it reported. NetAuditAI states only "

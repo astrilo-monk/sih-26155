@@ -60,6 +60,18 @@ export default function Devices({ scan, audit }) {
                 {device.model && <><dt>Hardware model</dt><dd className="mono">{device.model}</dd></>}
                 {device.serial && <><dt>Serial number</dt><dd className="mono">{device.serial}</dd></>}
                 {device.os_version && device.os_version !== 'unknown' && <><dt>OS / firmware</dt><dd className="mono">{device.os_version}</dd></>}
+                {device.known_cves && (
+                  <><dt>Known CVEs for {device.known_cves.train}</dt>
+                    <dd>
+                      {device.known_cves.critical} critical, {device.known_cves.high} high in NVD
+                      <ul className="cve-list small">
+                        {device.known_cves.top.map((c) => (
+                          <li key={c.id}><a href={c.url} target="_blank" rel="noreferrer" className="mono">{c.id}</a> {c.score}</li>
+                        ))}
+                      </ul>
+                      <span className="small muted">{device.known_cves.caveat} Cache of {device.known_cves.cache_date}.</span>
+                    </dd></>
+                )}
                 <dt>Checks decided</dt><dd>{decided} of {own.length}</dd>
                 <dt>Problems</dt><dd>{own.filter(isProblem).length}</dd>
                 <dt>AI help</dt>

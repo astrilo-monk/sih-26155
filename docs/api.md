@@ -51,6 +51,12 @@ Upload one or more raw configuration files for analysis.
   * each `devices[]` entry also carries its own `posture`, `coverage` and `risk` (`score` 0-100, `level`,
     `reasons[]`, `formula`; `app/analysis/risk.py`): worst decided problem + exposure + attack paths, times asset
     criticality. Risk never changes a check result or the posture.
+  * each `devices[]` entry also carries `known_cves` (`app/analysis/cve.py`), or `null`: for a platform a parser
+    confirmed (Cisco IOS / IOS-XE, FortiOS) whose file states its version, the NVD CVE totals (`critical`, `high`)
+    for that release `train` and the five highest-scoring (`top[]`: `id`, `score`, `severity`, `published`,
+    `summary`, `url`), with `cache_date`, `source` and a `caveat`. Read from the committed
+    `backend/data/cve_cache.json` (built with `backend/scripts/build_cve_cache.py`); never a network call, never
+    part of any score, finding or fix.
   * `attack_paths[]`: potential attack paths per device (`app/analysis/attack_paths.py`): `config_index`,
     `path_id`, `title`, `outcome`, `severity`, `steps[]` (`title`, `how`, `controls[]` with `control_id`, `title`,
     up to 3 redacted `lines`), `break_with` (the checks of the cheapest step: fixing them all closes the path) and
