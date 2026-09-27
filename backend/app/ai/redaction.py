@@ -43,6 +43,8 @@ UNKNOWN_SCOPE = ("(block path unknown - treated as an snmp community block)",)
 _EXACT_KEYWORDS = {
     "password": "password",
     "passwd": "password",
+    # SONiC TACPLUS / RADIUS shared secret
+    "passkey": "password",
     "passphrase": "password",
     "secret": "password",
     "phash": "password",
@@ -62,7 +64,8 @@ _EXACT_KEYWORDS = {
 _COMPOUND_KEYWORDS = (
     (re.compile(r"^[a-z0-9][\w-]*-(?:password|passwd|passphrase|pwd|secret|pass|passcode|credentials?)(?:-value)?$"
                 r"|^(?:[\w-]+-)?(?:auth|secret|password)-string$"), "password"),
-    (re.compile(r"^(?:[\w-]+-)?community(?:-string)?$"), "snmp-community"),
+    # ``snmp-server community``, ``readonly-community``, SONiC ``SNMP_COMMUNITY`` (a flattened table name)
+    (re.compile(r"^(?:[\w-]+[-_])?community(?:-string)?$"), "snmp-community"),
     (re.compile(r"^[a-z0-9][\w-]*-token$"), "key"),
     (re.compile(r"^(?:[\w-]+-)?(?:pre-shared|preshared|shared|psk|wep|wpa|ppk)-key$|^[a-z0-9][\w-]*-(?:psk|psksecret)$"), "psk"),
     (re.compile(

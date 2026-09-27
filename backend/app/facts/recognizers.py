@@ -116,8 +116,10 @@ class RecognizerError(ValueError):
 
 
 def _keywords(pattern: str) -> list[str]:
-    """Literal words of a template: no slots, no punctuation, no stopwords."""
-    return [t for t in map(strip_terminator, pattern.split()) if "{" not in t and t.lower() not in STOPWORDS]
+    """Literal words of a template: no slots, no punctuation, no stopwords. An underscore joins words into one
+    identifier (SONiC ``SYSLOG_SERVER``, Terraform ``cidr_blocks``): each word counts, as two words would."""
+    words = [w for t in map(strip_terminator, pattern.split()) if "{" not in t for w in t.split("_") if w]
+    return [w for w in words if w.lower() not in STOPWORDS]
 
 
 # ── values ──────────────────────────────────────────────────────────────────

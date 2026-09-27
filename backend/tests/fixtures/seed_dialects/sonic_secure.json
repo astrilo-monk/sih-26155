@@ -1,0 +1,38 @@
+{
+    "DEVICE_METADATA": {
+        "localhost": {
+            "hostname": "sonic-leaf-02",
+            "hwsku": "Force10-S6000"
+        }
+    },
+    "SNMP_COMMUNITY": {
+        "n0c-r3adonly": {
+            "TYPE": "RO"
+        }
+    },
+    "SYSLOG_SERVER": {
+        "10.20.0.5": {},
+        "10.20.0.6": {
+            "port": "514",
+            "vrf": "mgmt"
+        }
+    },
+    "NTP_SERVER": {
+        "10.20.0.1": {
+            "admin_state": "enabled",
+            "iburst": "on",
+            "version": 4
+        }
+    },
+    "TACPLUS_SERVER": {
+        "10.20.0.9": {
+            "priority": "1",
+            "tcp_port": "49"
+        }
+    },
+    "AAA": {
+        "authentication": {
+            "login": "tacacs+,local"
+        }
+    }
+}

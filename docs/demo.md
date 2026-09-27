@@ -17,7 +17,7 @@
    ledger** (intact) and **Check a report PDF** with the file just downloaded: "Genuine: all 2 reports…". Change one
    byte and it says "Not found". This whole path runs as an automated browser test: `cd frontend && npm run e2e`.
 8. **Rules catalog:** 23 checks answer 78 framework requirements. Close on the numbers in the README: 18/20 planted,
-   83/101 across 8 vendors, Terraform and cloud firewall exports, 0 missed, 0 false alarms, 0 of 6 prompt-injection attacks succeeded.
+   89/112 across 8 vendors, SONiC, Cumulus, Terraform and cloud firewall exports, 0 missed, 0 false alarms, 0 of 6 prompt-injection attacks succeeded.
 
 ## The full walkthrough
 

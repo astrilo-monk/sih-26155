@@ -156,7 +156,9 @@ its own `key value` pairs, keys sorted. An object that holds only scalars (or li
 is inlined into its parent under its own key (`IpRanges CidrIp 0.0.0.0/0`, GCP `allowed IPProtocol tcp ports 22`),
 so a GCP rule keeps its ports and its source on one line and `allowed` never reads like `denied`. A named object (an
 Azure security rule) is its own line. Metadata that is never a setting (`etag`, `id`, `selfLink`,
-`creationTimestamp`, `kind`, `provisioningState`, `resourceGuid`) and free-text `description` are dropped.
+`creationTimestamp`, `kind`, `provisioningState`, `resourceGuid`) and free-text `description` are dropped. An object
+whose values are all objects is a table keyed by name or address (SONiC `config_db.json`): each entry is its own
+line (`SNMP_COMMUNITY public TYPE RO`), and an entry with no attributes still states its key (`SYSLOG_SERVER 10.0.0.5`).
 
 **Terraform (HCL)** is flattened before tokenizing (`app/structure/structured.py: flatten_hcl`), chosen from
 structure (labelled blocks and `key = value` assignments, no `;` statements). Each block's header line becomes its
@@ -284,7 +286,7 @@ completes.
 
 ## 8. Human-in-the-loop: recognizers
 
-A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships 226 reviewed recognizers for
+A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships 243 reviewed recognizers for
 eleven dialects that have no dedicated parser (Junos, PAN-OS, Arista EOS, Huawei VRP, RouterOS, Aruba AOS-CX,
 Check Point Gaia, Extreme EXOS, Cisco NX-OS, ASA, IOS-XR) and AWS security groups -one generalized entry per concept per dialect, never one
 per line;

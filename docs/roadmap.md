@@ -10,7 +10,7 @@ Summary:
 - [x] Security facts with assurance; every control runs on every configuration
 - [x] Generic tokenizer and lexicon heuristics for unknown vendors (provisional, no AI needed)
 - [x] Administrator-confirmed recognizers persisted (SQLite, or Postgres via `DATABASE_URL`) and reused across restarts
-- [x] Shipped seed knowledge: 226 generalized recognizers for eleven unparsed dialects, AWS / Azure / GCP firewall exports and Terraform (AWS, Azure, GCP)
+- [x] Shipped seed knowledge: 243 generalized recognizers for thirteen unparsed dialects, AWS / Azure / GCP firewall exports and Terraform (AWS, Azure, GCP)
 - [x] Structured (JSON) configurations flattened to one statement per object, so cloud rules are read and teachable
 - [x] Serial number / model / OS version reported when the uploaded text states them
 - [x] Scan history survives a restart: a redacted copy of each scan and its plans (`scans` table)
@@ -26,7 +26,7 @@ Summary:
 - [x] Sidebar UI (New scan, Overview, Devices, Findings, Attack paths, Remediation, Adaptive learning, Frameworks,
       History, Rules catalog, Audit ledger) with AI *Explain this* in the finding drawer
 - [x] Optional shared API key (`API_KEY`) and configurable CORS origins
-- [x] Accuracy benchmark with labelled ground truth (planted 18/20, fixtures 83/101, 0 missed, 0 false alarms)
+- [x] Accuracy benchmark with labelled ground truth (planted 18/20, fixtures 89/112, 0 missed, 0 false alarms)
 - [x] Prompt-injection fence on every configuration-carrying prompt
 - [x] Attack paths, evidence chain per finding, field-by-field compare, fleet view, contextual risk, fix order
 - [x] Hash-chained audit ledger; report PDF (or multi-device .zip) verification

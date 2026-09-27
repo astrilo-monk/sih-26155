@@ -16,6 +16,8 @@ object into one statement:
   of its own, and the key keeps ``allowed`` apart from ``denied``; empty values say nothing and are dropped
 * metadata that is never a setting (``etag``, ``id``, ``selfLink``, ``creationTimestamp``, …) and free-text
   ``description`` are dropped, so a rule reads the same whichever tool exported it
+* an object whose values are all objects is a table keyed by name or address (SONiC ``config_db.json``): each
+  entry is its own line, ``SNMP_COMMUNITY public TYPE RO``, ``SYSLOG_SERVER 10.0.0.5``
 * a value containing whitespace stays one quoted token
 
 The flattened text *is* the configuration from then on: evidence cites its lines, and the Training
@@ -94,6 +96,15 @@ def flatten_json(text: str) -> Optional[list[str]]:
                 walk(item, path)
             return
         if not isinstance(node, dict):
+            return
+        if node and all(isinstance(v, dict) for v in node.values()):
+            # a table keyed by name or address (SONiC ``SNMP_COMMUNITY``, ``SYSLOG_SERVER``): every entry is a
+            # statement of its own, and an entry with no attributes (``"10.0.0.5": {}``) still states its key
+            for k in _keys(node):
+                if node[k]:
+                    walk(node[k], [*path, k])
+                else:
+                    lines.append(" ".join([*path, _token(k)]))
             return
         own = [t for k in _keys(node) if _flat(node[k]) for t in _pairs(k, node[k])]
         if own:

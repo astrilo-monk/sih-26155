@@ -106,6 +106,10 @@ LEAK_CASES = [
     ("/user add name=ops password=MtPass1 group=full", "MtPass1"),
     ("/snmp community set [ find default=yes ] name=MtComm1", "MtComm1"),
     ("/snmp community add name=MtComm2 addresses=10.0.0.0/8", "MtComm2"),
+    # SONiC config_db.json, flattened; Cumulus NVUE
+    ("SNMP_COMMUNITY SonicComm1 TYPE RO", "SonicComm1"),
+    ("TACPLUS_SERVER 10.0.0.9 passkey SonicKey1 priority 1", "SonicKey1"),
+    ("nv set service snmp-server readonly-community NvComm1 access any", "NvComm1"),
     ('    "password": "JsonPass1",', "JsonPass1"),
     ("<phash>$1$PanHash$xyz</phash>", "$1$PanHash$xyz"),
     ("<key>PanXmlKey1</key>", "PanXmlKey1"),

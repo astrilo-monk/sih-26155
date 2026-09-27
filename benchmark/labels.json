@@ -11,6 +11,25 @@
     }
   },
   "fixtures": {
+    "backend/tests/fixtures/seed_dialects/sonic_insecure.json": {
+      "fail": ["MGMT-004", "MGMT-011", "LOG-001", "LOG-002", "MGMT-008"],
+      "pass": []
+    },
+    "backend/tests/fixtures/seed_dialects/sonic_secure.json": {
+      "fail": ["MGMT-011"],
+      "pass": ["MGMT-004", "LOG-001", "MGMT-008"],
+      "excluded": {"LOG-002": "an NTP server is set; whether it is authenticated is not stated in config_db"}
+    },
+    "backend/tests/fixtures/seed_dialects/cumulus_insecure.conf": {
+      "fail": ["MGMT-004", "MGMT-011", "LOG-001", "MGMT-008"],
+      "pass": [],
+      "excluded": {"LOG-002": "an NTP server is set; whether it is authenticated is not stated"}
+    },
+    "backend/tests/fixtures/seed_dialects/cumulus_secure.conf": {
+      "fail": ["MGMT-011"],
+      "pass": ["MGMT-004", "LOG-001", "MGMT-008"],
+      "excluded": {"LOG-002": "an NTP server is set; whether it is authenticated is not stated"}
+    },
     "backend/tests/fixtures/cloud_json/azure_nsg_insecure.json": {
       "fail": ["MGMT-003", "BOUNDARY-001"],
       "pass": []

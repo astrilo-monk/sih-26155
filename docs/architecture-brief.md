@@ -30,7 +30,7 @@ Ingest ... uploaded file (single or bulk, CLI text or JSON export)
   -> Vendor identification: fingerprint + grammar coverage (a look-alike is never "confirmed")
   -> Confirmed vendor ..... dedicated parser (Cisco IOS, FortiGate)
   -> Anything else ........ generic tokenizer (braces, indentation, set-style, /menu paths)
-                            -> recognizers, 226 shipped + whatever was taught   [pattern recognition]
+                            -> recognizers, 243 shipped + whatever was taught   [pattern recognition]
                             -> lexicon heuristics                              [provisional]
                             -> AI judge on what is still undecided             [budgeted, must cite]
   -> Security Baseline Model: facts with value, scope, evidence lines, assurance
@@ -67,7 +67,7 @@ Safety gates (`validate_recognizer`) reject anything that would match too much: 
 a value table, a unit for durations, and no secret is ever stored. The recognizer saves to SQLite or Postgres and
 answers the **very next scan**: decisive, deterministic, no AI call, **no redeployment**, reversible later.
 
-Shipped seed knowledge is the same mechanism reviewed in Git rather than taught at runtime: **226 recognizers**
+Shipped seed knowledge is the same mechanism reviewed in Git rather than taught at runtime: **243 recognizers**
 across Juniper Junos, Palo Alto PAN-OS, Arista EOS, Huawei VRP, HPE Aruba AOS-CX, Check Point Gaia, Extreme EXOS,
 MikroTik RouterOS, Cisco NX-OS, ASA and IOS-XR, and AWS security groups. A fresh deployment reads those dialects before anyone teaches it.
 
@@ -99,7 +99,7 @@ still knows the password is Type 7 without the value leaving the process.
 ## 7. Technology and scale
 
 Python 3.10, FastAPI, ReportLab, Netmiko (NAPALM optional), SQLite or Postgres via psycopg, Groq LLM API
-(optional), React 19 and Vite with no runtime UI dependencies. **1588 backend tests** (pytest) and **149 frontend**
+(optional), React 19 and Vite with no runtime UI dependencies. **1604 backend tests** (pytest) and **149 frontend**
 (Vitest). Everything runs without AI; AI only raises coverage.
 
 Honest scope: two vendors have dedicated parsers (Cisco IOS, FortiGate). Everything else is read generically,

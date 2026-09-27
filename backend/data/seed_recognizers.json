@@ -1792,6 +1792,125 @@
       "scope_template": "resource google_compute_firewall {any} direction INGRESS name {any} network {any} source_ranges 0.0.0.0/0",
       "constant_value": "{\"all\": true}",
       "example_line": "allow protocol all {"
+    },
+    {
+      "concept": "SNMP community",
+      "vendor": "SONiC (config_db.json)",
+      "predicate": "snmp.community",
+      "command_pattern": "SNMP_COMMUNITY {community:RO} TYPE RO",
+      "example_line": "SNMP_COMMUNITY <SECRET:snmp-community> TYPE RO"
+    },
+    {
+      "concept": "SNMP community",
+      "vendor": "SONiC (config_db.json)",
+      "predicate": "snmp.community",
+      "command_pattern": "SNMP_COMMUNITY {community:RW} TYPE RW",
+      "example_line": "SNMP_COMMUNITY <SECRET:snmp-community> TYPE RW"
+    },
+    {
+      "concept": "Remote syslog server",
+      "vendor": "SONiC (config_db.json)",
+      "predicate": "log.remote.destination",
+      "command_pattern": "SYSLOG_SERVER {host} {rest}",
+      "example_line": "SYSLOG_SERVER 10.0.0.5"
+    },
+    {
+      "concept": "NTP server",
+      "vendor": "SONiC (config_db.json)",
+      "predicate": "time.ntp.server",
+      "command_pattern": "NTP_SERVER {host}",
+      "example_line": "NTP_SERVER 10.0.0.1"
+    },
+    {
+      "concept": "NTP server",
+      "vendor": "SONiC (config_db.json)",
+      "predicate": "time.ntp.server",
+      "command_pattern": "NTP_SERVER {host} admin_state enabled {rest}",
+      "example_line": "NTP_SERVER 10.0.0.1 admin_state enabled"
+    },
+    {
+      "concept": "NTP server",
+      "vendor": "SONiC (config_db.json)",
+      "predicate": "time.ntp.server",
+      "command_pattern": "NTP_SERVER {host} association_type {rest}",
+      "example_line": "NTP_SERVER 10.0.0.1 association_type x"
+    },
+    {
+      "concept": "NTP server",
+      "vendor": "SONiC (config_db.json)",
+      "predicate": "time.ntp.server",
+      "command_pattern": "NTP_SERVER {host} iburst {rest}",
+      "example_line": "NTP_SERVER 10.0.0.1 iburst x"
+    },
+    {
+      "concept": "NTP server",
+      "vendor": "SONiC (config_db.json)",
+      "predicate": "time.ntp.server",
+      "command_pattern": "NTP_SERVER {host} resolve_as {rest}",
+      "example_line": "NTP_SERVER 10.0.0.1 resolve_as x"
+    },
+    {
+      "concept": "NTP server",
+      "vendor": "SONiC (config_db.json)",
+      "predicate": "time.ntp.server",
+      "command_pattern": "NTP_SERVER {host} version {rest}",
+      "example_line": "NTP_SERVER 10.0.0.1 version x"
+    },
+    {
+      "concept": "TACACS+ server",
+      "vendor": "SONiC (config_db.json)",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "{neg} TACPLUS_SERVER {any} {rest}",
+      "example_line": "TACPLUS_SERVER 10.0.0.9 priority 1 tcp_port 49"
+    },
+    {
+      "concept": "RADIUS server",
+      "vendor": "SONiC (config_db.json)",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "{neg} RADIUS_SERVER {any} {rest}",
+      "example_line": "RADIUS_SERVER 192.168.1.2 priority 4 retransmit 2 timeout 5"
+    },
+    {
+      "concept": "SNMP community",
+      "vendor": "NVIDIA Cumulus Linux (NVUE)",
+      "predicate": "snmp.community",
+      "command_pattern": "nv set service snmp-server readonly-community {community:RO} access {any}",
+      "example_line": "nv set service snmp-server readonly-community <SECRET:snmp-community> access any"
+    },
+    {
+      "concept": "SNMP community",
+      "vendor": "NVIDIA Cumulus Linux (NVUE)",
+      "predicate": "snmp.community",
+      "command_pattern": "nv set service snmp-server readonly-community {community:RO} access {any} view {any}",
+      "example_line": "nv set service snmp-server readonly-community <SECRET:snmp-community> access any view mysystem"
+    },
+    {
+      "concept": "Remote syslog server",
+      "vendor": "NVIDIA Cumulus Linux (NVUE)",
+      "predicate": "log.remote.destination",
+      "command_pattern": "nv set service syslog {any} server {host} {rest}",
+      "example_line": "nv set service syslog default server 192.168.0.254 port 514"
+    },
+    {
+      "concept": "NTP server",
+      "vendor": "NVIDIA Cumulus Linux (NVUE)",
+      "predicate": "time.ntp.server",
+      "command_pattern": "nv set service ntp {any} server {host} {rest}",
+      "example_line": "nv set service ntp default server 4.cumulusnetworks.pool.ntp.org iburst on"
+    },
+    {
+      "concept": "TACACS+ server",
+      "vendor": "NVIDIA Cumulus Linux (NVUE)",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "{neg} nv set system aaa tacacs server {any} host {rest}",
+      "example_line": "nv set system aaa tacacs server 5 host 192.168.0.30"
+    },
+    {
+      "concept": "TACACS+ enabled",
+      "vendor": "NVIDIA Cumulus Linux (NVUE)",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "nv set system aaa tacacs enable {polarity}",
+      "example_line": "nv set system aaa tacacs enable on"
     }
   ]
 }

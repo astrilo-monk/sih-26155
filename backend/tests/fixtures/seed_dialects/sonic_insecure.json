@@ -1,0 +1,31 @@
+{
+    "DEVICE_METADATA": {
+        "localhost": {
+            "hostname": "sonic-leaf-01",
+            "hwsku": "Force10-S6000",
+            "platform": "x86_64-dell_s6000_s1220-r0"
+        }
+    },
+    "SNMP_COMMUNITY": {
+        "public": {
+            "TYPE": "RO"
+        },
+        "private": {
+            "TYPE": "RW"
+        }
+    },
+    "NTP_SERVER": {
+        "0.debian.pool.ntp.org": {
+            "association_type": "pool",
+            "admin_state": "disabled"
+        }
+    },
+    "PORT": {
+        "Ethernet0": {
+            "admin_status": "up",
+            "alias": "fortyGigE0/0",
+            "lanes": "29,30,31,32",
+            "mtu": "9100"
+        }
+    }
+}
