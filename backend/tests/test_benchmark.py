@@ -14,7 +14,7 @@ def test_benchmark_holds(seeded_adaptive_db):
     with patch("app.api.routes.scan.interpret_lines", MagicMock(return_value=[])), \
          patch("app.api.routes.scan.is_available", return_value=False):
         report = benchmark.run(isolate=False)
-    for group, floor in (("planted", 18), ("fixtures", 70)):
+    for group, floor in (("planted", 18), ("fixtures", 83)):
         fails, passes = benchmark.totals(report[group])
         assert fails["missed"] == 0 and passes["false_alarm"] == 0, (group, fails, passes)
         assert fails["detected"] >= floor, (group, fails)

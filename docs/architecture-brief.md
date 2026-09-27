@@ -99,7 +99,7 @@ still knows the password is Type 7 without the value leaving the process.
 ## 7. Technology and scale
 
 Python 3.10, FastAPI, ReportLab, Netmiko (NAPALM optional), SQLite or Postgres via psycopg, Groq LLM API
-(optional), React 19 and Vite with no runtime UI dependencies. **1558 backend tests** (pytest) and **149 frontend**
+(optional), React 19 and Vite with no runtime UI dependencies. **1588 backend tests** (pytest) and **149 frontend**
 (Vitest). Everything runs without AI; AI only raises coverage.
 
 Honest scope: two vendors have dedicated parsers (Cisco IOS, FortiGate). Everything else is read generically,

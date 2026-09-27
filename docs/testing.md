@@ -30,6 +30,7 @@ production default with the `seeded_adaptive_db` fixture.
 | RouterOS default SNMP community and plaintext user passwords; neither secret reaches a recognizer, the scan, the PDF or the ledger | `test_mikrotik_credentials.py` |
 | Terraform: blocks flattened in place, AWS / Azure / GCP rules decided on the rule's own line, unresolved variables never decide, device-only checks N/A | `test_terraform.py`, fixtures in `tests/fixtures/terraform/` |
 | Azure NSG and GCP firewall JSON exports: one rule per line, only an open Allow / INGRESS rule counts (deny, outbound, disabled do not), device-only checks N/A | `test_cloud_json.py`, fixtures in `tests/fixtures/cloud_json/` |
+| Independent citation check over every benchmark and demo file (and the demo fleet): each cited line exists and says the cited text (a `<SECRET:…>` placeholder stands for its value), each attack-path step cites a decided FAIL of the same device on lines that result cites, posture and coverage recomputed from the returned results match | `test_citations.py` |
 | Recognizer generalization: one recognizer over many addresses, names and numbers; indentation, whitespace and statement order ignored; positive and negative forms opposite; the same leaf word in another block not matched; a value-sensitive setting giving different control results from one recognizer; half a multi-fact control left undecided; a taught concept reused on the next scan; a line that states nothing teaching only a setting it names, while a line that states an on/off may be named in any words; and the acceptance loop -five concepts taught through the API, a configuration of seven variant lines scanned, only the genuinely new control left in the queue | `test_recognizer_generalization.py` |
 | Compliance report (PDF): a PDF per device and a zip for several, a hostname cannot escape the download name, no secret of the configuration reaches the document or the rendered bytes, serial numbers are not invented, provisional readings are never shown as PASS/FAIL, no vendor commands for an unconfirmed vendor, the deterministic change and its rescan checks for a confirmed one, unmapped frameworks named, undecided checks listed, a prose file reported unreadable | `test_pdf_report.py` |
 | Parsers, pipeline, ACLs, FortiGate model and firmware from the `#config-version=` header | `test_pipeline.py`, `test_cisco_acl.py` |
@@ -83,7 +84,7 @@ once.
 
 ```powershell
 cd backend
-venv\Scripts\python -m pytest tests -q -n auto   # 1558 passed, 2 skipped (~7 min in parallel)
+venv\Scripts\python -m pytest tests -q -n auto   # 1588 passed, 2 skipped (~7 min in parallel)
 
 cd ..\frontend
 npm test                                    # 149 passed
