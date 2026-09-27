@@ -87,10 +87,10 @@ once.
 
 ```powershell
 cd backend
-venv\Scripts\python -m pytest tests -q -n auto   # 1604 passed, 2 skipped (~7 min in parallel)
+venv\Scripts\python -m pytest tests -q -n auto   # 1644 passed, 2 skipped (~7 min in parallel)
 
 cd ..\frontend
-npm test                                    # 149 passed
+npm test                                    # 151 passed
 npm run e2e                                 # 1 passed (starts its own servers)
 npm run build
 ```

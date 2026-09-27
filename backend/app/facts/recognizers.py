@@ -364,6 +364,9 @@ def recognize(raw_lines: list[str], extra: Iterable = ()):
     candidates, recognized, matched = [], set(), []
     external = external_interfaces(statements)
     answered_blocks: set[tuple] = set()  # (predicate, block path) a block header's own line already answered
+    # the line of every block header, by its path: a set-form match states those headers too
+    header_lines = {(*(s.scope_path[:-1] if s.block else s.scope_path), " ".join(s.text.strip()[:-1].split())): s.line
+                    for s in statements if s.text.rstrip().endswith("{")}
 
     for s in statements:
         for r in recognizers:
@@ -393,6 +396,10 @@ def recognize(raw_lines: list[str], extra: Iterable = ()):
                 continue
             value = stated_value(r, value, s)
             recognized.add(s.line)
+            if via is not s.text and r.predicate in PER_STATEMENT and headers in header_lines:
+                # the header names the object the set form read (``community public {``, ``user admin {``):
+                # heuristics must not read it again as a second one. Other headers (``ntp {``) stay open.
+                recognized.add(header_lines[headers])
             matched.append(r)
             if s.text.rstrip().endswith("{"):
                 answered_blocks.add((r.predicate, (*headers, " ".join(s.text.strip()[:-1].split()))))

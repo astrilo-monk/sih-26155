@@ -69,3 +69,11 @@ def test_only_terminated_brace_leaves_have_a_set_form(config):
 def test_set_form_of_a_nested_leaf():
     statements = tokenize("snmp {\n  community public {\n    authorization read-only;\n  }\n}\n".splitlines())
     assert set_form(statements[-1]) == "set snmp community public authorization read-only"
+
+
+def test_a_header_read_through_the_set_form_is_not_read_again_by_heuristics(seeded_adaptive_db):
+    """Found running the website: ``community jun-mon1tor {`` was also read by the heuristic as a second
+    community, so MGMT-004's confirmed PASS was downgraded to a suspected one."""
+    text = "snmp {\n    community jun-mon1tor {\n        authorization read-only;\n    }\n}\n"
+    snmp = _results(text)["MGMT-004"]
+    assert (snmp.status, snmp.assurance.value) == (Status.PASS, "confirmed")

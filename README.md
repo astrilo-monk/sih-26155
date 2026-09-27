@@ -40,8 +40,8 @@ NetAuditAI only ever **reads** a device, and never executes a change on one.
 
 ## Status
 
-Working hackathon prototype. Backend: 1604 tests passed, 2 live-AI tests skipped (`pytest -n auto` runs them in
-parallel). Frontend: 149 tests passed, production build OK. One end-to-end browser test walks the demo path
+Working hackathon prototype. Backend: 1644 tests passed, 2 live-AI tests skipped (`pytest -n auto` runs them in
+parallel). Frontend: 151 tests passed, production build OK. One end-to-end browser test walks the demo path
 (`cd frontend && npm run e2e`).
 
 ## Measured accuracy
@@ -220,10 +220,10 @@ Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `fr
 
 ```bash
 cd backend
-venv\Scripts\python -m pytest tests -q -n auto   # 1604 passed, 2 skipped (live AI, needs NETAUDIT_LIVE_AI=1)
+venv\Scripts\python -m pytest tests -q -n auto   # 1644 passed, 2 skipped (live AI, needs NETAUDIT_LIVE_AI=1)
 
 cd frontend
-npm test                                    # 149 passed
+npm test                                    # 151 passed
 npm run build
 ```
 
