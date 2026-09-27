@@ -1,6 +1,14 @@
 # Demo configs for the SIH video
 
-Two intentionally insecure configurations, 10 planted vulnerabilities each. Both were run through the real scan
+Four files make the two-minute path (`docs/demo.md`): the two below with 10 planted vulnerabilities each, and two
+dialects with no parser, written for NetAuditAI:
+
+| File | Read by | Decided problems |
+|---|---|---|
+| `juniper_edge_braces.conf` | brace-style Junos, shipped knowledge | Telnet (line 16), HTTP management (18), SNMPv2c (34), default `admin` account (5), no AAA, no login banner |
+| `aws_edge.tf` | Terraform, flattened in place, shipped knowledge | SSH open to `0.0.0.0/0` (line 6), any-any ingress (13); 20 device-only checks N/A |
+
+The two intentionally insecure configurations below have 10 planted vulnerabilities each. Both were run through the real scan
 pipeline (no AI key) and the results below are what the app actually returned.
 
 **With the 23 checks** (8 added after these files were written) the app finds more than was planted:

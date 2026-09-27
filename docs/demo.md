@@ -2,22 +2,23 @@
 
 ## The 2-minute judge path
 
-1. **New scan:** add `demo-sih/cisco_edge_vulnerable.cfg` and `demo-sih/paloalto_fw_vulnerable.cfg` together, set
-   *How important is this device?* to **High**, tick **faces the internet**, **Start scan**.
-2. **Overview:** Risk **CRITICAL** (hover for the reasons and formula); *Across 2 devices* shows each score and the
-   most common problems.
-3. **Attack paths** (sidebar, or *See attack paths* on the Overview): read "Remote takeover through the management plane" left to right: reach the login →
-   capture the password → log in as admin → full control. Every step cites its line. "Break it: fix MGMT-003".
-4. **Compare the devices field by field:** Cisco (parser) and PAN-OS (learned, no parser) filled into the *same*
-   vendor-neutral fields from completely different syntax. That is the problem statement's normalization, visible.
-5. **Open a finding → Show how this was decided:** NIST / STIG / ISO requirement → check → `mgmt.ssh.version = 1` →
-   `line 27: ip ssh version 1` → Fails.
-6. **Remediation:** *Fix in this order* puts the fix that closes the critical path first, with the reason.
-7. **Executive summary (PDF)** (two devices download as a .zip of one PDF each), then **Audit ledger → Verify the
-   ledger** (intact) and **Check a report PDF** with the file just downloaded: "Genuine: all 2 reports…". Change one
-   byte and it says "Not found". This whole path runs as an automated browser test: `cd frontend && npm run e2e`.
-8. **Rules catalog:** 23 checks answer 78 framework requirements. Close on the numbers in the README: 18/20 planted,
-   89/112 across 8 vendors, SONiC, Cumulus, Terraform and cloud firewall exports, 0 missed, 0 false alarms, 0 of 6 prompt-injection attacks succeeded.
+Four files in one scan: a parser-read Cisco router, and three dialects with no parser at all (PAN-OS, brace-style
+Junos, Terraform). Machine seconds are measured by the automated browser test that runs this exact path
+(`cd frontend && npx playwright test`, which writes `demo-timings.json`); the talking time is our budget.
+
+| # | Step | Machine (measured) | Talk (budget) |
+|---|---|---|---|
+| 1 | **New scan:** add `demo-sih/cisco_edge_vulnerable.cfg`, `paloalto_fw_vulnerable.cfg`, `juniper_edge_braces.conf` and `aws_edge.tf` together, set *How important is this device?* to **High**, tick **faces the internet**, **Start scan**. Overview: risk **CRITICAL**, *Across 4 devices*, "the same SNMP community string is used on 2 devices". | 9.7 s | 15 s |
+| 2 | **Compare the devices field by field:** Cisco (parser), PAN-OS and Junos (shipped knowledge) and Terraform land in the *same* vendor-neutral fields from completely different syntax. | 13.1 s | 10 s |
+| 3 | **Devices:** each platform as it was read. The Cisco router states IOS-XE 16.9: *Known CVEs for 16.9*, 4 critical and 72 high in NVD, top five linked, with the caveat "context, not an assessment" (offline cache). | 0.1 s | 15 s |
+| 4 | **Attack paths:** "Remote takeover through the management plane": reach the login → capture the password → log in as admin, every step citing its line; "Break it: fix MGMT-003". Under it: *each path and its fix were checked against a positive and a negative configuration (commit …)*. | 0.1 s | 20 s |
+| 5 | **Executive summary (PDF)** (four devices: a .zip of one PDF each). | 6.5 s | 5 s |
+| 6 | **Audit ledger → Verify the ledger** (intact), then **Check a report PDF** with the file just downloaded: "Genuine"; change one byte: "Not found". | 0.5 s | 15 s |
+| 7 | **Rules catalog:** 23 checks answer 78 requirements. Close on the numbers: 18/20 planted; 89/112 on labelled fixtures; **held-out, never-seen real configs 21/21** (first run 20/21, the miss was a parser bug, fixed); 0 false alarms; 0 of 6 prompt-injection attacks succeeded. | 0.1 s | 10 s |
+| | **Total: 30 s on screen + 90 s of talk = 2 min** | **30 s** | **90 s** |
+
+Teaching an unknown line is left out of the two minutes (it needs about 40 s on its own): it is step 7 of the full
+walkthrough below.
 
 ## The full walkthrough
 
