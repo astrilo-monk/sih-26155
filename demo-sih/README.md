@@ -9,6 +9,13 @@ Each flow was run end to end through the API (scan → fix → download the corr
 | `cisco_oneclick.cfg` | posture **41**, 15 problems | NetAuditAI alone: every fix needs no input | posture **100**, **0** problems, coverage 100% |
 | `paloalto_ai_human.cfg` | posture **30**, 10 problems | 5 by NetAuditAI, 5 by a typed or AI-drafted command | posture **100**, **0** problems |
 | `unknown_vendor.cfg` | posture **–**, 3 suspected problems | teach 3 lines, then 3 typed or AI-drafted commands | posture **100**, **0** problems |
+| `fortigate/` (3 files, one upload) | fleet posture **80**, 13 problems (HQ 55, Branch 94, DC 89) | NetAuditAI alone, one click: the download is a `.zip` of 3 corrected files | posture **100**, **0** problems on all 3 |
+
+**FortiGate fleet (`fortigate/`).** Upload `hq_fgt01.conf`, `branch_fgt02.conf` and `dc_fgt03.conf` together. Besides each
+device's own problems, the Overview shows one problem visible only across devices: *Devices use different NTP servers*
+(DC-FGT-03 uses another one). It is advice, not a counted problem, and stays after the fix: which server is right is
+the operator's call. **Attack paths** shows *Remote takeover through the management plane* on HQ-FGT-01 (management
+open on the internet port, Telnet, a login lockout at 20 attempts); the one-click fix closes it.
 
 **Cisco (`cisco_oneclick.cfg`).** Remediation → *Download corrected configuration* → upload that file. There's no SNMP
 community, `admin` account, any-any rule or missing syslog/NTP/management ACL, so nothing needs a value or manual work.

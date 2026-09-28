@@ -70,13 +70,6 @@
 }
 .flow-steps li:first-child { border-left: 0; }
 .flow-steps .mono { color: var(--accent); margin-right: var(--s-2); }
-.flow-tabs { display: flex; flex-wrap: wrap; gap: var(--s-5); border-bottom: var(--bw) solid var(--line); }
-.flow-tabs a {
-  padding: var(--s-3) 0; text-decoration: none; border-bottom: var(--bw-thick) solid transparent;
-  font: 500 var(--fs-xs)/1 var(--sans); letter-spacing: var(--tr-wider); text-transform: uppercase; color: var(--muted-fg);
-}
-.flow-tabs a:hover { color: var(--fg); }
-.flow-tabs a[aria-current="page"] { color: var(--fg); border-bottom-color: var(--accent); }
 
 .page-head { display: grid; gap: var(--s-3); padding-block: clamp(28px, 5vw, 52px) var(--s-5); }
 .page-head-row { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }

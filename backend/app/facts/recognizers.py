@@ -105,6 +105,7 @@ STOPWORDS = POSITIVE | NEGATIVE | NEGATORS | {"set", "config", "edit", "next", "
 MIN_KEYWORDS = 2
 FINGERPRINT_OVERLAP = 0.5
 _DURATION = re.compile(r"^(\d+(?:\.\d+)?)([a-z]*)$")
+_UNIT_WORDS = {"min": L.MINUTES, "s": L.SECONDS, "h": L.HOURS}
 _WORD = re.compile(r"^[a-z][\w.+-]*$")
 # A hostname label chain: letters, digits and hyphens, dot-separated. Never a bare number.
 _HOSTNAME = re.compile(r"^(?=.*[a-z])[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$")
@@ -678,9 +679,13 @@ def _draft_template(s: Statement, c: _Candidate, scope: Optional[str] = None) ->
                   for i in reversed(range(1, len(words))) if match(words[i]) is not None), None)
     if index is None:
         return " ".join(tokens), c.value
-    # a duration whose line states no unit carries the unit the fact was read with, so the draft validates
-    if kind == "duration" and c.unit and not _DURATION.match(words[index]).group(2):
-        return generalized(index, f"duration:{c.unit}"), None
+    if kind == "duration" and not _DURATION.match(words[index]).group(2):
+        # a unit written as its own word after the number (``inactivity-lock 0 minutes``) is the line's own
+        # unit; failing that, the unit the fact was read with -either way the draft validates
+        after = words[index + 1] if index + 1 < len(words) else ""
+        unit = next((u for u, written in _UNIT_WORDS.items() if after in written), None) or c.unit
+        if unit:
+            return generalized(index, f"duration:{unit}"), None
     return generalized(index, kind), None
 
 

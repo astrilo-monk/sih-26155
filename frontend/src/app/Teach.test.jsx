@@ -241,12 +241,28 @@ it('without a suggestion it says so, and offers the file, the AI, or a skip', as
   apiClient.getUnresolvedControls.mockResolvedValue(queueOf({ ...TELNET, suggested_lines: [] }, TIMEOUT));
   apiClient.askAI.mockResolvedValue({ found: false, note: 'The AI found no line in this configuration that answers this check' });
   render(<Harness />);
+  // the check with a suggested line comes first; the one without is under "Everything else"
+  expect(await screen.findByText('Do idle management sessions time out?')).toBeTruthy();
+  fireEvent.click(screen.getByRole('tab', { name: /Everything else/ }));
   expect(await screen.findByText('NetAuditAI couldn’t find a line in your file that answers this.')).toBeTruthy();
   expect(screen.getByRole('button', { name: 'I’ll show you the line' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Ask AI to find the line' }));
   expect(await screen.findByText(/AI: The AI found no line/)).toBeTruthy();
   expect(apiClient.askAI).toHaveBeenCalledWith('scan-1', 0, 'MGMT-001');
   expect(apiClient.draftRecognizer).not.toHaveBeenCalled();
+});
+
+it('asks the checks NetAuditAI found a line for first, and keeps the rest one tab away', async () => {
+  apiClient.getUnresolvedControls.mockResolvedValue(queueOf({ ...TELNET, suggested_lines: [] }, TIMEOUT));
+  render(<Harness />);
+  expect(await screen.findByRole('tab', { name: /Found in your file\s*1/ })).toBeTruthy();
+  expect(screen.getByRole('tab', { name: /Everything else\s*1/ })).toBeTruthy();
+  expect(screen.getByText('Check 1 of 1')).toBeTruthy();
+  // once the found ones are answered or skipped, the page says what is left and does not bury it
+  fireEvent.click(screen.getByRole('button', { name: 'My file doesn’t have this: skip' }));
+  expect(await screen.findByText('Every line NetAuditAI found is answered.')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Look at everything else' }));
+  expect(await screen.findByText('NetAuditAI couldn’t find a line in your file that answers this.')).toBeTruthy();
 });
 
 it('skips checks in one click, and says skipped checks are not counted', async () => {

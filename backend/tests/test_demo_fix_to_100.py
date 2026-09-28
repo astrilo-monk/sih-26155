@@ -60,6 +60,26 @@ def test_cisco_every_problem_is_fixed_in_one_click(seeded_adaptive_db):
     assert (after["posture"], after["total_findings"]) == (100, 0)
 
 
+def test_three_fortigates_in_one_upload_are_fixed_together(seeded_adaptive_db):
+    import io
+    import zipfile
+
+    client = TestClient(app)
+    files = [("files", (p.name, p.read_bytes(), "text/plain")) for p in sorted((DEMO / "fortigate").glob("*.conf"))]
+    with patch("app.api.routes.scan.interpret_lines", MagicMock(return_value=[])), \
+         patch("app.api.routes.scan.is_available", return_value=False):
+        before = client.post("/api/scan", files=files).json()
+    assert len(before["devices"]) == 3 and before["total_findings"] >= 10
+    assert [f["check"] for f in before["fleet_findings"]] == ["ntp-mismatch"]  # visible only across devices
+    fixed = client.post("/api/download-fixed", json={"scan_id": before["scan_id"]})
+    with zipfile.ZipFile(io.BytesIO(fixed.content)) as z:
+        corrected = [("files", (n, z.read(n), "text/plain")) for n in z.namelist()]
+    with patch("app.api.routes.scan.interpret_lines", MagicMock(return_value=[])), \
+         patch("app.api.routes.scan.is_available", return_value=False):
+        after = client.post("/api/scan", files=corrected).json()
+    assert (after["posture"], after["total_findings"], len(after["devices"])) == (100, 0, 3)
+
+
 def test_paloalto_is_fixed_by_the_engine_and_by_typed_commands(seeded_adaptive_db):
     client = TestClient(app)
     before = _scan(client, "paloalto_ai_human.cfg", (DEMO / "paloalto_ai_human.cfg").read_text())
@@ -67,6 +87,23 @@ def test_paloalto_is_fixed_by_the_engine_and_by_typed_commands(seeded_adaptive_d
     _confirm_commands(client, before, PALOALTO_COMMANDS)
     after = _rescan_corrected(client, before, "paloalto_ai_human.cfg")
     assert (after["posture"], after["total_findings"]) == (100, 0)
+
+
+def test_a_unit_written_as_its_own_word_is_taught_through_the_page(seeded_adaptive_db):
+    """Found recording the demo: ``operator inactivity-lock 0 minutes`` taught by picking what it says was refused
+    ("states no unit"), because the unit is the word after the number."""
+    client = TestClient(app)
+    scan = _scan(client, "unknown_vendor.cfg", (DEMO / "unknown_vendor.cfg").read_text())
+    line = UNKNOWN_TEACH["MGMT-006"]
+    options = client.get(f"/api/adaptive/scans/{scan['scan_id']}/meanings",
+                         params={"control_id": "MGMT-006", "line_number": line}).json()["options"]
+    assert options, "the page offers no answer for this line"
+    body = {"control_id": "MGMT-006", "line_number": line,
+            "predicate": options[0]["predicate"], "asserted_value": options[0].get("value"),
+            "subject": options[0].get("subject")}
+    draft = client.post(f"/api/adaptive/scans/{scan['scan_id']}/recognizers/draft", json=body).json()
+    assert draft["errors"] == [] and "{duration:min}" in draft["draft"]["command_pattern"]
+    assert client.post(f"/api/adaptive/scans/{scan['scan_id']}/recognizers", json=body).status_code == 200
 
 
 def test_unknown_vendor_is_taught_then_fixed(seeded_adaptive_db):

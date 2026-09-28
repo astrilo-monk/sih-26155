@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { apiClient } from '../api/client';
 import { Evidence } from '../components/ui/Evidence';
-import { Notice } from '../components/ui/primitives';
+import { Notice, Tabs } from '../components/ui/primitives';
 import { deviceLabels, explainGate, sayFact, sayMeaning, vendorName } from '../lib/domain';
 import { UnresolvedDetail } from './Unresolved';
 import LegacyInterpretations from './LegacyInterpretations';
@@ -15,6 +15,8 @@ const STEPS = ['The question', 'The line', 'What it says', 'Learned'];
 const fmtValue = (v) => (typeof v === 'string' ? v : JSON.stringify(v));
 const itemKey = (item) => `${item.config_index}-${item.control_id}`;
 const meaningKey = (m) => `${m.predicate}|${m.subject ?? ''}|${JSON.stringify(m.value ?? null)}`;
+// NetAuditAI already points at a line of the file for this check
+const found = (item) => (item.suggested_lines || []).length > 0;
 
 function Toggle({ label, children }) {
   const [open, setOpen] = useState(false);
@@ -157,7 +159,19 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
   const [pickedText, setPickedText] = useState('');
   const [ai, setAi] = useState({ busy: false, note: null, asked: null });
 
-  const queue = open.filter((i) => !skipped.has(itemKey(i)));
+  // Two tabs: the checks NetAuditAI found a line for come first; everything else is there for what it missed.
+  // Until the person picks one, the tab follows the focused check, else opens on "found" when it has any.
+  const [tab, setTab] = useState(null);
+  const focused = open.find((i) => itemKey(i) === focus);
+  const shown = tab ?? ((focused ? found(focused) : open.some(found)) ? 'found' : 'other');
+  const left = open.filter((i) => !skipped.has(itemKey(i)));
+  const counts = { found: left.filter(found).length, other: left.filter((i) => !found(i)).length };
+  const queue = left.filter((i) => (shown === 'found') === found(i));
+  const switchTab = (t) => {
+    setTab(t);
+    setFocus(null);
+    setPhase({ kind: 'ask' });
+  };
   // Once answered, the check stays on screen (the queue refreshes underneath) until the person continues
   const item = phase.item || queue.find((i) => itemKey(i) === focus) || queue[0] || null;
   const key = item ? itemKey(item) : null;
@@ -206,7 +220,12 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
     setAi({ busy: true, note: null, asked: key });
     try {
       const res = await apiClient.askAI(scanId, item.config_index, item.control_id);
-      if (res.found) await audit.loadQueue();
+      if (res.found) {
+        await audit.loadQueue();
+        // the check now has a suggested line: follow it to the "found" tab
+        setTab('found');
+        setFocus(key);
+      }
       setAi({ busy: false, note: res.found ? null : res.note, asked: key });
     } catch (err) {
       setAi({ busy: false, note: err.message, asked: key });
@@ -299,7 +318,29 @@ export default function Teach({ scan, audit, focusKey, onScanUpdated, onScanExpi
 
       {unresolved == null && !audit.queueError && <p className="muted" aria-busy="true">Loading the checks that need you…</p>}
 
-      {unresolved != null && !item && (
+      {open.length > 0 && (
+        <Tabs label="Checks to answer" value={shown} onChange={switchTab} tabs={[
+          ['found', 'Found in your file', counts.found],
+          ['other', 'Everything else', counts.other],
+        ]} />
+      )}
+
+      {unresolved != null && !item && shown === 'found' && counts.other > 0 && (
+        <div className="empty-state">
+          <h2 className="empty-title">Every line NetAuditAI found is answered.</h2>
+          <p>
+            {counts.other} other check{counts.other === 1 ? '' : 's'} had no line NetAuditAI could find. If your file
+            sets one of them, show NetAuditAI the line under <strong>Everything else</strong>; if not, leave it: it stays
+            undecided and is not counted.
+          </p>
+          <div className="actions">
+            <a className="btn btn-primary" href={`#/app/scan/${scanId}/fix`}>Next: fix the problems</a>
+            <button type="button" className="btn" onClick={() => switchTab('other')}>Look at everything else</button>
+          </div>
+        </div>
+      )}
+
+      {unresolved != null && !item && !(shown === 'found' && counts.other > 0) && (
         <div className="empty-state tone-pass">
           <p className="empty-mark" aria-hidden="true">✓</p>
           <h2 className="empty-title">{skipped.size > 0 ? 'No more checks for now.' : 'Nothing is waiting for your input.'}</h2>

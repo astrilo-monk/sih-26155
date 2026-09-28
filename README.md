@@ -41,7 +41,7 @@ NetAuditAI only ever **reads** a device, and never executes a change on one.
 ## Status
 
 Working hackathon prototype. Backend: 1648 tests passed, 2 live-AI tests skipped (`pytest -n auto` runs them in
-parallel). Frontend: 151 tests passed, production build OK. One end-to-end browser test walks the demo path
+parallel). Frontend: 152 tests passed, production build OK. One end-to-end browser test walks the demo path
 (`cd frontend && npm run e2e`).
 
 ## Demo
@@ -166,8 +166,8 @@ The scan response still carries `score`, the deprecated penalty score (kept for 
 
 ### The interface
 
-A fixed left sidebar. **New scan · Overview · Devices · Findings · Remediation**, then under *Intelligence*
-**Adaptive learning · Frameworks · History · Rules catalog · Audit ledger**. The scan pages are disabled until a scan
+A fixed left sidebar. **New scan · Overview · Devices · Findings · Attack paths · Remediation**, then under
+*Intelligence* **Adaptive learning · Learned mappings · Frameworks · History · Rules catalog · Audit ledger**. The scan pages are disabled until a scan
 is open.
 
 | Sidebar | Page | Route |
@@ -178,7 +178,8 @@ is open.
 | Findings | Every control on every device, with evidence | `…/checks` |
 | Attack paths | How the confirmed problems chain into an attack, per path: the steps with their lines, the outcome, and the one fix that breaks it; a summary of the fixes that close them all | `…/paths` |
 | Remediation | **Fix in this order** (most risk removed per effort, with reasons), then fix automatically, needs your input, manual action, cannot safely fix; verified download; candidate fixes; **Next** rescores a copy with the commands you confirmed (shown as soon as one is) | `…/fix` |
-| Adaptive learning | With a scan open: this scan's unknown syntax to teach. Otherwise: learned mappings (shipped and taught, each can be stopped) | `…/teach`, `#/app/learned` |
+| Adaptive learning | This scan's unknown syntax to teach, in two tabs: **Found in your file** (checks NetAuditAI already found a line for) first, then **Everything else** (for a setting it missed) | `…/teach` |
+| Learned mappings | Everything NetAuditAI can read decisively, shipped and taught; each can be stopped. Open with or without a scan | `#/app/learned` |
 | Frameworks | The same results by framework requirement | `…/frameworks` |
 | History | Scan summaries kept in this browser | `#/app/history` |
 | Rules catalog | Every check, what it reads, and the 78 framework requirements the 23 checks answer | `#/app/rules` |
@@ -240,7 +241,7 @@ cd backend
 venv\Scripts\python -m pytest tests -q -n auto   # 1648 passed, 2 skipped (live AI, needs NETAUDIT_LIVE_AI=1)
 
 cd frontend
-npm test                                    # 151 passed
+npm test                                    # 152 passed
 npm run build
 ```
 

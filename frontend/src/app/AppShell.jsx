@@ -212,8 +212,6 @@ export default function AppShell({ path }) {
   const shared = { scan: current, audit, labels, onOpen: (item) => setOpenKey(item.key) };
 
   const scanHref = (view) => (scan ? `#${view === 'overview' ? base : `${base}/${view}`}` : null);
-  // Adaptive learning is this scan's questions when a scan is open, otherwise what has been learned so far
-  const learning = route.page === 'learned' || here('scan', 'teach');
   const NAV = [
     ['New scan', '#/app', here('new')],
     ['Overview', scanHref('overview'), here('scan', 'overview')],
@@ -224,7 +222,9 @@ export default function AppShell({ path }) {
     ['Remediation', scanHref('fix'), here('scan', 'fix'), counts && counts.problems - counts.fixed],
   ];
   const INTEL = [
-    ['Adaptive learning', scan ? scanHref('teach') : '#/app/learned', learning ? 'page' : undefined, counts?.review],
+    // this scan's unknown lines; what has been learned so far has its own page, open with or without a scan
+    ['Adaptive learning', scanHref('teach'), here('scan', 'teach'), counts?.review],
+    ['Learned mappings', '#/app/learned', here('learned')],
     ['Frameworks', scanHref('frameworks'), here('scan', 'frameworks')],
     ['History', '#/app/history', here('history')],
     ['Rules catalog', '#/app/rules', here('rules')],
@@ -289,7 +289,7 @@ export default function AppShell({ path }) {
             {route.view !== 'overview' && <ProgressStrip scan={current} audit={audit} view={route.view} go={go} />}
             {route.view === 'overview' && <Results {...shared} go={go} onTeach={openTeach} />}
             {route.view === 'fix' && <Fix {...shared} onTeach={() => openTeach()} />}
-            {route.view === 'teach' && <LearningFlow scanHref={scanHref('teach')} here="teach" />}
+            {route.view === 'teach' && <LearningFlow />}
             {route.view === 'teach' && (
               <Teach scan={current} audit={audit} focusKey={teachFocus} onScanUpdated={handleScanUpdated}
                      onScanExpired={(id) => handleScansExpired([id])} />
@@ -313,7 +313,6 @@ export default function AppShell({ path }) {
         {route.page === 'history' && <History onScansExpired={handleScansExpired} />}
         {route.page === 'ledger' && <Ledger />}
         {route.page === 'rules' && <Rules />}
-        {route.page === 'learned' && <LearningFlow scanHref={scanHref('teach')} here="learned" />}
         {route.page === 'learned' && <Learned />}
       </main>
       </div>
