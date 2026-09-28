@@ -1,6 +1,6 @@
 # Demo Script (SIH)
 
-For the recorded video, use [demo-video.md](demo-video.md): three files in `demo-sih/`, each fixed to posture 100.
+The three files in `demo-sih/` each go from a bad first scan to posture 100 (see its README).
 The two-minute judge path below uses the earlier demo configurations, now in `backend/tests/fixtures/demo/`.
 
 ## The 2-minute judge path

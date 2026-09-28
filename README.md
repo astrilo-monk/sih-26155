@@ -55,7 +55,7 @@ after the corrected file is rescanned (pinned by `backend/tests/test_demo_fix_to
 | `paloalto_ai_human.cfg` | posture 30, 10 problems | 5 by NetAuditAI (seed write-back), 5 by an AI-drafted or typed command, each verified |
 | `unknown_vendor.cfg` | no score, 3 suspected problems | teach 3 lines in Adaptive learning, then 3 verified commands |
 
-The video script is [docs/demo-video.md](docs/demo-video.md); the judge walkthrough is [docs/demo.md](docs/demo.md).
+The walkthrough is [docs/demo.md](docs/demo.md).
 The earlier demo configurations used by the tests and the benchmark are in `backend/tests/fixtures/demo/`.
 
 ## Measured accuracy
@@ -291,5 +291,4 @@ A line holding a secret (password, key, community string) is never stored as a m
 | [docs/data-model.md](docs/data-model.md) | Core objects |
 | [docs/seed-knowledge.md](docs/seed-knowledge.md) | Shipped recognizers: what they are, how they load, how to add one |
 | [docs/demo.md](docs/demo.md) | SIH demo script: the two-minute judge path and the full walkthrough |
-| [docs/demo-video.md](docs/demo-video.md) | Demo video script: the three fix-to-100 files, scene by scene |
 | [docs/setup.md](docs/setup.md), [docs/testing.md](docs/testing.md), [docs/deployment.md](docs/deployment.md) | Running and testing |

@@ -358,8 +358,7 @@ def remediate_all(text: str, inputs: dict, skip: frozenset[str] | set[str] = fro
 
 
 # ── compatibility shims ─────────────────────────────────────────────────────
-# Kept so existing scripts importing the pre-Phase 8 API (e.g. the repository's verify_fix.py and
-# backend/diagnose_remediation.py) still run. They route through the verified engine; command text
+# Kept so existing scripts importing the pre-Phase 8 API (e.g. the repository's verify_fix.py) still run. They route through the verified engine; command text
 # passed in is never applied.
 
 def generate_remediation(finding, configs: list[NormalizedConfig]) -> dict:

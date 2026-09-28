@@ -93,3 +93,8 @@ frontend/playwright-report/
 # Local working notes, not part of the submission
 bugs.md
 updates.md
+
+# Presenter prep: kept on disk, not for the judges
+docs/study.md
+docs/demo-video.md
+output.md
