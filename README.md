@@ -276,6 +276,11 @@ A line holding a secret (password, key, community string) is never stored as a m
 - `/api/assistant/status` reports AI available whenever a key is configured, even if the quota is used up.
 - Live collection **reads** a device (one SSH session, read-only commands, credentials never stored) and is bounded to private address space by default. No command, generated or proposed, is ever executed on a device.
 
+## License
+
+All rights reserved: see [LICENSE](LICENSE). No copying, use, modification or redistribution without written
+permission. Smart India Hackathon 2026 evaluators may view and run it to evaluate this submission.
+
 ## Documentation
 
 | Document | Contents |

@@ -1,0 +1,27 @@
+Copyright (c) 2026 astrilo-monk. All rights reserved.
+
+This repository and everything in it (source code, documentation, data files, configurations, benchmark labels,
+designs and other materials, together the "Software") are the proprietary work of the copyright holder.
+
+No license is granted. Without the prior written permission of the copyright holder, you may not:
+
+  1. copy, reproduce or download the Software, except as needed to view it on GitHub;
+  2. use, run or deploy the Software, in whole or in part, for any purpose;
+  3. modify, adapt, translate or create derivative works from the Software;
+  4. distribute, publish, sublicense, sell, rent or otherwise make the Software available to anyone;
+  5. submit, present or claim the Software, or any part of it, as your own work in any competition, hackathon,
+     course, publication or product.
+
+Viewing and forking this repository on GitHub is permitted only to the extent required by the GitHub Terms of
+Service. A fork grants no rights beyond viewing it there.
+
+Evaluation exception: the organisers, evaluators and judges of Smart India Hackathon 2026 may view, download and
+run the Software solely to evaluate this submission.
+
+Third-party components used by the Software (for example the Python and npm packages listed in
+backend/requirements.txt and frontend/package.json) remain under their own licenses.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE SOFTWARE OR ITS USE.
+
+For permission requests, contact the copyright holder through GitHub: https://github.com/astrilo-monk
