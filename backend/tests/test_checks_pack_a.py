@@ -50,7 +50,7 @@ set network profiles interface-management-profile INSIDE ssh yes
 
 
 # a full IOS configuration the detector confirms, without its SNMP lines
-IOS = "\n".join(line for line in (pathlib.Path(__file__).parents[2] / "demo-sih" / "cisco_edge_vulnerable.cfg")
+IOS = "\n".join(line for line in (pathlib.Path(__file__).parents[2] / "backend" / "tests" / "fixtures" / "demo" / "cisco_edge_vulnerable.cfg")
                  .read_text(encoding="utf-8").splitlines() if not line.startswith("snmp-server")) + "\n"
 
 

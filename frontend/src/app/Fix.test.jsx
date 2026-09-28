@@ -359,6 +359,8 @@ it('sends a manually entered command as a candidate and shows a rejected one as 
   expect(screen.getAllByText(/still fails on the edited copy/).length).toBeGreaterThan(0);
   expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull();
   expect(screen.getByRole('button', { name: 'Propose another command' })).toBeTruthy();
+  // a rejection is not a dead end: AI can be asked for a different command
+  expect(screen.getByRole('button', { name: 'Ask AI for a command' })).toBeTruthy();
 });
 
 it('explains when no candidate can be generated and keeps the manual path open', async () => {

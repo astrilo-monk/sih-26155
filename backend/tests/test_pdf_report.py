@@ -232,7 +232,7 @@ def test_an_unknown_framework_is_refused(client):
 
 
 def test_the_report_opens_with_a_plain_summary_for_a_reader_who_stops_there(client):
-    demo = pathlib.Path(__file__).parents[2] / "demo-sih" / "cisco_edge_vulnerable.cfg"
+    demo = pathlib.Path(__file__).parents[2] / "backend" / "tests" / "fixtures" / "demo" / "cisco_edge_vulnerable.cfg"
     body = text_of(client, upload(client, "demo.cfg", demo.read_text(encoding="utf-8")))
     glance = body[body.index("At a glance"):body.index("1. Device identification")]
     assert "Risk: CRITICAL (80/100)." in glance and "problems found" in glance

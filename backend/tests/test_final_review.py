@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
-PAN = (pathlib.Path(__file__).parents[2] / "demo-sih" / "paloalto_fw_vulnerable.cfg").read_text(encoding="utf-8")
+PAN = (pathlib.Path(__file__).parents[2] / "backend" / "tests" / "fixtures" / "demo" / "paloalto_fw_vulnerable.cfg").read_text(encoding="utf-8")
 
 
 def _scan(client):
@@ -60,7 +60,7 @@ def test_confirmed_removals_and_manual_commands_in_the_final_review(seeded_adapt
 
 
 def test_one_devices_answer_never_fills_in_another(seeded_adaptive_db):
-    ios = (pathlib.Path(__file__).parents[2] / "demo-sih" / "cisco_edge_vulnerable.cfg").read_text(encoding="utf-8")
+    ios = (pathlib.Path(__file__).parents[2] / "backend" / "tests" / "fixtures" / "demo" / "cisco_edge_vulnerable.cfg").read_text(encoding="utf-8")
     client = TestClient(app)
     with patch("app.api.routes.scan.interpret_lines", MagicMock(return_value=[])), \
          patch("app.api.routes.scan.is_available", return_value=False):
@@ -128,7 +128,7 @@ def test_a_control_an_earlier_fix_resolved_is_credited_only_when_it_now_passes(s
     from app.models.results import Status
     from app.remediation.engine import RemediationStatus, analyze_text, remediate_all
 
-    ios = (pathlib.Path(__file__).parents[2] / "demo-sih" / "cisco_edge_vulnerable.cfg").read_text(encoding="utf-8")
+    ios = (pathlib.Path(__file__).parents[2] / "backend" / "tests" / "fixtures" / "demo" / "cisco_edge_vulnerable.cfg").read_text(encoding="utf-8")
     plan = remediate_all(ios, {})
     snmp = next(o for o in plan.outcomes if o.control_id == "MGMT-011")
     assert snmp.status == RemediationStatus.FIXED and "MGMT-004" in snmp.reason

@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 ROOT = pathlib.Path(__file__).parents[2]
-CISCO = (ROOT / "demo-sih" / "cisco_edge_vulnerable.cfg").read_text(encoding="utf-8")
+CISCO = (ROOT / "backend" / "tests" / "fixtures" / "demo" / "cisco_edge_vulnerable.cfg").read_text(encoding="utf-8")
 JUNOS = (ROOT / "teach" / "juniper_junos_5_configs" / "juniper_01_secure.conf").read_text(encoding="utf-8")
 
 

@@ -32,7 +32,7 @@ def test_the_cheapest_step_breaks_the_path():
 
 
 def test_the_scan_reports_the_paths_of_each_device(seeded_adaptive_db):
-    cisco = (Path(__file__).resolve().parents[2] / "demo-sih" / "cisco_edge_vulnerable.cfg").read_bytes()
+    cisco = (Path(__file__).resolve().parents[2] / "backend" / "tests" / "fixtures" / "demo" / "cisco_edge_vulnerable.cfg").read_bytes()
     with patch("app.api.routes.scan.interpret_lines", MagicMock(return_value=[])), \
          patch("app.api.routes.scan.is_available", return_value=False):
         scan = TestClient(app).post("/api/scan", files=[("files", ("c.cfg", cisco, "text/plain"))]).json()
@@ -47,7 +47,7 @@ def test_the_pdf_report_explains_each_path(seeded_adaptive_db):
     from app.api.routes.scan import build_scan_response
     from app.reporting.report import report_blocks, report_text
 
-    cisco = (Path(__file__).resolve().parents[2] / "demo-sih" / "cisco_edge_vulnerable.cfg").read_bytes()
+    cisco = (Path(__file__).resolve().parents[2] / "backend" / "tests" / "fixtures" / "demo" / "cisco_edge_vulnerable.cfg").read_bytes()
     with patch("app.api.routes.scan.interpret_lines", MagicMock(return_value=[])), \
          patch("app.api.routes.scan.is_available", return_value=False):
         scan_id = TestClient(app).post("/api/scan", files=[("files", ("c.cfg", cisco, "text/plain"))]).json()["scan_id"]
@@ -58,7 +58,7 @@ def test_the_pdf_report_explains_each_path(seeded_adaptive_db):
 
 
 def test_each_device_carries_its_own_posture(seeded_adaptive_db):
-    root = Path(__file__).resolve().parents[2] / "demo-sih"
+    root = Path(__file__).resolve().parents[2] / "backend" / "tests" / "fixtures" / "demo"
     files = [("files", (n, (root / n).read_bytes(), "text/plain"))
              for n in ("cisco_edge_vulnerable.cfg", "paloalto_fw_vulnerable.cfg")]
     with patch("app.api.routes.scan.interpret_lines", MagicMock(return_value=[])), \
@@ -73,7 +73,7 @@ def test_the_executive_summary_is_short_and_leads_with_what_to_do(seeded_adaptiv
     from app.api.routes.scan import build_scan_response
     from app.reporting.report import executive_blocks, report_blocks, report_text
 
-    cisco = (Path(__file__).resolve().parents[2] / "demo-sih" / "cisco_edge_vulnerable.cfg").read_bytes()
+    cisco = (Path(__file__).resolve().parents[2] / "backend" / "tests" / "fixtures" / "demo" / "cisco_edge_vulnerable.cfg").read_bytes()
     client = TestClient(app)
     with patch("app.api.routes.scan.interpret_lines", MagicMock(return_value=[])), \
          patch("app.api.routes.scan.is_available", return_value=False):

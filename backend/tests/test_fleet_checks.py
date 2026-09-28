@@ -7,7 +7,7 @@ from types import SimpleNamespace as NS
 from app.analysis.fleet_checks import fleet_findings
 from app.api.routes.scan import run_scan
 
-DEMO = Path(__file__).resolve().parents[2] / "demo-sih"
+DEMO = Path(__file__).resolve().parents[2] / "backend" / "tests" / "fixtures" / "demo"
 
 
 def _fact(predicate, value, assurance="parser", lines=(1,)):

@@ -40,9 +40,23 @@ NetAuditAI only ever **reads** a device, and never executes a change on one.
 
 ## Status
 
-Working hackathon prototype. Backend: 1644 tests passed, 2 live-AI tests skipped (`pytest -n auto` runs them in
+Working hackathon prototype. Backend: 1648 tests passed, 2 live-AI tests skipped (`pytest -n auto` runs them in
 parallel). Frontend: 151 tests passed, production build OK. One end-to-end browser test walks the demo path
 (`cd frontend && npm run e2e`).
+
+## Demo
+
+Three files in [demo-sih/](demo-sih/README.md), each going from a bad first scan to **posture 100 with 0 problems**
+after the corrected file is rescanned (pinned by `backend/tests/test_demo_fix_to_100.py`):
+
+| File | First scan | Fixed by |
+|---|---|---|
+| `cisco_oneclick.cfg` | posture 41, 15 problems | NetAuditAI alone, one click, no input |
+| `paloalto_ai_human.cfg` | posture 30, 10 problems | 5 by NetAuditAI (seed write-back), 5 by an AI-drafted or typed command, each verified |
+| `unknown_vendor.cfg` | no score, 3 suspected problems | teach 3 lines in Adaptive learning, then 3 verified commands |
+
+The video script is [docs/demo-video.md](docs/demo-video.md); the judge walkthrough is [docs/demo.md](docs/demo.md).
+The earlier demo configurations used by the tests and the benchmark are in `backend/tests/fixtures/demo/`.
 
 ## Measured accuracy
 
@@ -133,7 +147,10 @@ re-evaluates every control. A verified candidate means *the finding is gone from
 (typically `FAIL → NOT_CONFIGURED` -absence is never a PASS). It does not mean the command is safe to run
 on the device, and it changes no posture, coverage, finding or download until the device itself is changed
 and scanned again. NetAuditAI performs detection, candidate remediation, verification and human
-confirmation; it does **not** execute commands on physical devices.
+confirmation; it does **not** execute commands on physical devices. When a candidate is rejected, the AI can be
+asked again, and it is told the rejected command and why it failed (the command redacted like the configuration).
+A command a reviewed recognizer reads (`set … login-banner …`) is applied to the copy instead, and must make the
+check pass.
 
 ## Reading the results
 
@@ -220,7 +237,7 @@ Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `fr
 
 ```bash
 cd backend
-venv\Scripts\python -m pytest tests -q -n auto   # 1644 passed, 2 skipped (live AI, needs NETAUDIT_LIVE_AI=1)
+venv\Scripts\python -m pytest tests -q -n auto   # 1648 passed, 2 skipped (live AI, needs NETAUDIT_LIVE_AI=1)
 
 cd frontend
 npm test                                    # 151 passed
@@ -254,7 +271,7 @@ A line holding a secret (password, key, community string) is never stored as a m
 - Redaction is pattern-based: a secret behind an unlisted keyword could still reach the AI.
 - The AI judge escalates only unknown / unverified vendors; UNKNOWN controls of confirmed vendors are not sent to AI.
 - Scan results live in memory; recognizer replay only checks scans held by the running backend. A candidate remediation lives in its scan only and is never persisted as knowledge.
-- A candidate can only be verified when it explicitly removes or switches off the lines the finding cites; anything else is kept for review as unverified.
+- A candidate can only be verified when it explicitly removes or switches off the lines the finding cites, or when a reviewed recognizer reads every line of it; anything else (for example adding a user and deleting `admin` in one command) is kept for review as unverified.
 - Framework views cover NIST SP 800-53 Rev. 5, verified CIS items, the DISA Network Device Management SRG and ISO/IEC 27001:2022 Annex A (no PCI DSS or CIS Controls v8 mappings).
 - `/api/assistant/status` reports AI available whenever a key is configured, even if the quota is used up.
 - Live collection **reads** a device (one SSH session, read-only commands, credentials never stored) and is bounded to private address space by default. No command, generated or proposed, is ever executed on a device.
@@ -273,5 +290,6 @@ A line holding a secret (password, key, community string) is never stored as a m
 | [docs/detection-rules.md](docs/detection-rules.md) | The 23 controls, per-vendor facts and remediation |
 | [docs/data-model.md](docs/data-model.md) | Core objects |
 | [docs/seed-knowledge.md](docs/seed-knowledge.md) | Shipped recognizers: what they are, how they load, how to add one |
-| [docs/demo.md](docs/demo.md) | SIH demo script |
+| [docs/demo.md](docs/demo.md) | SIH demo script: the two-minute judge path and the full walkthrough |
+| [docs/demo-video.md](docs/demo-video.md) | Demo video script: the three fix-to-100 files, scene by scene |
 | [docs/setup.md](docs/setup.md), [docs/testing.md](docs/testing.md), [docs/deployment.md](docs/deployment.md) | Running and testing |

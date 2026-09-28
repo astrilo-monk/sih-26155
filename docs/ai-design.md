@@ -64,6 +64,10 @@ button:
    uploaded configuration -only after deterministic verification passes; the AI never produces a file.
 4. **Unavailable** -no key, no quota, a failed call or an unusable answer returns `503` with the reason; the manual
    path stays open. Nothing is invented on the AI's behalf.
+5. **Retry after a rejection** -when the candidate for that control was rejected (by verification or by a person),
+   the Fix page offers *Ask AI for a command* again, and the prompt adds the rejected command and the reason it
+   failed, asking for a different command. The rejected command is redacted line by line first, because a typed
+   command can hold a secret the configuration never had.
 
 ## 4. Legacy Line Interpretation (confirmed vendors, opt-in)
 

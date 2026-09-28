@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from app import ledger
 from app.main import app
 
-CISCO = (Path(__file__).resolve().parents[2] / "demo-sih" / "cisco_edge_vulnerable.cfg").read_bytes()
+CISCO = (Path(__file__).resolve().parents[2] / "backend" / "tests" / "fixtures" / "demo" / "cisco_edge_vulnerable.cfg").read_bytes()
 
 
 def _scan(client):

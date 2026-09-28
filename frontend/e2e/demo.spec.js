@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const demo = (name) => fileURLToPath(new URL(`../../demo-sih/${name}`, import.meta.url));
+const demo = (name) => fileURLToPath(new URL(`../../backend/tests/fixtures/demo/${name}`, import.meta.url));
 const FILES = ['cisco_edge_vulnerable.cfg', 'paloalto_fw_vulnerable.cfg', 'juniper_edge_braces.conf', 'aws_edge.tf'];
 
 test('scan four dialects, follow a proved attack path, see CVE context, verify a report', async ({ page }, info) => {

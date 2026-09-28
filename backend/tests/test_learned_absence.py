@@ -53,7 +53,7 @@ def test_a_missing_setting_is_added_in_the_dialects_own_syntax_and_verified(seed
     from app.remediation.recipes import parse_inputs
     from app.remediation.writeback import writeback_control
 
-    pan = (pathlib.Path(__file__).parents[2] / "demo-sih" / "paloalto_fw_vulnerable.cfg").read_text(encoding="utf-8")
+    pan = (pathlib.Path(__file__).parents[2] / "backend" / "tests" / "fixtures" / "demo" / "paloalto_fw_vulnerable.cfg").read_text(encoding="utf-8")
     asked, _ = writeback_control(pan, "LOG-001", {})
     assert asked.status == RemediationStatus.NEEDS_INPUT and asked.missing_inputs == ["syslog_server"]
     inputs, _ = parse_inputs({"syslog_server": "10.20.0.5", "banner_text": "Authorized access only.  Activity is monitored."})

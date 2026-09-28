@@ -9,8 +9,8 @@ Shipped knowledge only, no AI. A miss means the engine called an insecure settin
 
 | File | Vendor path | Detected | Suspected | Undecided | Missed | False alarms | Time |
 |---|---|---|---|---|---|---|---|
-| `demo-sih/cisco_edge_vulnerable.cfg` | cisco_ios | 10/10 | 0 | 0 | 0 | 0 | 1049 ms |
-| `demo-sih/paloalto_fw_vulnerable.cfg` | unknown | 8/10 | 2 | 0 | 0 | 0 | 3339 ms |
+| `backend/tests/fixtures/demo/cisco_edge_vulnerable.cfg` | cisco_ios | 10/10 | 0 | 0 | 0 | 0 | 1049 ms |
+| `backend/tests/fixtures/demo/paloalto_fw_vulnerable.cfg` | unknown | 8/10 | 2 | 0 | 0 | 0 | 3339 ms |
 
 Not detected as a decided FAIL:
 

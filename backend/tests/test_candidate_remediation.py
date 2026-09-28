@@ -329,6 +329,25 @@ def test_api_rejecting_a_candidate_changes_nothing():
     assert client.post("/api/download-fixed", json={"scan_id": scan["scan_id"]}).status_code == 409
 
 
+def test_api_asking_ai_after_a_rejection_tells_it_what_failed():
+    client = TestClient(app)
+    scan, body = _taught_juniper_scan(client)
+    client.post("/api/remediation/candidate", json={**body, "command": "set x password Hunter2Typed"})
+    client.post("/api/remediation/candidate/reject", json={**body, "reason": "we disable the port instead"})
+    seen = {}
+
+    def capture(**kwargs):
+        seen.update(kwargs)
+        return _ai_answer("delete system services telnet;")
+
+    with patch.object(ai_rem, "request_structured", side_effect=capture), \
+         patch("app.api.routes.remediation.is_available", return_value=True):
+        item = client.post("/api/remediation/candidate/generate", json=body).json()
+    assert "REJECTED" in seen["prompt"] and "we disable the port instead" in seen["prompt"]
+    assert "Hunter2Typed" not in seen["prompt"]  # a typed command is redacted like the configuration
+    assert item["source"] == "ai" and item["status"] == "draft"
+
+
 def test_api_unknown_control_device_and_missing_candidate_are_refused():
     client = TestClient(app)
     scan, body = _taught_juniper_scan(client)

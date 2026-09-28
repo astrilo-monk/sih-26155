@@ -578,7 +578,7 @@ def test_a_security_group_marks_what_it_cannot_have_as_not_applicable(seeded_ada
     assert _result(scan, "BOUNDARY-001")["status"] == "fail" and _result(scan, "MGMT-003")["status"] == "fail"
 
 
-PAN_DEMO = (Path(__file__).resolve().parents[2] / "demo-sih" / "paloalto_fw_vulnerable.cfg").read_text(encoding="utf-8")
+PAN_DEMO = (Path(__file__).resolve().parents[2] / "backend" / "tests" / "fixtures" / "demo" / "paloalto_fw_vulnerable.cfg").read_text(encoding="utf-8")
 
 
 def test_lldp_on_an_interface_an_external_zone_holds_is_decided_and_cites_the_zone(seeded_adaptive_db):

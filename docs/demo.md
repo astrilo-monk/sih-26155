@@ -1,5 +1,8 @@
 # Demo Script (SIH)
 
+For the recorded video, use [demo-video.md](demo-video.md): three files in `demo-sih/`, each fixed to posture 100.
+The two-minute judge path below uses the earlier demo configurations, now in `backend/tests/fixtures/demo/`.
+
 ## The 2-minute judge path
 
 Four files in one scan: a parser-read Cisco router, and three dialects with no parser at all (PAN-OS, brace-style
@@ -8,7 +11,7 @@ Junos, Terraform). Machine seconds are measured by the automated browser test th
 
 | # | Step | Machine (measured) | Talk (budget) |
 |---|---|---|---|
-| 1 | **New scan:** add `demo-sih/cisco_edge_vulnerable.cfg`, `paloalto_fw_vulnerable.cfg`, `juniper_edge_braces.conf` and `aws_edge.tf` together, set *How important is this device?* to **High**, tick **faces the internet**, **Start scan**. Overview: risk **CRITICAL**, *Across 4 devices*, "the same SNMP community string is used on 2 devices". | 9.7 s | 15 s |
+| 1 | **New scan:** add `backend/tests/fixtures/demo/cisco_edge_vulnerable.cfg`, `paloalto_fw_vulnerable.cfg`, `juniper_edge_braces.conf` and `aws_edge.tf` together, set *How important is this device?* to **High**, tick **faces the internet**, **Start scan**. Overview: risk **CRITICAL**, *Across 4 devices*, "the same SNMP community string is used on 2 devices". | 9.7 s | 15 s |
 | 2 | **Compare the devices field by field:** Cisco (parser), PAN-OS and Junos (shipped knowledge) and Terraform land in the *same* vendor-neutral fields from completely different syntax. | 13.1 s | 10 s |
 | 3 | **Devices:** each platform as it was read. The Cisco router states IOS-XE 16.9: *Known CVEs for 16.9*, 4 critical and 72 high in NVD, top five linked, with the caveat "context, not an assessment" (offline cache). | 0.1 s | 15 s |
 | 4 | **Attack paths:** "Remote takeover through the management plane": reach the login → capture the password → log in as admin, every step citing its line; "Break it: fix MGMT-003". Under it: *each path and its fix were checked against a positive and a negative configuration (commit …)*. | 0.1 s | 20 s |
@@ -51,7 +54,7 @@ is not empty for long: the shipped seed recognizers load into it on first use, w
    controls are answered decisively out of the box (Telnet, HTTP management, session timeout, remote syslog, NTP),
    coverage is above 0, and every one cites a real line. AAA stays `NOT_CONFIGURED` rather than being guessed:
    nobody taught how Huawei writes an AAA server, so its absence is not read as a missing setting. (On
-   `demo-sih/paloalto_fw_vulnerable.cfg`, where PAN-OS knowledge does know it, the missing AAA server, syslog server
+   `backend/tests/fixtures/demo/paloalto_fw_vulnerable.cfg`, where PAN-OS knowledge does know it, the missing AAA server, syslog server
    and banner are decided FAILs that say how PAN-OS would write them; **Fix** asks for the syslog server and banner
    text and adds those lines.) Now **teach** the SSH-version line under **Adaptive learning**: the taught recognizer and the shipped ones are used
    side by side on the rescan. See [seed-knowledge.md](seed-knowledge.md).

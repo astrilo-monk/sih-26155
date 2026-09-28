@@ -14,7 +14,7 @@ from app.remediation.writeback import writeback_control
 
 REPO = pathlib.Path(__file__).parents[2]
 # a full IOS configuration the detector confirms; it has 'username admin' and no lockout or length rule
-IOS = (REPO / "demo-sih" / "cisco_edge_vulnerable.cfg").read_text(encoding="utf-8")
+IOS = (REPO / "backend" / "tests" / "fixtures" / "demo" / "cisco_edge_vulnerable.cfg").read_text(encoding="utf-8")
 FORTI = (REPO / "sample" / "frontinet" / "04_fortigate_vulnerable.cfg").read_text(encoding="utf-8")
 
 

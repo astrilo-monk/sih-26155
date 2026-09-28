@@ -10,7 +10,7 @@ from app.models.results import Assurance, Status
 from app.remediation.engine import RemediationStatus, analyze_generic_text, analyze_text, remediate_control
 
 REPO = pathlib.Path(__file__).parents[2]
-IOS = (REPO / "demo-sih" / "cisco_edge_vulnerable.cfg").read_text(encoding="utf-8")
+IOS = (REPO / "backend" / "tests" / "fixtures" / "demo" / "cisco_edge_vulnerable.cfg").read_text(encoding="utf-8")
 FORTI = (REPO / "sample" / "frontinet" / "04_fortigate_vulnerable.cfg").read_text(encoding="utf-8")
 HARDEN = " no ip redirects\n no ip proxy-arp"
 

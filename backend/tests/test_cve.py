@@ -66,7 +66,7 @@ def _without_context(scan: dict) -> dict:
 
 
 def test_scores_and_findings_are_identical_with_and_without_the_cache(seeded_adaptive_db, cache):
-    text = (ROOT / "demo-sih" / "cisco_edge_vulnerable.cfg").read_text(encoding="utf-8")  # states version 16.9
+    text = (ROOT / "backend" / "tests" / "fixtures" / "demo" / "cisco_edge_vulnerable.cfg").read_text(encoding="utf-8")  # states version 16.9
     cache(CACHE)
     with_cache = _scan(text)
     cache("{broken")

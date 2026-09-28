@@ -28,7 +28,7 @@ def test_the_formula_adds_exposure_and_paths_and_scales_by_criticality():
 
 
 def test_upload_context_reaches_each_device(seeded_adaptive_db):
-    cisco = (Path(__file__).resolve().parents[2] / "demo-sih" / "cisco_edge_vulnerable.cfg").read_bytes()
+    cisco = (Path(__file__).resolve().parents[2] / "backend" / "tests" / "fixtures" / "demo" / "cisco_edge_vulnerable.cfg").read_bytes()
     client = TestClient(app)
     with patch("app.api.routes.scan.interpret_lines", MagicMock(return_value=[])), \
          patch("app.api.routes.scan.is_available", return_value=False):

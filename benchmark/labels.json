@@ -1,11 +1,11 @@
 {
-  "_README": "Ground truth for backend/scripts/benchmark.py. 'planted' labels were written together with the demo files (demo-sih/README.md), before any scan; they are the headline set. 'fixtures' labels were written by reading each teach/ file: only settings the file clearly states are labelled, and every setting left out on purpose is listed under 'excluded' with the reason. fail = the check must fail, pass = the check must pass.",
+  "_README": "Ground truth for backend/scripts/benchmark.py. 'planted' labels were written together with the demo files (backend/tests/fixtures/demo/README.md), before any scan; they are the headline set. 'fixtures' labels were written by reading each teach/ file: only settings the file clearly states are labelled, and every setting left out on purpose is listed under 'excluded' with the reason. fail = the check must fail, pass = the check must pass.",
   "planted": {
-    "demo-sih/cisco_edge_vulnerable.cfg": {
+    "backend/tests/fixtures/demo/cisco_edge_vulnerable.cfg": {
       "fail": ["MGMT-001", "MGMT-002", "MGMT-003", "MGMT-004", "MGMT-005", "MGMT-006", "MGMT-007", "MGMT-008", "BOUNDARY-001", "BOUNDARY-002"],
       "pass": ["MGMT-009", "BOUNDARY-003", "LOG-001", "LOG-002"]
     },
-    "demo-sih/paloalto_fw_vulnerable.cfg": {
+    "backend/tests/fixtures/demo/paloalto_fw_vulnerable.cfg": {
       "fail": ["MGMT-001", "MGMT-002", "MGMT-003", "MGMT-004", "MGMT-006", "MGMT-007", "BOUNDARY-001", "LOG-002", "CRYPTO-001", "BOUNDARY-003"],
       "pass": []
     }

@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def _scan(name):
-    text = (ROOT / "demo-sih" / name).read_bytes()
+    text = (ROOT / "backend" / "tests" / "fixtures" / "demo" / name).read_bytes()
     with patch("app.api.routes.scan.interpret_lines", MagicMock(return_value=[])), \
          patch("app.api.routes.scan.is_available", return_value=False):
         return TestClient(app).post("/api/scan", files=[("files", (name, text, "text/plain"))]).json()

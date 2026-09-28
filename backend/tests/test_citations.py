@@ -23,7 +23,7 @@ from app.structure.structured import flatten_json
 
 ROOT = Path(__file__).resolve().parents[2]
 LABELS = json.loads((ROOT / "benchmark" / "labels.json").read_text(encoding="utf-8"))
-FILES = sorted({*LABELS["planted"], *LABELS["fixtures"], *(f"demo-sih/{p.name}" for p in (ROOT / "demo-sih").glob("*.cfg"))})
+FILES = sorted({*LABELS["planted"], *LABELS["fixtures"], *(f"backend/tests/fixtures/demo/{p.name}" for p in (ROOT / "backend" / "tests" / "fixtures" / "demo").glob("*.cfg"))})
 
 DECISIVE = {"parser", "confirmed", "default"}
 WEIGHTS = {"critical": 10, "high": 6, "medium": 3, "low": 1}
@@ -119,7 +119,7 @@ def test_every_citation_is_in_the_uploaded_file(seeded_adaptive_db, name):
 
 
 def test_a_fleet_scan_cites_each_device_in_its_own_file(seeded_adaptive_db):
-    names = [f"demo-sih/{p.name}" for p in sorted((ROOT / "demo-sih").glob("*.cfg"))]
+    names = [f"backend/tests/fixtures/demo/{p.name}" for p in sorted((ROOT / "backend" / "tests" / "fixtures" / "demo").glob("*.cfg"))]
     scan = _scan([(Path(n).name, (ROOT / n).read_text(encoding="utf-8")) for n in names])
     for index, name in enumerate(names):
         own = {**scan, "results": [r for r in scan["results"] if r["config_index"] == index],

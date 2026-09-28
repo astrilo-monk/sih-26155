@@ -213,6 +213,11 @@ export function CandidateFix({ item, audit }) {
             <button type="button" className="btn btn-quiet" onClick={openEditor} disabled={!!busy}>
               {candidate.status === 'confirmed' || candidate.status === 'rejected' ? 'Propose another command' : 'Edit'}
             </button>
+            {candidate.status === 'rejected' && (
+              <button type="button" className="btn btn-quiet" onClick={() => step('generate')} disabled={!!busy}>
+                {busy === 'generate' ? 'Asking AI…' : 'Ask AI for a command'}
+              </button>
+            )}
             {awaiting && (
               <button type="button" className="btn btn-quiet" onClick={() => step('reject')} disabled={!!busy}>Reject</button>
             )}

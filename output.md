@@ -21,7 +21,7 @@ scanned through the website, run locally.
 - The local knowledge database was used as it is.
 - AI was **available** (Groq, a key configured outside `backend/.env`), so AI could add proposals, but a proposal never changes a decided result.
 
-### 2.1 `demo-sih/cisco_edge_vulnerable.cfg`: Cisco IOS-XE, dedicated parser
+### 2.1 `backend/tests/fixtures/demo/cisco_edge_vulnerable.cfg`: Cisco IOS-XE, dedicated parser
 
 | | |
 |---|---|
@@ -55,7 +55,7 @@ Decided FAILs and the lines they cite:
 
 Passed: BOUNDARY-003, LOG-001, LOG-002, MGMT-009.
 
-### 2.2 `demo-sih/juniper_edge_braces.conf`: brace-style Junos, no parser
+### 2.2 `backend/tests/fixtures/demo/juniper_edge_braces.conf`: brace-style Junos, no parser
 
 | | |
 |---|---|
@@ -74,7 +74,7 @@ Passed: BOUNDARY-003, LOG-001, LOG-002, MGMT-009.
   - MGMT-005: the password is a `$6$` hash;
   - MGMT-007: SSH version 2.
 
-### 2.3 `demo-sih/aws_edge.tf`: Terraform (AWS), no parser
+### 2.3 `backend/tests/fixtures/demo/aws_edge.tf`: Terraform (AWS), no parser
 
 | | |
 |---|---|

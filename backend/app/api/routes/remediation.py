@@ -402,12 +402,16 @@ async def generate_candidate(req: RemediationCandidateRequest):
     config = stored["configs"][index]
     fails = _fails(stored, index, req.rule_id)
     identification = (stored.get("identifications") or [None] * (index + 1))[index]
+    # a retry after a rejection tells the AI what failed, so it does not propose the same command again
+    last = _candidates(stored).get(f"{index}-{req.rule_id}")
+    rejected = (last.command, last.reason) if last and last.status == cand.CandidateStatus.REJECTED else None
     proposal, detail = propose_candidate(
         CONTROLS[req.rule_id], config.raw_lines,
         sorted({n for r in fails for n in r.evidence.line_numbers}),
         recommendation=next((r.failure.recommendation for r in fails if r.failure), ""),
         vendor_status=identification.status if identification is not None else "unknown",
         detected_vendor=identification.detected_vendor.value if identification is not None else "unknown",
+        rejected=rejected,
     )
     if proposal is None:
         raise HTTPException(503, f"No candidate could be generated for {req.rule_id} ({detail}). "

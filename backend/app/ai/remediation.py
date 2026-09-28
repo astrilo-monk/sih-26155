@@ -86,7 +86,11 @@ class AIProposal:
 
 
 def _prompt(control: Control, recommendation: str, vendor_status: str, detected_vendor: str,
-            scopes: list[str], excerpt: list[str]) -> str:
+            scopes: list[str], excerpt: list[str], rejected: tuple[str, str] | None = None) -> str:
+    retry = ""
+    if rejected:
+        retry = (f"- a previous candidate was REJECTED; propose a different command. Rejected: {rejected[0]!r}. "
+                 f"Why: {rejected[1][:400]}\n")
     return (
         f"FINDING\n- control: {control.control_id} -{control.title}\n"
         f"- question the auditor asks: {control.question}\n"
@@ -94,7 +98,8 @@ def _prompt(control: Control, recommendation: str, vendor_status: str, detected_
         f"- device vendor detection: {vendor_status}"
         + (f" (the syntax resembles {detected_vendor}, unverified -this is evidence only, "
            "not a confirmed platform)" if detected_vendor and detected_vendor != "unknown" else "")
-        + f"\n- block path of the failing lines: {' | '.join(scopes) or 'top level'}\n\n"
+        + f"\n- block path of the failing lines: {' | '.join(scopes) or 'top level'}\n"
+        + retry + "\n"
         "CONFIGURATION EXCERPT (secrets redacted; the cited failing lines are marked >>)\n"
         + fence(excerpt)
     )
@@ -102,7 +107,8 @@ def _prompt(control: Control, recommendation: str, vendor_status: str, detected_
 
 def propose_candidate(control: Control, raw_lines: list[str], evidence_lines: list[int],
                       recommendation: str = "", vendor_status: str = "unknown",
-                      detected_vendor: str = "unknown") -> tuple[Optional[AIProposal], str]:
+                      detected_vendor: str = "unknown",
+                      rejected: tuple[str, str] | None = None) -> tuple[Optional[AIProposal], str]:
     """Ask for one candidate command. Returns the proposal, or None and a short failure detail."""
     if not evidence_lines:
         return None, "the finding cites no configuration line to change"
@@ -119,7 +125,10 @@ def propose_candidate(control: Control, raw_lines: list[str], evidence_lines: li
     shown = dict(zip(numbers, redactor.scrub("\n".join(redacted[n - 1] for n in numbers)).split("\n")))
     excerpt = [f"{'>>' if n in cited else '  '} {shown[n]}" for n in numbers]
     scopes = list(dict.fromkeys(" > ".join(statements[n].scope_path) for n in cited))
-    prompt = redactor.scrub(_prompt(control, recommendation, vendor_status, detected_vendor, scopes, excerpt))
+    if rejected:  # a typed command may hold a secret the configuration never had: redact it line by line
+        rejected = ("\n".join(redactor.line(t) for t in rejected[0].splitlines()), rejected[1])
+    prompt =redactor.scrub(_prompt(control, recommendation, vendor_status, detected_vendor, scopes, excerpt,
+                                    rejected))
 
     try:
         response = request_structured(
