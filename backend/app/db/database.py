@@ -190,6 +190,17 @@ PG_MIGRATIONS: list[str] = [
     ALTER TABLE rejected_lines DROP CONSTRAINT IF EXISTS rejected_lines_line_key_key;
     CREATE UNIQUE INDEX IF NOT EXISTS ux_rejected_lines_owner ON rejected_lines (owner_id, line_key);
     """,
+    # Postgres only: the browser holds the Supabase anon key (sign-in), and with it anyone could read these tables
+    # through Supabase's REST API. Row level security with no policy shuts that door; the backend connects as the
+    # tables' owner, which RLS does not apply to.
+    """
+    ALTER TABLE learned_mappings ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE rejected_lines ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE ai_judge_cache ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE scans ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE ledger ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE schema_version ENABLE ROW LEVEL SECURITY;
+    """,
 ]
 
 

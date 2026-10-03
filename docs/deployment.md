@@ -43,6 +43,11 @@ If we were to take this to production:
    (Authentication > Users) and run in the SQL editor:
    `UPDATE learned_mappings SET owner_id = 'user:<your id>' WHERE owner_id = '' AND source = 'runtime';`
 
+The Postgres migrations also switch on row level security for every table the backend creates, because the anon key
+is public: without it anyone could read them through `https://<project>.supabase.co/rest/v1/`. Check it with
+`curl "https://<project>.supabase.co/rest/v1/learned_mappings?select=*" -H "apikey: <anon key>"`, which must answer
+`[]` (or a permission error), never rows.
+
 A guest's taught knowledge goes to the SQLite file on the backend's own disk. On Render's free tier that disk is
 wiped when the service spins down after 15 minutes without traffic, or on any redeploy.
 
