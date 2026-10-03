@@ -255,8 +255,10 @@ def _pg_pool(url: str):
 
         # prepare_threshold=None: Supabase's transaction pooler cannot hold prepared statements.
         # check: a connection the server dropped while idle is replaced instead of failing a request.
+        # timeout: a database that refuses us (wrong password, quota) must fail a request in seconds, not the
+        # default 30: these calls block the event loop, so a long wait stalls every request, /health included
         _POOLS[url] = ConnectionPool(
-            url, min_size=1, max_size=4, open=True, check=ConnectionPool.check_connection,
+            url, min_size=1, max_size=4, open=True, timeout=5, check=ConnectionPool.check_connection,
             kwargs={"row_factory": dict_row, "prepare_threshold": None, "connect_timeout": 10},
         )
     return _POOLS[url]
