@@ -45,16 +45,44 @@ def load_scan(scan_id: str) -> Optional[tuple[dict, list[dict]]]:
     return (json.loads(row["response"]), json.loads(row["plans"])) if row else None
 
 
-def earlier_scans(before: str, exclude: str, limit: int = 200) -> list[dict]:
-    """Archived scan responses created before ``before`` (ISO time), newest first, without ``exclude``."""
-    # ponytail: reads the last `limit` responses whole; index hostnames in a column if the archive grows large
+def scan_exists(scan_id: str) -> bool:
+    """Whether the archive holds this scan. Reads one value, not the scan: history asks this of every entry."""
     try:
         with get_connection() as conn:
-            rows = conn.execute(
-                "SELECT response FROM scans WHERE created_at < ? AND scan_id <> ? ORDER BY created_at DESC LIMIT ?",
-                (before, exclude, limit),
-            ).fetchall()
+            return conn.execute("SELECT 1 FROM scans WHERE scan_id = ?", (scan_id,)).fetchone() is not None
+    except Exception as e:
+        logger.warning("Scan archive unavailable: %s", e)
+        return False
+
+
+def _contains(key: str, value) -> str:
+    """A LIKE pattern for ``"key": value`` as ``json.dumps`` writes it in a stored response."""
+    text = f'"{key}": {json.dumps(value)}'
+    # "!" escapes: a backslash means different things to SQLite and Postgres LIKE
+    return "%" + text.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%"
+
+
+def earlier_scans(before: str, exclude: str, devices: list[dict], per_device: int = 3) -> list[dict]:
+    """Archived scan responses created before ``before`` (ISO time) that may hold one of ``devices`` (same hostname
+    and vendor), newest first, without ``exclude``.
+
+    The database filters on the stored text, so only a few candidates per device leave it instead of the whole
+    archive: on a hosted database every byte read is egress. Callers still match each device exactly.
+    """
+    found: dict[str, tuple[str, str]] = {}
+    try:
+        with get_connection() as conn:
+            for device in devices:
+                rows = conn.execute(
+                    "SELECT scan_id, created_at, response FROM scans WHERE created_at < ? AND scan_id <> ? "
+                    "AND response LIKE ? ESCAPE '!' AND response LIKE ? ESCAPE '!' "
+                    "ORDER BY created_at DESC LIMIT ?",
+                    (before, exclude, _contains("hostname", device.get("hostname")),
+                     _contains("vendor", device.get("vendor")), per_device),
+                ).fetchall()
+                for row in rows:
+                    found.setdefault(row["scan_id"], (row["created_at"], row["response"]))
     except Exception as e:
         logger.warning("Scan archive unavailable: %s", e)
         return []
-    return [json.loads(row["response"]) for row in rows]
+    return [json.loads(response) for _, response in sorted(found.values(), reverse=True)]
