@@ -31,6 +31,8 @@ def isolated_adaptive_db(tmp_path, monkeypatch):
     monkeypatch.setattr(app_config.settings, "api_key", "")
     # nor dev Supabase settings switch accounts on: tests about accounts turn them on themselves
     monkeypatch.setattr(app_config.settings, "supabase_url", "")
+    # archives run after the response in production; tests check them straight away
+    monkeypatch.setattr("app.api.routes.scan.ARCHIVE_INLINE", True)
     # marking the path as already seeded is what keeps the shipped recognizers out
     monkeypatch.setattr(database, "_SEEDED", {db_path})
     yield db_path
