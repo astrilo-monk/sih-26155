@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 from app.api.routes import scan, remediation, assistant, adaptive, report, collect, ledger
 from app import config as app_config
+from app import auth
 from app.config import settings
 
 app = FastAPI(
@@ -34,7 +35,8 @@ def require_api_key(key: str | None = Security(APIKeyHeader(name="X-API-Key", au
         raise HTTPException(401, "Missing or invalid API key")
 
 
-api = [Depends(require_api_key)]
+api = [Depends(require_api_key), Depends(auth.caller_scope)]
+app.include_router(auth.router, prefix="/api", tags=["account"], dependencies=[Depends(require_api_key)])
 app.include_router(scan.router, prefix="/api", tags=["scan"], dependencies=api)
 app.include_router(remediation.router, prefix="/api", tags=["remediation"], dependencies=api)
 app.include_router(assistant.router, prefix="/api", tags=["assistant"], dependencies=api)

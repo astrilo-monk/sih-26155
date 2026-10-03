@@ -93,9 +93,15 @@ a pivot into whatever network the backend can see.
 ## Not protected (prototype)
 
 * Access control is one optional shared key: with `API_KEY` set, every `/api` route (not `/health`) requires a
-  matching `X-API-Key` header, compared in constant time (`app/main.py`, `test_api_key.py`). There are no users or
-  roles, and by default the key is empty, so anyone who reaches the API can confirm recognizers or download
-  remediated configurations. CORS allows every origin unless `CORS_ORIGINS` narrows it.
+  matching `X-API-Key` header, compared in constant time (`app/main.py`, `test_api_key.py`). There are no roles, and
+  by default the key is empty, so anyone who reaches the API can scan or download remediated configurations. CORS
+  allows every origin unless `CORS_ORIGINS` narrows it.
+* Accounts (`SUPABASE_URL`, `app/auth.py`, `test_accounts.py`) separate **taught knowledge** only: an account or a
+  guest browser reads its own recognizers, mappings and rejected lines plus the shared seeds, and cannot change
+  another's or the seeds. Without `SUPABASE_URL` everyone shares one store and anyone can list or stop what was
+  taught. Scans are not tied to accounts: a scan is reachable by anyone who has its random id, and the redacted
+  scan archive is shared. A guest id is a bearer secret kept in browser storage. A signed-out token stays accepted
+  for up to a minute (verification cache).
 * Redaction is pattern-based; a secret behind a keyword it does not know could reach the AI.
 * `POST /api/download-fixed` returns the real configuration, including its own secrets and the NTP key the
   operator typed. Response redaction uses the same pattern-based redactor, so an unknown secret syntax is not

@@ -97,6 +97,25 @@ MIGRATIONS: list[str] = [
     );
     CREATE INDEX IF NOT EXISTS idx_ledger_content ON ledger (content_hash);
     """,
+    # v7 -owner of learned knowledge (app.auth): '' = shared (seeds, a local install), 'user:<id>' = a signed-in
+    # account, 'guest:<id>' = one browser. A rejection is unique per owner, so the table is rebuilt.
+    """
+    ALTER TABLE learned_mappings ADD COLUMN owner_id TEXT NOT NULL DEFAULT '';
+    CREATE TABLE rejected_lines_v7 (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        owner_id    TEXT NOT NULL DEFAULT '',
+        line_key    TEXT NOT NULL,
+        raw_line    TEXT NOT NULL,
+        vendor      TEXT,
+        reason      TEXT,
+        created_at  TEXT NOT NULL,
+        UNIQUE (owner_id, line_key)
+    );
+    INSERT INTO rejected_lines_v7 (id, line_key, raw_line, vendor, reason, created_at)
+        SELECT id, line_key, raw_line, vendor, reason, created_at FROM rejected_lines;
+    DROP TABLE rejected_lines;
+    ALTER TABLE rejected_lines_v7 RENAME TO rejected_lines;
+    """,
 ]
 
 
@@ -163,6 +182,13 @@ PG_MIGRATIONS: list[str] = [
         hash         TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_ledger_content ON ledger (content_hash);
+    """,
+    # SQLite v7
+    """
+    ALTER TABLE learned_mappings ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT '';
+    ALTER TABLE rejected_lines ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT '';
+    ALTER TABLE rejected_lines DROP CONSTRAINT IF EXISTS rejected_lines_line_key_key;
+    CREATE UNIQUE INDEX IF NOT EXISTS ux_rejected_lines_owner ON rejected_lines (owner_id, line_key);
     """,
 ]
 

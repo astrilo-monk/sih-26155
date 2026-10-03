@@ -21,6 +21,8 @@ import Rules from './Rules';
 import { AttackPathsPage } from './AttackPaths';
 import FindingDrawer from './FindingDrawer';
 import LearningFlow from './LearningFlow';
+import { AccountBox, GuestNotice } from './Account';
+import { useAccount } from '../lib/account';
 import '../styles/app.css';
 
 export const SCAN_VIEWS = ['overview', 'fix', 'teach', 'checks', 'paths', 'devices', 'frameworks'];
@@ -111,6 +113,10 @@ export default function AppShell({ path }) {
   const [openError, setOpenError] = useState(null);
   const [openKey, setOpenKey] = useState(null);
   const [teachFocus, setTeachFocus] = useState(null);
+  const { user } = useAccount();
+
+  // test doubles of the client may leave it out
+  useEffect(() => { apiClient.startAccount?.(); }, []);
 
   const routeScanId = route.page === 'scan' ? route.scanId : null;
 
@@ -270,10 +276,13 @@ export default function AppShell({ path }) {
       <div className="app-body">
         <header className="appbar">
           <p className="appbar-title">Network security configuration analyzer</p>
-          <a className="btn btn-sm btn-outline" href="#/">Exit</a>
+          <div className="appbar-end">
+            <AccountBox />
+            <a className="btn btn-sm btn-outline" href="#/">Exit</a>
+          </div>
         </header>
 
-      <main id="main" tabIndex={-1} className="app-main" key={route.page === 'scan' ? route.view : route.page}>
+      <main id="main" tabIndex={-1} className="app-main" key={`${route.page === 'scan' ? route.view : route.page}:${user?.id ?? ''}`}>
         {route.page === 'new' && <Upload onScan={handleScan} onCollect={handleCollect} scanning={scanning}
                                         error={uploadError} currentScan={scan} />}
         {route.page === 'scan' && (current ? (
@@ -289,6 +298,7 @@ export default function AppShell({ path }) {
             {route.view !== 'overview' && <ProgressStrip scan={current} audit={audit} view={route.view} go={go} />}
             {route.view === 'overview' && <Results {...shared} go={go} onTeach={openTeach} />}
             {route.view === 'fix' && <Fix {...shared} onTeach={() => openTeach()} />}
+            {route.view === 'teach' && <div className="wrap"><GuestNotice /></div>}
             {route.view === 'teach' && <LearningFlow />}
             {route.view === 'teach' && (
               <Teach scan={current} audit={audit} focusKey={teachFocus} onScanUpdated={handleScanUpdated}

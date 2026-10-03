@@ -49,6 +49,12 @@ class Settings(BaseSettings):
     # wiped on restart. Empty = SQLite.
     database_url: str = ""
 
+    # Accounts (app.auth): a Supabase project's URL and its public anon key, never the service-role key. Set, each
+    # account keeps its own taught knowledge and a guest's lives only in the SQLite file above. Empty = no accounts,
+    # one shared store.
+    supabase_url: str = ""
+    supabase_anon_key: str = ""
+
     # LEGACY, isolated: send lines the Cisco/FortiGate parsers do not read to the line-by-line interpreter
     # (app.adaptive.interpreter). The Phase 7 judge never escalates confirmed vendors, so it cannot replace this
     # yet. Off by default; when on, every interpretation goes to the review queue and is never applied without

@@ -26,6 +26,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import re
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -69,7 +70,7 @@ EDITABLE_FIELDS = frozenset({
 _COLUMNS = (
     "concept", "normalized_field", "vendor", "command_pattern", "extraction_method", "expected_value_type",
     "constant_value", "confidence", "confirmed", "active", "example_line", "predicate", "subject",
-    "scope_template", "dialect_fingerprint", "negatives", "source",
+    "scope_template", "dialect_fingerprint", "negatives", "source", "owner_id",
 )
 
 SOURCE_RUNTIME = "runtime"
@@ -125,6 +126,8 @@ class LearnedMapping:
     negatives: list[str] = field(default_factory=list)
     # "runtime" = learned from an administrator, "seed" = shipped knowledge (app.facts.seed)
     source: str = SOURCE_RUNTIME
+    # who taught it (app.auth): "" = shared, "user:<id>" = an account, "guest:<id>" = one browser
+    owner_id: str = ""
 
 
 def _now() -> str:
@@ -154,6 +157,7 @@ def _row_to_mapping(row) -> LearnedMapping:
         dialect_fingerprint=row["dialect_fingerprint"],
         negatives=json.loads(row["negatives"] or "[]"),
         source=row["source"] or SOURCE_RUNTIME,
+        owner_id=row["owner_id"],
     )
 
 
@@ -277,12 +281,31 @@ def validate_mapping(mapping: LearnedMapping) -> LearnedMapping:
 # others stale until they restart -move to LISTEN/NOTIFY or a short TTL before scaling out.
 _PG_READS: dict[tuple, Any] = {}
 
+# Whose knowledge a repository reads and writes, and where: set once per request by ``app.auth``. The default
+# ("", None) is the shared store as a local install, the CLI and the seed loader see it.
+_SCOPE: ContextVar[tuple[str, Optional[Path]]] = ContextVar("mapping_scope", default=("", None))
+
+
+def use_scope(owner: str, db_path: Path | str | None = None) -> None:
+    """Make ``owner`` the caller of every repository built in this context; ``db_path`` forces a SQLite file."""
+    _SCOPE.set((owner, db_path))
+
 
 class MappingRepository:
     """Store of learned mappings and rejected lines (SQLite, or Postgres when DATABASE_URL is set)."""
 
-    def __init__(self, db_path: Path | str | None = None):
-        self._db_path = db_path
+    def __init__(self, db_path: Path | str | None = None, owner: Optional[str] = None):
+        # an explicit owner ignores the request scope altogether (the seed loader writes shared knowledge)
+        scope_owner, scope_path = _SCOPE.get() if owner is None else (owner, None)
+        self._owner = scope_owner
+        self._db_path = db_path if db_path is not None else scope_path
+
+    def _visible(self) -> tuple[str, tuple]:
+        """Rows this caller reads: its own, plus shared seed knowledge. Unscoped, every shared row (as before
+        accounts existed). Runtime rows taught before accounts stay hidden from everyone scoped."""
+        if not self._owner:
+            return "owner_id = ''", ()
+        return f"(owner_id = ? OR (owner_id = '' AND source = '{SOURCE_SEED}'))", (self._owner,)
 
     def _conn(self):
         return get_connection(self._db_path)
@@ -291,9 +314,10 @@ class MappingRepository:
         url = _database_url(self._db_path)
         if not url:
             return read()
-        if (url, key) not in _PG_READS:
-            _PG_READS[(url, key)] = read()
-        return _PG_READS[(url, key)]
+        key = (url, self._owner, key)
+        if key not in _PG_READS:
+            _PG_READS[key] = read()
+        return _PG_READS[key]
 
     @staticmethod
     def _written() -> None:
@@ -305,7 +329,8 @@ class MappingRepository:
         if mapping.confirmed and actor != ADMIN_ACTOR:
             raise MappingPermissionError("Only an administrator can confirm a mapping")
 
-        mapping = validate_mapping(dataclasses.replace(mapping, id=None, negatives=list(mapping.negatives)))
+        mapping = validate_mapping(dataclasses.replace(mapping, id=None, owner_id=self._owner,
+                                                       negatives=list(mapping.negatives)))
 
         with self._conn() as conn:
             self._raise_on_conflict(conn, mapping)
@@ -320,20 +345,23 @@ class MappingRepository:
         return dataclasses.replace(mapping, id=row["id"], created_at=now, updated_at=now)
 
     def get_mapping(self, mapping_id: int) -> LearnedMapping:
+        visible, args = self._visible()
         with self._conn() as conn:
-            row = conn.execute("SELECT * FROM learned_mappings WHERE id = ?", (mapping_id,)).fetchone()
+            row = conn.execute(f"SELECT * FROM learned_mappings WHERE id = ? AND {visible}",
+                               (mapping_id, *args)).fetchone()
         if row is None:
             raise MappingNotFoundError(f"Mapping #{mapping_id} not found")
         return _row_to_mapping(row)
 
     def list_mappings(self, include_inactive: bool = False) -> list[LearnedMapping]:
-        query = "SELECT * FROM learned_mappings"
+        visible, args = self._visible()
+        query = f"SELECT * FROM learned_mappings WHERE {visible}"
         if not include_inactive:
-            query += " WHERE active = 1"
+            query += " AND active = 1"
 
         def read():
             with self._conn() as conn:
-                return conn.execute(query + " ORDER BY id").fetchall()
+                return conn.execute(query + " ORDER BY id", args).fetchall()
         # fresh objects each call: callers may change a mapping without writing it
         return [_row_to_mapping(r) for r in self._cached(query, read)]
 
@@ -347,6 +375,8 @@ class MappingRepository:
 
     def update_mapping(self, mapping_id: int, changes: dict[str, Any], actor: str) -> LearnedMapping:
         existing = self.get_mapping(mapping_id)
+        if existing.owner_id != self._owner:
+            raise MappingPermissionError("Shared knowledge cannot be changed from an account: teach your own instead")
         if existing.confirmed and actor != ADMIN_ACTOR:
             raise MappingPermissionError("Confirmed mappings can only be changed by an administrator")
 
@@ -371,8 +401,9 @@ class MappingRepository:
         return self.update_mapping(mapping_id, {"active": False}, actor=actor)
 
     def _raise_on_conflict(self, conn, mapping: LearnedMapping, exclude_id: Optional[int] = None) -> None:
+        visible, args = self._visible()
         rows = conn.execute(
-            "SELECT * FROM learned_mappings WHERE active = 1 AND confirmed = 1"
+            f"SELECT * FROM learned_mappings WHERE active = 1 AND confirmed = 1 AND {visible}", args
         ).fetchall()
         key = (normalize_line(mapping.command_pattern), normalize_line(mapping.scope_template or ""))
         for row in rows:
@@ -387,11 +418,11 @@ class MappingRepository:
         with self._conn() as conn:
             conn.execute(
                 """
-                INSERT INTO rejected_lines (line_key, raw_line, vendor, reason, created_at)
-                VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT (line_key) DO NOTHING
+                INSERT INTO rejected_lines (owner_id, line_key, raw_line, vendor, reason, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT (owner_id, line_key) DO NOTHING
                 """,
-                (rejection_key(raw_line), redact_line(raw_line).strip(), vendor, reason, _now()),
+                (self._owner, rejection_key(raw_line), redact_line(raw_line).strip(), vendor, reason, _now()),
             )
         self._written()
 
@@ -399,7 +430,7 @@ class MappingRepository:
         """Keys to compare with ``rejection_key(line)``."""
         def read():
             with self._conn() as conn:
-                return conn.execute("SELECT line_key FROM rejected_lines").fetchall()
+                return conn.execute("SELECT line_key FROM rejected_lines WHERE owner_id = ?", (self._owner,)).fetchall()
         return {r["line_key"] for r in self._cached("rejected_lines", read)}
 
     def is_rejected(self, raw_line: str) -> bool:

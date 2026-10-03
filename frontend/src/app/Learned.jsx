@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Notice } from '../components/ui/primitives';
 import { apiClient } from '../api/client';
 import { sayFact } from '../lib/domain';
+import { useAccount } from '../lib/account';
+import { GuestNotice } from './Account';
 
 const FILTERS = [['active', 'In use'], ['taught', 'Taught here'], ['shipped', 'Shipped'], ['inactive', 'Stopped'], ['all', 'All']];
 const isSeed = (m) => m.source === 'seed';
@@ -50,6 +52,8 @@ export default function Learned() {
   const [filter, setFilter] = useState('active');
   const [confirming, setConfirming] = useState(null);
   const [busy, setBusy] = useState(null);
+  // with accounts, shipped knowledge is shared by everyone: only the server's owner can stop it
+  const { enabled: accounts } = useAccount();
 
   const load = async () => {
     try {
@@ -96,6 +100,7 @@ export default function Learned() {
         </p>
       </header>
 
+      <GuestNotice />
       {error && <Notice kind="danger" label="Couldn’t load" role="alert"><span>{error}</span></Notice>}
 
       {all.length > 0 && (
@@ -135,7 +140,7 @@ export default function Learned() {
                     {isSeed(m) ? `shipped with NetAuditAI${m.vendor ? ` · ${m.vendor} syntax` : ''}` : `taught here ${fmtDate(m.created_at)}`}
                   </p>
                 </div>
-                {m.active && (
+                {m.active && !(accounts && isSeed(m)) && (
                   <div className="learned-actions">
                     {confirming === m.id ? (
                       <>
