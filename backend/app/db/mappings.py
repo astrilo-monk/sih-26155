@@ -45,7 +45,7 @@ from app.adaptive.matcher import (
     validate_pattern,
 )
 from app.ai.redaction import Redactor, redact_line
-from app.db.database import _database_url, get_connection
+from app.db.database import _database_url, get_connection, resolve_db_path
 from app.controls.judges import STRONG_PASSWORD_STORAGE, WEAK_PASSWORD_STORAGE
 from app.facts.predicates import FIELD_PREDICATES, PASSWORD_STORAGE
 from app.facts.recognizers import RecognizerError, validate_recognizer
@@ -271,10 +271,11 @@ def validate_mapping(mapping: LearnedMapping) -> LearnedMapping:
     return mapping
 
 
-# Postgres reads, per database URL: a scan reads the store several times and every round trip to a hosted
-# database costs a few hundred milliseconds. Every write below goes through this module and clears it.
-# ponytail: per-process cache, correct for one backend instance; with several instances a write on one leaves the
-# others stale until they restart -move to LISTEN/NOTIFY or a short TTL before scaling out.
+# Store reads, per database (Postgres URL or SQLite file) and owner: a scan reads the store dozens of times. Every
+# write below goes through this module and clears it.
+# ponytail: per-process cache, correct for one backend instance; with several instances (or a second process writing
+# the same SQLite file) a write on one leaves the others stale until they restart -move to LISTEN/NOTIFY or a short
+# TTL before scaling out.
 _PG_READS: dict[tuple, Any] = {}
 
 
@@ -288,12 +289,12 @@ class MappingRepository:
         return get_connection(self._db_path)
 
     def _cached(self, key: str, read):
-        url = _database_url(self._db_path)
-        if not url:
-            return read()
-        if (url, key) not in _PG_READS:
-            _PG_READS[(url, key)] = read()
-        return _PG_READS[(url, key)]
+        # SQLite too: a scan reads the store dozens of times, and on a slow host (Render's free CPU) re-reading and
+        # re-parsing every row each time was a large part of a scan
+        key = (_database_url(self._db_path) or str(resolve_db_path(self._db_path)), key)
+        if key not in _PG_READS:
+            _PG_READS[key] = read()
+        return _PG_READS[key]
 
     @staticmethod
     def _written() -> None:
@@ -333,9 +334,9 @@ class MappingRepository:
 
         def read():
             with self._conn() as conn:
-                return conn.execute(query + " ORDER BY id").fetchall()
+                return [_row_to_mapping(r) for r in conn.execute(query + " ORDER BY id").fetchall()]
         # fresh objects each call: callers may change a mapping without writing it
-        return [_row_to_mapping(r) for r in self._cached(query, read)]
+        return [dataclasses.replace(m, negatives=list(m.negatives)) for m in self._cached(query, read)]
 
     def find_matching_mappings(self, raw_line: str) -> list[MappingMatch]:
         """Confirmed, active mappings whose pattern matches the line exactly."""

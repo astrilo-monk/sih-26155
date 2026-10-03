@@ -1,11 +1,13 @@
 import secrets
+import time
 
-from fastapi import Depends, FastAPI, HTTPException, Security
+from fastapi import Depends, FastAPI, HTTPException, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 from app.api.routes import scan, remediation, assistant, adaptive, report, collect, ledger
 from app import config as app_config
 from app.config import settings
+from app.db.database import DB_TIME
 
 app = FastAPI(
     title="NetAuditAI",
@@ -19,8 +21,22 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["Content-Disposition"],
+    expose_headers=["Content-Disposition", "Server-Timing"],
 )
+
+
+@app.middleware("http")
+async def server_timing(request: Request, call_next):
+    """Server-Timing on every response: time in Postgres, in SQLite, and in total. The browser's DevTools show it,
+    so a slow request on the host can be told apart from a slow network without access to the host."""
+    spent: dict = {}
+    DB_TIME.set(spent)
+    start = time.perf_counter()
+    response = await call_next(request)
+    parts = [f"{engine};dur={seconds * 1000:.0f}" for engine, seconds in spent.items()]
+    response.headers["Server-Timing"] = ", ".join([*parts, f"total;dur={(time.perf_counter() - start) * 1000:.0f}"])
+    response.headers["Timing-Allow-Origin"] = "*"
+    return response
 
 
 def require_api_key(key: str | None = Security(APIKeyHeader(name="X-API-Key", auto_error=False))):
