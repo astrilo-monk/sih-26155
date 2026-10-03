@@ -13,7 +13,9 @@ Callers write one SQL dialect: ``?`` placeholders and statements both engines ru
 from __future__ import annotations
 
 import sqlite3
+import time
 from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Iterator
 from urllib.parse import quote
@@ -309,15 +311,30 @@ def init_db(db_path: Path | str | None = None) -> Path | str:
     return path
 
 
+# Seconds this request spent holding a database connection, by engine (app.main reports it as Server-Timing). A
+# dict per request, set by the middleware; outside a request the default is a throwaway.
+DB_TIME: ContextVar[dict] = ContextVar("db_time", default={})
+
+
 @contextmanager
 def get_connection(db_path: Path | str | None = None) -> Iterator[sqlite3.Connection]:
     """Yield a migrated connection; commits on success, rolls back on error."""
+    start = time.perf_counter()
     target = init_db(db_path)
-    if isinstance(target, str):
-        # the pool commits on success, rolls back on error and takes the connection back
-        with _pg_pool(target).connection() as pg:
-            yield _PgConnection(pg)
-        return
+    engine = "pg" if isinstance(target, str) else "sqlite"
+    try:
+        if isinstance(target, str):
+            # the pool commits on success, rolls back on error and takes the connection back
+            with _pg_pool(target).connection() as pg:
+                yield _PgConnection(pg)
+            return
+        yield from _sqlite(target)
+    finally:
+        spent = DB_TIME.get()
+        spent[engine] = spent.get(engine, 0.0) + time.perf_counter() - start
+
+
+def _sqlite(target) -> Iterator[sqlite3.Connection]:
     conn = sqlite3.connect(target)
     conn.row_factory = sqlite3.Row
     try:
