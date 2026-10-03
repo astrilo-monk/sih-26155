@@ -55,7 +55,7 @@ from app.adaptive import capture_unrecognized_lines
 from app.adaptive.context import redaction_paths
 from app.ai.redaction import Redactor, placeholder
 from app import ledger
-from app.db.scans import earlier_scans, load_scan, save_scan
+from app.db.scans import earlier_scans, load_scan, save_scan, scan_exists
 from app.facts.heuristics import generic_hostname, stated_identity
 from app.structure.structured import flatten_hcl, flatten_json
 from app.adaptive.interpreter import interpret_lines
@@ -793,7 +793,7 @@ async def scan_changes(scan_id: str):
         current = archived.model_dump(mode="json")
     else:
         raise HTTPException(404, "Scan not found")
-    return {"scan_id": scan_id, "devices": scan_drift(current, earlier_scans(current["timestamp"], scan_id))}
+    return {"scan_id": scan_id, "devices": scan_drift(current, earlier_scans(current["timestamp"], scan_id, current.get("devices", [])))}
 
 
 @router.get("/scan/{scan_id}/status")
@@ -805,7 +805,7 @@ async def scan_status(scan_id: str):
     """
     if scan_id in _scan_store:
         return {"scan_id": scan_id, "held": True, "archived": False}
-    archived = load_scan(scan_id) is not None
+    archived = scan_exists(scan_id)
     return {"scan_id": scan_id, "held": archived, "archived": archived}
 
 

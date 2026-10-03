@@ -61,3 +61,24 @@ def test_rescanning_a_fixed_device_reports_the_fix(client):
     assert device["previous_scan_id"] == first and device["hostname"] == "DRIFT-01"
     assert "MGMT-001" in [x["control_id"] for x in device["fixed"]]
     assert client.get("/api/scan/nope/drift").status_code == 404
+
+
+def test_only_scans_of_the_same_devices_leave_the_archive():
+    """On a hosted database every byte read is egress: drift must not read the whole archive to find one device."""
+    from app.db.scans import earlier_scans, save_scan
+
+    for i in range(10):
+        save_scan(f"o{i}", f"2026-01-0{i}", _scan(f"o{i}", [], host="other"), [])
+    save_scan("old", "2026-01-05", _scan("old", [], host="edge_1%"), [])
+    save_scan("lookalike", "2026-01-06", _scan("lookalike", [], host="edgeX1%"), [])  # "_" is not a wildcard
+    save_scan("new", "2026-02-01", _scan("new", [], host="edge_1%"), [])
+
+    found = earlier_scans("2026-02-01", "new", [{"hostname": "edge_1%", "vendor": "cisco_ios"}])
+    assert [s["scan_id"] for s in found] == ["old"]
+
+
+def test_status_of_an_archived_scan_reads_no_response():
+    from app.db.scans import save_scan, scan_exists
+
+    save_scan("kept", "2026-01-01", _scan("kept", []), [])
+    assert scan_exists("kept") and not scan_exists("never")
