@@ -87,22 +87,3 @@ def test_the_archive_holds_no_secret(client):
 def test_an_unknown_scan_is_still_not_found(client):
     assert client.get("/api/scan/no-such-scan").status_code == 404
     assert client.get("/api/scan/no-such-scan/status").json()["held"] is False
-
-
-def test_a_scan_returns_before_it_is_archived_and_the_archive_follows(monkeypatch):
-    """In production the archive runs on a worker after the response: the scan must not wait for it."""
-    import threading
-
-    from app.api.routes import scan as scan_route
-    from app.db.scans import scan_exists
-
-    monkeypatch.setattr(scan_route, "ARCHIVE_INLINE", False)
-    release = threading.Event()
-    real = scan_route.archive_scan
-    monkeypatch.setattr(scan_route, "archive_scan", lambda sid: (release.wait(10), real(sid)))
-
-    result = scan_route.run_scan([("r1.cfg", "hostname R1\nline vty 0 4\n transport input telnet\n")])
-    assert not scan_exists(result.scan_id)  # the response came back while the archive was still waiting
-    release.set()
-    scan_route._ARCHIVER.submit(lambda: None).result(timeout=30)  # the queue has drained
-    assert scan_exists(result.scan_id)

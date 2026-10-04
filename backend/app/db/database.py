@@ -13,9 +13,7 @@ Callers write one SQL dialect: ``?`` placeholders and statements both engines ru
 from __future__ import annotations
 
 import sqlite3
-import time
 from contextlib import contextmanager
-from contextvars import ContextVar
 from pathlib import Path
 from typing import Iterator
 from urllib.parse import quote
@@ -99,25 +97,6 @@ MIGRATIONS: list[str] = [
     );
     CREATE INDEX IF NOT EXISTS idx_ledger_content ON ledger (content_hash);
     """,
-    # v7 -owner of learned knowledge (app.auth): '' = shared (seeds, a local install), 'user:<id>' = a signed-in
-    # account, 'guest:<id>' = one browser. A rejection is unique per owner, so the table is rebuilt.
-    """
-    ALTER TABLE learned_mappings ADD COLUMN owner_id TEXT NOT NULL DEFAULT '';
-    CREATE TABLE rejected_lines_v7 (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
-        owner_id    TEXT NOT NULL DEFAULT '',
-        line_key    TEXT NOT NULL,
-        raw_line    TEXT NOT NULL,
-        vendor      TEXT,
-        reason      TEXT,
-        created_at  TEXT NOT NULL,
-        UNIQUE (owner_id, line_key)
-    );
-    INSERT INTO rejected_lines_v7 (id, line_key, raw_line, vendor, reason, created_at)
-        SELECT id, line_key, raw_line, vendor, reason, created_at FROM rejected_lines;
-    DROP TABLE rejected_lines;
-    ALTER TABLE rejected_lines_v7 RENAME TO rejected_lines;
-    """,
 ]
 
 
@@ -185,24 +164,6 @@ PG_MIGRATIONS: list[str] = [
     );
     CREATE INDEX IF NOT EXISTS idx_ledger_content ON ledger (content_hash);
     """,
-    # SQLite v7
-    """
-    ALTER TABLE learned_mappings ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT '';
-    ALTER TABLE rejected_lines ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT '';
-    ALTER TABLE rejected_lines DROP CONSTRAINT IF EXISTS rejected_lines_line_key_key;
-    CREATE UNIQUE INDEX IF NOT EXISTS ux_rejected_lines_owner ON rejected_lines (owner_id, line_key);
-    """,
-    # Postgres only: the browser holds the Supabase anon key (sign-in), and with it anyone could read these tables
-    # through Supabase's REST API. Row level security with no policy shuts that door; the backend connects as the
-    # tables' owner, which RLS does not apply to.
-    """
-    ALTER TABLE learned_mappings ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE rejected_lines ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE ai_judge_cache ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE scans ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE ledger ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE schema_version ENABLE ROW LEVEL SECURITY;
-    """,
 ]
 
 
@@ -257,10 +218,8 @@ def _pg_pool(url: str):
 
         # prepare_threshold=None: Supabase's transaction pooler cannot hold prepared statements.
         # check: a connection the server dropped while idle is replaced instead of failing a request.
-        # timeout: a database that refuses us (wrong password, quota) must fail a request in seconds, not the
-        # default 30: these calls block the event loop, so a long wait stalls every request, /health included
         _POOLS[url] = ConnectionPool(
-            url, min_size=1, max_size=4, open=True, timeout=5, check=ConnectionPool.check_connection,
+            url, min_size=1, max_size=4, open=True, check=ConnectionPool.check_connection,
             kwargs={"row_factory": dict_row, "prepare_threshold": None, "connect_timeout": 10},
         )
     return _POOLS[url]
@@ -311,30 +270,15 @@ def init_db(db_path: Path | str | None = None) -> Path | str:
     return path
 
 
-# Seconds this request spent holding a database connection, by engine (app.main reports it as Server-Timing). A
-# dict per request, set by the middleware; outside a request the default is a throwaway.
-DB_TIME: ContextVar[dict] = ContextVar("db_time", default={})
-
-
 @contextmanager
 def get_connection(db_path: Path | str | None = None) -> Iterator[sqlite3.Connection]:
     """Yield a migrated connection; commits on success, rolls back on error."""
-    start = time.perf_counter()
     target = init_db(db_path)
-    engine = "pg" if isinstance(target, str) else "sqlite"
-    try:
-        if isinstance(target, str):
-            # the pool commits on success, rolls back on error and takes the connection back
-            with _pg_pool(target).connection() as pg:
-                yield _PgConnection(pg)
-            return
-        yield from _sqlite(target)
-    finally:
-        spent = DB_TIME.get()
-        spent[engine] = spent.get(engine, 0.0) + time.perf_counter() - start
-
-
-def _sqlite(target) -> Iterator[sqlite3.Connection]:
+    if isinstance(target, str):
+        # the pool commits on success, rolls back on error and takes the connection back
+        with _pg_pool(target).connection() as pg:
+            yield _PgConnection(pg)
+        return
     conn = sqlite3.connect(target)
     conn.row_factory = sqlite3.Row
     try:

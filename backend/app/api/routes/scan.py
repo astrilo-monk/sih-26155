@@ -16,8 +16,6 @@ import json
 import logging
 import re
 import uuid
-from concurrent.futures import ThreadPoolExecutor
-from contextvars import copy_context
 from datetime import datetime
 from functools import partial
 from typing import Optional
@@ -57,7 +55,7 @@ from app.adaptive import capture_unrecognized_lines
 from app.adaptive.context import redaction_paths
 from app.ai.redaction import Redactor, placeholder
 from app import ledger
-from app.db.scans import earlier_scans, load_scan, save_scan, scan_exists
+from app.db.scans import earlier_scans, load_scan, save_scan
 from app.facts.heuristics import generic_hostname, stated_identity
 from app.structure.structured import flatten_hcl, flatten_json
 from app.adaptive.interpreter import interpret_lines
@@ -419,31 +417,7 @@ def reanalyze_scan(scan_id: str) -> None:
     entry["result"] = result
     entry["is_adaptive_only"] = False
     entry["timestamp"] = result.timestamp
-    archive_soon(scan_id)
-
-
-# Archiving is most of a scan's work (a remediation plan per device, the response again, two Postgres writes) and
-# the person waiting needs none of it, so it runs after the response. One worker: archives land in order, which the
-# ledger chain needs, and never two at once on a small host.
-# ponytail: an archive still queued when the process stops (host spin-down, redeploy) is lost; that scan is then
-# missing from history after a restart, nothing else.
-_ARCHIVER = ThreadPoolExecutor(max_workers=1, thread_name_prefix="archive")
-# Tests set this, so an archive exists the moment a scan returns
-ARCHIVE_INLINE = False
-
-
-def archive_soon(scan_id: str) -> None:
-    if ARCHIVE_INLINE:
-        archive_scan(scan_id)
-        return
-    context = copy_context()  # the request's policy and account scope, which the plan reads
-
-    def run():
-        try:
-            context.run(archive_scan, scan_id)
-        except Exception:
-            logger.exception("Scan %s not archived", scan_id)
-    _ARCHIVER.submit(run)
+    archive_scan(scan_id)
 
 
 def archive_scan(scan_id: str) -> None:
@@ -689,7 +663,7 @@ def _run_scan(sources: list[tuple[str, str]], framework: Optional[str] = None,
     if not (had_unknown_vendor and not had_ai_available and not anything_applied):
         reanalyze_scan(scan_id)
     else:
-        archive_soon(scan_id)
+        archive_scan(scan_id)
 
     return build_scan_response(scan_id)
 
@@ -819,7 +793,7 @@ async def scan_changes(scan_id: str):
         current = archived.model_dump(mode="json")
     else:
         raise HTTPException(404, "Scan not found")
-    return {"scan_id": scan_id, "devices": scan_drift(current, earlier_scans(current["timestamp"], scan_id, current.get("devices", [])))}
+    return {"scan_id": scan_id, "devices": scan_drift(current, earlier_scans(current["timestamp"], scan_id))}
 
 
 @router.get("/scan/{scan_id}/status")
@@ -831,7 +805,7 @@ async def scan_status(scan_id: str):
     """
     if scan_id in _scan_store:
         return {"scan_id": scan_id, "held": True, "archived": False}
-    archived = scan_exists(scan_id)
+    archived = load_scan(scan_id) is not None
     return {"scan_id": scan_id, "held": archived, "archived": archived}
 
 

@@ -14,26 +14,6 @@ keep their file name.
 ### `GET /health`
 Returns a simple status payload confirming the backend is running.
 
-## Accounts
-
-When `SUPABASE_URL` is set, every `/api` request is scoped to its caller (`app/auth.py`), and taught knowledge
-(recognizers, learned mappings, rejected lines) is read and written per caller. Shipped seed knowledge is shared.
-
-| Request carries | Caller | Taught knowledge kept in |
-|---|---|---|
-| `Authorization: Bearer <Supabase access token>` | that account | the main store (Postgres when `DATABASE_URL` is set) |
-| `X-Guest-Id: <uuid>` | that browser | the local SQLite file only, never the main store |
-| neither | a new guest for this request | nowhere that a later request reads |
-
-A token Supabase refuses is `401`, never a fallback to guest; Supabase unreachable is `503`. An account can only
-change or stop its own entries: shared seed knowledge answers `422`, another account's entry `404`. Without
-`SUPABASE_URL` the headers are ignored and every request shares one store.
-
-### `GET /api/account/config`
-
-`{"accounts": false}`, or `{"accounts": true, "supabase_url": "...", "supabase_anon_key": "..."}`: what the frontend
-needs to offer sign-in. The anon key is public by design.
-
 ## Scanning
 
 ### `POST /api/scan`

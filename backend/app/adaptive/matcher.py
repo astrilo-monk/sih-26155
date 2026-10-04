@@ -44,7 +44,6 @@ repository object that provides ``list_mappings``.
 from __future__ import annotations
 
 import re
-from functools import lru_cache
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Optional, Protocol
 
@@ -150,8 +149,6 @@ def validate_pattern(pattern: str, extraction_method: str) -> list[str]:
     return tokens
 
 
-# a scan matches every stored template against every line: compiled once per template, not per line
-@lru_cache(maxsize=4096)
 def compile_pattern(pattern: str, extraction_method: str) -> re.Pattern[str]:
     """Compile a validated template into an anchored, escaped regex."""
     tokens = validate_pattern(pattern, extraction_method)
@@ -188,7 +185,6 @@ def match_pattern(pattern: str, extraction_method: str, raw_line: str) -> tuple[
     return True, None
 
 
-@lru_cache(maxsize=4096)
 def recognizer_slot(pattern: str) -> tuple[Optional[str], Optional[str]]:
     """``(kind, argument)`` of a recognizer template's typed slot, ``(None, None)`` when it has none."""
     for tok in validate_pattern(pattern, EXTRACTION_RECOGNIZER):

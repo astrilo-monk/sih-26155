@@ -1,14 +1,11 @@
-import { accountReady, identityHeaders, initAccount } from '../lib/account';
-
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
 // A request that never reached the server (backend stopped or restarting, network down) says so in words
 // instead of the browser's "Failed to fetch". status 0: no HTTP answer at all.
 export const UNREACHABLE = 'Can’t reach the NetAuditAI server. Check that the backend is running, then try again.';
-async function fetch(url, options = {}) {
+async function fetch(url, options) {
   try {
-    await accountReady();
-    return await globalThis.fetch(url, { ...options, headers: { ...identityHeaders(), ...options.headers } });
+    return await globalThis.fetch(url, options);
   } catch {
     const err = new Error(UNREACHABLE);
     err.status = 0;
@@ -86,11 +83,6 @@ function saveBlob(blob, filename) {
 }
 
 export const apiClient = {
-  // once, from the app shell: which account (or guest) every later request speaks for
-  startAccount() {
-    return initAccount(API_BASE_URL);
-  },
-
   // context: { criticality, internetFacing } the operator states about the asset (risk only)
   async scanConfigs(files, framework = null, context = {}) {
     const formData = new FormData();

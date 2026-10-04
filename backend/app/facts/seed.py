@@ -55,8 +55,7 @@ def load_seed_recognizers(db_path: Path | str | None = None, seed_file: Path | s
     if not entries:
         return 0
 
-    # shared knowledge, whoever's request happens to open the database first
-    repository = MappingRepository(db_path, owner="")
+    repository = MappingRepository(db_path)
     try:
         stored = {_key(m.command_pattern, m.scope_template) for m in repository.list_mappings(include_inactive=True)}
     except Exception as e:  # a store failure must never stop the scanner from starting
