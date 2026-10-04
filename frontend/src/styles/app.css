@@ -525,8 +525,9 @@ button.history-header:hover, .history-header:hover { background: none; border-le
 
 /* ── Responsive ────────────────────────────────────────────────────────── */
 @media (max-width: 960px) {
-  /* the sidebar becomes a scrolling strip above the page */
-  .app { --side: 0px; }
+  /* the sidebar becomes a scrolling strip above the page. !important: the rail width is set inline (AppShell),
+     and the page must not keep a desktop-width gap for a sidebar that is now a strip on top */
+  .app { --side: 0px !important; }
   .sidebar { position: static; width: auto; border-right: 0; border-bottom: var(--bw) solid var(--line); }
   .side-nav { display: flex; overflow-x: auto; scrollbar-width: none; padding: 0; }
   .side-nav ul { display: flex; }
@@ -548,6 +549,8 @@ button.history-header:hover, .history-header:hover { background: none; border-le
 
 @media (max-width: 640px) {
   .ov-head { flex-direction: column; }
+  /* in a column its 19rem basis became a height, spreading the buttons apart */
+  .ov-actions { flex: none; justify-content: flex-start; }
   .posture { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
   .sev-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: var(--s-5); }
   .sev-cell:nth-child(odd) { padding-left: 0; border-left: 0; }
@@ -661,8 +664,6 @@ button.history-header:hover, .history-header:hover { background: none; border-le
 .chat-dock-hint span { font: 500 var(--fs-xs)/1 var(--sans); color: var(--fg); }
 
 @media (max-width: 900px) {
-  /* too little room to reserve a wide rail: the inline width is overridden back to the nav */
-  .app { --side: 248px !important; }
   .chat-log { max-height: 40vh; }
   .chat-resize { display: none; }
 }
