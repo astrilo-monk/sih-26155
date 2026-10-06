@@ -1,300 +1,499 @@
 # NetAuditAI
 
-Configuration security auditor for network devices, built for Smart India Hackathon 2026
-(SIH26155 -AI-Driven Multi-Vendor Network Security Compliance Auditor, NTRO, Cybersecurity).
+**A network configuration security auditor that refuses to guess.**
 
-NetAuditAI answers 23 security questions (**controls**) about every uploaded configuration, cites the
-configuration lines behind every answer, keeps what it could decide separate from what it could not, and
-fixes confirmed Cisco / FortiGate findings with deterministic changes that are verified by a rescan.
-Where the vendor cannot be confirmed it does not invent commands: an administrator (or, on request, the
-AI) proposes one, NetAuditAI checks it against the uploaded configuration, and a person confirms it.
-AI is optional: it only proposes answers for controls the deterministic engine left undecided, and a
-human confirms them before they count. Configurations can be uploaded or pulled from a device over SSH;
-NetAuditAI only ever **reads** a device, and never executes a change on one.
+Built for Smart India Hackathon 2026, problem statement **SIH26155** (NTRO, Cybersecurity):
+*AI-Driven Multi-Vendor Network Security Compliance Auditor*.
 
-## Highlights
+NetAuditAI reads router, switch, firewall and cloud firewall configurations, answers **23 security checks** on
+every one of them, and cites the exact configuration line behind every answer. When it cannot decide, it says so
+instead of passing the check. It fixes what it is sure about, proves every fix by rescanning a copy, and never
+runs a command on a device.
 
-* **Measured, not claimed.** 18/20 planted vulnerabilities detected as decided FAILs, 89/112 on labelled fixtures from
-  8 vendors with no dedicated parser, SONiC, Cumulus, Terraform for AWS, Azure and GCP, and Azure / GCP firewall exports, **0 missed and 0 false alarms**; a test fails the build if that gets worse.
-* **Potential attack paths.** Findings chained into how an attacker gets in (reach the login → capture the password
-  → log in as admin), each step a decided FAIL with its line, plus the one fix that breaks the path.
-* **Every verdict traceable.** Framework requirement → check → vendor-neutral field and value → the configuration
-  line → verdict, in the finding drawer; the whole model can be compared across vendors side by side or exported.
-* **Fixes that are proven.** Every automatic fix is applied to a copy and rescanned before it counts; a missing
-  syslog server or banner is added in the device's own syntax from a validated value.
-* **Tamper-evident audit ledger.** Scans, taught recognizers, fix decisions and reports are hash-chained; editing
-  any entry is caught, and a report PDF can be checked byte for byte.
-* **AI that cannot change a verdict.** Configuration text is fenced as data in every prompt; a live probe of 6
-  prompt-injection attacks succeeded 0 times, and a fully hijacked model is tested to change nothing.
-* **Contextual risk.** Worst problem, internet exposure, attack paths and asset importance, by a formula shown on
-  screen and in the report.
-* **Changes since the last audit.** Rescan a device and see what got fixed, what newly broke and which attack paths
-  closed, from the redacted scan archive only; losing evidence is never counted as a fix.
-* **Problems only visible across devices.** The same SNMP community on several devices (matched by hash, never
-  shown) and devices using different NTP or syslog servers.
-* **Your own baseline.** An organisation policy file tightens the limits (idle timeout, login attempts, password
-  length) and names approved NTP / syslog servers; it can only tighten, never loosen ([docs/policy.md](docs/policy.md)).
-* **Runs offline and in CI.** `LOCAL_AI_URL` sends every AI call to a local model (Ollama, llama.cpp) so nothing
-  leaves the network; known CVEs for the stated OS version come from a committed NVD cache, never a live call; `python -m app.cli scan` fails a pipeline on a decided problem and writes SARIF
-  ([docs/cli.md](docs/cli.md)).
+```text
+Upload or SSH-collect a config  →  cited PASS / FAIL / UNKNOWN per check  →  posture + coverage
+                                →  verified fixes  →  PDF report, SARIF, tamper-evident audit ledger
+```
 
-## Status
+---
 
-Working hackathon prototype. Backend: 1648 tests passed, 2 live-AI tests skipped (`pytest -n auto` runs them in
-parallel). Frontend: 152 tests passed, production build OK. One end-to-end browser test walks the demo path
-(`cd frontend && npm run e2e`).
+## Contents
+
+- [Why it is different](#why-it-is-different)
+- [Quickstart](#quickstart)
+- [Demo](#demo)
+- [How it works](#how-it-works)
+- [Reading the results](#reading-the-results)
+- [Vendor support](#vendor-support)
+- [The 23 checks](#the-23-checks)
+- [Measured accuracy](#measured-accuracy)
+- [More than a checklist](#more-than-a-checklist)
+- [Configuration](#configuration)
+- [Command line and CI](#command-line-and-ci)
+- [What is stored](#what-is-stored)
+- [Deploying safely](#deploying-safely)
+- [Known limitations](#known-limitations)
+- [Repository layout](#repository-layout)
+- [Testing](#testing)
+- [Documentation](#documentation)
+- [License](#license)
+
+---
+
+## Why it is different
+
+Most config auditors either support a handful of vendors with hand-written rules, or put an LLM in front of the
+file and trust what comes back. NetAuditAI does neither.
+
+| Principle | What it means in practice |
+|---|---|
+| **Undecided is an answer** | `UNKNOWN` and `NOT_CONFIGURED` exist so missing evidence is never silently a PASS. Posture is computed from decided checks only, and **coverage** says how much could be decided. |
+| **Every verdict is traceable** | Framework requirement → check → vendor-neutral fact → configuration line → verdict. No verdict without a cited line (or a documented vendor default). |
+| **AI proposes, code verifies, a human confirms** | The AI only looks at checks the engine left undecided, its citations are verified deterministically, and its answers are never scored until an administrator confirms them. |
+| **Learning without training** | An administrator confirms how an unfamiliar line reads; that becomes a typed, validated **recognizer** that answers decisively on every later scan, with no AI call. |
+| **Fixes are proven, not generated** | Fixes come from fixed recipes or from the same recognizer that read the line. Each one is applied to a copy and rescanned; it only counts if the check now passes and nothing else regressed. |
+| **Read-only toward devices** | Live collection opens one SSH session with read-only commands. Nothing NetAuditAI produces is ever executed on a device. |
+
+---
+
+## Quickstart
+
+**Prerequisites:** Python 3.10+, Node.js 18+. An AI key is optional; everything except AI explanations, chat and
+AI proposals works without one.
+
+```bash
+# 1. Backend  (http://localhost:8000, API docs at /docs)
+cd backend
+python -m venv venv
+source venv/bin/activate            # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+
+# 2. Frontend, in a second terminal  (http://localhost:5173)
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://localhost:5173, choose **New scan**, and upload `demo-sih/cisco_oneclick.cfg`.
+
+No UI needed? Scan from the command line:
+
+```bash
+cd backend
+python -m app.cli scan ../demo-sih/ --fail-on high
+```
+
+Optional settings live in `backend/.env` (copy `backend/.env.example`) and `frontend/.env`. See
+[Configuration](#configuration).
+
+---
 
 ## Demo
 
-Three files in [demo-sih/](demo-sih/README.md), each going from a bad first scan to **posture 100 with 0 problems**
-after the corrected file is rescanned (pinned by `backend/tests/test_demo_fix_to_100.py`):
+Three files in [`demo-sih/`](demo-sih/README.md). Each goes from a bad first scan to **posture 100 with 0
+problems** once the corrected file is rescanned. This is pinned by `backend/tests/test_demo_fix_to_100.py`.
 
-| File | First scan | Fixed by |
+| File | First scan | How it gets to 100 |
 |---|---|---|
-| `cisco_oneclick.cfg` | posture 41, 15 problems | NetAuditAI alone, one click, no input |
-| `paloalto_ai_human.cfg` | posture 30, 10 problems | 5 by NetAuditAI (seed write-back), 5 by an AI-drafted or typed command, each verified |
-| `unknown_vendor.cfg` | no score, 3 suspected problems | teach 3 lines in Adaptive learning, then 3 verified commands |
+| `cisco_oneclick.cfg` | posture 41, 15 problems | One click. Deterministic Cisco recipes, no input needed. |
+| `paloalto_ai_human.cfg` | posture 30, 10 problems | 5 fixed by seed write-back (no parser), 5 by an AI-drafted or typed command, each verified on a copy. |
+| `unknown_vendor.cfg` | no score, 3 suspected problems | Teach 3 lines in **Adaptive learning**, then 3 verified commands. |
 
-The walkthrough is [docs/demo.md](docs/demo.md).
-The earlier demo configurations used by the tests and the benchmark are in `backend/tests/fixtures/demo/`.
+The two-minute judge path and the full walkthrough are in [docs/demo.md](docs/demo.md). A browser test
+(`cd frontend && npm run e2e`) walks the same path.
 
-## Measured accuracy
+---
 
-Every labelled configuration through the real pipeline, shipped knowledge only, **no AI**
-(`python backend/scripts/benchmark.py`, full table in [benchmark/RESULTS.md](benchmark/RESULTS.md), labels in
-[benchmark/labels.json](benchmark/labels.json)):
+## How it works
 
-| Set | Insecure settings detected (decided FAIL) | Missed | False alarms on secure settings |
-|---|---|---|---|
-| 20 vulnerabilities planted in the demo files (Cisco IOS, PAN-OS) | **18/20** (+2 suspected) | **0** | **0** of 4 |
-| 31 labelled fixtures: 8 vendors with no dedicated parser, SONiC, Cumulus, Terraform (AWS, Azure, GCP), Azure NSG and GCP firewall exports | **89/112** (23 undecided) | **0** | **0** of 84 |
-| **Held-out**: 9 real configurations never seen before (pybatfish example networks: Cisco IOS / IOS-XE, Arista, AWS), labels committed before the first run | **21/21** (first run 20/21: the one miss was a parser bug, now fixed and tested) | **0** | **0** of 13 (2 undecided) |
+```mermaid
+flowchart TD
+    subgraph S1["1 . Ingest"]
+        UP["Upload a file"]
+        SSH["Collect over SSH<br/>Netmiko / NAPALM, read-only"]
+        MEM["Held in memory, max 2 MB<br/>never written to disk"]
+        UP --> MEM
+        SSH --> MEM
+    end
 
-"Undecided" is an answer, not a miss: the engine shows the line and says what it would need, and never calls an
-insecure setting secure. A test fails the build if any of these numbers gets worse.
+    MEM --> DET{"Vendor detection<br/>+ grammar coverage"}
 
-## Pipeline
+    subgraph S2["2 . Read: configuration to SecurityFacts"]
+        PAR["Dedicated parser + vendor defaults<br/><i>decisive</i>"]
+        TOK["Generic tokenizer<br/>JSON and Terraform flattened first"]
+        REC["Recognizers from the store<br/>243 shipped + taught, <i>decisive</i>"]
+        HEU["Lexicon heuristics<br/><i>provisional</i>"]
+        TOK --> REC
+        TOK --> HEU
+    end
 
-```text
-Raw configuration: uploaded, or collected over SSH (Netmiko/NAPALM) .. app/collect/
-  (read into memory, never written to disk)
-  ↓
-Vendor detection + parse coverage ..................... app/parsers/detector.py, coverage.py
-  ↓ confirmed Cisco IOS / FortiGate            ↓ unknown or unverified vendor
-Dedicated parser → PARSER facts               Generic tokenizer ......... app/structure/tokenizer.py
-+ documented vendor defaults → DEFAULT          → confirmed recognizers → CONFIRMED facts
-                                                → lexicon heuristics  → HEURISTIC facts (provisional)
-  ↓
-SecurityFacts: predicate, value, scope, cited lines, assurance ...... app/facts/
-  (the vendor-neutral Security Baseline Model: GET /api/scan/{id}/baseline, "Download baseline (JSON)")
-  ↓
-Control evaluation: every control on every configuration ............ app/controls/
-  ↓
-Posture + coverage .................................................. app/analysis/scoring.py
-  ↓ UNKNOWN / NOT_CONFIGURED controls (unknown vendors only)
-AI judge: budgeted, redacted, cached (optional) ..................... app/ai/judge.py
-  ↓
-Deterministic citation verification → AI_VERIFIED proposal (never scored)
-  ↓
-Human confirmation (Adaptive learning) → recognizer saved (SQLite, or Postgres via DATABASE_URL)
-  ↓
-Future scans: the recognizer answers decisively, with no AI call
-  ↓ decisive FAIL on a confirmed vendor        ↓ decisive FAIL on an unconfirmed vendor
-Deterministic remediation ................    Candidate command (typed, or AI-proposed on request)
-  → re-parse → re-verify .. app/remediation/     → validated → simulated on a copy of the file
-                                                 → every control re-evaluated .. app/remediation/candidates.py
-                                                 → administrator confirms (never executed anywhere)
+    DET -->|"Cisco IOS or FortiGate,<br/>grammar confirmed"| PAR
+    DET -->|"any other vendor,<br/>or unverified"| TOK
+
+    FACTS[("SecurityFacts<br/>predicate, value, scope,<br/>cited lines, assurance")]
+    PAR --> FACTS
+    REC --> FACTS
+    HEU --> FACTS
+
+    subgraph S3["3 . Decide"]
+        CTL["23 checks on every configuration<br/>+ organisation policy"]
+        SCORE["Posture + coverage<br/>decisive evidence only"]
+        CTX["Attack paths, risk, drift,<br/>fleet checks, framework views"]
+        CTL --> SCORE
+        CTL --> CTX
+    end
+    FACTS --> CTL
+
+    subgraph S4["4 . Learn: unknown vendors"]
+        JUDGE["AI judge (optional)<br/>redacted, fenced, budgeted, cached"]
+        VER["Deterministic citation verifier<br/><i>ai_verified: shown, never scored</i>"]
+        HUM["Administrator confirms<br/>in Adaptive learning"]
+        DB[("Recognizer store<br/>feeds step 2 on every later scan:<br/>decisive, no AI call")]
+        JUDGE --> VER --> HUM
+        HUM -->|"saves a recognizer"| DB
+    end
+    CTL -->|"UNKNOWN /<br/>NOT_CONFIGURED"| JUDGE
+    CTL -->|"suspected FAIL"| HUM
+
+    subgraph S5["5 . Fix: decisive FAILs only"]
+        RCP["Confirmed vendor:<br/>deterministic recipe"]
+        WB["Unconfirmed vendor:<br/>seed write-back or candidate command"]
+        RESCAN["Apply to a copy and rescan:<br/>check passes, nothing regresses"]
+        OK["Administrator confirms<br/>never executed on a device"]
+        RCP --> RESCAN
+        WB --> RESCAN
+        RESCAN --> OK
+    end
+    CTL --> RCP
+    CTL --> WB
+
+    OUT["UI, PDF report, baseline JSON, SARIF<br/>+ hash-chained audit ledger"]
+    SCORE --> OUT
+    CTX --> OUT
+    OK --> OUT
 ```
 
-Details: [docs/architecture.md](docs/architecture.md).
+| Stage | What happens | Code |
+|---|---|---|
+| Ingest | Upload or SSH collection. Collection is restricted to private address space by default; credentials are used for one session and never stored. | `app/collect/` |
+| Detect | The vendor is **confirmed** only when the file follows its grammar (coverage threshold 0.7). Look-alikes (NX-OS, ASA, Arista, FortiSwitch, mixed files) are reported as unverified and take the generic path. | `app/parsers/detector.py`, `coverage.py` |
+| Read | Parsers, recognizers and heuristics all produce the same vendor-neutral **SecurityFacts**. This is the Security Baseline Model, downloadable from `GET /api/scan/{id}/baseline`. | `app/parsers/`, `app/structure/`, `app/facts/` |
+| Decide | Every check runs on every configuration; the vendor only decides where facts come from. | `app/controls/`, `app/analysis/` |
+| Learn | AI proposals and suspected lines become recognizers only through an administrator. | `app/ai/judge.py`, `app/adaptive/`, `app/db/` |
+| Fix | Recipes (Cisco, FortiGate), seed write-back and candidate commands, each verified by rescanning a copy. | `app/remediation/` |
+| Report | PDF per device, executive summary, SARIF, hash-chained ledger. | `app/reporting/`, `app/ledger.py` |
 
-## Vendor support
+The full design, including the exact gates a recognizer must pass, is in [docs/architecture.md](docs/architecture.md).
 
-| Configuration | How it is analyzed | Assurance | Remediation |
-|---|---|---|---|
-| Cisco IOS / IOS-XE (common patterns) | Dedicated parser, confirmed by grammar coverage | Decisive (parser facts; no Cisco defaults are assumed) | Deterministic, verified |
-| Fortinet FortiGate (FortiOS with a `config firewall` / `config vpn` section) | Dedicated parser, confirmed by grammar coverage | Decisive; password storage and AAA are not read by the parser (UNKNOWN) | Deterministic, verified |
-| Look-alikes (Arista EOS, NX-OS, IOS-XR, ASA, Dell OS10, Brocade, FortiSwitch) and mixed configs | Reported **unverified**, then the generic path | Provisional unless a recognizer is confirmed | No generated commands; candidate remediation once a finding is decisive |
-| Terraform (`.tf`: AWS security groups and rules, Azure NSG rules, GCP firewalls) | Blocks flattened in place (one statement per block, on its own line), read by shipped seeds; device-only checks are N/A | Decisive for an open rule; a variable the file does not resolve stays undecided | No generated commands |
-| Cloud exports (JSON: AWS security groups, `az network nsg show` / `nsg rule list`, `gcloud compute firewall-rules list --format=json`) | Flattened to one statement per rule, read by shipped seeds; device-only checks are N/A | Decisive for an open Allow / Inbound rule | No generated commands |
-| Palo Alto, Juniper, SONiC (`config_db.json`), Cumulus (NVUE) and every other vendor | **No dedicated parser.** Generic tokenizer, lexicon heuristics, confirmed recognizers, optional AI judge | Provisional; decisive only through confirmed recognizers | No generated commands; candidate remediation once a finding is decisive |
-
-The vendor is decided deterministically. An AI vendor guess is reported as evidence only and never selects a parser, defaults or remediation.
-
-**Shipped knowledge.** 243 reviewed recognizers for thirteen unparsed dialects (Juniper Junos, Palo Alto PAN-OS,
-Arista EOS, Huawei VRP, HPE Aruba AOS-CX, Check Point Gaia, Extreme EXOS, MikroTik RouterOS, Cisco NX-OS, ASA, IOS-XR,
-SONiC `config_db.json`, NVIDIA Cumulus NVUE), AWS security
-groups, Azure NSG and GCP firewall exports and Terraform (AWS, Azure, GCP) ship in `backend/data/seed_recognizers.json` and load into an empty database on first start, so those dialects
-answer several controls before anyone teaches anything. Each entry is one concept per dialect, generalized over
-addresses, names, numbers and indentation through typed slots. They are ordinary recognizers -same templates,
-same validation, same decisive CONFIRMED facts -and are marked `source=seed` so shipped knowledge can be audited
-separately from what a deployment was taught. This is not a parser and not training: see
-[docs/seed-knowledge.md](docs/seed-knowledge.md).
-
-**Device identification** (API `devices[]` and the PDF report) states only what the file states: hostname, the
-Cisco `version` line, and for FortiGate the model and firmware from the `#config-version=` export header when
-present. Serial numbers and chassis details are never invented.
-
-**Seed write-back** (unconfirmed vendors) fixes what a reviewed recognizer read: the recognizer that read
-`disable-telnet no` writes `disable-telnet yes` in the same syntax, and the rescanned copy must show a decisive
-PASS. Those fixes behave like a confirmed vendor's, including one corrected download. See
-[docs/architecture.md](docs/architecture.md) §10.
-
-**Candidate remediation** (unconfirmed vendors, once a finding is decisive) is a proposal, not a fix. The
-administrator types the command, or asks the AI for one; NetAuditAI validates it, removes the cited
-statements from an **in-memory copy** of the configuration, re-reads that copy with the generic engine and
-re-evaluates every control. A verified candidate means *the finding is gone from this configuration file*
-(typically `FAIL → NOT_CONFIGURED` -absence is never a PASS). It does not mean the command is safe to run
-on the device, and it changes no posture, coverage, finding or download until the device itself is changed
-and scanned again. NetAuditAI performs detection, candidate remediation, verification and human
-confirmation; it does **not** execute commands on physical devices. When a candidate is rejected, the AI can be
-asked again, and it is told the rejected command and why it failed (the command redacted like the configuration).
-A command a reviewed recognizer reads (`set … login-banner …`) is applied to the copy instead, and must make the
-check pass.
+---
 
 ## Reading the results
 
-- **Status** per control: `PASS`, `FAIL`, `UNKNOWN` (something relevant exists but could not be decided), `NOT_CONFIGURED` (nothing relevant found -never counted as PASS), `N_A`.
-- **Assurance**: `parser`, `confirmed` (recognizer or administrator mapping) and `default` (documented vendor default) are **decisive**; `heuristic` and `ai_verified` are **provisional** ("Suspected FAIL", "Probable PASS", "AI proposes …").
-- **Posture** = weighted PASS ÷ (PASS + FAIL) over decisive results; "-" when nothing was decided.
-- **Coverage** = weighted share of applicable controls decided decisively. Posture and coverage are shown side by side, with the posture range if every undecided control failed or passed.
-- **Critical not assessed** lists critical controls that were not decided.
-- Provisional verdicts are shown with their evidence but never change posture, coverage, findings counts or remediation.
-- **Framework views** regroup the same results under NIST SP 800-53 Rev. 5, the DISA Network Device Management SRG, ISO/IEC 27001:2022 Annex A and, for confirmed vendors, CIS Benchmarks. They are not a compliance certification.
+**Status per check**
 
-The scan response still carries `score`, the deprecated penalty score (kept for existing scripts). The UI does not use it.
+| Status | Meaning |
+|---|---|
+| `PASS` | Evidence says the setting is secure, with a cited line or a documented vendor default. |
+| `FAIL` | Evidence says the setting is insecure. One FAIL per failing scope (interface, VTY range, policy). |
+| `UNKNOWN` | Something relevant exists but could not be decided (conflict, missing unit, unread syntax, AI proposal awaiting confirmation). |
+| `NOT_CONFIGURED` | Nothing relevant was found. Never counted as a PASS. |
+| `N_A` | Proven not to apply, for example no VPN on a device whose parser reads VPNs. Only a confirmed parser can prove this. |
 
-### The interface
+**Assurance per verdict**
 
-A fixed left sidebar. **New scan · Overview · Devices · Findings · Attack paths · Remediation**, then under
-*Intelligence* **Adaptive learning · Learned mappings · Frameworks · History · Rules catalog · Audit ledger**. The scan pages are disabled until a scan
-is open.
-
-| Sidebar | Page | Route |
+| Assurance | Source | Counts toward posture? |
 |---|---|---|
-| New scan | Upload one or more configurations, or collect them from live devices over SSH; optionally say how important the device is and whether it faces the internet (risk only) | `#/app` |
-| Overview | Risk (with its reasons), posture, coverage, **changes since the last audit** of the same device, a fleet view for several devices (with problems only visible across them), a link to the attack paths, the **vendor-neutral model** side by side per device, what to do now, PDF report, one-page executive summary, baseline JSON | `#/app/scan/{id}` |
-| Devices | How each configuration was read (vendor, parser or generic path, coverage) | `…/devices` |
-| Findings | Every control on every device, with evidence | `…/checks` |
-| Attack paths | How the confirmed problems chain into an attack, per path: the steps with their lines, the outcome, and the one fix that breaks it; a summary of the fixes that close them all | `…/paths` |
-| Remediation | **Fix in this order** (most risk removed per effort, with reasons), then fix automatically, needs your input, manual action, cannot safely fix; verified download; candidate fixes; **Next** rescores a copy with the commands you confirmed (shown as soon as one is) | `…/fix` |
-| Adaptive learning | This scan's unknown syntax to teach, in two tabs: **Found in your file** (checks NetAuditAI already found a line for) first, then **Everything else** (for a setting it missed) | `…/teach` |
-| Learned mappings | Everything NetAuditAI can read decisively, shipped and taught; each can be stopped. Open with or without a scan | `#/app/learned` |
-| Frameworks | The same results by framework requirement | `…/frameworks` |
-| History | Scan summaries kept in this browser | `#/app/history` |
-| Rules catalog | Every check, what it reads, and the 78 framework requirements the 23 checks answer | `#/app/rules` |
-| Audit ledger | Hash-chained record of every scan, taught recognizer, fix decision and report; verify the chain, or check a report PDF (or the .zip of a multi-device scan) byte for byte | `#/app/ledger` |
+| `parser` | Dedicated Cisco IOS / FortiGate parser | Yes |
+| `confirmed` | Shipped seed recognizer or administrator-confirmed recognizer | Yes |
+| `default` | Documented default of a confirmed vendor | Yes |
+| `heuristic` | Lexicon reading of an unfamiliar line ("Suspected FAIL") | No |
+| `ai_verified` | AI proposal whose citations passed verification ("AI proposes ...") | No |
 
-Clicking a finding opens a drawer with its cited lines, assurance and framework mappings, and **how it was
-decided**: framework requirement → check → normalized field and value → configuration line → verdict. When AI is configured,
-**Explain this** asks for a plain-language explanation, labelled *AI-written, commentary, not evidence*; it never
-changes a status, severity or count.
+**Scores**
 
-The left rail also holds an **assistant**: ask about the open scan and it answers from that scan's own redacted
-results. It is told the verdicts as facts, and that an undecided check is not a failure, so it explains coverage
-rather than inventing a pass. The panel can be resized, popped out and dragged anywhere; the rail keeps its width
-whether the panel is open or shut, so opening it never reflows the page. Answers are rendered from Markdown into
-React elements, never HTML, so nothing a model writes can inject markup.
-
-Severity is a four-square meter plus the severity word, and status is a label with a square marker, so no result
-is conveyed by colour alone. The palette is near-black, greys and one orange accent. Text is Inter; JetBrains Mono
-is used only where characters must line up (configuration lines, evidence, diffs, commands, recognizer patterns).
-
-## Setup
-
-Prerequisites: Python 3.10+, Node.js 18+. A Groq API key is optional.
-
-```bash
-# backend
-cd backend
-python -m venv venv
-venv\Scripts\activate          # Windows; macOS/Linux: source venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-# frontend (second terminal)
-cd frontend
-npm install
-npm run dev                    # http://localhost:5173
+```text
+posture  = weighted decisive PASS / weighted decisive (PASS + FAIL) x 100     "-" when nothing was decided
+coverage = weighted decisive (PASS + FAIL) / weighted applicable checks
+weights  = critical 10, high 6, medium 3, low 1
 ```
 
-Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `frontend/.env` if you need to change a setting. Everything is optional:
+Posture and coverage are always shown together, with the range posture would take if every undecided check
+failed or passed, and a list of **critical checks not assessed**. The response still carries a deprecated
+`score` field for old scripts; the UI ignores it.
 
-| Variable | File | Purpose |
+**Framework views** regroup the same results under NIST SP 800-53 Rev. 5, the DISA Network Device Management
+SRG, ISO/IEC 27001:2022 Annex A and, for confirmed vendors, verified CIS Benchmark items. They are evidence, not a
+compliance certification. PCI DSS and CIS Controls v8 are deliberately not mapped.
+
+---
+
+## Vendor support
+
+| Configuration | How it is read | Decisive? | Remediation |
+|---|---|---|---|
+| **Cisco IOS / IOS-XE** | Dedicated parser, confirmed by grammar coverage | Yes | Deterministic recipes, verified |
+| **Fortinet FortiGate** (with a `config firewall` / `config vpn` section) | Dedicated parser, confirmed by grammar coverage | Yes (password storage and AAA are not read: `UNKNOWN`) | Deterministic recipes, verified |
+| **Juniper Junos, Palo Alto PAN-OS, Arista EOS, Huawei VRP, Aruba AOS-CX, Check Point Gaia, Extreme EXOS, MikroTik RouterOS, Cisco NX-OS / ASA / IOS-XR, SONiC, Cumulus NVUE** | Generic tokenizer + shipped recognizers + heuristics | Where a recognizer reads the line; otherwise provisional | Seed write-back, or candidate commands verified on a copy |
+| **Terraform** (AWS, Azure, GCP) and **cloud exports** (AWS security groups, Azure NSG, GCP firewall JSON) | Flattened to one statement per rule, read by shipped recognizers; device-only checks are `N_A` | Yes for an open rule; an unresolved `var.x` stays undecided | None generated |
+| **Anything else** | Generic tokenizer + heuristics + optional AI judge | Provisional until an administrator teaches it | Candidate commands once a finding is decisive |
+
+The vendor is always decided by code. An AI vendor guess is shown as evidence only and never selects a parser,
+defaults or remediation. Device identity (hostname, OS version, FortiGate model and firmware) is reported only
+when the file states it; serial numbers and chassis details are never invented.
+
+The **243 shipped recognizers** live in [`backend/data/seed_recognizers.json`](backend/data/seed_recognizers.json),
+load into an empty database on first start, and are marked `source=seed` so shipped knowledge can be audited
+separately from what a deployment was taught. See [docs/seed-knowledge.md](docs/seed-knowledge.md).
+
+---
+
+## The 23 checks
+
+<details>
+<summary>Show all checks</summary>
+
+| ID | Severity | Check |
 |---|---|---|
-| `GROQ_API_KEY`, `GROQ_API_KEY_1..4` | `backend/.env` | AI judge, explanations and chat. Keys are tried in order; the next key is used on 429 / 401 / 403 / 404. Keys of one Groq organization share one daily quota. |
-| `API_KEY` | `backend/.env` | When set, every `/api` request must send it as an `X-API-Key` header or gets 401. Empty (default) = no key, as the demo runs. The frontend does not send this header yet, so the UI stops working when it is set. |
-| `CORS_ORIGINS` | `backend/.env` | Origins allowed to call the API: `*` (default) or a comma-separated list. |
-| `ADAPTIVE_DB_PATH` | `backend/.env` | SQLite database for recognizers, learned mappings, rejected lines and the AI judge cache. Default `backend/data/adaptive.db`. |
-| `DATABASE_URL` | `backend/.env` | Postgres (e.g. a Supabase Session pooler URI) instead of the SQLite file, for hosts whose disk is wiped on restart. Empty (default) = SQLite. Tests always use SQLite. |
-| `AI_JUDGE_MAX_CALLS_PER_SCAN` | `backend/.env` | AI judge requests per scan (default 2; cache hits are free). |
-| `VENDOR_PARSE_COVERAGE_THRESHOLD` | `backend/.env` | Share of lines that must follow the detected vendor's grammar (default 0.7). |
-| `ADAPTIVE_AI_FOR_KNOWN_VENDORS` | `backend/.env` | Legacy, default `false`: send lines the Cisco / FortiGate parsers do not read to the line interpreter; results only reach the review queue. |
-| `LIVE_COLLECTION_ENABLED` | `backend/.env` | Pull configurations off devices over SSH (default `true`). Set `false` on any backend others can reach: the endpoint opens a session to whatever host it is given. |
-| `LIVE_COLLECTION_NETWORKS` | `backend/.env` | Where collection may connect (default `private`): the host is resolved and refused unless it is RFC1918 or loopback, with link-local refused by name because that is the cloud metadata endpoint. `any` lifts it. |
-| `VITE_API_BASE_URL` | `frontend/.env` | Backend URL, default `http://localhost:8000/api`. |
+| MGMT-001 | Critical | Insecure management protocol (Telnet) enabled |
+| MGMT-002 | High | Insecure HTTP management enabled |
+| MGMT-003 | Critical | Unrestricted management access |
+| MGMT-004 | Critical | Weak or default SNMP community strings |
+| MGMT-005 | Critical | Plaintext or weakly encrypted passwords |
+| MGMT-006 | Medium | Missing or disabled session timeout |
+| MGMT-007 | High | SSH version 1 or weak SSH configuration |
+| MGMT-008 | High | AAA not configured |
+| MGMT-009 | Low | Missing login banner |
+| MGMT-010 | Critical | Management reachable from an untrusted interface |
+| MGMT-011 | High | SNMPv1/v2c in use |
+| AUTH-001 | High | No login brute-force protection |
+| AUTH-002 | Medium | Weak password policy |
+| AUTH-003 | Medium | Default administrator account in use |
+| BOUNDARY-001 | Critical | Overly permissive firewall / ACL rules |
+| BOUNDARY-002 | Medium | IP source routing enabled |
+| BOUNDARY-003 | Medium | CDP / LLDP enabled on an external interface |
+| BOUNDARY-004 | Medium | Interface hardening (redirects, proxy-ARP, directed broadcast) |
+| LOG-001 | High | No remote syslog server |
+| LOG-002 | Medium | NTP not configured or unauthenticated |
+| LOG-003 | Medium | Traffic rules that do not log |
+| CRYPTO-001 | High | Weak VPN / IPsec algorithms |
+| CRYPTO-002 | High | Weak management cryptography (SSH / HTTPS) |
+
+Per-vendor facts and remediation: [docs/detection-rules.md](docs/detection-rules.md).
+
+</details>
+
+---
+
+## Measured accuracy
+
+Every labelled configuration run through the real pipeline with **shipped knowledge only and no AI**. Reproduce
+with `python backend/scripts/benchmark.py`; full table in [benchmark/RESULTS.md](benchmark/RESULTS.md), labels in
+[benchmark/labels.json](benchmark/labels.json).
+
+| Set | Insecure settings caught (decided FAIL) | Missed | False alarms on secure settings |
+|---|---|---|---|
+| 20 vulnerabilities planted in the demo files (Cisco IOS, PAN-OS) | **18/20** (other 2 flagged as suspected) | **0** | **0** of 4 |
+| 31 labelled fixtures: 8 vendors without a parser, SONiC, Cumulus, Terraform, Azure / GCP exports | **89/112** (23 left undecided) | **0** | **0** of 84 |
+| **Held-out:** 9 real configurations never seen during development (pybatfish example networks), labels committed before the first run | **21/21** (first run 20/21; the miss was a parser bug, since fixed) | **0** | **0** of 13 |
+
+"Undecided" is not a miss: the engine shows the line and what it would need, and never calls an insecure setting
+secure. `tests/test_benchmark.py` fails if detection drops or a single miss or false alarm appears. The held-out
+files are not committed (they are pybatfish's); `backend/scripts/benchmark.py` prints the command that fetches
+them at the pinned commit, and the same test then holds them to zero misses and zero false alarms.
+
+A separate live probe of 6 prompt-injection attacks against the AI judge succeeded 0 times
+(`backend/scripts/probe_injection.py`), and a fully hijacked model is tested to change no verdict.
+
+---
+
+## More than a checklist
+
+| Feature | What it does |
+|---|---|
+| **Attack paths** | Chains decided FAILs into how an attacker gets in (reach the login → capture the password → log in as admin), each step citing its line, plus the one fix that breaks the path. Each path is validated against a positive and a negative configuration. |
+| **Contextual risk** | Worst problem, internet exposure, attack paths and the asset importance you set, by a formula shown on screen and in the report. |
+| **Fix order** | Remediation sorted by risk removed per unit of effort, with the reason for each position. |
+| **Changes since last audit** | Rescan a device and see what was fixed, what newly broke and which attack paths closed. Losing evidence is never counted as a fix. |
+| **Fleet checks** | Problems only visible across devices: the same SNMP community on several devices (compared by hash, never shown) and inconsistent NTP / syslog servers. |
+| **Organisation policy** | Your own stricter baseline (idle timeout, login attempts, password length, approved NTP / syslog servers). It can only tighten, never loosen. See [docs/policy.md](docs/policy.md). |
+| **Known CVEs** | CVEs for the OS version the file states, from a committed NVD cache. Labelled as context, not an assessment. No live call. |
+| **Audit ledger** | Scans, taught recognizers, fix decisions and reports are hash-chained. Editing any entry is detected, and a report PDF can be checked byte for byte. |
+| **Assistant** | Ask about the open scan; it answers from that scan's redacted results and is told that undecided is not failed. |
+| **Offline AI** | `LOCAL_AI_URL` sends every AI call to a local OpenAI-compatible server (Ollama, llama.cpp, vLLM) so nothing leaves the network. |
+
+---
+
+## Configuration
+
+Every setting is optional. Backend settings go in `backend/.env`, frontend settings in `frontend/.env`.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `GROQ_API_KEY`, `GROQ_API_KEY_1` to `_4` | empty | AI judge, explanations and chat. Tried in order; the next key is used on 429 / 401 / 403 / 404. Keys from one Groq organization share one daily quota. |
+| `LOCAL_AI_URL`, `LOCAL_AI_MODEL`, `LOCAL_AI_TIMEOUT` | empty, `llama3.1:8b`, `120` | Use a local OpenAI-compatible model instead of Groq. When set, the Groq keys are ignored. |
+| `AI_JUDGE_MAX_CALLS_PER_SCAN` | `2` | AI judge requests per scan. Cache hits are free. |
+| `API_KEY` | empty | When set, every `/api` request needs an `X-API-Key` header. **The bundled frontend does not send it yet**, so only set it for API-only use or behind a proxy that adds it. |
+| `CORS_ORIGINS` | `*` | Comma-separated list of allowed origins. |
+| `ADAPTIVE_DB_PATH` | `backend/data/adaptive.db` | SQLite file for recognizers, rejected lines, the AI cache and the scan archive. |
+| `DATABASE_URL` | empty | Postgres URI (e.g. Supabase session pooler) instead of SQLite, for hosts that wipe their disk on restart. |
+| `VENDOR_PARSE_COVERAGE_THRESHOLD` | `0.7` | Share of lines that must follow a vendor's grammar before its parser is trusted. |
+| `LIVE_COLLECTION_ENABLED` | `true` | SSH collection from devices. **Set `false` on any backend others can reach.** |
+| `LIVE_COLLECTION_NETWORKS` | `private` | Only RFC1918 and loopback hosts may be collected from; link-local (cloud metadata) is always refused. `any` lifts the restriction. |
+| `ADAPTIVE_AI_FOR_KNOWN_VENDORS` | `false` | Legacy line interpreter for Cisco / FortiGate lines the parsers skip. Results only reach the review queue. |
+| `VITE_API_BASE_URL` (frontend) | `http://localhost:8000/api` | Backend URL. Vite reads it only at startup. |
+
+Live collection with NAPALM (preferred where it has a driver) needs `pip install -r requirements-live.txt`.
+Netmiko is already included and covers every supported platform: Cisco IOS / NX-OS / IOS-XR, Arista EOS, Juniper
+Junos, FortiGate, PAN-OS, Huawei VRP and MikroTik RouterOS.
+
+---
+
+## Command line and CI
+
+The same engine without a server, built for pipelines:
+
+```bash
+cd backend
+python -m app.cli scan ../configs/ --fail-on high --sarif netaudit.sarif
+```
+
+- **Deterministic:** AI is always off, and a throwaway database holds only shipped knowledge, so the same files
+  give the same result.
+- **Only decided FAILs fail the build.** Suspected problems are reported but never block.
+- **Exit codes:** `0` passed, `1` a decided problem at or above `--fail-on`, `2` bad input.
+- **SARIF 2.1.0** output shows each problem on its line in a pull request (GitHub code scanning).
+
+Options, `--policy`, `--framework` and a ready GitHub Actions workflow: [docs/cli.md](docs/cli.md).
+
+---
+
+## What is stored
+
+| Data | Where | Survives a restart? |
+|---|---|---|
+| Uploaded or collected configurations | Backend memory only | No. Never written to disk. |
+| Active scans (needed to teach and fix) | Backend memory | No. After a restart an archived scan reopens read-only; teaching or fixing asks for the file again. |
+| Scan archive: redacted results and remediation plans | `scans` table | Yes |
+| Recognizers and learned mappings (shipped and taught) | `learned_mappings` | Yes |
+| Lines an administrator rejected | `rejected_lines`, redacted | Yes |
+| Verified AI judge answers | `ai_judge_cache`, keyed by a hash of the redacted prompt | Yes |
+| History list in the UI | Browser `localStorage`, summaries only | Browser only |
+
+Tables live in SQLite by default or in Postgres when `DATABASE_URL` is set; the same SQL runs on both. A line
+holding a password, key or community string is refused as a recognizer, and every AI prompt, archived scan and
+report is redacted.
+
+---
+
+## Deploying safely
+
+This is a prototype built to run on a laptop for a demo. If you expose it anyway:
+
+1. Set `LIVE_COLLECTION_ENABLED=false`. Otherwise the backend will open SSH sessions to hosts it is given.
+2. Never set `LIVE_COLLECTION_NETWORKS=any` on a public host.
+3. Set `API_KEY` and put a proxy in front that adds the header for the UI.
+4. Set `CORS_ORIGINS` to your frontend origin.
+5. Set `DATABASE_URL` if the host loses its disk on restart, or everything administrators taught is lost.
+
+Trust boundaries and guarantees: [docs/security-model.md](docs/security-model.md).
+
+---
+
+## Known limitations
+
+- **Access control** is one optional shared key: no users, no roles, no per-tenant isolation.
+- **Parsers** exist for Cisco IOS / IOS-XE and FortiGate only. The IOS grammar is a curated list of command roots,
+  so an unusual but valid IOS file can come out unverified.
+- **Shipped recognizers** answer part of each dialect, not all of it. Anything they do not cover has to be taught.
+- **Heuristics** can misread an unfamiliar dialect until an administrator confirms or rejects the line. They never
+  affect posture.
+- **Redaction** is pattern-based; a secret behind an unlisted keyword could reach the AI.
+- **The AI judge** runs only for unknown or unverified vendors. Undecided checks on Cisco / FortiGate are not
+  escalated.
+- **Candidate commands** for unconfirmed vendors are verified only when they remove or switch off the cited lines,
+  or when a reviewed recognizer reads every line. A verified candidate means the finding is gone from this file,
+  not that the command is safe to run on the device.
+- **Adding a missing setting** on an unconfirmed vendor is limited to syslog and the login banner.
+- `/api/assistant/status` reports AI as available whenever a key is set, even when the quota is used up.
+
+The full list of open items is in [docs/roadmap.md](docs/roadmap.md).
+
+---
+
+## Repository layout
+
+```text
+backend/
+  app/
+    collect/        SSH collection (Netmiko, optional NAPALM)
+    parsers/        vendor detection, grammar coverage, Cisco IOS and FortiGate parsers
+    structure/      generic tokenizer, JSON and Terraform flattening
+    facts/          predicates, parser facts, defaults, lexicon, heuristics, recognizers, seed loader
+    controls/       23-check catalog, judges, evaluator, framework views, policy
+    analysis/       scoring, attack paths, risk, drift, fleet checks, CVE lookup
+    ai/             model client, redaction, prompt fence, AI judge, remediation drafts
+    adaptive/       teaching flow: capture, relevance, matching, review service
+    remediation/    recipes, verifying engine, seed write-back, candidate commands
+    reporting/      PDF reports
+    db/             SQLite / Postgres, recognizer store, scan archive
+    api/routes/     scan, collect, remediation, adaptive, assistant, report, ledger
+    cli.py          command line for CI
+    ledger.py       hash-chained audit ledger
+  data/             shipped recognizers, factory defaults, CVE cache, attack-path validation
+  scripts/          benchmark, CVE cache builder, injection probe, architecture PDF
+  tests/            pytest suite and labelled fixtures
+frontend/src/       React 19 + Vite app (hand-written CSS, no component library)
+benchmark/          ground-truth labels and generated results
+demo-sih/           the three demo configurations
+sample/             extra sample configurations
+docs/               design and reference documentation
+```
+
+---
 
 ## Testing
 
 ```bash
+# backend: every AI call is mocked, every test gets its own SQLite database
 cd backend
-venv\Scripts\python -m pytest tests -q -n auto   # 1648 passed, 2 skipped (live AI, needs NETAUDIT_LIVE_AI=1)
+python -m pytest tests -q -n auto
+NETAUDIT_LIVE_AI=1 python -m pytest tests -q          # also runs the 2 live-AI tests (needs a Groq key)
 
+# frontend
 cd frontend
-npm test                                    # 152 passed
+npm test
 npm run build
+npm run e2e                                              # Playwright demo walkthrough
 ```
 
-Every AI call is mocked and every test gets its own SQLite database. See [docs/testing.md](docs/testing.md).
+Details: [docs/testing.md](docs/testing.md).
 
-## Persistence
-
-The three knowledge tables live in SQLite (`ADAPTIVE_DB_PATH`) by default, or in Postgres when `DATABASE_URL` is
-set. Same schema and SQL on both; Postgres connections are pooled and reads are cached per process.
-
-| Data | Where | Survives restart |
-|---|---|---|
-| Confirmed recognizers and learned mappings | `learned_mappings` | Yes -reused by every later scan and process |
-| Lines an administrator rejected | `rejected_lines`, stored redacted | Yes |
-| Verified AI judge answers | `ai_judge_cache` (answers to redacted prompts) | Yes |
-| Scan results, uploaded configurations | Backend memory | No |
-| Scan history in the UI | Browser `localStorage`: summaries only (no findings, evidence or config lines) | Browser only; reopening needs the backend to still hold the scan |
-
-A line holding a secret (password, key, community string) is never stored as a mapping or recognizer.
-
-## Known limitations
-
-- Prototype, not a production security tool. Access control is one optional shared `API_KEY`: no users, no roles. With the defaults the API is open and CORS allows every origin.
-- Parsers cover common Cisco IOS and FortiGate syntax; the IOS grammar is a curated root list, so an unusual real IOS config can come out unverified.
-- 23 controls. Remediation recipes exist only for Cisco IOS and FortiGate; weak stored passwords, AAA without a strong local account and any-to-any rules always need a human.
-- Unknown vendors rely on lexicon heuristics and confirmed recognizers; heuristics can misread a dialect until an administrator confirms or rejects the line.
-- Shipped seed knowledge covers thirteen dialects, AWS / Azure / GCP exports and Terraform, 243 recognizers, so it answers only part of each dialect. Everything it does not cover still has to be taught, and a dialect with no seeds behaves exactly as before.
-- Redaction is pattern-based: a secret behind an unlisted keyword could still reach the AI.
-- The AI judge escalates only unknown / unverified vendors; UNKNOWN controls of confirmed vendors are not sent to AI.
-- Scan results live in memory; recognizer replay only checks scans held by the running backend. A candidate remediation lives in its scan only and is never persisted as knowledge.
-- A candidate can only be verified when it explicitly removes or switches off the lines the finding cites, or when a reviewed recognizer reads every line of it; anything else (for example adding a user and deleting `admin` in one command) is kept for review as unverified.
-- Framework views cover NIST SP 800-53 Rev. 5, verified CIS items, the DISA Network Device Management SRG and ISO/IEC 27001:2022 Annex A (no PCI DSS or CIS Controls v8 mappings).
-- `/api/assistant/status` reports AI available whenever a key is configured, even if the quota is used up.
-- Live collection **reads** a device (one SSH session, read-only commands, credentials never stored) and is bounded to private address space by default. No command, generated or proposed, is ever executed on a device.
-
-## License
-
-All rights reserved: see [LICENSE](LICENSE). No copying, use, modification or redistribution without written
-permission. Smart India Hackathon 2026 evaluators may view and run it to evaluate this submission.
+---
 
 ## Documentation
 
 | Document | Contents |
 |---|---|
-| [docs/architecture-brief.pdf](docs/architecture-brief.pdf) | Two-page architecture brief (evaluation deliverable), generated from [the Markdown](docs/architecture-brief.md) by `python backend/scripts/build_architecture_pdf.py` |
-| [docs/architecture.md](docs/architecture.md) | Pipeline, vendors, facts, controls, scoring, AI, recognizers, persistence, remediation, frameworks |
-| [docs/security-model.md](docs/security-model.md) | Trust boundaries and safety guarantees |
-| [docs/ai-design.md](docs/ai-design.md) | AI judge, remediation candidates, verification, cache, legacy interpreter |
-| [docs/api.md](docs/api.md) | Endpoints and response fields |
-| [docs/policy.md](docs/policy.md) | Organisation policy: your own stricter baseline and approved servers |
-| [docs/cli.md](docs/cli.md) | Command line for CI pipelines (exit codes, SARIF, GitHub Actions) |
-| [docs/detection-rules.md](docs/detection-rules.md) | The 23 controls, per-vendor facts and remediation |
-| [docs/data-model.md](docs/data-model.md) | Core objects |
-| [docs/seed-knowledge.md](docs/seed-knowledge.md) | Shipped recognizers: what they are, how they load, how to add one |
-| [docs/demo.md](docs/demo.md) | SIH demo script: the two-minute judge path and the full walkthrough |
-| [docs/setup.md](docs/setup.md), [docs/testing.md](docs/testing.md), [docs/deployment.md](docs/deployment.md) | Running and testing |
+| [architecture.md](docs/architecture.md) | The full pipeline, facts, checks, scoring, AI, recognizers, persistence, remediation |
+| [architecture-brief.pdf](docs/architecture-brief.pdf) | Two-page architecture brief (evaluation deliverable) |
+| [security-model.md](docs/security-model.md) | Trust boundaries and safety guarantees |
+| [ai-design.md](docs/ai-design.md) | AI judge, verification, cache, remediation drafts |
+| [seed-knowledge.md](docs/seed-knowledge.md) | Shipped recognizers and how to add one |
+| [detection-rules.md](docs/detection-rules.md) | The 23 checks per vendor |
+| [api.md](docs/api.md) | Endpoints and response fields (interactive docs at `/docs` when the backend runs) |
+| [cli.md](docs/cli.md) | Command line, exit codes, SARIF, GitHub Actions |
+| [policy.md](docs/policy.md) | Organisation policy file |
+| [data-model.md](docs/data-model.md) | Core objects |
+| [decisions.md](docs/decisions.md) | Key design decisions and why |
+| [demo.md](docs/demo.md) | Two-minute judge path and full walkthrough |
+| [setup.md](docs/setup.md), [testing.md](docs/testing.md), [deployment.md](docs/deployment.md) | Running, testing, deploying |
+| [roadmap.md](docs/roadmap.md) | Done and not yet done |
+
+---
+
+## License
+
+**All rights reserved.** See [LICENSE](LICENSE). No copying, use, modification or redistribution without written
+permission from the author. Organisers, evaluators and judges of Smart India Hackathon 2026 may view, download and
+run it to evaluate this submission.
