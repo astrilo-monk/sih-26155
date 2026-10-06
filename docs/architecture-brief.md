@@ -69,7 +69,8 @@ answers the **very next scan**: decisive, deterministic, no AI call, **no redepl
 
 Shipped seed knowledge is the same mechanism reviewed in Git rather than taught at runtime: **243 recognizers**
 across Juniper Junos, Palo Alto PAN-OS, Arista EOS, Huawei VRP, HPE Aruba AOS-CX, Check Point Gaia, Extreme EXOS,
-MikroTik RouterOS, Cisco NX-OS, ASA and IOS-XR, and AWS security groups. A fresh deployment reads those dialects before anyone teaches it.
+MikroTik RouterOS, Cisco NX-OS, ASA, IOS-XR, SONiC and Cumulus, plus AWS / Azure / GCP firewall exports and Terraform.
+A fresh deployment reads those dialects before anyone teaches it.
 
 ## 5. Where AI is used, and where it is not
 
@@ -99,10 +100,11 @@ still knows the password is Type 7 without the value leaving the process.
 ## 7. Technology and scale
 
 Python 3.10, FastAPI, ReportLab, Netmiko (NAPALM optional), SQLite or Postgres via psycopg, Groq LLM API
-(optional), React 19 and Vite with no runtime UI dependencies. **1644 backend tests** (pytest) and **151 frontend**
-(Vitest). Everything runs without AI; AI only raises coverage.
+(optional), React 19 and Vite with no runtime UI dependencies. About **1,650 backend test cases** (725 pytest
+functions in 67 files), about **150 frontend tests** (Vitest) and one Playwright end-to-end run. Everything runs
+without AI; AI only raises coverage.
 
 Honest scope: two vendors have dedicated parsers (Cisco IOS, FortiGate). Everything else is read generically,
-with eleven dialects and AWS security groups already answering decisively from shipped recognizers. Any other
+with thirteen dialects and the AWS / Azure / GCP formats already answering decisively from shipped recognizers. Any other
 configuration is still ingested, tokenized and evaluated; what cannot be decided is reported as undecided rather
 than guessed, until somebody teaches the line that settles it.

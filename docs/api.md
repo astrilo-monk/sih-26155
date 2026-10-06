@@ -2,7 +2,79 @@
 
 The FastAPI backend exposes the endpoints below. All routes except `/health` are under `/api`. Interactive docs are available at `http://localhost:8000/docs` when the backend is running.
 
-Request and response models are defined in `backend/app/api/schemas.py`.
+Request and response models are defined in `backend/app/api/schemas.py`. Every response that quotes a configuration
+is redacted with that configuration's own secrets; the only exceptions are the two download routes that return the
+operator's own corrected file.
+
+## Endpoint map
+
+```mermaid
+flowchart LR
+    subgraph SCAN["Scanning"]
+        S1["POST /api/scan"]
+        S2["GET /api/scan/{id}"]
+        S3["GET /api/scan/{id}/baseline"]
+        S4["GET /api/scan/{id}/drift"]
+        S5["GET /api/scan/{id}/status"]
+        S6["GET /api/catalog"]
+    end
+    subgraph COL["Live collection"]
+        C1["GET /api/collect/capabilities"]
+        C2["POST /api/collect"]
+    end
+    subgraph TEACH["Adaptive learning"]
+        T1["GET …/unresolved"]
+        T2["GET …/provisional"]
+        T3["POST …/ask-ai"]
+        T4["GET …/configs/{i}/lines"]
+        T5["GET …/meanings"]
+        T6["POST …/recognizers/draft"]
+        T7["POST …/recognizers"]
+        T8["POST …/provisional/reject"]
+        T9["GET / PATCH / DELETE /api/adaptive/mappings"]
+    end
+    subgraph FIX["Remediation"]
+        R1["POST /api/remediate"]
+        R2["POST /api/remediation/plan"]
+        R3["POST /api/remediation/candidate*"]
+        R4["POST /api/remediation/final"]
+        R5["POST /api/download-fixed"]
+    end
+    subgraph OUT["Reports and audit"]
+        O1["POST /api/report"]
+        O2["GET /api/ledger"]
+        O3["GET /api/ledger/verify"]
+        O4["POST /api/ledger/verify-report"]
+    end
+    subgraph AI["Assistant"]
+        A1["GET /api/assistant/status"]
+        A2["GET /api/assistant/explain/…"]
+        A3["GET /api/assistant/summary/{id}"]
+        A4["POST /api/assistant/chat"]
+    end
+    C2 -->|"same pipeline"| S1
+    S1 --> TEACH
+    S1 --> FIX
+    S1 --> OUT
+```
+
+A typical session: `POST /api/scan` (or `/api/collect`) → read the response → `GET …/unresolved` and teach lines →
+`POST /api/remediation/plan` with operator inputs → `POST /api/download-fixed` → `POST /api/report` →
+`GET /api/ledger/verify`.
+
+### Status codes used across the API
+
+| Code | Meaning here |
+|---|---|
+| `400` | empty file, not UTF-8, no files, nothing verified to download |
+| `401` | `API_KEY` set and `X-API-Key` missing or wrong |
+| `403` | live collection disabled |
+| `404` | unknown scan, device index, control or candidate |
+| `409` | the action needs something this scan does not have: a confirmed vendor (or the opposite), a decisive FAIL, a configuration still held in memory (archived scans are read-only), an unverified candidate |
+| `413` | a configuration over 2 MB |
+| `422` | invalid input: framework, criticality, policy, operator input, a recognizer gate, a command shape |
+| `502` | every device of a collection failed |
+| `503` | AI unavailable for an AI-only action |
 
 **API key.** When `API_KEY` is set in `backend/.env`, every `/api` route needs an `X-API-Key: <key>` header and
 answers `401 {"detail": "Missing or invalid API key"}` without it. `/health` stays open. Empty (default) = no key.
@@ -80,7 +152,9 @@ Upload one or more raw configuration files for analysis.
   * the reasons a score is provisional
 
 ### `GET /api/scan/{scan_id}`
-Retrieve a previous scan from the in-memory store (`404` after a backend restart).
+Retrieve a scan. While the backend holds it, the response is rebuilt from memory; after a restart it is served from
+the redacted **scan archive** (`scans` table) and is read-only: teaching or fixing it answers `409` and asks for the
+configuration again. `404` only when neither has it.
 
 ### `GET /api/catalog`
 Every check (`control_id`, `title`, `question`, `category`, `severity`, `kind`, `reads[]` normalized fields) with every
@@ -191,8 +265,13 @@ Remediation is deterministic (`backend/app/remediation/`). It runs only for a **
 
 For a configuration whose vendor is **not** confirmed, `/api/remediation/candidate*` offers reviewed *candidate*
 remediation instead: command text an administrator typed or the AI proposed, validated, simulated on a copy of the
-uploaded configuration where an effect can be derived, and confirmed by a human. A candidate is never executed,
-never applied and never downloaded.
+uploaded configuration where an effect can be derived, and confirmed by a human. A candidate is never executed and
+never applied to the uploaded configuration; a **verified** one can be downloaded as a corrected copy of the file
+(`/api/remediation/candidate/download`).
+
+For an unconfirmed vendor whose failing line a reviewed recognizer read, the plan also includes **seed write-back**
+fixes (`app/remediation/writeback.py`): the same recognizer writes the secure value, the copy is rescanned, and a
+verified write-back is reported `fixed` and included in `/api/download-fixed` like a confirmed vendor's fix.
 
 Every remediation response (`RemediationResponse`) has:
 
@@ -204,13 +283,34 @@ Every remediation response (`RemediationResponse`) has:
 | `required_inputs`, `missing_inputs` | Operator values the recipe uses / still needs |
 | `diff` | The proposed deterministic change (unified diff) |
 | `fixed_config` | Generated configuration (after state), for review; also returned when verification failed |
-
-`evidence`, `diff` and `fixed_config` are **redacted** (the configuration's secrets and the `ntp_key` input become
-`<SECRET:…>`). Only `POST /api/download-fixed` returns the real, deployable configuration.
 | `checks` | Rescan checks: `vendor`, `parse_coverage`, `target`, `no_regression` |
 | `control_status_before` / `_after`, `before` / `after` | Control status and posture, coverage, critical-unassessed, parse coverage before and after |
 
-Inputs (all optional, validated, `422` when invalid): `syslog_server` and `ntp_server` (IPv4), `ntp_key_id` (1–65535), `ntp_key` (8–32 characters of `A-Z a-z 0-9 . _ + = @ % -`), `management_subnet` (IPv4 CIDR, not `/0`).
+`evidence`, `diff` and `fixed_config` are **redacted** (the configuration's secrets and the `ntp_key` input become
+`<SECRET:…>`). Only `POST /api/download-fixed` returns the real, deployable configuration.
+
+Inputs (all optional, validated, `422` when invalid):
+
+| Input | Rule | Used by |
+|---|---|---|
+| `syslog_server` | IPv4 address | LOG-001 |
+| `ntp_server` | IPv4 address | LOG-002 (added when no server exists) |
+| `ntp_key_id` | 1 to 65535 | LOG-002 |
+| `ntp_key` | 8 to 32 characters of `A-Z a-z 0-9 . _ + = @ % -` | LOG-002 |
+| `banner_text` | the warning shown before login | MGMT-009 write-back (unconfirmed vendors) |
+| `management_subnet` | IPv4 CIDR, not `/0` | MGMT-003 |
+
+```mermaid
+flowchart LR
+    REQ["POST /api/remediation/plan"] --> EACH["each device, each failing control,<br/>catalog order"]
+    EACH --> VS{"vendor"}
+    VS -->|"confirmed"| REC["recipe → rescan"]
+    VS -->|"unconfirmed"| WB["write-back → rescan"]
+    VS -->|"unconfirmed, no write-back"| CD["candidates[]"]
+    REC --> ST["status per control"]
+    WB --> ST
+    ST --> OUT["devices[]: remediations, candidates,<br/>fixed_config, fixed_diff, before / after"]
+```
 
 ### `POST /api/remediate`
 Remediate one control on one device.
@@ -274,7 +374,7 @@ Every response is a `RemediationCandidateSchema`:
 
 | Field | Meaning |
 |---|---|
-| `source` | `manual` · `ai` |
+| `source` | `derived` · `manual` · `ai` |
 | `status` | `draft` · `verified` · `unverified` · `rejected` · `confirmed` |
 | `command` | The proposed text, redacted for display. It is never executed |
 | `reason` | What the state means, in full sentences |
@@ -282,6 +382,7 @@ Every response is a `RemediationCandidateSchema`:
 | `evidence` | The failing lines the candidate has to address (redacted) |
 | `control_status_before` / `_after` | The control before and on the simulated copy, e.g. `fail` → `not_configured` (absence is never a PASS) |
 | `checks` | `target`, `no_regression`, `generic_path` -empty when nothing could be simulated |
+| `effect` | `applied` (reviewed recognizers read every line, so the command was written into the copy) or `removal` (the cited statements were removed) |
 | `diff` | The simulated change on the copy (redacted). The uploaded configuration is untouched |
 | `download_available` | Whether `/candidate/download` can hand out the verified corrected copy. The copy itself is never in this JSON |
 | `created_at`, `confirmed_at` | When it was proposed and, if it happened, confirmed |
@@ -348,7 +449,8 @@ Summarize the scan results. Falls back to static text without AI.
 
 ### `POST /api/assistant/chat`
 Ask a question about a scan.
-* **Request JSON:** `{"scan_id": "123", "message": "What does rule MGMT-001 mean?"}`
+* **Request JSON:** `{"scan_id": "123", "message": "What does rule MGMT-001 mean?", "history": [{"role": "you", "content": "…"}, {"role": "assistant", "content": "…"}]}`
+  -`history` is optional; only the last 8 turns, each cut to 600 characters, are sent to the model.
 * **Response JSON:** `{"response": "...", "scan_id": "123"}`
 
 ## Adaptive Training

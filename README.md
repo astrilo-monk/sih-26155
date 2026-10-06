@@ -91,7 +91,7 @@ Optional settings live in `backend/.env` (copy `backend/.env.example`) and `fron
 
 ## Demo
 
-Three files in [`demo-sih/`](demo-sih/README.md). Each goes from a bad first scan to **posture 100 with 0
+Four demos in [`demo-sih/`](demo-sih/README.md). Each goes from a bad first scan to **posture 100 with 0
 problems** once the corrected file is rescanned. This is pinned by `backend/tests/test_demo_fix_to_100.py`.
 
 | File | First scan | How it gets to 100 |
@@ -99,6 +99,7 @@ problems** once the corrected file is rescanned. This is pinned by `backend/test
 | `cisco_oneclick.cfg` | posture 41, 15 problems | One click. Deterministic Cisco recipes, no input needed. |
 | `paloalto_ai_human.cfg` | posture 30, 10 problems | 5 fixed by seed write-back (no parser), 5 by an AI-drafted or typed command, each verified on a copy. |
 | `unknown_vendor.cfg` | no score, 3 suspected problems | Teach 3 lines in **Adaptive learning**, then 3 verified commands. |
+| `fortigate/` (3 files, one upload) | fleet posture 80, 13 problems | One click; the download is a `.zip` of 3 corrected files. Also shows a cross-device NTP mismatch and a closed attack path. |
 
 The two-minute judge path and the full walkthrough are in [docs/demo.md](docs/demo.md). A browser test
 (`cd frontend && npm run e2e`) walks the same path.
@@ -335,7 +336,7 @@ Every setting is optional. Backend settings go in `backend/.env`, frontend setti
 | `AI_JUDGE_MAX_CALLS_PER_SCAN` | `2` | AI judge requests per scan. Cache hits are free. |
 | `API_KEY` | empty | When set, every `/api` request needs an `X-API-Key` header. **The bundled frontend does not send it yet**, so only set it for API-only use or behind a proxy that adds it. |
 | `CORS_ORIGINS` | `*` | Comma-separated list of allowed origins. |
-| `ADAPTIVE_DB_PATH` | `backend/data/adaptive.db` | SQLite file for recognizers, rejected lines, the AI cache and the scan archive. |
+| `ADAPTIVE_DB_PATH` | `backend/data/adaptive.db` | SQLite file for recognizers, rejected lines, the AI cache, the scan archive and the audit ledger. |
 | `DATABASE_URL` | empty | Postgres URI (e.g. Supabase session pooler) instead of SQLite, for hosts that wipe their disk on restart. |
 | `VENDOR_PARSE_COVERAGE_THRESHOLD` | `0.7` | Share of lines that must follow a vendor's grammar before its parser is trusted. |
 | `LIVE_COLLECTION_ENABLED` | `true` | SSH collection from devices. **Set `false` on any backend others can reach.** |
@@ -344,8 +345,9 @@ Every setting is optional. Backend settings go in `backend/.env`, frontend setti
 | `VITE_API_BASE_URL` (frontend) | `http://localhost:8000/api` | Backend URL. Vite reads it only at startup. |
 
 Live collection with NAPALM (preferred where it has a driver) needs `pip install -r requirements-live.txt`.
-Netmiko is already included and covers every supported platform: Cisco IOS / NX-OS / IOS-XR, Arista EOS, Juniper
-Junos, FortiGate, PAN-OS, Huawei VRP and MikroTik RouterOS.
+Netmiko is already included and covers all 12 supported platforms: Cisco IOS / IOS-XE, NX-OS and IOS-XR, Arista EOS,
+Juniper Junos, FortiGate, Palo Alto PAN-OS, HPE Aruba AOS-CX, Huawei VRP, Check Point Gaia, Extreme EXOS and MikroTik
+RouterOS.
 
 ---
 
@@ -378,6 +380,7 @@ Options, `--policy`, `--framework` and a ready GitHub Actions workflow: [docs/cl
 | Recognizers and learned mappings (shipped and taught) | `learned_mappings` | Yes |
 | Lines an administrator rejected | `rejected_lines`, redacted | Yes |
 | Verified AI judge answers | `ai_judge_cache`, keyed by a hash of the redacted prompt | Yes |
+| Audit ledger: hashes of scans, recognizers, fix decisions, reports | `ledger` | Yes |
 | History list in the UI | Browser `localStorage`, summaries only | Browser only |
 
 Tables live in SQLite by default or in Postgres when `DATABASE_URL` is set; the same SQL runs on both. A line
@@ -473,19 +476,26 @@ Details: [docs/testing.md](docs/testing.md).
 
 ## Documentation
 
+Start at the **[documentation index](docs/README.md)**, which has reading paths for judges, operators, developers and
+security reviewers.
+
 | Document | Contents |
 |---|---|
+| [project-overview.md](docs/project-overview.md) | System context, repository map, module dependencies, frontend pages |
 | [architecture.md](docs/architecture.md) | The full pipeline, facts, checks, scoring, AI, recognizers, persistence, remediation |
 | [architecture-brief.pdf](docs/architecture-brief.pdf) | Two-page architecture brief (evaluation deliverable) |
 | [security-model.md](docs/security-model.md) | Trust boundaries and safety guarantees |
 | [ai-design.md](docs/ai-design.md) | AI judge, verification, cache, remediation drafts |
 | [seed-knowledge.md](docs/seed-knowledge.md) | Shipped recognizers and how to add one |
-| [detection-rules.md](docs/detection-rules.md) | The 23 checks per vendor |
+| [detection-rules.md](docs/detection-rules.md) | The 23 checks: how each is decided, per-vendor sources, fixes, every framework requirement |
+| [parser-design.md](docs/parser-design.md) | Vendor detection, grammar coverage, the two parsers |
 | [api.md](docs/api.md) | Endpoints and response fields (interactive docs at `/docs` when the backend runs) |
 | [cli.md](docs/cli.md) | Command line, exit codes, SARIF, GitHub Actions |
 | [policy.md](docs/policy.md) | Organisation policy file |
-| [data-model.md](docs/data-model.md) | Core objects |
-| [decisions.md](docs/decisions.md) | Key design decisions and why |
+| [data-model.md](docs/data-model.md) | Every object and table, all 23 predicates |
+| [decisions.md](docs/decisions.md) | 16 decision records: context, decision, consequences |
+| [glossary.md](docs/glossary.md) | Every term used in the code and the UI |
+| [requirements.md](docs/requirements.md) | SIH26155 requirements and where each is met |
 | [demo.md](docs/demo.md) | Two-minute judge path and full walkthrough |
 | [setup.md](docs/setup.md), [testing.md](docs/testing.md), [deployment.md](docs/deployment.md) | Running, testing, deploying |
 | [roadmap.md](docs/roadmap.md) | Done and not yet done |

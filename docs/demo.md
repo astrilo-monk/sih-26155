@@ -3,6 +3,49 @@
 The three files in `demo-sih/` each go from a bad first scan to posture 100 (see its README).
 The two-minute judge path below uses the earlier demo configurations, now in `backend/tests/fixtures/demo/`.
 
+## Demo map
+
+```mermaid
+flowchart TD
+    START["Pick a demo"] --> A["Fix-to-100 files<br/>demo-sih/"]
+    START --> B["2-minute judge path<br/>backend/tests/fixtures/demo/"]
+    START --> C["Full walkthrough<br/>14 steps"]
+    A --> A1["cisco_oneclick.cfg<br/>41 → 100, one click"]
+    A --> A2["paloalto_ai_human.cfg<br/>30 → 100: write-back + 5 commands"]
+    A --> A3["unknown_vendor.cfg<br/>– → 100: teach 3 lines + 3 commands"]
+    A --> A4["fortigate/ (3 files)<br/>fleet 80 → 100, one click, .zip"]
+    B --> B1["4 files, one scan:<br/>risk, compare, CVEs, attack paths,<br/>PDF, ledger, rules catalog"]
+```
+
+## Fix-to-100 flows (`demo-sih/`)
+
+Each file goes from a bad first scan to **posture 100 with 0 problems** once the corrected file is rescanned, pinned by
+`backend/tests/test_demo_fix_to_100.py`. The commands to type are in [demo-sih/README.md](../demo-sih/README.md).
+
+| File | First scan | How it gets to 100 | What it shows |
+|---|---|---|---|
+| `cisco_oneclick.cfg` | posture 41, 15 problems | Remediation → *Download corrected configuration* → upload it | deterministic recipes, every one verified by rescan, no input needed |
+| `paloalto_ai_human.cfg` | posture 30, 10 problems | 5 fixed by seed write-back (Telnet, HTTP, SSH v1, idle timeout, LLDP); 5 by a typed or AI-drafted command, each verified and confirmed | no parser, yet reviewed recognizers both read and write the dialect |
+| `unknown_vendor.cfg` | no score, 3 suspected problems | teach lines 16, 18, 20 under **Adaptive learning** → problems become decided (posture 0) → 3 verified commands | learning without AI or redeployment |
+| `fortigate/` (3 files, one upload) | fleet posture 80, 13 problems | one click; the download is a `.zip` of 3 corrected files | fleet view (NTP mismatch across devices), attack path closed by the fix |
+
+```mermaid
+sequenceDiagram
+    actor You
+    participant N as NetAuditAI
+    You->>N: upload unknown_vendor.cfg
+    N-->>You: no score, 3 suspected problems (heuristic)
+    You->>N: Adaptive learning: confirm lines 16, 18, 20
+    N-->>You: 3 decided FAILs, posture 0, coverage up
+    You->>N: Remediation: type a command per problem, Verify, Confirm
+    N-->>You: each verified on a copy (fail → pass)
+    You->>N: download corrected configuration, upload it
+    N-->>You: posture 100, 0 problems
+```
+
+Taught knowledge is kept: to repeat the unknown-vendor flow, stop those three recognizers first under
+**Adaptive learning → Learned mappings**.
+
 ## The 2-minute judge path
 
 Four files in one scan: a parser-read Cisco router, and three dialects with no parser at all (PAN-OS, brace-style

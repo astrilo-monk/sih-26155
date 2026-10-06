@@ -15,16 +15,33 @@ into the seed file at runtime. The file is version-controlled and reviewed like 
 | | Seed knowledge | Runtime learning |
 |---|---|---|
 | Written by | the project, reviewed in a pull request | the administrator, under Adaptive learning |
-| Lives in | `backend/data/seed_recognizers.json` | SQLite `learned_mappings` only |
+| Lives in | `backend/data/seed_recognizers.json`, copied into `learned_mappings` | `learned_mappings` only (SQLite or Postgres) |
 | `source` column | `seed` | `runtime` |
-| Loaded | automatically, on every database open | on every scan |
+| Loaded into the store | the first time a process opens the database (idempotent) | when the administrator saves it |
+| Read | on every scan | on every scan |
 | Decisive | yes -it passes the same gates | yes |
-| Can be stopped | yes, on the Knowledge page (stays stopped) | yes |
+| Can be stopped | yes, on the Learned mappings page (stays stopped across restarts and reloads) | yes |
 
 Neither one decides compliance: both produce **facts**, and deterministic controls decide. Absence of a seed
 recognizer is never evidence -an unread concept stays `UNKNOWN` or `NOT_CONFIGURED`.
 
 ## Where it lives and how it is loaded
+
+```mermaid
+flowchart TD
+    START["process opens the database<br/>db/database.py: init_db"] --> MIG["apply migrations"]
+    MIG --> LOAD["facts/seed.py: load_seed_recognizers"]
+    LOAD --> FILE{"seed file readable?"}
+    FILE -->|"no"| WARN0["warning; scanner still runs"]
+    FILE -->|"yes"| EACH["for each entry"]
+    EACH --> SAME{"same template and scope<br/>already stored, active or not?"}
+    SAME -->|"yes"| SKIP1["skip: a stopped seed stays stopped"]
+    SAME -->|"no"| COLL{"collides with an<br/>administrator's mapping?"}
+    COLL -->|"yes"| SKIP2["skip: never overwrite"]
+    COLL -->|"no"| GATE{"validate_recognizer<br/>and secret check pass?"}
+    GATE -->|"no"| WARN1["skip with a warning"]
+    GATE -->|"yes"| SAVE["save_mapping(source = seed)"]
+```
 
 * File: `backend/data/seed_recognizers.json` (an `_README` key, then `recognizers[]`).
 * Loader: `backend/app/facts/seed.py` → `load_seed_recognizers()`.
@@ -135,8 +152,58 @@ parser's password fact does; every path to the AI redacts evidence first.
 
 ## What is covered
 
-243 recognizers over nineteen dialects that have **no dedicated parser** and stay generic/unconfirmed. The `vendor`
-field is a label for readability, never a claim of parser support and never used to select a code path.
+243 recognizers under 20 `vendor` labels: **13 device dialects** with no dedicated parser (Junos, PAN-OS, Arista EOS,
+Huawei VRP, MikroTik RouterOS, Check Point Gaia, Extreme EXOS, HPE Aruba AOS-CX, Cisco NX-OS, ASA, IOS-XR, SONiC,
+Cumulus NVUE), one label shared by Arista and NX-OS, three cloud exports (AWS security groups, Azure NSG, GCP firewall
+rules) and Terraform for AWS, Azure and GCP. All of them stay generic / unconfirmed. The `vendor` field is a label for
+readability, never a claim of parser support and never used to select a code path (it does name the *dialect* for
+learned absence, see [architecture.md §5](architecture.md#learned-absence-on-the-generic-path)).
+
+### Coverage matrix
+
+How many shipped recognizers read each setting, per dialect (generated from `seed_recognizers.json`). An empty cell
+means that setting is answered only by heuristics (provisional) or by teaching.
+
+Columns: **Telnet**, **HTTP** management (MGMT-001/002) · **Src** source restriction (MGMT-003) · **Ext** external
+exposure (MGMT-010) · **SSH** version (MGMT-007) · **Idle** timeout (MGMT-006) · **Cry** weak management crypto
+(CRYPTO-002) · **AAA** (MGMT-008) · **Pwd** password storage (MGMT-005) · **Lock** failed-login limit (AUTH-001) ·
+**Len** password length (AUTH-002) · **Acct** default account (AUTH-003) · **SNMP** community (MGMT-004/011) ·
+**Syslog** (LOG-001) · **NTP** server, **NTPa** NTP authentication (LOG-002) · **Ban** banner (MGMT-009) · **SrcR**
+source routing (BOUNDARY-002) · **LLDP** (BOUNDARY-003) · **Rtr** redirects / proxy-ARP / directed broadcast
+(BOUNDARY-004) · **Any** any-any rule (BOUNDARY-001) · **RLog** rule logging (LOG-003).
+
+| Dialect | Total | Telnet | HTTP | Src | Ext | SSH | Idle | Cry | AAA | Pwd | Lock | Len | Acct | SNMP | Syslog | NTP | NTPa | Ban | SrcR | LLDP | Rtr | Any | RLog |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Juniper Junos | 36 | 2 | 3 | 2 | 2 | 2 | 2 |  | 8 | 1 | 1 | 1 | 2 | 1 | 2 | 2 |  | 2 |  | 3 |  |  |  |
+| Palo Alto PAN-OS | 24 | 2 | 2 | 2 |  | 1 | 2 |  | 2 | 1 |  | 1 | 1 | 1 | 4 | 1 | 1 | 1 |  | 1 |  |  | 1 |
+| Arista EOS | 23 | 1 | 2 | 1 |  | 1 | 1 |  | 1 | 2 |  |  | 2 | 4 | 2 | 1 | 1 | 1 | 1 | 1 |  | 1 |  |
+| MikroTik RouterOS | 18 | 2 | 1 |  |  |  |  | 2 |  | 4 |  |  |  | 3 | 1 | 2 |  | 1 |  | 1 |  | 1 |  |
+| Huawei VRP | 17 | 2 | 2 |  |  |  | 1 |  |  | 1 |  |  | 1 | 2 | 1 | 1 | 1 | 1 | 1 | 1 |  | 2 |  |
+| Terraform (AWS) | 17 |  |  | 12 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 5 |  |
+| Azure NSG (JSON) | 12 |  |  | 6 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 6 |  |
+| Check Point Gaia | 12 | 1 | 1 | 1 |  |  | 1 |  |  |  |  |  |  | 1 | 1 | 1 | 1 | 1 | 1 | 1 |  | 1 |  |
+| Extreme Networks EXOS | 12 | 1 | 1 | 1 |  |  | 1 |  |  | 1 |  |  | 1 | 1 | 1 | 1 |  | 1 |  | 1 |  | 1 |  |
+| Terraform (Azure) | 12 |  |  | 6 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 6 |  |
+| SONiC (config_db.json) | 11 |  |  |  |  |  |  |  | 2 |  |  |  |  | 2 | 1 | 6 |  |  |  |  |  |  |  |
+| HPE Aruba AOS-CX | 10 | 1 | 1 |  |  |  |  |  |  | 1 | 1 |  | 1 | 1 | 1 |  | 1 | 1 |  |  |  | 1 |  |
+| Cisco NX-OS | 9 | 1 |  | 1 |  |  | 1 |  | 2 | 1 |  |  |  | 1 | 1 |  |  |  |  | 1 |  |  |  |
+| GCP firewall rules (JSON) | 8 |  |  | 4 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 4 |  |
+| NVIDIA Cumulus Linux (NVUE) | 6 |  |  |  |  |  |  |  | 2 |  |  |  |  | 2 | 1 | 1 |  |  |  |  |  |  |  |
+| AWS security group (JSON) | 4 |  |  | 3 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 1 |  |
+| Arista EOS / Cisco NX-OS | 4 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 3 | 1 |  |
+| Terraform (GCP) | 4 |  |  | 2 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 2 |  |
+| Cisco ASA | 3 |  |  |  |  |  |  |  | 1 |  |  |  |  |  | 1 |  |  |  |  |  |  | 1 |  |
+| Cisco IOS-XR | 1 |  |  |  |  |  |  |  |  |  |  |  |  |  | 1 |  |  |  |  |  |  |  |  |
+| **All** | **243** | **13** | **13** | **41** | **2** | **4** | **9** | **2** | **18** | **12** | **2** | **2** | **8** | **19** | **18** | **16** | **5** | **9** | **3** | **10** | **3** | **33** | **1** |
+
+CRYPTO-001 (IPsec proposals) has no column: a proposal is several values on one object, which a recognizer cannot
+express.
+
+### Concepts per dialect
+
+References to `teach/` below mean the local corpus of configurations used while writing the seeds; it is
+git-ignored and not part of the repository. Batfish test configurations (Apache-2.0) were used the same way and are
+not committed either.
 
 | Dialect | Concepts read |
 |---|---|
