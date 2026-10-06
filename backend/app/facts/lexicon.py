@@ -72,6 +72,8 @@ PASSWORD_RELATED = frozenset({
     "password", "passwd", "password-encryption", "encrypted-password", "passphrase", "credential",
     # PAN-OS stores an administrator password as a hash: `mgt-config users <name> phash <hash>`
     "phash",
+    # NX-OS names its password rules after the passphrase: `userpassphrase min-length 16`
+    "userpassphrase",
     "secret", "hash", "hashed", "encrypted", "plaintext", "cipher", "irreversible-cipher", "algorithm-type",
 })
 
@@ -88,11 +90,15 @@ MGMT_EXPOSURE_RELATED = frozenset({
 LOCKOUT_RELATED = frozenset({
     "lockout", "lockout-threshold", "admin-lockout-threshold", "retry-options", "tries-before-disconnect",
     "max-auth-attempts", "max-fail", "attempts", "block-for", "failed-attempts",
+    # Dell OS10: `password-attributes max-retry 3 lockout-period 15`
+    "max-retry",
 })
 # How a configuration names a local account
 ACCOUNT_RELATED = frozenset({"user", "users", "username", "account", "local-user", "mgt-config"})
 # Account names vendors ship or attackers try first
-DEFAULT_ACCOUNT_NAMES = frozenset({"admin", "administrator", "root", "cisco", "manager"})
+DEFAULT_ACCOUNT_NAMES = frozenset({"admin", "administrator", "root", "cisco", "manager",
+                                   # VyOS ships with the account 'vyos' (password 'vyos')
+                                   "vyos"})
 # The services MGMT-010 counts as management (ping is a diagnostic: reachable, not manageable)
 MGMT_SERVICES = frozenset({"ssh", "https", "http", "telnet", "snmp", "all"})
 READ_WRITE = frozenset({"rw", "read-write", "write"})

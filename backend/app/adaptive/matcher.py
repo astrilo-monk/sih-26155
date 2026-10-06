@@ -164,7 +164,10 @@ def compile_pattern(pattern: str, extraction_method: str) -> re.Pattern[str]:
         if tok == VALUE_TOKEN:
             parts.append(r"(?P<value>\S+)")
         elif slot := _SLOT.match(tok):
-            parts.append(f"(?P<slot>{SLOT_PATTERNS[slot.group(1)]})")
+            # a value may be quoted (VyOS writes every leaf value as ``'aes128-ctr'``): the quotes are
+            # punctuation around the slot, never part of what it reads
+            quote = "" if slot.group(1) == "community" else r"""['"]?"""
+            parts.append(f"{quote}(?P<slot>{SLOT_PATTERNS[slot.group(1)]}){quote}")
         elif tok == ANY_TOKEN:
             # a quoted string is one value however many words it holds (``message "Authorized only"``)
             parts.append(r"""(?:"[^"]*"|'[^']*'|\S+)""")

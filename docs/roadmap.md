@@ -31,7 +31,9 @@ timeline
 - [x] Security facts with assurance; every check runs on every configuration
 - [x] Generic tokenizer and lexicon heuristics for unknown vendors (provisional, no AI needed)
 - [x] Administrator-confirmed recognizers persisted (SQLite, or Postgres via `DATABASE_URL`)
-- [x] Shipped seed knowledge: 243 recognizers for 13 dialects, AWS / Azure / GCP exports and Terraform
+- [x] Shipped seed knowledge: 274 recognizers for 16 dialects, AWS / Azure / GCP exports and Terraform
+- [x] Seed expansion: lockout and password length for ASA, PAN-OS, NX-OS, Arista, Gaia; SSH and timeouts for ASA;
+      new families Dell OS10, VyOS, FortiSwitchOS; ASA `http server enable` no longer a decided HTTP failure
 - [x] JSON and Terraform flattened to one statement per object
 - [x] Serial / model / OS version reported only when the text states them
 - [x] Redacted scan archive survives a restart (read-only)
@@ -80,7 +82,6 @@ timeline
       Prerequisite: seeds tagged by source, writing only from syntax seen in real exports.
 - [ ] AI escalation for UNKNOWN checks of confirmed vendors (or drop the legacy interpreter)
 - [ ] Nokia SR OS seeds (Batfish's SR OS configs hold no management settings; needs real or lab exports)
-- [ ] PAN-OS login lockout seed (needs real syntax)
 - [ ] Pin DISA SRG ids to a downloaded NDM SRG revision; verified CIS Controls v8 and PCI DSS mappings
 - [ ] Remove the deprecated `score` once no script depends on it
 - [ ] A Dockerfile and a compose file for backend, frontend and Postgres

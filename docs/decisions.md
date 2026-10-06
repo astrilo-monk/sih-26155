@@ -109,7 +109,7 @@ line, in the ledger), reversible (stop it) and needs no redeployment.
 **Context.** A fresh deployment that knows no dialect gives a poor first impression and makes every user teach the
 same Junos lines.
 
-**Decision.** Ship 243 recognizers for 13 dialects and the cloud formats in `backend/data/seed_recognizers.json`,
+**Decision.** Ship 274 recognizers for 16 dialects and the cloud formats in `backend/data/seed_recognizers.json`,
 reviewed like code, loaded into an empty database on first start, marked `source=seed`.
 
 **Consequences.** PAN-OS, Junos, Huawei and others answer several checks before anyone teaches anything. A wrong seed

@@ -123,7 +123,7 @@ flowchart TD
     subgraph S2["2 . Read: configuration to SecurityFacts"]
         PAR["Dedicated parser + vendor defaults<br/><i>decisive</i>"]
         TOK["Generic tokenizer<br/>JSON and Terraform flattened first"]
-        REC["Recognizers from the store<br/>243 shipped + taught, <i>decisive</i>"]
+        REC["Recognizers from the store<br/>274 shipped + taught, <i>decisive</i>"]
         HEU["Lexicon heuristics<br/><i>provisional</i>"]
         TOK --> REC
         TOK --> HEU
@@ -235,7 +235,7 @@ compliance certification. PCI DSS and CIS Controls v8 are deliberately not mappe
 |---|---|---|---|
 | **Cisco IOS / IOS-XE** | Dedicated parser, confirmed by grammar coverage | Yes | Deterministic recipes, verified |
 | **Fortinet FortiGate** (with a `config firewall` / `config vpn` section) | Dedicated parser, confirmed by grammar coverage | Yes (password storage and AAA are not read: `UNKNOWN`) | Deterministic recipes, verified |
-| **Juniper Junos, Palo Alto PAN-OS, Arista EOS, Huawei VRP, Aruba AOS-CX, Check Point Gaia, Extreme EXOS, MikroTik RouterOS, Cisco NX-OS / ASA / IOS-XR, SONiC, Cumulus NVUE** | Generic tokenizer + shipped recognizers + heuristics | Where a recognizer reads the line; otherwise provisional | Seed write-back, or candidate commands verified on a copy |
+| **Juniper Junos, Palo Alto PAN-OS, Arista EOS, Huawei VRP, Aruba AOS-CX, Check Point Gaia, Extreme EXOS, MikroTik RouterOS, Cisco NX-OS / ASA / IOS-XR, SONiC, Cumulus NVUE, Dell OS10, VyOS, FortiSwitchOS** | Generic tokenizer + shipped recognizers + heuristics | Where a recognizer reads the line; otherwise provisional | Seed write-back, or candidate commands verified on a copy |
 | **Terraform** (AWS, Azure, GCP) and **cloud exports** (AWS security groups, Azure NSG, GCP firewall JSON) | Flattened to one statement per rule, read by shipped recognizers; device-only checks are `N_A` | Yes for an open rule; an unresolved `var.x` stays undecided | None generated |
 | **Anything else** | Generic tokenizer + heuristics + optional AI judge | Provisional until an administrator teaches it | Candidate commands once a finding is decisive |
 
@@ -243,7 +243,7 @@ The vendor is always decided by code. An AI vendor guess is shown as evidence on
 defaults or remediation. Device identity (hostname, OS version, FortiGate model and firmware) is reported only
 when the file states it; serial numbers and chassis details are never invented.
 
-The **243 shipped recognizers** live in [`backend/data/seed_recognizers.json`](backend/data/seed_recognizers.json),
+The **274 shipped recognizers** live in [`backend/data/seed_recognizers.json`](backend/data/seed_recognizers.json),
 load into an empty database on first start, and are marked `source=seed` so shipped knowledge can be audited
 separately from what a deployment was taught. See [docs/seed-knowledge.md](docs/seed-knowledge.md).
 
@@ -302,6 +302,10 @@ with `python backend/scripts/benchmark.py`; full table in [benchmark/RESULTS.md]
 secure. `tests/test_benchmark.py` fails if detection drops or a single miss or false alarm appears. The held-out
 files are not committed (they are pybatfish's); `backend/scripts/benchmark.py` prints the command that fetches
 them at the pinned commit, and the same test then holds them to zero misses and zero false alarms.
+
+**Reproducing from a clone:** 87 of the 112 fixture labels point at configurations in `teach/`, a corpus that
+`.gitignore` excludes, so a clean clone measures the fixtures set on the 25 labels whose files are committed (19/25
+decided, 0 missed, 0 false alarms). The planted set reproduces fully. See [testing.md](docs/testing.md#on-a-clean-clone).
 
 A separate live probe of 6 prompt-injection attacks against the AI judge succeeded 0 times
 (`backend/scripts/probe_injection.py`), and a fully hijacked model is tested to change no verdict.

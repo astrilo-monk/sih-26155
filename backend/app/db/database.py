@@ -99,6 +99,20 @@ MIGRATIONS: list[str] = [
     );
     CREATE INDEX IF NOT EXISTS idx_ledger_content ON ledger (content_hash);
     """,
+    # v7 -corrections to shipped seed rows a database already holds (the seed loader never rewrites a stored
+    # row, so a fix to a seed needs a migration). Seed rows only: what an administrator taught is never touched.
+    # Huawei 'http server enable' is HTTP management; Cisco ASA writes the same words for ASDM, which is HTTPS,
+    # so the Huawei seeds only read configurations whose top-level keywords look like Huawei VRP. The Junos
+    # syslog and NTP spellings are also VyOS's, so both dialects claim them.
+    """
+    UPDATE learned_mappings SET dialect_fingerprint = 'acl-policy header info-center ntp-service snmp-agent sysname user-interface'
+        WHERE source = 'seed' AND vendor = 'Huawei VRP'
+          AND command_pattern IN ('http server {polarity}', '{neg} http server enable')
+          AND (dialect_fingerprint IS NULL OR dialect_fingerprint = '');
+    UPDATE learned_mappings SET vendor = 'Juniper Junos / VyOS'
+        WHERE source = 'seed' AND vendor = 'Juniper Junos'
+          AND command_pattern IN ('set system syslog host {host} {rest}', 'set system ntp server {host} {rest}');
+    """,
 ]
 
 
@@ -165,6 +179,16 @@ PG_MIGRATIONS: list[str] = [
         hash         TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_ledger_content ON ledger (content_hash);
+    """,
+    # SQLite v7: seed-row corrections (see MIGRATIONS)
+    """
+    UPDATE learned_mappings SET dialect_fingerprint = 'acl-policy header info-center ntp-service snmp-agent sysname user-interface'
+        WHERE source = 'seed' AND vendor = 'Huawei VRP'
+          AND command_pattern IN ('http server {polarity}', '{neg} http server enable')
+          AND (dialect_fingerprint IS NULL OR dialect_fingerprint = '');
+    UPDATE learned_mappings SET vendor = 'Juniper Junos / VyOS'
+        WHERE source = 'seed' AND vendor = 'Juniper Junos'
+          AND command_pattern IN ('set system syslog host {host} {rest}', 'set system ntp server {host} {rest}');
     """,
 ]
 

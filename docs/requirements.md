@@ -13,7 +13,7 @@ flowchart LR
     R2["AI-powered training module"] --> M2["Teach page: plain-words meaning →<br/>typed recognizer → decisive on the<br/>next scan, no redeployment"]
     R3["Multi-framework engine"] --> M3["NIST 800-53 r5, CIS, DISA NDM SRG,<br/>ISO 27001:2022; 23 checks →<br/>78 requirements"]
     R4["Actionable intelligence + PDF"] --> M4["Cited findings, severity, framework,<br/>device-specific verified fix,<br/>per-device PDF"]
-    R5["Vendor-agnostic scalability"] --> M5["Generic path + 243 shipped<br/>recognizers; a new vendor is<br/>taught, not coded"]
+    R5["Vendor-agnostic scalability"] --> M5["Generic path + 274 shipped<br/>recognizers; a new vendor is<br/>taught, not coded"]
 ```
 
 | Required | How it is met | Where |
@@ -42,7 +42,7 @@ flowchart LR
 
 ## 3. Stretch
 
-- [x] Human-in-the-loop learning that persists (recognizers), plus 243 shipped seeds
+- [x] Human-in-the-loop learning that persists (recognizers), plus 274 shipped seeds
 - [x] Assistant chat panel and *Explain this* in the finding drawer
 - [x] Per-device PDF report (full and executive) and multi-device zip
 - [x] Historical scan comparison (changes since the last audit)

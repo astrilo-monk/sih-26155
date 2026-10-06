@@ -30,7 +30,7 @@ Ingest ... uploaded file (single or bulk, CLI text or JSON export)
   -> Vendor identification: fingerprint + grammar coverage (a look-alike is never "confirmed")
   -> Confirmed vendor ..... dedicated parser (Cisco IOS, FortiGate)
   -> Anything else ........ generic tokenizer (braces, indentation, set-style, /menu paths)
-                            -> recognizers, 243 shipped + whatever was taught   [pattern recognition]
+                            -> recognizers, 274 shipped + whatever was taught   [pattern recognition]
                             -> lexicon heuristics                              [provisional]
                             -> AI judge on what is still undecided             [budgeted, must cite]
   -> Security Baseline Model: facts with value, scope, evidence lines, assurance
@@ -67,9 +67,9 @@ Safety gates (`validate_recognizer`) reject anything that would match too much: 
 a value table, a unit for durations, and no secret is ever stored. The recognizer saves to SQLite or Postgres and
 answers the **very next scan**: decisive, deterministic, no AI call, **no redeployment**, reversible later.
 
-Shipped seed knowledge is the same mechanism reviewed in Git rather than taught at runtime: **243 recognizers**
+Shipped seed knowledge is the same mechanism reviewed in Git rather than taught at runtime: **274 recognizers**
 across Juniper Junos, Palo Alto PAN-OS, Arista EOS, Huawei VRP, HPE Aruba AOS-CX, Check Point Gaia, Extreme EXOS,
-MikroTik RouterOS, Cisco NX-OS, ASA, IOS-XR, SONiC and Cumulus, plus AWS / Azure / GCP firewall exports and Terraform.
+MikroTik RouterOS, Cisco NX-OS, ASA, IOS-XR, SONiC, Cumulus, Dell OS10, VyOS and FortiSwitchOS, plus AWS / Azure / GCP firewall exports and Terraform.
 A fresh deployment reads those dialects before anyone teaches it.
 
 ## 5. Where AI is used, and where it is not
@@ -100,11 +100,11 @@ still knows the password is Type 7 without the value leaving the process.
 ## 7. Technology and scale
 
 Python 3.10, FastAPI, ReportLab, Netmiko (NAPALM optional), SQLite or Postgres via psycopg, Groq LLM API
-(optional), React 19 and Vite with no runtime UI dependencies. About **1,650 backend test cases** (725 pytest
-functions in 67 files), about **150 frontend tests** (Vitest) and one Playwright end-to-end run. Everything runs
+(optional), React 19 and Vite with no runtime UI dependencies. About **1,730 backend test cases** (736 pytest
+functions in 68 files), about **150 frontend tests** (Vitest) and one Playwright end-to-end run. Everything runs
 without AI; AI only raises coverage.
 
 Honest scope: two vendors have dedicated parsers (Cisco IOS, FortiGate). Everything else is read generically,
-with thirteen dialects and the AWS / Azure / GCP formats already answering decisively from shipped recognizers. Any other
+with sixteen dialects and the AWS / Azure / GCP formats already answering decisively from shipped recognizers. Any other
 configuration is still ingested, tokenized and evaluated; what cannot be decided is reported as undecided rather
 than guessed, until somebody teaches the line that settles it.

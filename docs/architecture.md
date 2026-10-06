@@ -612,10 +612,10 @@ completes.
 
 ## 10. Human in the loop: recognizers
 
-A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships **243** reviewed recognizers for
-**13 dialects** with no dedicated parser (Juniper Junos, Palo Alto PAN-OS, Arista EOS, Huawei VRP, MikroTik RouterOS,
+A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships **274** reviewed recognizers for
+**16 dialects** with no dedicated parser (Juniper Junos, Palo Alto PAN-OS, Arista EOS, Huawei VRP, MikroTik RouterOS,
 HPE Aruba AOS-CX, Check Point Gaia, Extreme EXOS, Cisco NX-OS, ASA, IOS-XR, SONiC `config_db.json`, NVIDIA Cumulus
-NVUE) plus AWS security group, Azure NSG and GCP firewall exports and Terraform for AWS, Azure and GCP. One
+NVUE, Dell OS10, VyOS, Fortinet FortiSwitchOS) plus AWS security group, Azure NSG and GCP firewall exports and Terraform for AWS, Azure and GCP. One
 generalized entry per concept per dialect. `app/facts/seed.py` loads them the first time a process opens the
 database, idempotently, never overwriting or reviving a row an administrator changed or stopped. See
 [seed-knowledge.md](seed-knowledge.md).

@@ -460,7 +460,8 @@ erDiagram
 | `scans` | `archive_scan` after every scan, re-evaluation and plan | `GET /api/scan/{id}` after a restart, drift, History |
 | `ledger` | `app/ledger.py: append` | `/api/ledger`, `/api/ledger/verify`, `/api/ledger/verify-report`, PDF footer |
 
-SQLite migrations are tracked with `PRAGMA user_version` (6 versions); Postgres uses a `schema_version` table and the
+SQLite migrations are tracked with `PRAGMA user_version` (7 versions; v7 corrects shipped seed rows an existing
+database already holds); Postgres uses a `schema_version` table and the
 same SQL (`app/db/database.py`).
 
 ### Recognizer row, by example

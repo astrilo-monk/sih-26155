@@ -152,9 +152,10 @@ parser's password fact does; every path to the AI redacts evidence first.
 
 ## What is covered
 
-243 recognizers under 20 `vendor` labels: **13 device dialects** with no dedicated parser (Junos, PAN-OS, Arista EOS,
+274 recognizers under 24 `vendor` labels: **16 device dialects** with no dedicated parser (Junos, PAN-OS, Arista EOS,
 Huawei VRP, MikroTik RouterOS, Check Point Gaia, Extreme EXOS, HPE Aruba AOS-CX, Cisco NX-OS, ASA, IOS-XR, SONiC,
-Cumulus NVUE), one label shared by Arista and NX-OS, three cloud exports (AWS security groups, Azure NSG, GCP firewall
+Cumulus NVUE, Dell OS10, VyOS, Fortinet FortiSwitchOS), two shared labels (Arista and NX-OS; Junos and VyOS, whose
+`set system syslog host` and `set system ntp server` spellings are identical), three cloud exports (AWS security groups, Azure NSG, GCP firewall
 rules) and Terraform for AWS, Azure and GCP. All of them stay generic / unconfirmed. The `vendor` field is a label for
 readability, never a claim of parser support and never used to select a code path (it does name the *dialect* for
 learned absence, see [architecture.md §5](architecture.md#learned-absence-on-the-generic-path)).
@@ -174,27 +175,31 @@ source routing (BOUNDARY-002) · **LLDP** (BOUNDARY-003) · **Rtr** redirects / 
 
 | Dialect | Total | Telnet | HTTP | Src | Ext | SSH | Idle | Cry | AAA | Pwd | Lock | Len | Acct | SNMP | Syslog | NTP | NTPa | Ban | SrcR | LLDP | Rtr | Any | RLog |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Juniper Junos | 36 | 2 | 3 | 2 | 2 | 2 | 2 |  | 8 | 1 | 1 | 1 | 2 | 1 | 2 | 2 |  | 2 |  | 3 |  |  |  |
-| Palo Alto PAN-OS | 24 | 2 | 2 | 2 |  | 1 | 2 |  | 2 | 1 |  | 1 | 1 | 1 | 4 | 1 | 1 | 1 |  | 1 |  |  | 1 |
-| Arista EOS | 23 | 1 | 2 | 1 |  | 1 | 1 |  | 1 | 2 |  |  | 2 | 4 | 2 | 1 | 1 | 1 | 1 | 1 |  | 1 |  |
+| Juniper Junos | 34 | 2 | 3 | 2 | 2 | 2 | 2 |  | 8 | 1 | 1 | 1 | 2 | 1 | 1 | 1 |  | 2 |  | 3 |  |  |  |
+| Arista EOS | 27 | 1 | 2 | 1 |  | 1 | 1 |  | 1 | 2 | 2 | 1 | 2 | 4 | 2 | 1 | 2 | 1 | 1 | 1 |  | 1 |  |
+| Palo Alto PAN-OS | 25 | 2 | 2 | 2 |  | 1 | 2 |  | 2 | 1 | 1 | 1 | 1 | 1 | 4 | 1 | 1 | 1 |  | 1 |  |  | 1 |
 | MikroTik RouterOS | 18 | 2 | 1 |  |  |  |  | 2 |  | 4 |  |  |  | 3 | 1 | 2 |  | 1 |  | 1 |  | 1 |  |
 | Huawei VRP | 17 | 2 | 2 |  |  |  | 1 |  |  | 1 |  |  | 1 | 2 | 1 | 1 | 1 | 1 | 1 | 1 |  | 2 |  |
 | Terraform (AWS) | 17 |  |  | 12 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 5 |  |
+| Check Point Gaia | 13 | 1 | 1 | 1 |  |  | 1 |  |  |  |  | 1 |  | 1 | 1 | 1 | 1 | 1 | 1 | 1 |  | 1 |  |
 | Azure NSG (JSON) | 12 |  |  | 6 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 6 |  |
-| Check Point Gaia | 12 | 1 | 1 | 1 |  |  | 1 |  |  |  |  |  |  | 1 | 1 | 1 | 1 | 1 | 1 | 1 |  | 1 |  |
 | Extreme Networks EXOS | 12 | 1 | 1 | 1 |  |  | 1 |  |  | 1 |  |  | 1 | 1 | 1 | 1 |  | 1 |  | 1 |  | 1 |  |
 | Terraform (Azure) | 12 |  |  | 6 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 6 |  |
+| Cisco NX-OS | 11 | 1 |  | 1 |  |  | 1 |  | 2 | 1 | 1 | 1 |  | 1 | 1 |  |  |  |  | 1 |  |  |  |
 | SONiC (config_db.json) | 11 |  |  |  |  |  |  |  | 2 |  |  |  |  | 2 | 1 | 6 |  |  |  |  |  |  |  |
 | HPE Aruba AOS-CX | 10 | 1 | 1 |  |  |  |  |  |  | 1 | 1 |  | 1 | 1 | 1 |  | 1 | 1 |  |  |  | 1 |  |
-| Cisco NX-OS | 9 | 1 |  | 1 |  |  | 1 |  | 2 | 1 |  |  |  | 1 | 1 |  |  |  |  | 1 |  |  |  |
+| Cisco ASA | 9 |  |  |  |  | 1 | 3 |  | 1 |  | 1 | 1 |  |  | 1 |  |  |  |  |  |  | 1 |  |
 | GCP firewall rules (JSON) | 8 |  |  | 4 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 4 |  |
+| Dell OS10 | 7 | 1 |  |  |  |  |  |  |  |  | 2 | 1 | 2 |  |  |  |  | 1 |  |  |  |  |  |
+| VyOS | 7 |  |  |  |  |  |  | 2 | 1 |  |  |  | 1 | 2 |  |  |  | 1 |  |  |  |  |  |
 | NVIDIA Cumulus Linux (NVUE) | 6 |  |  |  |  |  |  |  | 2 |  |  |  |  | 2 | 1 | 1 |  |  |  |  |  |  |  |
 | AWS security group (JSON) | 4 |  |  | 3 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 1 |  |
 | Arista EOS / Cisco NX-OS | 4 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 3 | 1 |  |
 | Terraform (GCP) | 4 |  |  | 2 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 2 |  |
-| Cisco ASA | 3 |  |  |  |  |  |  |  | 1 |  |  |  |  |  | 1 |  |  |  |  |  |  | 1 |  |
+| Fortinet FortiSwitchOS | 3 |  |  |  |  |  | 1 | 1 |  |  | 1 |  |  |  |  |  |  |  |  |  |  |  |  |
+| Juniper Junos / VyOS | 2 |  |  |  |  |  |  |  |  |  |  |  |  |  | 1 | 1 |  |  |  |  |  |  |  |
 | Cisco IOS-XR | 1 |  |  |  |  |  |  |  |  |  |  |  |  |  | 1 |  |  |  |  |  |  |  |  |
-| **All** | **243** | **13** | **13** | **41** | **2** | **4** | **9** | **2** | **18** | **12** | **2** | **2** | **8** | **19** | **18** | **16** | **5** | **9** | **3** | **10** | **3** | **33** | **1** |
+| **All** | **274** | **14** | **13** | **41** | **2** | **5** | **13** | **5** | **19** | **12** | **10** | **7** | **11** | **21** | **18** | **16** | **6** | **11** | **3** | **10** | **3** | **33** | **1** |
 
 CRYPTO-001 (IPsec proposals) has no column: a proposal is several values on one object, which a recognizer cannot
 express.
@@ -208,12 +213,12 @@ not committed either.
 | Dialect | Concepts read |
 |---|---|
 | Juniper Junos | Brace and `set` forms (each `set` seed also reads the brace form): Telnet, HTTP management, SSH version, session idle timeout, remote syslog, NTP server, LLDP (on, or `lldp disable`), RADIUS / TACACS+ servers, `authentication-order` (one method or a bracketed list), `allow-address` and `allow-sources` source restriction, login `message` banner, `encrypted-password` storage (set form), `host-inbound-traffic system-services` on an `untrust`/`outside`/`internet` zone (MGMT-010) |
-| Palo Alto PAN-OS | Telnet (service and interface profile), HTTP management (service and interface profile), SSH version, session idle timeout (two spellings), remote syslog (`log-settings syslog` server profiles, shared and per vsys, plus two `deviceconfig` spellings), NTP server, NTP authentication, `permitted-ip` (system and interface profile; `0.0.0.0/0` reads as unrestricted), login banner, `phash` password storage, LLDP per interface, TACACS+ and RADIUS server profiles |
-| Arista EOS | Telnet, HTTP management (both polarities), SSH version, session idle timeout, remote syslog, NTP server, NTP authentication, IP source routing, LLDP, login banner, management ACL applied under `management ssh`, permissive any-any rule, local-only login, password storage |
+| Palo Alto PAN-OS | Telnet (service and interface profile), HTTP management (service and interface profile), SSH version, session idle timeout (two spellings), remote syslog (`log-settings syslog` server profiles, shared and per vsys, plus two `deviceconfig` spellings), NTP server, NTP authentication, `permitted-ip` (system and interface profile; `0.0.0.0/0` reads as unrestricted), login banner, `phash` password storage, LLDP per interface, TACACS+ and RADIUS server profiles, admin lockout (`set deviceconfig setting management admin-lockout failed-attempts`) |
+| Arista EOS | Telnet, HTTP management (both polarities), SSH version, session idle timeout, remote syslog, NTP server, NTP authentication, IP source routing, LLDP, login banner, management ACL applied under `management ssh`, permissive any-any rule, local-only login, password storage, lockout (`aaa authentication policy lockout failure N [duration …]`), minimum password length (`password minimum length N` under `management security`), `ntp authenticate servers` |
 | Huawei VRP | Telnet (`enable` and `undo`), HTTP management (`enable` and `undo`), remote syslog, NTP server, NTP authentication, session idle timeout, IP source routing, LLDP, login banner, password storage, permissive ACL rule |
 | MikroTik RouterOS | Telnet (also with `port=`), HTTP management (`www`), NTP server (two spellings), remote syslog, LLDP, login note, permissive input rule, SNMP community (`/snmp community set [ find … ] name=` and `add name=`, read-only), a password written in the file (`/user set|add … password=`, either side of `group=`) |
 | HPE Aruba AOS-CX | Telnet, HTTP management, NTP authentication, login banner, permissive any-any rule, remote syslog, LLDP, local-only login, password storage |
-| Check Point Gaia | Telnet, HTTP management, remote syslog, NTP server, NTP authentication, SNMP source restriction, LLDP, IP source routing, session idle timeout, login banner, permissive access rule |
+| Check Point Gaia | Telnet, HTTP management, remote syslog, NTP server, NTP authentication, SNMP source restriction, LLDP, IP source routing, session idle timeout, login banner, permissive access rule, minimum password length (`set password-controls min-password-length`) |
 | Terraform (AWS) | `aws_security_group` `ingress { }`, `aws_security_group_rule` (`type = "ingress"`), `aws_vpc_security_group_ingress_rule`: SSH / Telnet / RDP from `0.0.0.0/0` or `::/0` (or restricted to a prefix: PASS), any protocol (`-1`) or every TCP port from anywhere. A rule with other attributes (`self`, `security_groups`, several CIDRs) matches no template and stays undecided |
 | Terraform (Azure) | `security_rule { }` inside `azurerm_network_security_group` and `azurerm_network_security_rule`: an Inbound Allow on port 22 / 23 / 3389 or on `*` from `*`, `Internet` or `0.0.0.0/0`. Open rules only: `*` cannot fill an `{enum}` slot (it is the table's wildcard), so the source is literal and a restricted rule is not read (undecided, never PASS) |
 | Terraform (GCP) | `google_compute_firewall` with `source_ranges = ["0.0.0.0/0"]` (with or without `direction = "INGRESS"`), read on its `allow { }` block: port 22 / 23 / 3389 or `protocol = "all"`. Open rules only |
@@ -223,9 +228,12 @@ not committed either.
 | GCP firewall rules (JSON) | `gcloud compute firewall-rules list --format=json`: an `allowed` rule, `direction: INGRESS`, `disabled: false`, from `0.0.0.0/0`, on port 22 / 23 / 3389 or `IPProtocol: all` (with or without `logConfig`, with or without one `targetTags`). A `denied` or disabled rule is not read. Format: [gcloud compute firewall-rules](https://cloud.google.com/sdk/gcloud/reference/compute/firewall-rules/list) |
 | AWS security group (JSON) | any-protocol rule open to `0.0.0.0/0`, SSH / Telnet / RDP open to the world (or restricted to a prefix). The 20 checks a security group cannot express are N/A with the reason (`backend/data/platform_profiles.json`) |
 | Extreme Networks EXOS | Telnet, HTTP management (`web`), remote syslog, NTP server, LLDP, login banner, permissive any-any rule, session idle timeout, password storage, SSH `access-profile` source restriction |
-| Cisco NX-OS | remote syslog (`logging server`), TACACS+ server, session idle timeout under `line`, permissive any-any rule, NTP server, `username … password 0` or `5` storage, `aaa authentication login default group`, `access-class … in` under `line vty`, `feature telnet` and `feature lldp` (on or off) |
-| Cisco ASA | remote syslog (`logging host <interface> <address>`), permissive `extended` any-any rule, NTP server, `aaa authentication <service> console <group>` (`LOCAL` alone is not central) |
+| Cisco NX-OS | remote syslog (`logging server`), TACACS+ server, session idle timeout under `line`, permissive any-any rule, NTP server, `username … password 0` or `5` storage, `aaa authentication login default group`, `access-class … in` under `line vty`, `feature telnet` and `feature lldp` (on or off), `userpassphrase min-length`, `ssh login-attempts` |
+| Cisco ASA | remote syslog (`logging host <interface> <address>`), permissive `extended` any-any rule, NTP server, `aaa authentication <service> console <group>` (`LOCAL` alone is not central), `ssh version`, idle timeouts (`ssh timeout`, `console timeout`, `http server idle-timeout`, minutes), `aaa local authentication attempts max-fail`, `password-policy minimum-length` |
 | Cisco IOS-XR | remote syslog (`logging <address> vrf …`), NTP server, TACACS+ server |
+| Dell OS10 | Telnet (`ip telnet server enable`, `no …`), minimum password length and lockout (`password-attributes min-length`, `password-attributes max-retry N [lockout-period …]`), default account (`username admin password … role …`), login banner (`banner login ^C`). Syslog, NTP, NTP authentication, SNMP communities and TACACS+ are already read by the NX-OS / Arista spellings, which OS10 shares |
+| VyOS | Pre-login banner (`set system login banner pre-login`), RADIUS (`set system login radius-server`), SNMP read-only community (`set service snmp community … authorization ro`), weak SSH ciphers and MACs (`set service ssh ciphers` / `macs`), the default `vyos` account. Syslog host and NTP server are shared with Junos (label `Juniper Junos / VyOS`). Quoted leaf values (`'aes256-ctr'`) are read like unquoted ones |
+| Fortinet FortiSwitchOS | Under `config system global`: `admintimeout` (minutes), `admin-lockout-threshold`, `strong-crypto`. A FortiSwitch (or any FortiOS file without a FortiGate-only section) is unverified, so these are what make it decidable. The pre-login banner is deliberately not read: FortiSwitchOS takes the banner text there, FortiGate takes `enable` |
 
 The third pass mined Batfish's multi-vendor test configurations (Apache-2.0, kept out of the repository):
 servers written with trailing options (`{rest}`), NX-OS, ASA and IOS-XR spellings, and set-style Junos
@@ -298,7 +306,8 @@ interface names. Passing the gates makes a recognizer safe to store, not worth s
   setting needs its vendor's factory default recorded, with its source, in `backend/data/factory_defaults.json`:
   today only PAN-OS password length (Minimum Password Complexity is off by default). A line that may state it in a
   form the seeds do not read (for length: a password line that also speaks of length or complexity) keeps it
-  undecided. PAN-OS login lockout is **not** covered: neither `teach/` nor Batfish has its syntax.
+  undecided. PAN-OS login lockout is read when the file states it (`admin-lockout failed-attempts`); its absence is
+  not decided, because its factory default is not recorded in `factory_defaults.json`.
 * **Discovery protocols on external interfaces.** A seeded LLDP / CDP line that names an interface is tied to it
   when a zone whose name says it is external holds that interface (`set zone untrust network layer3
   ethernet1/1`), citing both lines; on any other interface it stays undecided.
@@ -351,6 +360,58 @@ interface names. Passing the gates makes a recognizer safe to store, not worth s
   slot reads only an address or a dotted name -in `logging host inside 10.0.0.1`, `inside` is an
   interface, not a host.
 * A seed recognizer is decisive, so a wrong one is a real defect. Treat the file as production code.
+
+## Correcting a seed a deployment already holds
+
+The loader never rewrites a stored row (that is what keeps an administrator's changes safe), so a fix to an entry
+that already shipped does **not** reach an existing database through the seed file alone. It needs a migration in
+`app/db/database.py`, applied to `source = 'seed'` rows only, before the loader runs. Migration v7 is the first:
+
+* the two Huawei `http server …` seeds get a Huawei-only `dialect_fingerprint`
+  (`acl-policy header info-center ntp-service snmp-agent sysname user-interface`). Cisco ASA writes the same words,
+  `http server enable`, to start ASDM, which is HTTPS; before the fix an ASA file got a **decided** MGMT-002
+  failure for cleartext HTTP. The fingerprint needs half of those top-level keywords to be present, which a Huawei
+  VRP file meets and an ASA file does not;
+* the Junos `set system syslog host` and `set system ntp server` seeds are relabelled `Juniper Junos / VyOS`, so a
+  VyOS file is understood to know how it writes them.
+
+Pinned by `tests/test_seed_expansion.py::test_existing_databases_get_the_seed_corrections_by_migration`.
+
+## Sources for the October 2026 expansion
+
+Every spelling added in this round comes from vendor documentation or a DISA STIG / CIS benchmark that quotes the
+configuration line, never from memory:
+
+| Seeds | Source |
+|---|---|
+| Cisco ASA `ssh timeout`, `console timeout`, `http server idle-timeout` | DISA Cisco ASA NDM STIG, [V-239920](https://www.stigviewer.com/stigs/cisco_asa_ndm_v2/2025-05-19/finding/V-239920) |
+| Cisco ASA `password-policy minimum-length` | DISA Cisco ASA NDM STIG, [V-239914](https://www.stigviewer.com/stigs/cisco_asa_ndm_v2/2025-05-19/finding/V-239914) |
+| Cisco ASA `ssh version 2`, `aaa local authentication attempts max-fail` | CIS Cisco Firewall ASA 9 benchmark ([SSH](https://guides.g5cybersecurity.com/?p=21442), [max-fail](https://guides.g5cybersecurity.com/?p=10078)) |
+| Palo Alto `admin-lockout failed-attempts` (0 to 10) | [Palo Alto `set deviceconfig setting management` reference](https://docs.paloaltonetworks.com/wildfire/9-1/wildfire-admin/use-the-wildfire-appliance-cli/wildfire-appliance-configuration-mode-command-reference/set-deviceconfig-setting-management) |
+| Check Point `set password-controls min-password-length` | [Gaia R81.20 Administration Guide, password policy in clish](https://sc1.checkpoint.com/documents/R81.20/WebAdminGuides/EN/CP_R81.20_Gaia_AdminGuide/Content/Topics-GAG/Password-Policy-Gaia-Clish.htm) |
+| Cisco NX-OS `userpassphrase min-length` | [CIS Cisco NX-OS benchmark 1.4.4](https://www.tenable.com/audits/items/CIS_Cisco_NX-OS_v1.2.0_L1.audit:4c52195e2e95513330d57f02546e03b2) |
+| Cisco NX-OS `ssh login-attempts` | DISA Cisco NX-OS NDM STIG, [V-220480](https://www.stigviewer.com/stigs/cisco_nx_os_switch_ndm/2025-05-19/finding/V-220480) |
+| Arista lockout, `password minimum length`, `ntp authenticate servers` | DISA Arista MLS EOS NDM STIG ([V-255949](https://www.stigviewer.com/stigs/arista_mls_eos_4x_ndm/2025-02-20/finding/V-255949), V-255954, V-255958) |
+| Dell OS10 telnet, `password-attributes`, banner, accounts | DISA Dell OS10 Switch NDM STIG ([V-269771](https://www.stigviewer.com/stigs/dell_os10_switch_ndm/2024-12-11/finding/V-269771), [V-269781](https://www.stigviewer.com/stigs/dell_os10_switch_ndm/2024-12-11/finding/V-269781), V-269772, V-269776, V-269769) |
+| VyOS banner, RADIUS, SNMP, SSH ciphers and MACs, syslog, NTP | VyOS 1.2 documentation ([login](https://docs.vyos.io/en/1.2/_sources/configuration/system/login.rst.txt), [ssh](https://docs.vyos.io/en/1.2/_sources/configuration/service/ssh.rst.txt), [snmp](https://docs.vyos.io/en/1.2/_sources/configuration/service/snmp.rst.txt), [syslog](https://docs.vyos.io/en/1.2/_sources/configuration/system/syslog.rst.txt), [ntp](https://docs.vyos.io/en/1.2/configuration/system/ntp.html)) |
+| FortiSwitchOS `admintimeout`, `admin-lockout-threshold`, `strong-crypto` | [FortiSwitch `system global` attribute reference](https://ansible-galaxy-fortiswitch-docs.readthedocs.io/en/main/gen/fortiswitch_system_global.html) |
+
+Deliberately **not** seeded in this round, and why:
+
+* Huawei `ssh server compatible-ssh1x enable`: an SSH version is read from an `{int}` slot, and this toggle names none.
+* Check Point `deny-on-fail failures-allowed`: the count only applies when `deny-on-fail enable on` is set on another
+  line, so one line cannot decide it.
+* Dell OS10 global `exec-timeout` (seconds): an unscoped template would also read NX-OS `line vty` timeouts (minutes).
+* VyOS read-write SNMP: the restriction is written on separate `client` / `network` lines, so open write access cannot
+  be told from one line.
+* VyOS 1.3+ spellings (`set service ntp`, `set system login radius server … key`): not verified against the
+  documentation of those releases.
+* Extreme EXOS password policy: the command reference pages could not be read to confirm the syntax.
+
+Four small engine changes came with the seeds, each with a test: the lexicon learned `userpassphrase` (NX-OS) and
+`max-retry` (OS10) as setting names, `vyos` joined the default account names, the redactor no longer reads `minimum`
+in `password minimum length 15` as a password (it was shown as `password <SECRET:password>`), and a typed slot may be
+wrapped in one pair of quotes.
 
 ## Adding a seed recognizer safely
 

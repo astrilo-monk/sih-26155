@@ -19,7 +19,7 @@ flowchart TB
 
 | Suite | Files | Test functions | Runner |
 |---|---|---|---|
-| Backend | 67 | 725 (parametrized into about 1,650 cases) | pytest, pytest-xdist |
+| Backend | 68 | 736 (parametrized into about 1,730 cases) | pytest, pytest-xdist |
 | Frontend | 29 | about 150 | Vitest + Testing Library + jsdom |
 | End to end | 1 | 1 | Playwright |
 
@@ -80,6 +80,7 @@ These tests fail the run if NetAuditAI gets less accurate:
 | The verified corrected copy: retained only on verification and exactly equal to the simulated result, cleared by rejection and by a re-check that fails, downloadable only when verified or confirmed-after-verifying, one copy per candidate, correct content type and safe filename, never in SQLite, gone with the scan, `/download-fixed` still confirmed-vendor only, and the original `sample/juniper.cfg` byte-identical throughout | `test_candidate_remediation.py` |
 | Derived remediation: a verified change from the configuration alone on Junos / PAN-OS / RouterOS / Huawei, the words come from the file's own block path, a setting that must exist is never deleted to silence a check, a block opener is never removed alone, a provisional finding cannot be derived from, confirmed vendors keep recipes, the upload and the scan never move | `test_derived_remediation.py` |
 | Generic engine on hierarchical, terminator-separated dialects | `test_generic_hierarchical.py` |
+| Seed expansion: every new seed's lines and near-misses (61 cases), Dell OS10 / VyOS / FortiSwitchOS / ASA verdicts, the ASA `http server enable` false alarm, migration v7 on an existing database, the redaction and quoted-slot changes | `test_seed_expansion.py` |
 | MGMT-010 (management on an untrusted interface) and MGMT-011 (SNMPv1/v2c) | `test_checks_pack_a.py` |
 | AUTH-001 (failed-login limit), AUTH-002 (password length), AUTH-003 (default account names) | `test_checks_pack_b.py` |
 | CRYPTO-002 (weak management cryptography) and LOG-003 (rules that do not log) | `test_checks_pack_c.py` |
@@ -189,3 +190,16 @@ npm run build
 Windows: `venv\Scripts\python -m pytest tests -q -n auto`.
 
 No linter or type checker is configured in the repository, and no CI workflow ships: the suites run locally.
+
+### On a clean clone
+
+Expect **23 failed and 2 errors** that have nothing to do with the code under test:
+
+| Tests | Why they fail on a clean clone |
+|---|---|
+| 16 `test_citations.py` cases, `test_baseline_model.py` (2 errors), 2 `test_learned_absence.py` cases | they read configurations from `teach/`, which `.gitignore` excludes |
+| `test_benchmark.py` | the "fixtures" floor (89) counts labels whose files live in `teach/`; a clean clone measures 19 of 25 |
+| 4 `test_config_loading.py` cases | they expect a developer `backend/.env` holding a Groq key |
+
+Committing the `teach/` corpus (or moving those cases behind a skip when it is absent) and making the `.env` tests
+create their own temporary file would make the suite green from a clone.

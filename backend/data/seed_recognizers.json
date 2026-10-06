@@ -621,7 +621,8 @@
       "predicate": "mgmt.remote_access.protocol_enabled",
       "subject": "http",
       "command_pattern": "http server {polarity}",
-      "example_line": "http server enable"
+      "example_line": "http server enable",
+      "dialect_fingerprint": "acl-policy header info-center ntp-service snmp-agent sysname user-interface"
     },
     {
       "concept": "HTTP management",
@@ -629,7 +630,8 @@
       "predicate": "mgmt.remote_access.protocol_enabled",
       "subject": "http",
       "command_pattern": "{neg} http server enable",
-      "example_line": "undo http server enable"
+      "example_line": "undo http server enable",
+      "dialect_fingerprint": "acl-policy header info-center ntp-service snmp-agent sysname user-interface"
     },
     {
       "concept": "Telnet service",
@@ -1145,6 +1147,13 @@
       "example_line": "set rulebase security rules ALLOW-WEB log-end yes"
     },
     {
+      "concept": "Failed-login lockout",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "auth.login.max_attempts",
+      "command_pattern": "set deviceconfig setting management admin-lockout failed-attempts {int}",
+      "example_line": "set deviceconfig setting management admin-lockout failed-attempts 5"
+    },
+    {
       "concept": "Remote syslog destination",
       "vendor": "Arista EOS",
       "predicate": "log.remote.destination",
@@ -1225,14 +1234,14 @@
     },
     {
       "concept": "Remote syslog destination",
-      "vendor": "Juniper Junos",
+      "vendor": "Juniper Junos / VyOS",
       "predicate": "log.remote.destination",
       "command_pattern": "set system syslog host {host} {rest}",
       "example_line": "set system syslog host 192.0.2.1 any notice"
     },
     {
       "concept": "NTP server",
-      "vendor": "Juniper Junos",
+      "vendor": "Juniper Junos / VyOS",
       "predicate": "time.ntp.server",
       "command_pattern": "set system ntp server {host} {rest}",
       "example_line": "set system ntp server 192.0.2.1 prefer"
@@ -1446,6 +1455,20 @@
       "example_line": "snmp-server community <SECRET:snmp-community> group network-operator"
     },
     {
+      "concept": "Minimum password length",
+      "vendor": "Cisco NX-OS",
+      "predicate": "auth.password.min_length",
+      "command_pattern": "userpassphrase min-length {int}",
+      "example_line": "userpassphrase min-length 16"
+    },
+    {
+      "concept": "SSH login attempts",
+      "vendor": "Cisco NX-OS",
+      "predicate": "auth.login.max_attempts",
+      "command_pattern": "ssh login-attempts {int}",
+      "example_line": "ssh login-attempts 3"
+    },
+    {
       "concept": "Permissive any-any rule",
       "vendor": "Arista EOS / Cisco NX-OS",
       "predicate": "boundary.policy.permit_any",
@@ -1498,6 +1521,48 @@
       "example_line": "aaa authentication ssh console TACACS-GROUP LOCAL"
     },
     {
+      "concept": "SSH version",
+      "vendor": "Cisco ASA",
+      "predicate": "mgmt.ssh.version",
+      "command_pattern": "ssh version {int}",
+      "example_line": "ssh version 2"
+    },
+    {
+      "concept": "SSH idle timeout",
+      "vendor": "Cisco ASA",
+      "predicate": "mgmt.session.idle_timeout",
+      "command_pattern": "ssh timeout {duration:min}",
+      "example_line": "ssh timeout 5"
+    },
+    {
+      "concept": "Console idle timeout",
+      "vendor": "Cisco ASA",
+      "predicate": "mgmt.session.idle_timeout",
+      "command_pattern": "console timeout {duration:min}",
+      "example_line": "console timeout 5"
+    },
+    {
+      "concept": "ASDM idle timeout",
+      "vendor": "Cisco ASA",
+      "predicate": "mgmt.session.idle_timeout",
+      "command_pattern": "http server idle-timeout {duration:min}",
+      "example_line": "http server idle-timeout 5"
+    },
+    {
+      "concept": "Failed-login limit",
+      "vendor": "Cisco ASA",
+      "predicate": "auth.login.max_attempts",
+      "command_pattern": "aaa local authentication attempts max-fail {int}",
+      "example_line": "aaa local authentication attempts max-fail 3"
+    },
+    {
+      "concept": "Minimum password length",
+      "vendor": "Cisco ASA",
+      "predicate": "auth.password.min_length",
+      "command_pattern": "password-policy minimum-length {int}",
+      "example_line": "password-policy minimum-length 15"
+    },
+    {
       "concept": "SNMP community",
       "vendor": "Arista EOS",
       "predicate": "snmp.community",
@@ -1505,11 +1570,47 @@
       "example_line": "snmp-server community <SECRET:snmp-community> ro access SNMP-ACL"
     },
     {
+      "concept": "Failed-login lockout",
+      "vendor": "Arista EOS",
+      "predicate": "auth.login.max_attempts",
+      "command_pattern": "aaa authentication policy lockout failure {int}",
+      "example_line": "aaa authentication policy lockout failure 3"
+    },
+    {
+      "concept": "Failed-login lockout",
+      "vendor": "Arista EOS",
+      "predicate": "auth.login.max_attempts",
+      "command_pattern": "aaa authentication policy lockout failure {int} duration {any}",
+      "example_line": "aaa authentication policy lockout failure 3 duration 900"
+    },
+    {
+      "concept": "Minimum password length",
+      "vendor": "Arista EOS",
+      "predicate": "auth.password.min_length",
+      "command_pattern": "password minimum length {int}",
+      "scope_template": "management security",
+      "example_line": "password minimum length 15"
+    },
+    {
+      "concept": "NTP authentication",
+      "vendor": "Arista EOS",
+      "predicate": "time.ntp.authenticated",
+      "command_pattern": "{neg} ntp authenticate servers",
+      "example_line": "ntp authenticate servers"
+    },
+    {
       "concept": "SNMP community",
       "vendor": "Check Point Gaia",
       "predicate": "snmp.community",
       "command_pattern": "set snmp community {community:RO}",
       "example_line": "set snmp community <SECRET:snmp-community>"
+    },
+    {
+      "concept": "Minimum password length",
+      "vendor": "Check Point Gaia",
+      "predicate": "auth.password.min_length",
+      "command_pattern": "set password-controls min-password-length {int}",
+      "example_line": "set password-controls min-password-length 8"
     },
     {
       "concept": "SNMP community",
@@ -1911,6 +2012,135 @@
       "predicate": "auth.central_aaa.enabled",
       "command_pattern": "nv set system aaa tacacs enable {polarity}",
       "example_line": "nv set system aaa tacacs enable on"
+    },
+    {
+      "concept": "Telnet service",
+      "vendor": "Dell OS10",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "subject": "telnet",
+      "command_pattern": "{neg} ip telnet server enable",
+      "example_line": "ip telnet server enable"
+    },
+    {
+      "concept": "Minimum password length",
+      "vendor": "Dell OS10",
+      "predicate": "auth.password.min_length",
+      "command_pattern": "password-attributes min-length {int}",
+      "example_line": "password-attributes min-length 15"
+    },
+    {
+      "concept": "Failed-login lockout",
+      "vendor": "Dell OS10",
+      "predicate": "auth.login.max_attempts",
+      "command_pattern": "password-attributes max-retry {int}",
+      "example_line": "password-attributes max-retry 3"
+    },
+    {
+      "concept": "Failed-login lockout",
+      "vendor": "Dell OS10",
+      "predicate": "auth.login.max_attempts",
+      "command_pattern": "password-attributes max-retry {int} lockout-period {any}",
+      "example_line": "password-attributes max-retry 3 lockout-period 15"
+    },
+    {
+      "concept": "Default account",
+      "vendor": "Dell OS10",
+      "predicate": "auth.account.name",
+      "command_pattern": "username {enum:user} password {any} role {any}",
+      "constant_value": "{\"admin\": \"admin\", \"administrator\": \"administrator\", \"root\": \"root\", \"cisco\": \"cisco\", \"manager\": \"manager\"}",
+      "example_line": "username admin password <SECRET:password> role sysadmin"
+    },
+    {
+      "concept": "Default account",
+      "vendor": "Dell OS10",
+      "predicate": "auth.account.name",
+      "command_pattern": "username {enum:user} password {any} role {any} priv-lvl {any}",
+      "constant_value": "{\"admin\": \"admin\", \"administrator\": \"administrator\", \"root\": \"root\", \"cisco\": \"cisco\", \"manager\": \"manager\"}",
+      "example_line": "username admin password <SECRET:password> role sysadmin priv-lvl 15"
+    },
+    {
+      "concept": "Login banner",
+      "vendor": "Dell OS10",
+      "predicate": "banner.login.present",
+      "command_pattern": "{neg} banner login {any}",
+      "example_line": "banner login ^C"
+    },
+    {
+      "concept": "Login banner",
+      "vendor": "VyOS",
+      "predicate": "banner.login.present",
+      "command_pattern": "{neg} set system login banner pre-login {any}",
+      "example_line": "set system login banner pre-login 'Authorized access only.'"
+    },
+    {
+      "concept": "RADIUS server",
+      "vendor": "VyOS",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "{neg} set system login radius-server {any} {rest}",
+      "example_line": "set system login radius-server 192.0.2.60 port '1812'"
+    },
+    {
+      "concept": "SNMP community",
+      "vendor": "VyOS",
+      "predicate": "snmp.community",
+      "command_pattern": "set service snmp community {community:RO} authorization ro",
+      "example_line": "set service snmp community <SECRET:snmp-community> authorization ro"
+    },
+    {
+      "concept": "SNMP community",
+      "vendor": "VyOS",
+      "predicate": "snmp.community",
+      "command_pattern": "set service snmp community {community:RO} authorization 'ro'",
+      "example_line": "set service snmp community <SECRET:snmp-community> authorization 'ro'"
+    },
+    {
+      "concept": "SSH ciphers",
+      "vendor": "VyOS",
+      "predicate": "mgmt.crypto.weak_allowed",
+      "command_pattern": "set service ssh ciphers {enum:cipher}",
+      "constant_value": "{\"3des-cbc\": true, \"aes128-cbc\": true, \"aes192-cbc\": true, \"aes256-cbc\": true, \"arcfour\": true, \"arcfour128\": true, \"arcfour256\": true, \"blowfish-cbc\": true, \"cast128-cbc\": true, \"aes128-ctr\": false, \"aes192-ctr\": false, \"aes256-ctr\": false}",
+      "example_line": "set service ssh ciphers 'aes256-ctr'"
+    },
+    {
+      "concept": "SSH MACs",
+      "vendor": "VyOS",
+      "predicate": "mgmt.crypto.weak_allowed",
+      "command_pattern": "set service ssh macs {enum:mac}",
+      "constant_value": "{\"hmac-md5\": true, \"hmac-md5-96\": true, \"hmac-sha2-256\": false, \"hmac-sha2-512\": false}",
+      "example_line": "set service ssh macs 'hmac-sha2-256'"
+    },
+    {
+      "concept": "Default account",
+      "vendor": "VyOS",
+      "predicate": "auth.account.name",
+      "command_pattern": "set system login user {enum:user} authentication encrypted-password {any}",
+      "constant_value": "{\"vyos\": \"vyos\", \"admin\": \"admin\", \"administrator\": \"administrator\", \"root\": \"root\"}",
+      "example_line": "set system login user vyos authentication encrypted-password <SECRET:password>"
+    },
+    {
+      "concept": "Admin idle timeout",
+      "vendor": "Fortinet FortiSwitchOS",
+      "predicate": "mgmt.session.idle_timeout",
+      "command_pattern": "set admintimeout {duration:min}",
+      "scope_template": "config system global",
+      "example_line": "set admintimeout 5"
+    },
+    {
+      "concept": "Failed-login lockout",
+      "vendor": "Fortinet FortiSwitchOS",
+      "predicate": "auth.login.max_attempts",
+      "command_pattern": "set admin-lockout-threshold {int}",
+      "scope_template": "config system global",
+      "example_line": "set admin-lockout-threshold 3"
+    },
+    {
+      "concept": "Strong cryptography",
+      "vendor": "Fortinet FortiSwitchOS",
+      "predicate": "mgmt.crypto.weak_allowed",
+      "command_pattern": "set strong-crypto {enum:strong}",
+      "scope_template": "config system global",
+      "constant_value": "{\"enable\": false, \"disable\": true}",
+      "example_line": "set strong-crypto enable"
     }
   ]
 }
