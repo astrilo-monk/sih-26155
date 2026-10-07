@@ -436,6 +436,12 @@ interface names. Passing the gates makes a recognizer safe to store, not worth s
   trailing word may be the switch), a one-keyword template cannot either, and before `{rest}` a `{host}`
   slot reads only an address or a dotted name -in `logging host inside 10.0.0.1`, `inside` is an
   interface, not a host.
+* **Two teaching traps closed (October 2026).** Accepting every line the resolution queue offered on five real-world
+  style files found two that saved and flipped a check to a confirmed PASS. A `{host}` slot now reads a bare word
+  (no dots, not an address) only where the template says a host stands there (`host`, `server`, `loghost`,
+  `remote`, …): Junos `syslog { file messages { … } }` names a local file, not a server. And `feature …` cannot be
+  taught as central AAA: NX-OS `feature tacacs+` loads the client, it does not point logins at a server. Pinned by
+  `tests/test_teach_safety.py`.
 * A seed recognizer is decisive, so a wrong one is a real defect. Treat the file as production code.
 
 ## Correcting a seed a deployment already holds

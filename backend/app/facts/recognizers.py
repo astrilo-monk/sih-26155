@@ -170,6 +170,10 @@ def recognizer_value(recognizer, slot: tuple) -> Any:
         # where "inside" names an interface): only an address or a dotted name is read as the host
         if REST_TOKEN in recognizer.command_pattern.split() and not (IP.match(word) or _FQDN.match(word)):
             return None
+        # a bare word is a host only where the template says a host stands there (``logging host loghost``):
+        # in ``syslog { file messages; }`` it names a local file, and reading it as a server is a false PASS
+        if not (IP.match(word) or _FQDN.match(word)) and not _names_host(recognizer.command_pattern):
+            return None
         return _host(word)
     number, unit = _DURATION.match(word).groups()
     unit = unit or (argument or "").lower()
@@ -184,6 +188,16 @@ def stated_value(recognizer, value: Any, statement: Statement) -> Any:
             and (ips := [v for v in statement.values if IP.match(v)]) and all(ip in L.ANY_ADDRESS for ip in ips):
         return False
     return value
+
+
+# Words that say the next value is a host: ``logging host``, ``ntp server``, ``info-center loghost``, ``remote``
+HOST_WORDS = frozenset({"host", "hosts", "loghost", "server", "servers", "remote", "address", "destination", "target",
+                        "peer", "unicast-server", "syslog-server", "ntp-server"})
+
+
+def _names_host(pattern: str) -> bool:
+    words = {p for w in _keywords(pattern) for p in {w.lower(), *re.split(r"[-_./]", w.lower())}}
+    return bool(words & HOST_WORDS)
 
 
 def _host(word: str) -> Optional[list[str]]:
@@ -213,6 +227,11 @@ def validate_recognizer(r) -> None:
                               "for any other setting a trailing word can change what the line says")
 
     keywords = _keywords(r.command_pattern)
+    if r.predicate == CENTRAL_AAA and keywords[:1] == ["feature"]:
+        # NX-OS ``feature tacacs+`` loads the TACACS+ client; it says nothing about logins using a server
+        raise RecognizerError("A 'feature …' line only makes a capability available, it does not point logins at "
+                              "a server. Teach the line that does (a 'tacacs-server host …' or an "
+                              "'aaa authentication login … group …' line)")
     scoped = keywords + _keywords(" ".join(_scope_parts(r.scope_template or "")))
     if not keywords or len(scoped) < MIN_KEYWORDS and not _one_word_feature(r, keywords, kind):
         raise RecognizerError(f"The template needs at least {MIN_KEYWORDS} keywords besides stopwords, counting "
@@ -278,6 +297,10 @@ def validate_recognizer(r) -> None:
         if kind == "community" and (argument or "").upper() not in COMMUNITY_ACCESS:
             raise RecognizerError("A community slot states the access its line grants: {community:RO} or "
                                   "{community:RW}")
+        if value is None and kind == "host" and not _names_host(r.command_pattern):
+            raise RecognizerError(f"'{slot[2]}' is not an address or a dotted name, and nothing on the line says a "
+                                  "host stands there (a word like 'host', 'server' or 'remote'): it may name a local "
+                                  "file or an interface, not a server")
         if value is None:
             raise RecognizerError("The example line gives no usable value")
         if kind is None and not isinstance(value, str):
