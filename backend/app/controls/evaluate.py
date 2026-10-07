@@ -30,7 +30,7 @@ from app.controls.catalog import CONTROLS, Control, ControlKind
 from app.controls.judges import JUDGES
 from app.facts.defaults import default_facts
 from app.facts.from_normalized import PARSER_COVERAGE, facts_from_config, weakest
-from app.facts.predicates import NOT_SET, SecurityFact
+from app.facts.predicates import ABSENT_FEATURE_PREDICATES, NOT_SET, SecurityFact
 from app.models.normalized import NormalizedConfig
 from app.models.results import Assurance, ControlResult, Evidence, Status
 
@@ -128,6 +128,13 @@ def evaluate_control(control: Control, facts: list[SecurityFact], config: Normal
         # Its parser reads the feature and found none of it: the question does not arise on this device
         return [_result(config, control, Status.N_A,
                         f"This device does not configure {control.optional_feature}, "
+                        "so the control does not apply")]
+    absent = next((f for f in needed if f.value is NOT_SET and f.predicate in ABSENT_FEATURE_PREDICATES
+                   and f.assurance == Assurance.CONFIRMED), None)
+    if control.optional_feature and absent is not None:
+        # an understood configuration that never names the feature does not run it
+        return [_result(config, control, Status.N_A,
+                        f"This device does not configure {control.optional_feature}: {absent.provenance}, "
                         "so the control does not apply")]
     if control.kind == ControlKind.RELATIONAL:
         return [_result(config, control, Status.UNKNOWN, "No relevant setting was found in this configuration")]

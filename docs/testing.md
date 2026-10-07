@@ -176,7 +176,8 @@ It writes `demo-timings.json` with the measured seconds per step. On Windows it 
 ```bash
 # backend
 cd backend
-python -m pytest tests -q -n auto                    # parallel
+python scripts/quick_tests.py                        # quick suite: about 635 tests in 2 minutes (see below)
+python -m pytest tests -q -n auto                    # full suite, parallel
 python -m pytest tests/test_seed_knowledge.py -q     # one file
 NETAUDIT_LIVE_AI=1 python -m pytest tests -q         # also the 2 live-AI tests (needs a Groq key)
 python scripts/benchmark.py                          # the accuracy table in benchmark/RESULTS.md
@@ -190,6 +191,24 @@ npm run build
 ```
 
 Windows: `venv\Scripts\python -m pytest tests -q -n auto`.
+
+### Quick suite
+
+The full backend suite takes about half an hour on a two-core machine. `scripts/quick_tests.py` runs one fast pass
+over every layer instead: 15 files plus the newest seed line cases, about 635 tests, measured at **111 seconds** on two
+cores with `-n auto`. It fails if it goes over its budget (`--budget`, default 300 s), so it stays quick as it grows;
+`--list` prints each file and why it is in.
+
+| Layer | In the quick suite |
+|---|---|
+| Confirmed vendors | Phase 0 snapshots, parser facts, the four added checks on IOS and FortiGate, one-click fixes and demo fix-to-100 |
+| Generic path | heuristics, recognizer gates, teaching traps, the newest seeds' line cases, N/A from absence |
+| Scoring | the catalog, posture / coverage / undecided queue agreement |
+| Safety | redaction, stored scans without secrets |
+
+Left to the full suite: the per-dialect coverage measurement (`test_every_dialect_keeps_its_measured_coverage`, about
+3 minutes alone), the seed expansion pass (about 1.5 minutes), the benchmark floors, citations, the API and UI audit
+regressions. Run the full suite before merging to `main`.
 
 No linter or type checker is configured in the repository, and no CI workflow ships: the suites run locally.
 

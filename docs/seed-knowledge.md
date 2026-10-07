@@ -152,9 +152,10 @@ parser's password fact does; every path to the AI redacts evidence first.
 
 ## What is covered
 
-380 recognizers under 24 `vendor` labels: **16 device dialects** with no dedicated parser (Junos, PAN-OS, Arista EOS,
+386 recognizers under 25 `vendor` labels: **16 device dialects** with no dedicated parser (Junos, PAN-OS, Arista EOS,
 Huawei VRP, MikroTik RouterOS, Check Point Gaia, Extreme EXOS, HPE Aruba AOS-CX, Cisco NX-OS, ASA, IOS-XR, SONiC,
-Cumulus NVUE, Dell OS10, VyOS, Fortinet FortiSwitchOS), two shared labels (Arista and NX-OS; Junos and VyOS, whose
+Cumulus NVUE, Dell OS10, VyOS, Fortinet FortiSwitchOS), three shared labels (Arista and NX-OS; Arista, IOS-XR and
+ASA, whose `snmp-server group … v3 …` is written identically; Junos and VyOS, whose
 `set system syslog host` and `set system ntp server` spellings are identical), three cloud exports (AWS security groups, Azure NSG, GCP firewall
 rules) and Terraform for AWS, Azure and GCP. All of them stay generic / unconfirmed. The `vendor` field is a label for
 readability, never a claim of parser support and never used to select a code path (it does name the *dialect* for
@@ -200,7 +201,7 @@ proposal (CRYPTO-001).
 | AWS security group (JSON) | 4 |  |  | 3 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 1 |  |  |
 | Terraform (GCP) | 4 |  |  | 2 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 2 |  |  |
 | Juniper Junos / VyOS | 2 |  |  |  |  |  |  |  |  |  |  |  |  |  | 1 | 1 |  |  |  |  |  |  |  |  |
-| **All** | **380** | **15** | **14** | **46** | **2** | **7** | **17** | **17** | **26** | **17** | **15** | **10** | **16** | **22** | **19** | **18** | **11** | **14** | **9** | **11** | **11** | **35** | **1** | **27** |
+| **All** | **386** | **15** | **14** | **46** | **2** | **7** | **17** | **17** | **26** | **17** | **15** | **10** | **16** | **22** | **19** | **18** | **11** | **14** | **9** | **11** | **11** | **35** | **1** | **27** |
 
 **VPN** is CRYPTO-001: a proposal written one algorithm per line (`encryption-algorithm 3des-cbc`, `dh-group group2`)
 is read line by line, each line's value table naming the part it states (`{"group2": {"dh_group": 2}}`); a weak part
@@ -252,6 +253,35 @@ and every one of them is a choice not to guess: **lists on one line** (cipher li
 properties), **objects spread over several lines** (firewall rules, a password policy and the user it applies to),
 **interface-local settings** whose other interfaces keep a default the file does not show, and **settings no source
 documents**. Getting past them needs engine work (a list slot, multi-line joins), not more seeds.
+
+### The checks added after the coverage pass
+
+The matrix and the measurement above cover the original 23 checks. Four were added later: MGMT-012 (SNMPv3
+authPriv), BOUNDARY-005 (unused interfaces), BOUNDARY-006 (BGP / OSPF authentication) and CRYPTO-003 (TLS for web
+management). Cisco IOS and FortiGate decide all four from their parsers. On the generic path:
+
+| Check | Read from a line | Absent from the file |
+|---|---|---|
+| MGMT-012 | 2 seeds `snmp-server group <name> v3 noauth|auth|priv` (Arista EOS, Cisco IOS-XR, Cisco ASA), 2 seeds `snmp-agent group v3 <name> noauthentication|authentication|privacy` (Huawei VRP) | **N/A** when the configuration is understood and no line names SNMPv3 (no `v3`, `usm`, user, group, engine id or security level next to an SNMP keyword) |
+| BOUNDARY-006 | none (a password on one BGP group says nothing of the others, so a line can only ever prove a PASS that is not one) | **N/A** when the configuration is understood and no line names `bgp` or `ospf` |
+| CRYPTO-003 | 2 seeds `ssl server-version <tlsv1|tlsv1.1|tlsv1.2|tlsv1.3> [dtls…]` (Cisco ASA: the lowest version it accepts as a server, ASDM included) | stays undecided: HTTPS management is on by default on many platforms, so an unstated version is the release's default, not a pass |
+| BOUNDARY-005 | none | stays undecided: an interface with nothing on it is usually not written at all |
+
+Reading absence of a *feature* needs no taught syntax, unlike learned absence of a setting: every dialect names BGP
+and OSPF by those words, and SNMPv3 by its users, groups or `v3`. It still needs an understood configuration (one
+dialect's seeds answered three or more settings), and any line that names the feature in any form keeps the check
+undecided. Measured on the reference configurations: MGMT-012 is N/A on 13 of 14 (NX-OS writes
+`snmp-server community public group network-operator`, and `group` is also an SNMPv3 word, so it stays undecided:
+the cautious side), BOUNDARY-006 on all 14.
+
+Sources: [Arista `eos_snmp_server`](https://docs.ansible.com/ansible/latest/collections/arista/eos/eos_snmp_server_module.html)
+(`snmp-server group <name> v3 priv …`), [Cisco IOS XR SNMP Server Commands](https://www.cisco.com/en/US/docs/ios_xr_sw/iosxr_r3.7/system_management/command/reference/yr37snmp.html),
+[Cisco ASA 8.2 SNMP configuration](https://www3-realm.cisco.com/en/US/docs/security/asa/asa82/configuration/guide/monitor_snmp.html),
+[Huawei `snmp-agent group`](https://support.huawei.com/enterprise/en/doc/DOC1000128405/b8735a13/snmp-agent-group) and
+[a worked VRP example](https://www.cnblogs.com/Ant-Hanks/p/14050255.html) (`privacy` = authPriv, `authentication` =
+authNoPriv, `noauthentication` = noAuthNoPriv), ASA `ssl server-version` as the minimum accepted version:
+[DISA ASA VPN STIG V-239975](https://www.stigviewer.com/stigs/cisco_asa_vpn/2024-08-22/finding/V-239975) and
+[Cisco Community](https://community.cisco.com/t5/firewalls/asa-9-8-disable-tls-v1-0/td-p/3813544).
 
 ### Concepts per dialect
 

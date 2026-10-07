@@ -38,7 +38,8 @@ from app.facts.predicates import (
     ADMIN_ACCOUNT, CENTRAL_AAA, DISCOVERY_PROTOCOL, IDLE_TIMEOUT, IPSEC_PROPOSAL, LOG_REMOTE_DESTINATION, LOGIN_BANNER, LOGIN_MAX_ATTEMPTS,
     MGMT_EXPOSED, MGMT_WEAK_CRYPTO, NOT_SET, NTP_AUTHENTICATED, PASSWORD_MIN_LENGTH, ROUTER_UNSAFE_SERVICE, RULE_LOGGING,
     NTP_SERVER, PASSWORD_ENCRYPTION_SERVICE, PASSWORD_STORAGE, PERMIT_ANY, PROTOCOL_ENABLED, SOURCE_RESTRICTED,
-    SNMP_COMMUNITY, SOURCE_ROUTING, SSH_VERSION, SecurityFact,
+    SNMP_COMMUNITY, SOURCE_ROUTING, SSH_VERSION, SNMPV3_SECURITY, MGMT_TLS_MIN, ROUTING_AUTH, SecurityFact,
+    ABSENT_FEATURE_PREDICATES,
 )
 from app.models.results import Assurance
 from app.structure.tokenizer import IP, NEGATIVE, NEGATORS, NUMBER, POSITIVE, Statement, tokenize, tokenize_line
@@ -75,6 +76,8 @@ CONCEPT_WORDS = {
     ROUTER_UNSAFE_SERVICE: (L.ROUTER_SERVICE_WORDS,), IPSEC_PROPOSAL: (L.IPSEC,),
     # both sets must appear: a version is an SSH version, authentication is of the time source
     SSH_VERSION: (L.SSH, L.SSH_VERSION_RELATED), NTP_AUTHENTICATED: (L.TIME_RELATED, L.AUTH_RELATED),
+    SNMPV3_SECURITY: (L.SNMP | {"snmpv3"}, L.SNMPV3_RELATED), MGMT_TLS_MIN: (L.TLS_RELATED,),
+    ROUTING_AUTH: (L.ROUTING_PROTOCOLS,),
 }
 # The slot kinds a value predicate may be read from; the first is what a draft uses.
 # A destination is a ``{host}``: an address or a hostname. ``{ip}`` stays valid for recognizers
@@ -86,7 +89,12 @@ SLOT_PREDICATES = {
     # one algorithm per line (``encryption-algorithm aes-256-cbc``), its table naming which part of the proposal
     # it states: {"aes-256-cbc": {"encryption": "aes-256-cbc"}, "group2": {"dh_group": 2}}
     IPSEC_PROPOSAL: ("enum",),
+    # a word table each: {"privacy": "priv"} for the level a group requires, {"tlsv1.1": 1.1} for the lowest TLS
+    # version a server accepts
+    SNMPV3_SECURITY: ("enum",), MGMT_TLS_MIN: ("enum",),
 }
+SNMPV3_LEVELS = frozenset({"noauth", "auth", "priv"})
+TLS_VERSIONS = frozenset({1.0, 1.1, 1.2, 1.3})
 # A number read from a word: ``deny-on-fail enable off`` limits nothing (0), ``compatible-ssh1x enable`` is version 1
 NUMBER_TABLE_PREDICATES = frozenset({SSH_VERSION, LOGIN_MAX_ATTEMPTS})
 # A scope that only a top-level statement has: Dell OS10 ``exec-timeout 300`` (seconds) is not NX-OS ``exec-timeout 15``
@@ -100,7 +108,7 @@ RECOGNIZER_PREDICATES = BOOL_PREDICATES | frozenset(SLOT_PREDICATES)
 # Read by shipped seeds only, never taught: the line that states an SNMP community holds the community string
 # itself, so a taught example could only be stored by storing the secret; an account is named by a value table
 # of default names, which teaching does not draft.
-SEED_ONLY_PREDICATES = frozenset({SNMP_COMMUNITY, ADMIN_ACCOUNT, IPSEC_PROPOSAL})
+SEED_ONLY_PREDICATES = frozenset({SNMP_COMMUNITY, ADMIN_ACCOUNT, IPSEC_PROPOSAL, SNMPV3_SECURITY, MGMT_TLS_MIN})
 TEACHABLE_PREDICATES = RECOGNIZER_PREDICATES - SEED_ONLY_PREDICATES
 # Predicates whose every statement is a separate object, never a second opinion on one setting
 PER_STATEMENT = {SNMP_COMMUNITY: "snmp community", MGMT_EXPOSED: "management access", ADMIN_ACCOUNT: "account",
@@ -108,13 +116,15 @@ PER_STATEMENT = {SNMP_COMMUNITY: "snmp community", MGMT_EXPOSED: "management acc
                  # each limit is its own fact and the weakest decides: Gaia ``deny-on-fail enable false`` beside
                  # ``failures-allowed 3`` is no limit at all
                  LOGIN_MAX_ATTEMPTS: "failed-login limit",
-                 RULE_LOGGING: "rule", ROUTER_UNSAFE_SERVICE: "interface service"}
+                 RULE_LOGGING: "rule", ROUTER_UNSAFE_SERVICE: "interface service",
+                 SNMPV3_SECURITY: "SNMPv3 group"}
 # The access a {community:<level>} slot's template states
 COMMUNITY_ACCESS = frozenset({"RO", "RW"})
 # Settings whose statement may end in ``{rest}``: a destination or an authentication server. What
 # follows it (``514 protocol udp``, ``vrf mgmt``, ``key 1``, ``prefer``) says how to reach the server,
 # never whether there is one. A toggle is different -a trailing word may be the one that switches it.
-REST_PREDICATES = frozenset({LOG_REMOTE_DESTINATION, NTP_SERVER, CENTRAL_AAA, LOGIN_BANNER})
+# An SNMPv3 group's level stands in a fixed place; what follows it names views and an ACL, never a level.
+REST_PREDICATES = frozenset({LOG_REMOTE_DESTINATION, NTP_SERVER, CENTRAL_AAA, LOGIN_BANNER, SNMPV3_SECURITY})
 STOPWORDS = POSITIVE | NEGATIVE | NEGATORS | {"set", "config", "edit", "next", "end", "exit", "state", "status"}
 # A recognizer must be this specific. A hierarchical dialect keeps the nouns in the block header
 # (``ntp { server 1.2.3.4; }``), so the scope template counts too -but never on its own: the
@@ -315,6 +325,13 @@ def validate_recognizer(r) -> None:
                     isinstance(v, dict) and v and set(v) <= PROPOSAL_PARTS for v in constant.values())):
             raise RecognizerError("A proposal value table maps each algorithm to the part it states, e.g. "
                                   '{"3des": {"encryption": "3des"}, "group2": {"dh_group": 2}}')
+        if r.predicate == SNMPV3_SECURITY and not (
+                isinstance(constant, dict) and constant and set(constant.values()) <= SNMPV3_LEVELS):
+            raise RecognizerError('An SNMPv3 level table maps each word to noauth, auth or priv, e.g. {"privacy": "priv"}')
+        if r.predicate == MGMT_TLS_MIN and not (
+                isinstance(constant, dict) and constant and all(
+                    isinstance(v, float) and v in TLS_VERSIONS for v in constant.values())):
+            raise RecognizerError('A TLS version table maps each word to 1.0, 1.1, 1.2 or 1.3, e.g. {"tlsv1.2": 1.2}')
 
 
 def _one_word_feature(r, keywords: list[str], kind: Optional[str]) -> bool:
@@ -598,7 +615,21 @@ def _absence(known: list[SecurityFact], dialect: Optional[tuple[str, list]],
                           provenance=f"no line states it; {name} states it as '{_shown(syntax[p])}'"
                                      + (f". {unset_by_default[p]}" if p in unset_by_default else ""))
              for p in eligible if p in syntax and p not in stated]
-    return unset + _value_defaults(name, documented, known, statements)
+    return unset + _absent_features(name, known, statements) + _value_defaults(name, documented, known, statements)
+
+
+def _absent_features(name: str, known: list[SecurityFact], statements: list[Statement]) -> list[SecurityFact]:
+    """NOT_SET for an optional feature no line so much as names (``ABSENT_FEATURE_PREDICATES``).
+
+    Unlike a setting, these are named the same way by every dialect: BGP and OSPF are configured under those words,
+    and SNMPv3 through users, groups or ``v3``. So no taught syntax is needed to read their absence, only an
+    understood configuration (one that is not truncated prose). Any line naming the feature, in any form, keeps it
+    undecided instead."""
+    stated = {f.predicate for f in known}
+    return [SecurityFact(p, NOT_SET, Assurance.CONFIRMED,
+                         provenance=f"no line configures {what} (configuration read as {name})")
+            for p, what in ABSENT_FEATURE_PREDICATES.items()
+            if p not in stated and not any(_mentions_setting(p, st) for st in statements)]
 
 
 def _value_defaults(name: str, documented: dict, known: list[SecurityFact],

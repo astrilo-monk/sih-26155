@@ -31,10 +31,10 @@ timeline
 - [x] Security facts with assurance; every check runs on every configuration
 - [x] Generic tokenizer and lexicon heuristics for unknown vendors (provisional, no AI needed)
 - [x] Administrator-confirmed recognizers persisted (SQLite, or Postgres via `DATABASE_URL`)
-- [x] Shipped seed knowledge: 380 recognizers for 16 dialects, AWS / Azure / GCP exports and Terraform
+- [x] Shipped seed knowledge: 386 recognizers for 16 dialects, AWS / Azure / GCP exports and Terraform
 - [x] Seed expansion: lockout and password length for ASA, PAN-OS, NX-OS, Arista, Gaia; SSH and timeouts for ASA;
       new families Dell OS10, VyOS, FortiSwitchOS; ASA `http server enable` no longer a decided HTTP failure
-- [x] Seed coverage pass: 106 more recognizers (380), documented value defaults, `{top}` and chained scopes, IPsec
+- [x] Seed coverage pass: 106 more recognizers (386), documented value defaults, `{top}` and chained scopes, IPsec
       proposals read one algorithm per line; seven of fourteen commercial dialects decide 18 or more of the original 23 checks when
       the configuration states them ([measured](seed-knowledge.md#coverage-per-dialect-measured))
 - [x] JSON and Terraform flattened to one statement per object

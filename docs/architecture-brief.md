@@ -30,7 +30,7 @@ Ingest ... uploaded file (single or bulk, CLI text or JSON export)
   -> Vendor identification: fingerprint + grammar coverage (a look-alike is never "confirmed")
   -> Confirmed vendor ..... dedicated parser (Cisco IOS, FortiGate)
   -> Anything else ........ generic tokenizer (braces, indentation, set-style, /menu paths)
-                            -> recognizers, 380 shipped + whatever was taught   [pattern recognition]
+                            -> recognizers, 386 shipped + whatever was taught   [pattern recognition]
                             -> lexicon heuristics                              [provisional]
                             -> AI judge on what is still undecided             [budgeted, must cite]
   -> Security Baseline Model: facts with value, scope, evidence lines, assurance
@@ -67,7 +67,7 @@ Safety gates (`validate_recognizer`) reject anything that would match too much: 
 a value table, a unit for durations, and no secret is ever stored. The recognizer saves to SQLite or Postgres and
 answers the **very next scan**: decisive, deterministic, no AI call, **no redeployment**, reversible later.
 
-Shipped seed knowledge is the same mechanism reviewed in Git rather than taught at runtime: **380 recognizers**
+Shipped seed knowledge is the same mechanism reviewed in Git rather than taught at runtime: **386 recognizers**
 across Juniper Junos, Palo Alto PAN-OS, Arista EOS, Huawei VRP, HPE Aruba AOS-CX, Check Point Gaia, Extreme EXOS,
 MikroTik RouterOS, Cisco NX-OS, ASA, IOS-XR, SONiC, Cumulus, Dell OS10, VyOS and FortiSwitchOS, plus AWS / Azure / GCP firewall exports and Terraform.
 A fresh deployment reads those dialects before anyone teaches it.

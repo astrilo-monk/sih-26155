@@ -35,7 +35,7 @@ recipe availability are therefore exactly what the code ships.
 | [MGMT-009](#mgmt-009) | Low | requirement | Missing Login Banner | Cisco IOS, FortiGate | 14 |
 | [MGMT-010](#mgmt-010) | Critical | prohibition | Management Reachable from an Untrusted Interface | FortiGate | 2 |
 | [MGMT-011](#mgmt-011) | High | prohibition | SNMPv1/v2c in Use | Cisco IOS, FortiGate | 22 |
-| [MGMT-012](#mgmt-012) | High | prohibition | SNMPv3 Without Authentication and Encryption | Cisco IOS, FortiGate | 0 |
+| [MGMT-012](#mgmt-012) | High | prohibition | SNMPv3 Without Authentication and Encryption | Cisco IOS, FortiGate | 4 |
 | [AUTH-001](#auth-001) | High | threshold | No Login Brute-Force Protection | Cisco IOS, FortiGate | 15 |
 | [AUTH-002](#auth-002) | Medium | threshold | Weak Password Policy | Cisco IOS, FortiGate | 10 |
 | [AUTH-003](#auth-003) | Medium | prohibition | Default Administrator Account in Use | Cisco IOS, FortiGate | 16 |
@@ -50,7 +50,7 @@ recipe availability are therefore exactly what the code ships.
 | [LOG-003](#log-003) | Medium | requirement | Traffic Rules That Do Not Log | FortiGate | 1 |
 | [CRYPTO-001](#crypto-001) | High | threshold | Weak VPN/IPsec Cryptographic Algorithms | Cisco IOS, FortiGate | 27 |
 | [CRYPTO-002](#crypto-002) | High | prohibition | Weak Management Cryptography (SSH/HTTPS) | Cisco IOS, FortiGate | 17 |
-| [CRYPTO-003](#crypto-003) | Medium | threshold | Weak TLS for Web Management | Cisco IOS, FortiGate | 0 |
+| [CRYPTO-003](#crypto-003) | Medium | threshold | Weak TLS for Web Management | Cisco IOS, FortiGate | 2 |
 
 ```mermaid
 flowchart LR
@@ -507,8 +507,8 @@ Severity **high** · kind `prohibition` · category `management` · optional fea
 | UNKNOWN when | a user whose security level is not stated |
 | Cisco IOS | `snmp-server group NAME v3 noauth|auth|priv`; no group = N/A |
 | FortiGate | `config system snmp user` → `set security-level no-auth-no-priv|auth-no-priv|auth-priv`; no user = N/A |
-| Generic path | none shipped yet |
-| Shipped seeds | 0 (none) |
+| Generic path | `snmp-server group <name> v3 noauth|auth|priv` (Arista EOS, IOS-XR, ASA), Huawei `snmp-agent group v3 <name> noauthentication|authentication|privacy`; an understood configuration that never names SNMPv3 is N/A |
+| Shipped seeds | 4: Arista EOS / Cisco IOS-XR / Cisco ASA 2, Huawei VRP 2 |
 | Fix: Cisco IOS | `manual_review`: privacy keys are the operator's to choose and every manager must match |
 | Fix: FortiGate | the same |
 | Fix: other vendors | none |
@@ -761,7 +761,7 @@ Severity **medium** · kind `prohibition` · category `boundary`
 | UNKNOWN when | mentioned but not readable |
 | Cisco IOS | physical interfaces (`GigabitEthernet`, `TenGigabitEthernet`, `Ethernet`, `Serial`, …) whose only lines are factory ones (`no ip address`, `duplex auto`, `speed auto`, `negotiation auto`, `media-type`, `no shutdown`) and no `shutdown`; subinterfaces are skipped |
 | FortiGate | `config system interface` entries with `set type physical`, no `set status down`, no IP / allowaccess / role / alias / description, and named nowhere else in the file |
-| Generic path | none shipped yet |
+| Generic path | none (an interface with nothing on it is usually not written at all) |
 | Shipped seeds | 0 (none) |
 | Fix: Cisco IOS | `shutdown` on the failing interfaces; warns that an unconfigured switch port may still be in use |
 | Fix: FortiGate | `set status down` on the failing ports; the same warning |
@@ -790,7 +790,7 @@ Severity **medium** · kind `requirement` · category `boundary` · optional fea
 | UNKNOWN when | an OSPF area without area authentication while some interfaces authenticate (which interfaces belong to which area is not read) |
 | Cisco IOS | `router bgp` `neighbor X remote-as` with `neighbor X password` (directly or through its peer-group); `router ospf` areas from `network … area N` and `ip ospf N area N`, with `area N authentication [message-digest]` or interface `ip ospf authentication message-digest|key-chain`; no routing process = N/A |
 | FortiGate | `config router bgp` → `config neighbor` entries with `set password`; `config router ospf` → `config area` / `config ospf-interface` `set authentication` |
-| Generic path | none shipped yet |
+| Generic path | none read from a line (a key on one BGP group says nothing of the others); an understood configuration that never names `bgp` or `ospf` is N/A |
 | Shipped seeds | 0 (none) |
 | Fix: Cisco IOS | `manual_review`: the key has to change on both peers together |
 | Fix: FortiGate | the same |
@@ -984,8 +984,8 @@ Severity **medium** · kind `threshold` · category `cryptography` · optional f
 | UNKNOWN when | HTTPS management is on and no TLS version is set (the release default decides) |
 | Cisco IOS | `ip http tls-version TLSv1.x`; `ip http secure-server` without it = UNKNOWN; no HTTPS server = N/A |
 | FortiGate | `set admin-https-ssl-versions` in system global (the lowest listed version); HTTPS in an allowaccess without it = UNKNOWN |
-| Generic path | none shipped yet |
-| Shipped seeds | 0 (none) |
+| Generic path | ASA `ssl server-version tlsv1|tlsv1.1|tlsv1.2|tlsv1.3` (the lowest version it accepts as a server) |
+| Shipped seeds | 2: Cisco ASA 2 |
 | Fix: Cisco IOS | `ip http tls-version TLSv1.2` |
 | Fix: FortiGate | `set admin-https-ssl-versions tlsv1-2 tlsv1-3` |
 | Fix: other vendors | none |

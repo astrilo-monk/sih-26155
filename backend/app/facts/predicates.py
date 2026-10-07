@@ -74,6 +74,10 @@ MGMT_TLS_MIN = "mgmt.https.tls_min_version"
 # True: a physical interface with no configuration of its own is administratively up; scope: the interface
 INTERFACE_UNUSED_UP = "boundary.interface.unused_enabled"
 
+# Optional features whose absence an understood configuration shows by never naming them (see
+# ``recognizers._absent_features``): NOT_SET for one of these makes its control N/A, not a finding
+ABSENT_FEATURE_PREDICATES = {SNMPV3_SECURITY: "SNMPv3", ROUTING_AUTH: "BGP or OSPF"}
+
 PREDICATES = frozenset({
     PROTOCOL_ENABLED, SOURCE_RESTRICTED, MGMT_EXPOSED, SSH_VERSION, IDLE_TIMEOUT, CENTRAL_AAA, PASSWORD_STORAGE,
     PASSWORD_ENCRYPTION_SERVICE, SNMP_COMMUNITY, LOG_REMOTE_DESTINATION, NTP_SERVER, NTP_AUTHENTICATED,

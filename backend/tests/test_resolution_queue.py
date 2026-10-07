@@ -80,18 +80,23 @@ def test_initial_juniper_score_is_unchanged(client):
     # Was (19, 24) before brace leaves were read by set-form seeds: the users' encrypted-password is a decided MGMT-005 PASS
     # Was (38, 32) before Junos knowledge learned how NTP authentication is written (``trusted-key``): the file names an
     # NTP server and no key, so LOG-002 is a decided FAIL
-    # Was (36, 34) with 15 unresolved before MGMT-012, BOUNDARY-005/006, CRYPTO-003: no shipped Junos knowledge
-    # answers them yet, so they are undecided (the file runs OSPF without authentication, which a person can teach)
-    assert (scan["posture"], scan["coverage"]) == (36, 30)
+    # Was (36, 34) with 15 unresolved before MGMT-012, BOUNDARY-005/006, CRYPTO-003. No line names SNMPv3, so MGMT-012
+    # is N/A; the file runs OSPF without authentication (BOUNDARY-006 undecided until a person teaches it), and
+    # BOUNDARY-005 / CRYPTO-003 have no Junos knowledge yet
+    assert (scan["posture"], scan["coverage"]) == (36, 32)
     assert scan["assessed_count"] == 8
-    assert scan["unresolved_count"] == 19
+    assert scan["unresolved_count"] == 18
 
 
 def test_initial_score_comes_from_the_scoring_engine(client):
     """The response's counts and the posture are two readings of one calculation, never a second one."""
     scan, _ = juniper(client)
     results = scan["results"]
-    assert scan["assessed_count"] + scan["unresolved_count"] == len({r["control_id"] for r in results})
+    controls = {r["control_id"] for r in results}
+    # a check that does not apply (SNMPv3 on a device that never names it) is neither assessed nor unresolved
+    not_applicable = {c for c in controls if all(r["status"] == "n_a" for r in results if r["control_id"] == c)}
+    assert not_applicable == {"MGMT-012"}
+    assert scan["assessed_count"] + scan["unresolved_count"] + len(not_applicable) == len(controls)
 
 
 # ── 2-3. undecided controls become an actionable queue ───────────────────────
@@ -295,8 +300,8 @@ def test_control_outcomes_agree_with_the_posture(seeded_adaptive_db):
     results = evaluate_controls(config)
     outcomes = control_outcomes([results])
     posture = calculate_posture([results])
-    assert posture.coverage == 30
-    assert sum(1 for o in outcomes.values() if o == "undecided") == 19
+    assert posture.coverage == 32
+    assert sum(1 for o in outcomes.values() if o == "undecided") == 18
     assert set(posture.critical_unassessed) <= {c for (_, c), o in outcomes.items() if o == "undecided"}
 
 

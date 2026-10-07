@@ -828,5 +828,77 @@
   "predicate": "snmp.community",
   "subject": null,
   "expect": null
+ },
+ {
+  "lines": "snmp-server group NETOPS v3 priv",
+  "predicate": "snmp.v3.security_level",
+  "subject": null,
+  "expect": "priv"
+ },
+ {
+  "lines": "snmp-server group NETOPS v3 auth read all write all",
+  "predicate": "snmp.v3.security_level",
+  "subject": null,
+  "expect": "auth"
+ },
+ {
+  "lines": "snmp-server group NETOPS v3 noauth",
+  "predicate": "snmp.v3.security_level",
+  "subject": null,
+  "expect": "noauth"
+ },
+ {
+  "lines": "snmp-server group NETOPS v2c",
+  "predicate": "snmp.v3.security_level",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "snmp-server community public ro",
+  "predicate": "snmp.v3.security_level",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "snmp-agent group v3 NMS privacy read-view iso write-view iso",
+  "predicate": "snmp.v3.security_level",
+  "subject": null,
+  "expect": "priv"
+ },
+ {
+  "lines": "snmp-agent group v3 NMS authentication",
+  "predicate": "snmp.v3.security_level",
+  "subject": null,
+  "expect": "auth"
+ },
+ {
+  "lines": "snmp-agent group v2c NMS",
+  "predicate": "snmp.v3.security_level",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "ssl server-version tlsv1.2",
+  "predicate": "mgmt.https.tls_min_version",
+  "subject": null,
+  "expect": 1.2
+ },
+ {
+  "lines": "ssl server-version tlsv1.1 dtlsv1",
+  "predicate": "mgmt.https.tls_min_version",
+  "subject": null,
+  "expect": 1.1
+ },
+ {
+  "lines": "ssl server-version tlsv1",
+  "predicate": "mgmt.https.tls_min_version",
+  "subject": null,
+  "expect": 1.0
+ },
+ {
+  "lines": "ssl client-version tlsv1",
+  "predicate": "mgmt.https.tls_min_version",
+  "subject": null,
+  "expect": null
  }
 ]

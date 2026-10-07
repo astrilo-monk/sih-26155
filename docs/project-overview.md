@@ -46,7 +46,7 @@ backend/
     reporting/                per-device PDF report (full and executive)
     db/                       SQLite / Postgres migrations, recognizer repository, scan archive
     models/                   NormalizedConfig, findings, results, legacy field catalog
-  data/                       seed_recognizers.json (380), factory_defaults.json, platform_profiles.json,
+  data/                       seed_recognizers.json (386), factory_defaults.json, platform_profiles.json,
                               cve_cache.json, path_validation.json
   scripts/                    benchmark, CVE cache builder, attack-path proof, injection probe, architecture PDF
   tests/                      67 pytest files, fixtures, Phase 0 golden snapshots

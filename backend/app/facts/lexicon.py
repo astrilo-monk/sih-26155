@@ -78,6 +78,19 @@ PASSWORD_RELATED = frozenset({
 })
 
 SNMP = frozenset({"snmp", "snmp-server", "snmpd"})
+# Words that make an SNMP line an SNMPv3 one. Users, groups, views and engine ids exist only in SNMPv3 (USM / VACM);
+# a community line names none of them. Broad on purpose: a line using any of them keeps SNMPv3 from being read as
+# absent, so the check stays undecided rather than N/A
+SNMPV3_RELATED = frozenset({
+    "v3", "3", "snmpv3", "usm", "vacm", "user", "users", "group", "groups", "priv", "privacy", "auth", "authpriv",
+    "authnopriv", "noauth", "noauthnopriv", "security-level", "sec-level", "engineid", "engine-id", "local-engine",
+    "security-model", "sec-model",
+})
+# How a configuration names the TLS versions a server accepts
+TLS_RELATED = frozenset({"tls", "ssl", "tlsv1", "tls1", "sslv3", "https", "server-version", "min-version",
+                         "tls-version", "ssl-versions", "ssl-tls-service-profile"})
+# Dynamic routing protocols BOUNDARY-006 asks about; every dialect names them by these words
+ROUTING_PROTOCOLS = frozenset({"bgp", "ospf", "ospfv3", "ospf3", "ospfv2"})
 # A zone or interface named for the outside world. Only a name that says so marks a place external: a zone
 # called "dmz" or "vlan20" says nothing, and nothing is concluded from it.
 EXTERNAL_ZONES = frozenset({"untrust", "untrusted", "outside", "internet", "external", "wan", "public"})

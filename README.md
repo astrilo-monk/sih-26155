@@ -123,7 +123,7 @@ flowchart TD
     subgraph S2["2 . Read: configuration to SecurityFacts"]
         PAR["Dedicated parser + vendor defaults<br/><i>decisive</i>"]
         TOK["Generic tokenizer<br/>JSON and Terraform flattened first"]
-        REC["Recognizers from the store<br/>380 shipped + taught, <i>decisive</i>"]
+        REC["Recognizers from the store<br/>386 shipped + taught, <i>decisive</i>"]
         HEU["Lexicon heuristics<br/><i>provisional</i>"]
         TOK --> REC
         TOK --> HEU
@@ -243,7 +243,7 @@ The vendor is always decided by code. An AI vendor guess is shown as evidence on
 defaults or remediation. Device identity (hostname, OS version, FortiGate model and firmware) is reported only
 when the file states it; serial numbers and chassis details are never invented.
 
-The **380 shipped recognizers** live in [`backend/data/seed_recognizers.json`](backend/data/seed_recognizers.json),
+The **386 shipped recognizers** live in [`backend/data/seed_recognizers.json`](backend/data/seed_recognizers.json),
 load into an empty database on first start, and are marked `source=seed` so shipped knowledge can be audited
 separately from what a deployment was taught. See [docs/seed-knowledge.md](docs/seed-knowledge.md).
 
@@ -284,8 +284,9 @@ separately from what a deployment was taught. See [docs/seed-knowledge.md](docs/
 | CRYPTO-002 | High | Weak management cryptography (SSH / HTTPS) |
 | CRYPTO-003 | Medium | Web management accepts TLS 1.0 / 1.1 |
 
-MGMT-012, BOUNDARY-005, BOUNDARY-006 and CRYPTO-003 are read by the Cisco IOS and FortiGate parsers; other dialects
-leave them undecided until a person teaches the syntax (no shipped seeds yet).
+MGMT-012, BOUNDARY-005, BOUNDARY-006 and CRYPTO-003 are read by the Cisco IOS and FortiGate parsers. On other
+dialects, SNMPv3 levels (Arista, IOS-XR, ASA, Huawei) and the ASA's minimum TLS version are read from their lines, and a
+configuration that never names SNMPv3 or BGP / OSPF gets N/A for those checks; the rest stays undecided until taught.
 
 Per-vendor facts and remediation: [docs/detection-rules.md](docs/detection-rules.md).
 

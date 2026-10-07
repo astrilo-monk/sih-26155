@@ -631,7 +631,7 @@ completes.
 
 ## 10. Human in the loop: recognizers
 
-A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships **380** reviewed recognizers for
+A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships **386** reviewed recognizers for
 **16 dialects** with no dedicated parser (Juniper Junos, Palo Alto PAN-OS, Arista EOS, Huawei VRP, MikroTik RouterOS,
 HPE Aruba AOS-CX, Check Point Gaia, Extreme EXOS, Cisco NX-OS, ASA, IOS-XR, SONiC `config_db.json`, NVIDIA Cumulus
 NVUE, Dell OS10, VyOS, Fortinet FortiSwitchOS) plus AWS security group, Azure NSG and GCP firewall exports and Terraform for AWS, Azure and GCP. One
