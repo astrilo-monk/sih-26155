@@ -44,7 +44,7 @@ const stages = [["Upload / collect", "UTF-8, 2 MB, secrets redacted before any A
                 ["Detect vendor", "Deterministic; an AI guess is evidence only"],
                 ["Read", "Cisco IOS, FortiGate parsers · generic tokenizer · JSON / Terraform flattening"],
                 ["Normalize", "Vendor-neutral facts: mgmt.ssh.version, snmp.community …"],
-                ["Decide", "23 checks → 78 requirements (NIST, STIG, ISO, CIS)"],
+                ["Decide", "27 checks → 82 requirements (NIST, STIG, ISO, CIS)"],
                 ["Report", "Attack paths, fixes verified on a copy, PDF, hash-chained ledger"]];
 stages.forEach(([t, d], i) => {
   const col = i % 3, row = Math.floor(i / 3);

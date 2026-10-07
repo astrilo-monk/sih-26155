@@ -3,7 +3,7 @@
 NetAuditAI answers security questions about network configurations and only understands what those questions
 need. Four ideas carry the whole design:
 
-1. **Controls** (23 security questions) are what gets evaluated and reported.
+1. **Controls** (27 security questions) are what gets evaluated and reported.
 2. **Security facts** (scoped, cited, assurance-tagged statements) are what gets extracted, confirmed and learned.
 3. **Assurance** decides what may be counted: only `parser`, `confirmed` and `default` evidence moves a score.
 4. **AI is an optional escalation** whose output stays a proposal until a person confirms it.
@@ -64,7 +64,7 @@ flowchart TD
     HEUR --> FACTS
     MAPS --> FACTS
 
-    FACTS --> EVAL["evaluate_controls<br/>23 judges, every configuration"]
+    FACTS --> EVAL["evaluate_controls<br/>27 judges, every configuration"]
     EVAL --> JUDGE{"AI available and<br/>vendor unknown?"}
     JUDGE -->|"yes"| AI["AI judge on UNKNOWN /<br/>NOT_CONFIGURED controls"]
     AI -->|"ai_verified facts"| EVAL2["re-evaluate:<br/>proposals shown, never scored"]
@@ -337,7 +337,7 @@ recognizer never hides a line that disagrees with it.
 
 ## 5. SecurityFacts and assurance
 
-`app/facts/predicates.py` defines **23 predicates**, each consumed by at least one control (a predicate exists only
+`app/facts/predicates.py` defines **27 predicates**, each consumed by at least one control (a predicate exists only
 if a control reads it). The full list with value types is in [data-model.md](data-model.md#predicates).
 
 A `SecurityFact` has `predicate`, `value`, `assurance`, `evidence` (line numbers and text), `subject`, `scope`,
@@ -422,8 +422,8 @@ flowchart TD
 
 ## 6. Controls and ControlResult
 
-`app/controls/catalog.py` declares 23 controls (MGMT-001 to MGMT-011, AUTH-001 to AUTH-003, BOUNDARY-001 to
-BOUNDARY-004, LOG-001 to LOG-003, CRYPTO-001 and CRYPTO-002) with `question`, `kind`, `severity`, `category`,
+`app/controls/catalog.py` declares 27 controls (MGMT-001 to MGMT-012, AUTH-001 to AUTH-003, BOUNDARY-001 to
+BOUNDARY-006, LOG-001 to LOG-003, CRYPTO-001 to CRYPTO-003) with `question`, `kind`, `severity`, `category`,
 `needs` (predicates), `optional_feature` and versioned framework `mappings`. `app/controls/judges.py` says what one
 fact means for one control; `app/controls/evaluate.py` combines the outcomes. No vendor decides whether a control
 runs. The per-control reference is [detection-rules.md](detection-rules.md).
@@ -522,7 +522,7 @@ critical_unassessed = critical controls whose outcome is undecided
 * bounds = 12 / 39 to 28 / 39 = **31 to 72**
 * critical not assessed = **MGMT-003**
 
-With all 23 controls applicable the maximum weight is 133 (6 critical, 8 high, 8 medium, 1 low). A configuration with
+With all 27 controls applicable the maximum weight is 148 (6 critical, 9 high, 11 medium, 1 low). A configuration with
 nothing decided shows posture "-" and coverage 0, never 100. The legacy `score` (100 minus penalties) is still
 returned, deprecated, and not used by the UI, remediation or framework views.
 

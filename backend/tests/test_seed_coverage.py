@@ -1,5 +1,5 @@
 """
-Seed coverage per dialect: how many of the 23 checks shipped knowledge decides when a configuration states them.
+Seed coverage per dialect: how many of the catalog's checks shipped knowledge decides when a configuration states them.
 
 Three layers, as for every seed: the lines each new seed reads (and the near-miss lines it must not read), the engine
 rules that keep those readings honest (documented defaults, top-level and chained scopes, interface-local settings,
@@ -24,7 +24,8 @@ REFERENCE = BACKEND / "tests" / "fixtures" / "seed_coverage"
 CASES = json.loads((REFERENCE / "line_cases.json").read_text(encoding="utf-8"))
 DECISIVE = {Assurance.PARSER, Assurance.CONFIRMED, Assurance.DEFAULT}
 
-# decided checks out of 23, per dialect, on its reference configuration. A dialect below 18 (75 %) is held back by
+# decided checks per dialect (the coverage pass measured 23; MGMT-012, BOUNDARY-005/006 and CRYPTO-003 have no
+# generic seeds yet), on its reference configuration. A dialect below 18 (75 %) is held back by
 # what the template engine cannot read or what no source documents; docs/seed-knowledge.md says which, per check.
 FLOOR = {
     "Juniper Junos": 20, "Palo Alto PAN-OS": 20, "Extreme Networks EXOS": 19, "Arista EOS": 18, "Cisco NX-OS": 18,

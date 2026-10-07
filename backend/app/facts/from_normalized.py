@@ -13,6 +13,7 @@ Citations reproduce the lines the Phase 0 rules cited, so findings stay identica
 
 from __future__ import annotations
 
+import ipaddress
 import re
 from typing import Iterable, Optional
 
@@ -22,7 +23,7 @@ from app.facts.recognizers import recognize
 from app.facts.predicates import (
     CENTRAL_AAA, DISCOVERY_PROTOCOL, FIELD_PREDICATES, IDLE_TIMEOUT, IPSEC_PROPOSAL, LOG_REMOTE_DESTINATION, LOGIN_BANNER,
     MGMT_EXPOSED, LOGIN_MAX_ATTEMPTS, PASSWORD_MIN_LENGTH, ADMIN_ACCOUNT, MGMT_WEAK_CRYPTO, RULE_LOGGING,
-    ROUTER_UNSAFE_SERVICE,
+    ROUTER_UNSAFE_SERVICE, SNMPV3_SECURITY, ROUTING_AUTH, MGMT_TLS_MIN, INTERFACE_UNUSED_UP,
     NOT_SET, NTP_AUTHENTICATED, NTP_SERVER, PASSWORD_ENCRYPTION_SERVICE, PASSWORD_STORAGE, PERMIT_ANY,
     PREDICATES, PROTOCOL_ENABLED, SNMP_COMMUNITY, SOURCE_RESTRICTED, SOURCE_ROUTING, SSH_VERSION, SecurityFact,
 )
@@ -267,8 +268,132 @@ class _ParserFacts:
                 self.add(DISCOVERY_PROTOCOL, False, _lines(*wan), "cdp", "external interfaces")
         else:
             self.add(DISCOVERY_PROTOCOL, None, (), "cdp", provenance="No interface is identified as external")
+        self._cisco_added()
+
+    def _cisco_added(self):
+        """SNMPv3 security level, HTTPS TLS version, BGP / OSPF authentication, unused interfaces: read from the
+        configuration's own lines (the IOS model does not keep them)."""
+        raw = self.config.raw_lines
+        for number, line in enumerate(raw, 1):
+            if m := _IOS_SNMP_GROUP.match(line):
+                self.add(SNMPV3_SECURITY, m.group(2).lower(), [number], scope=f"SNMPv3 group {m.group(1)}")
+
+        tls = [(n, float(m.group(1))) for n, line in enumerate(raw, 1) if (m := _IOS_TLS_VERSION.match(line))]
+        secure_server = [n for n, line in enumerate(raw, 1) if re.match(r"^ip\s+http\s+secure-server\s*$", line, re.I)]
+        if tls:
+            number, version = tls[-1]
+            self.add(MGMT_TLS_MIN, version, [number], scope="ip http")
+        elif secure_server:
+            self.add(MGMT_TLS_MIN, None, secure_server, scope="ip http",
+                     provenance="The HTTPS server is on and no 'ip http tls-version' is set, so the IOS release "
+                                "default decides which TLS versions it accepts")
+
+        blocks = _ios_blocks(raw)
+        for header, body in blocks:
+            text = raw[header - 1].strip()
+            if re.match(r"(?i)^router\s+bgp\s+\d+", text):
+                self._ios_bgp(header, body)
+            elif re.match(r"(?i)^router\s+ospf\s+\d+", text):
+                self._ios_ospf(header, body, blocks)
+
+        for iface in self.config.interfaces:
+            if not _IOS_PHYSICAL.match(iface.name) or "." in iface.name:
+                continue
+            body = [n for n in iface.source_lines if 1 <= n <= len(raw)][1:]
+            settings = [" ".join(raw[n - 1].split()).lower() for n in body]
+            settings = [s for s in settings if s and s != "!" and not any(s.startswith(d) for d in _IOS_DEFAULT_LINES)]
+            if not iface.shutdown and not settings:
+                self.add(INTERFACE_UNUSED_UP, True, iface.source_lines[:1], scope=f"interface {iface.name}")
+        physical = [i for i in self.config.interfaces if _IOS_PHYSICAL.match(i.name) and "." not in i.name]
+        if physical and not any(f.predicate == INTERFACE_UNUSED_UP for f in self.facts):
+            self.add(INTERFACE_UNUSED_UP, False, [i.source_lines[0] for i in physical if i.source_lines],
+                     scope="physical interfaces")
+
+    def _ios_bgp(self, header: int, body: list[int]):
+        raw = self.config.raw_lines
+        password, peers, member = set(), {}, {}
+        for n in body:
+            words = raw[n - 1].split()
+            if len(words) < 3 or words[0].lower() != "neighbor":
+                continue
+            name, keyword = words[1], words[2].lower()
+            if keyword == "password":
+                password.add(name)
+            elif keyword == "remote-as" and _IP.match(name):
+                peers.setdefault(name, n)
+            elif keyword == "peer-group" and len(words) > 3 and _IP.match(name):
+                peers.setdefault(name, n)
+                member[name] = words[3]
+        lines = {name: [n for n in body if raw[n - 1].split()[1:2] == [name]] for name in {*password, *member.values()}}
+        for peer, first in peers.items():
+            group = member.get(peer)
+            ok = peer in password or group in password
+            cited = [first, *lines.get(peer, []), *lines.get(group, [])] if ok else [header, first]
+            self.add(ROUTING_AUTH, ok, sorted(set(cited)), subject="bgp", scope=f"neighbor {peer}",
+                     provenance="" if ok else f"BGP neighbor {peer} has no 'neighbor … password'")
+
+    def _ios_ospf(self, header: int, body: list[int], blocks):
+        raw = self.config.raw_lines
+        process = raw[header - 1].split()[2]
+        areas: dict[str, int] = {}
+        auth: dict[str, tuple[bool, int]] = {}
+        networks: list[tuple[ipaddress.IPv4Network, str]] = []
+        for n in body:
+            text = " ".join(raw[n - 1].split()).lower()
+            if m := re.match(r"^network\s+(\S+)\s+(\S+)\s+area\s+(\S+)", text):
+                areas.setdefault(m.group(3), n)
+                if (net := _wildcard_network(m.group(1), m.group(2))) is not None:
+                    networks.append((net, m.group(3)))
+            elif m := re.match(r"^area\s+(\S+)\s+authentication(\s+message-digest)?\s*$", text):
+                auth[m.group(1)] = (bool(m.group(2)), n)
+        # per area: the interfaces running OSPF in it, and which of them authenticate (MD5 / key chain)
+        members: dict[str, list[tuple[int, bool]]] = {}
+        unplaced = []
+        for h, b in blocks:
+            if not raw[h - 1].lower().startswith("interface"):
+                continue
+            texts = {n: " ".join(raw[n - 1].split()).lower() for n in b}
+            secure = [n for n, t in texts.items() if re.match(r"^ip\s+ospf\s+authentication\s+(message-digest|key-chain)", t)]
+            area = next((m.group(1) for t in texts.values()
+                         if (m := re.match(rf"^ip\s+ospf\s+{re.escape(process)}\s+area\s+(\S+)", t))), None)
+            if area is not None:
+                areas.setdefault(area, next(n for n, t in texts.items() if t.startswith("ip ospf " + process)))
+            else:
+                address = next((m.group(1) for t in texts.values()
+                                if (m := re.match(r"^ip\s+address\s+(\d+\.\d+\.\d+\.\d+)\s", t))), None)
+                if address:
+                    area = next((a for net, a in networks if ipaddress.IPv4Address(address) in net), None)
+            if area is not None:
+                members.setdefault(area, []).append((secure[0] if secure else h, bool(secure)))
+            elif secure:
+                unplaced.extend(secure)
+        for area, first in areas.items():
+            scope = f"OSPF {process} area {area}"
+            inside = members.get(area, [])
+            if area in auth:
+                md5, n = auth[area]
+                self.add(ROUTING_AUTH, md5, [first, n], subject="ospf", scope=scope,
+                         provenance="" if md5 else f"{scope} uses a cleartext authentication key")
+            elif inside and all(ok for _, ok in inside):
+                self.add(ROUTING_AUTH, True, [first, *(n for n, _ in inside)], subject="ospf", scope=scope)
+            elif inside and any(ok for _, ok in inside):
+                bare = [n for n, ok in inside if not ok]
+                names = ", ".join(raw[n - 1].split()[1] for n in bare)
+                self.add(ROUTING_AUTH, False, [first, *bare], subject="ospf", scope=scope,
+                         provenance=f"{scope} has no area authentication and interface {names} in it does not "
+                                    "authenticate")
+            elif unplaced and not inside:
+                self.add(ROUTING_AUTH, None, [first, *unplaced], subject="ospf", scope=scope,
+                         provenance=f"{scope} has no area authentication; some interfaces authenticate, and which "
+                                    "area they are in was not read")
+            else:
+                self.add(ROUTING_AUTH, False, [header, first], subject="ospf", scope=scope,
+                         provenance=f"{scope} has no authentication, on the area or any of its interfaces")
 
     # FortiGate ----------------------------------------------------------------
+
+    def _forti_added(self):
+        _forti_added_impl(self)
 
     def _fortinet(self):
         c = self.config
@@ -337,6 +462,7 @@ class _ParserFacts:
             self.add(RULE_LOGGING, policy.logging_enabled if stated else True, stated or policy.source_lines,
                      scope=f"firewall policy {policy.policy_id}",
                      provenance="" if stated else "FortiOS default 'set logtraffic utm'")
+        self._forti_added()
         admins = _forti_section(raw, "config system admin")
         edits = [(n, m.group(1)) for n in admins if (m := _FORTI_EDIT.match(raw[n - 1]))]
         top = min((len(raw[n - 1]) - len(raw[n - 1].lstrip()) for n, _ in edits), default=0)
@@ -387,6 +513,157 @@ class _ParserFacts:
             self.add(IPSEC_PROPOSAL,
                      {"encryption": proposal.encryption, "hash": proposal.hash_algorithm, "dh_group": proposal.dh_group},
                      proposal.source_lines, scope=f"proposal {proposal.name}")
+
+
+def _forti_added_impl(self):
+    """SNMPv3 users' security level, admin HTTPS TLS versions, BGP / OSPF authentication, unused ports."""
+    raw = self.config.raw_lines
+    paths = _forti_paths(raw)
+
+    for edit, lines in _forti_edits(raw, paths, ("config system snmp user",)).items():
+        levels = [(n, m.group(1).lower()) for n in lines if (m := _FORTI_SNMP_LEVEL.match(raw[n - 1]))]
+        level = _FORTI_LEVELS.get(levels[-1][1]) if levels else None
+        self.add(SNMPV3_SECURITY, level, [levels[-1][0]] if levels else lines[:1], scope=f"SNMPv3 user {edit}",
+                 provenance="" if levels else f"SNMPv3 user {edit} does not state its security level")
+
+    https = [i for i in self.config.interfaces if "https" in i.allowed_services]
+    versions = [(n, m.group(1)) for n in _forti_section(raw, "config system global")
+                if (m := re.match(r"^\s*set\s+admin-https-ssl-versions\s+(.+)$", raw[n - 1], re.IGNORECASE))]
+    if versions:
+        number, listed = versions[-1]
+        found = [float(v) for v in re.findall(r"tlsv1-([0-3])", listed.lower()) for v in [f"1.{v}"]]
+        self.add(MGMT_TLS_MIN, min(found) if found else None, [number], scope="system global")
+    elif https:
+        self.add(MGMT_TLS_MIN, None, https[0].source_lines[:1], scope="system global",
+                 provenance="HTTPS administration is allowed and 'admin-https-ssl-versions' is not set, so the "
+                            "FortiOS release default decides which TLS versions it accepts")
+
+    for peer, lines in _forti_edits(raw, paths, ("config router bgp", "config neighbor")).items():
+        password = [n for n in lines if re.match(r"^\s*set\s+password\s", raw[n - 1], re.IGNORECASE)]
+        self.add(ROUTING_AUTH, bool(password), password or lines[:1], subject="bgp", scope=f"neighbor {peer}",
+                 provenance="" if password else f"BGP neighbor {peer} has no 'set password'")
+
+    stated = False
+    for block in (("config router ospf", "config area"), ("config router ospf", "config ospf-interface")):
+        for name, lines in _forti_edits(raw, paths, block).items():
+            modes = [(n, m.group(1).lower()) for n in lines if (m := _FORTI_OSPF_AUTH.match(raw[n - 1]))]
+            if not modes:
+                continue
+            stated = True
+            number, mode = modes[-1]
+            ok = mode in ("md5", "message-digest")
+            what = "area" if block[1] == "config area" else "interface"
+            self.add(ROUTING_AUTH, ok, [number], subject="ospf", scope=f"OSPF {what} {name}",
+                     provenance="" if ok else f"OSPF {what} {name} uses '{mode}' authentication")
+    ospf = _forti_section(raw, "config router ospf")
+    if ospf and not stated and any(p[1:2] in (("config area",), ("config ospf-interface",), ("config network",))
+                                   for p in (paths[n - 1] for n in ospf) if len(p) > 1):
+        self.add(ROUTING_AUTH, False, ospf[:1], subject="ospf", scope="OSPF",
+                 provenance="OSPF is configured and no area or interface sets authentication")
+
+    ports = _forti_edits(raw, paths, ("config system interface",))
+    unused, physical = [], []
+    for name, lines in ports.items():
+        texts = [" ".join(raw[n - 1].split()).lower() for n in lines]
+        if "set type physical" not in texts:
+            continue
+        physical.append(lines[0])
+        if "set status down" in texts:
+            continue
+        configured = [s for s in texts if s.startswith(("set ip ", "set allowaccess", "set role", "set member",
+                                                         "set description", "set alias", "set vlanid"))
+                      and not s.startswith("set ip 0.0.0.0 0.0.0.0")]
+        own = set(lines)
+        quoted = re.compile(rf'"{re.escape(name)}"')
+        referenced = any(quoted.search(raw[n - 1]) for n in range(1, len(raw) + 1) if n not in own)
+        if not configured and not referenced:
+            unused.append((name, lines[0]))
+    for name, number in unused:
+        self.add(INTERFACE_UNUSED_UP, True, [number], scope=f"interface {name}")
+    if physical and not unused:
+        self.add(INTERFACE_UNUSED_UP, False, physical, scope="physical interfaces")
+
+
+def _forti_paths(raw: list[str]) -> list[tuple[str, ...]]:
+    """The ``config`` / ``edit`` headers each line sits in (a header line's own path excludes itself)."""
+    stack: list[str] = []
+    out = []
+    for line in raw:
+        text = " ".join(line.split())
+        low = text.lower()
+        out.append(tuple(stack))
+        if low.startswith("config "):
+            stack.append(low)
+        elif low.startswith("edit "):
+            stack.append(text)
+        elif low == "next" and stack and stack[-1].lower().startswith("edit "):
+            stack.pop()
+        elif low == "end" and stack:
+            while stack and stack[-1].lower().startswith("edit "):
+                stack.pop()
+            if stack:
+                stack.pop()
+    return out
+
+
+def _forti_edits(raw: list[str], paths, block: tuple[str, ...]) -> dict[str, list[int]]:
+    """``edit`` entries directly inside a chain of ``config`` blocks: name -> its line numbers (header first)."""
+    out: dict[str, list[int]] = {}
+    for number, path in enumerate(paths, 1):
+        # a multi-VDOM file nests the block under ``config vdom`` / ``edit root``: read from the block's own header
+        starts = [i for i, p in enumerate(path) if p == block[0]]
+        if not starts:
+            continue
+        rest = path[starts[-1]:]
+        configs = tuple(p for p in rest if not p.lower().startswith("edit "))
+        edits = [p for p in rest if p.lower().startswith("edit ")]
+        if configs != block or len(edits) > 1 or (edits and rest[-1] != edits[0]):
+            continue
+        text = " ".join(raw[number - 1].split())
+        if edits:
+            out.setdefault(edits[0][5:].strip().strip('"\''), []).append(number)
+        elif text.lower().startswith("edit "):
+            out.setdefault(text[5:].strip().strip('"\''), []).append(number)
+    return out
+
+
+def _ios_blocks(raw: list[str]) -> list[tuple[int, list[int]]]:
+    """Top-level IOS blocks: (header line, its indented child lines), nested children included."""
+    blocks, current = [], None
+    for number, line in enumerate(raw, 1):
+        if not line.strip():
+            continue
+        if line[:1].isspace():
+            if current is not None:
+                current[1].append(number)
+            continue
+        current = None if line.strip() == "!" else (number, [])
+        if current is not None:
+            blocks.append(current)
+    return blocks
+
+
+def _wildcard_network(address: str, wildcard: str) -> Optional[ipaddress.IPv4Network]:
+    """``network 10.0.0.0 0.0.0.255`` as a network; None for a non-contiguous or unreadable wildcard."""
+    try:
+        inverse = int(ipaddress.IPv4Address(wildcard))
+        return ipaddress.IPv4Network(f"{address}/{32 - inverse.bit_length()}", strict=False) \
+            if inverse & (inverse + 1) == 0 else None
+    except ValueError:
+        return None
+
+
+_IP = re.compile(r"^\d{1,3}(?:\.\d{1,3}){3}$|^[0-9a-f:]*:[0-9a-f:]+$", re.IGNORECASE)
+_IOS_SNMP_GROUP = re.compile(r"^\s*snmp-server\s+group\s+(\S+)\s+v3\s+(noauth|auth|priv)\b", re.IGNORECASE)
+_IOS_TLS_VERSION = re.compile(r"^\s*ip\s+http\s+tls-version\s+TLSv(1\.[0-3])\s*$", re.IGNORECASE)
+_IOS_PHYSICAL = re.compile(r"(?i)^(?:gigabitethernet|fastethernet|tengigabitethernet|twentyfivegige|fortygigabitethernet|"
+                           r"hundredgige|ethernet|serial)\d")
+# lines a physical interface carries without anyone configuring it
+_IOS_DEFAULT_LINES = ("no ip address", "negotiation auto", "duplex auto", "speed auto", "no mop enabled",
+                      "no mop sysid", "media-type", "no shutdown")
+_FORTI_SNMP_LEVEL = re.compile(r"^\s*set\s+security-level\s+(\S+)", re.IGNORECASE)
+_FORTI_LEVELS = {"no-auth-no-priv": "noauth", "auth-no-priv": "auth", "auth-priv": "priv"}
+_FORTI_OSPF_AUTH = re.compile(r"^\s*set\s+authentication\s+(\S+)", re.IGNORECASE)
 
 
 def _timeout(line) -> object:

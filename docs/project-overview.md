@@ -1,6 +1,6 @@
 # Project Overview
 
-NetAuditAI audits network device and cloud firewall configurations against 23 security checks, with cited evidence,
+NetAuditAI audits network device and cloud firewall configurations against 27 security checks, with cited evidence,
 honest UNKNOWN / NOT_CONFIGURED results, posture and coverage, framework views, human-confirmed recognizers for
 unfamiliar vendors, and fixes verified by rescan. Built for Smart India Hackathon 2026, problem SIH26155 (NTRO).
 
@@ -38,7 +38,7 @@ backend/
     parsers/                  detector + grammar coverage, Cisco IOS and FortiGate parsers
     structure/                generic tokenizer; JSON and Terraform flattening
     facts/                    predicates, parser facts, defaults, lexicon, heuristics, recognizers, seed loader, teaching
-    controls/                 catalog (23 checks), judges, evaluator, finding view, frameworks, organisation policy
+    controls/                 catalog (27 checks), judges, evaluator, finding view, frameworks, organisation policy
     analysis/                 scoring (posture, coverage; legacy score), attack paths, risk, drift, fleet checks, CVE
     ai/                       model client, redaction, prompt fence, AI judge, remediation drafts, prompts
     adaptive/                 line capture, block paths, relevance, matcher, legacy interpreter / mapper, service

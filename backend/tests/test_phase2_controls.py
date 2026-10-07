@@ -37,6 +37,7 @@ ORIGINAL_RULE_IDS = {
 # Controls added after the original catalog: new questions, held to the same description rules
 ADDED_RULE_IDS = {
     "MGMT-010", "MGMT-011", "AUTH-001", "AUTH-002", "AUTH-003", "LOG-003", "CRYPTO-002", "BOUNDARY-004",
+    "MGMT-012", "BOUNDARY-005", "BOUNDARY-006", "CRYPTO-003",
 }
 RULE_IDS = ORIGINAL_RULE_IDS | ADDED_RULE_IDS
 
@@ -59,6 +60,7 @@ NIST_REV5_TITLES = {
     "AU-9(2)": "Store on Separate Physical Systems or Components",
     "CM-7": "Least Functionality",
     "IA-2": "Identification and Authentication (Organizational Users)",
+    "IA-3": "Device Identification and Authentication",
     "IA-5": "Authenticator Management",
     "IA-5(1)": "Password-based Authentication",
     "SC-7": "Boundary Protection",

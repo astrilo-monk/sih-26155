@@ -49,6 +49,7 @@ CIS = "CIS"
 CIS_IOS_XE_L1 = "Cisco IOS XE 17.x Benchmark v2.2.1 (Level 1)"
 CIS_IOS_XE_L2 = "Cisco IOS XE 17.x Benchmark v2.2.1 (Level 2)"
 CIS_IOS_XE_210_L1 = "Cisco IOS XE 17.x Benchmark v2.1.0 (Level 1)"
+CIS_IOS_XE_211_L2 = "Cisco IOS XE 17.x Benchmark v2.1.1 (Level 2)"
 CIS_FORTIGATE_L1 = "FortiGate 7.4.x Benchmark v1.0.1 (Level 1)"
 CIS_FORTIGATE_L2 = "FortiGate 7.4.x Benchmark v1.0.1 (Level 2)"
 STIG = "DISA_STIG"
@@ -357,6 +358,27 @@ _CONTROLS = (
         needs=(P.SNMP_COMMUNITY,),
     ),
     Control(
+        control_id="MGMT-012",
+        title="SNMPv3 Without Authentication and Encryption",
+        question="Does every SNMPv3 group or user require both authentication and encryption (authPriv)?",
+        kind=ControlKind.PROHIBITION,
+        severity=Severity.HIGH,
+        category="management",
+        mappings=(
+            _nist("SC-8", "Transmission Confidentiality and Integrity"),
+            _nist("SC-13", "Cryptographic Protection"),
+            _cis_ios("1.5.9", "Set 'priv' for each 'snmp-server group' using SNMPv3"),
+            _stig("SRG-APP-000395-NDM-000310",
+                "The network device must be configured to authenticate SNMP messages using a FIPS-validated "
+                "Keyed-Hash Message Authentication Code (HMAC)"),
+            _iso("A.8.21", "Security of network services"),
+            _iso("A.8.24", "Use of cryptography"),
+        ),
+        remediation_keys=("MGMT-012",),
+        needs=(P.SNMPV3_SECURITY,),
+        optional_feature="SNMPv3",
+    ),
+    Control(
         control_id="AUTH-001",
         title="No Login Brute-Force Protection",
         question="Does the device limit failed login attempts (10 or fewer before a lockout or disconnect)?",
@@ -479,6 +501,37 @@ _CONTROLS = (
         optional_feature="IOS-style routed interface services",
     ),
     Control(
+        control_id="BOUNDARY-005",
+        title="Unused Interfaces Left Enabled",
+        question="Are physical interfaces that carry no configuration of their own shut down?",
+        kind=ControlKind.PROHIBITION,
+        severity=Severity.MEDIUM,
+        category="boundary",
+        mappings=(
+            _nist("CM-7", "Least Functionality"),
+            _iso("A.8.20", "Networks security"),
+        ),
+        remediation_keys=("BOUNDARY-005",),
+        needs=(P.INTERFACE_UNUSED_UP,),
+    ),
+    Control(
+        control_id="BOUNDARY-006",
+        title="Routing Protocol Without Authentication",
+        question="Do BGP neighbors and OSPF areas authenticate routing updates (MD5 or SHA, not a cleartext key)?",
+        kind=ControlKind.REQUIREMENT,
+        severity=Severity.MEDIUM,
+        category="boundary",
+        mappings=(
+            _nist("IA-3", "Device Identification and Authentication"),
+            _nist("SC-8", "Transmission Confidentiality and Integrity"),
+            _cis_ios("3.3.3.1", "Set 'neighbor password'", version=CIS_IOS_XE_211_L2),
+            _iso("A.8.20", "Networks security"),
+        ),
+        remediation_keys=("BOUNDARY-006",),
+        needs=(P.ROUTING_AUTH,),
+        optional_feature="a dynamic routing protocol (BGP or OSPF)",
+    ),
+    Control(
         control_id="LOG-001",
         title="No Remote Syslog Server Configured",
         question="Are logs forwarded to a remote log server?",
@@ -577,6 +630,25 @@ _CONTROLS = (
         ),
         remediation_keys=("CRYPTO-002",),
         needs=(P.MGMT_WEAK_CRYPTO,),
+    ),
+    Control(
+        control_id="CRYPTO-003",
+        title="Weak TLS for Web Management",
+        question="Does HTTPS management refuse TLS 1.0 and 1.1 (TLS 1.2 or later only)?",
+        kind=ControlKind.THRESHOLD,
+        severity=Severity.MEDIUM,
+        category="cryptography",
+        mappings=(
+            _nist("SC-8", "Transmission Confidentiality and Integrity"),
+            _nist("SC-13", "Cryptographic Protection"),
+            _stig("SRG-APP-000412-NDM-000331",
+                "The network device must be configured to implement cryptographic mechanisms to protect the "
+                "confidentiality of remote maintenance sessions"),
+            _iso("A.8.24", "Use of cryptography"),
+        ),
+        remediation_keys=("CRYPTO-003",),
+        needs=(P.MGMT_TLS_MIN,),
+        optional_feature="HTTPS management",
     ),
 )
 

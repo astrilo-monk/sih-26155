@@ -568,6 +568,94 @@ def default_account(fact, facts, vendor):
     )
 
 
+# ── added checks ────────────────────────────────────────────────────────────
+
+_SNMP_LEVELS = {"noauth": "neither authentication nor encryption", "auth": "authentication but no encryption"}
+
+
+def snmpv3_security(fact, facts, vendor):
+    if fact.value is NOT_SET:
+        return None
+    level = str(fact.value).lower() if fact.value is not None else None
+    if level == "priv":
+        return _pass("Every SNMPv3 group requires authentication and encryption (authPriv)")
+    if level not in _SNMP_LEVELS:
+        return _unknown(fact, f"The security level of {fact.scope or 'an SNMPv3 group'} could not be determined")
+    return _fail(
+        Severity.HIGH if level == "noauth" else Severity.MEDIUM,
+        f"{fact.scope or 'An SNMPv3 group'} requires {_SNMP_LEVELS[level]}"
+        f"{' (noAuthNoPriv)' if level == 'noauth' else ' (authNoPriv)'}.",
+        "Without encryption every value SNMP reads or writes crosses the network in cleartext; without "
+        "authentication anyone who can reach the agent can query it.",
+        _advice(vendor, "Require authPriv on every SNMPv3 group and user (SHA authentication, AES encryption).",
+                cisco="Set 'snmp-server group <name> v3 priv' and give each user 'auth sha … priv aes 128 …'.",
+                fortinet="Set 'set security-level auth-priv' with 'auth-proto sha256' and 'priv-proto aes256' "
+                         "under 'config system snmp user'."),
+    )
+
+
+def interface_unused(fact, facts, vendor):
+    if fact.value is NOT_SET:
+        return None
+    if fact.value is None:
+        return _unknown(fact, f"Whether {fact.scope or 'an interface'} is in use could not be determined")
+    if not fact.value:
+        return _pass("Every physical interface either carries configuration or is shut down")
+    name = (fact.scope or "interface").removeprefix("interface ")
+    return _fail(
+        Severity.MEDIUM,
+        f"Interface {name} has no configuration of its own and is not shut down.",
+        "An unused port that is up gives anyone with physical access a live network connection, often in the "
+        "default VLAN.",
+        _advice(vendor, f"Shut down {name} until it is needed.",
+                cisco=f"Add 'shutdown' under 'interface {name}'.",
+                fortinet=f"Set 'set status down' on interface {name}."),
+    )
+
+
+def routing_auth(fact, facts, vendor):
+    if fact.value is NOT_SET:
+        return None
+    protocol = (fact.subject or "routing").upper()
+    if fact.value is None:
+        return _unknown(fact, fact.provenance or f"Whether {protocol} on {fact.scope} authenticates its updates "
+                                                "could not be determined")
+    if fact.value:
+        return _pass("Routing peers authenticate their updates")
+    where = f"{protocol} {fact.scope}" if fact.scope else protocol
+    return _fail(
+        Severity.MEDIUM,
+        f"{fact.provenance or where + ' does not authenticate its routing updates'}.",
+        "A rogue or spoofed peer can inject routes and pull traffic through itself or black-hole it.",
+        _advice(vendor, f"Configure {protocol} authentication with a shared key (MD5 or SHA) on both peers.",
+                cisco="BGP: 'neighbor <address> password <key>'; OSPF: 'area <id> authentication message-digest' "
+                      "and 'ip ospf message-digest-key 1 md5 <key>' on its interfaces.",
+                fortinet="BGP: 'set password' on the neighbor; OSPF: 'set authentication md5' (or message-digest) "
+                         "on each ospf-interface."),
+    )
+
+
+TLS_MINIMUM = 1.2
+
+
+def tls_minimum(fact, facts, vendor):
+    if fact.value is NOT_SET:
+        return None
+    if not isinstance(fact.value, (int, float)) or isinstance(fact.value, bool):
+        return _unknown(fact, fact.provenance or "Which TLS versions HTTPS management accepts could not be determined")
+    if fact.value >= TLS_MINIMUM:
+        return _pass(f"HTTPS management accepts TLS {float(fact.value):.1f} or later only")
+    return _fail(
+        Severity.MEDIUM,
+        f"HTTPS management accepts TLS {float(fact.value):.1f}. TLS 1.0 and 1.1 are deprecated (RFC 8996) and open to "
+        "downgrade and known cipher attacks.",
+        "An attacker on the path can force an old protocol version and weaken or break the management session.",
+        _advice(vendor, "Allow TLS 1.2 and 1.3 only for web management.",
+                cisco="Set 'ip http tls-version TLSv1.2'.",
+                fortinet="Set 'set admin-https-ssl-versions tlsv1-2 tlsv1-3' in system global."),
+    )
+
+
 JUDGES: dict[str, Judge] = {
     "MGMT-001": telnet,
     "MGMT-002": http,
@@ -592,4 +680,8 @@ JUDGES: dict[str, Judge] = {
     "LOG-003": rule_logging,
     "CRYPTO-002": weak_management_crypto,
     "BOUNDARY-004": router_services,
+    "MGMT-012": snmpv3_security,
+    "BOUNDARY-005": interface_unused,
+    "BOUNDARY-006": routing_auth,
+    "CRYPTO-003": tls_minimum,
 }

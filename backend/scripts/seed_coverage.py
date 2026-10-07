@@ -1,4 +1,4 @@
-"""Seed coverage: how many of the 23 checks shipped knowledge decides, per dialect.
+"""Seed coverage: how many of the catalog's checks shipped knowledge decides, per dialect.
 
     cd backend && python scripts/seed_coverage.py          # table on stdout
     cd backend && python scripts/seed_coverage.py --json   # machine-readable

@@ -10,7 +10,7 @@ updates", and parsers "fail because they cannot predict the configuration struct
 A parser per vendor is a losing race against Palo Alto, Cisco, Arista, SONiC, Azure NSGs and whatever is bought
 next quarter.
 
-NetAuditAI inverts it. Instead of *N* parsers it asks **23 security questions** (is Telnet enabled? which SSH
+NetAuditAI inverts it. Instead of *N* parsers it asks **27 security questions** (is Telnet enabled? which SSH
 version? an idle timeout, a remote syslog, an any-to-any rule?) and extracts only the **security facts** those
 questions need. A fact is one cited, typed statement: `mgmt.ssh.version = 1`, line 42, assurance `confirmed`.
 Controls read facts and never vendor syntax, so **every control runs on every configuration**.
@@ -34,7 +34,7 @@ Ingest ... uploaded file (single or bulk, CLI text or JSON export)
                             -> lexicon heuristics                              [provisional]
                             -> AI judge on what is still undecided             [budgeted, must cite]
   -> Security Baseline Model: facts with value, scope, evidence lines, assurance
-  -> Deviation analysis: 23 controls -> PASS / FAIL / UNKNOWN / NOT_CONFIGURED / N_A
+  -> Deviation analysis: 27 controls -> PASS / FAIL / UNKNOWN / NOT_CONFIGURED / N_A
   -> Posture (pass / decided) + Coverage (decided / applicable) + critical controls not assessed
   -> Framework views: NIST SP 800-53 Rev. 5 · CIS · DISA NDM SRG · ISO/IEC 27001:2022 Annex A
   -> Remediation: vendor CLI for confirmed vendors, verified by re-parse; candidates simulated on a copy
@@ -48,7 +48,7 @@ stored or logged, and nothing is ever written back to a device.
 
 ## 3. The Security Baseline Model
 
-The vendor-neutral schema is a fact vocabulary of **23 predicates** (`app/facts/predicates.py`), among them
+The vendor-neutral schema is a fact vocabulary of **27 predicates** (`app/facts/predicates.py`), among them
 `mgmt.remote_access.protocol_enabled[telnet]`, `mgmt.ssh.version`, `mgmt.session.idle_timeout` (minutes),
 `auth.password.storage`, `boundary.policy.permit_any`. Cisco `transport input telnet`, Junos
 `services { telnet; }`, EXOS `enable telnet` and Gaia `set telnet-server enabled true` all land on one fact.

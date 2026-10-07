@@ -162,7 +162,7 @@ every parser verdict citable.
 ```python
 @dataclass
 class SecurityFact:
-    predicate: str            # one of the 23 predicates below
+    predicate: str            # one of the 27 predicates below
     value: Any                # concrete value | None (undetermined) | NOT_SET (read as absent)
     assurance: Assurance      # parser | confirmed | default | heuristic | ai_verified
     evidence: Evidence        # line_numbers, text, scope_path
@@ -200,6 +200,10 @@ class SecurityFact:
 | `boundary.policy.permit_any` | - | bool, scope = the ACL or policy | BOUNDARY-001 |
 | `boundary.policy.logging` | - | bool, scope = the rule | LOG-003 |
 | `crypto.ipsec.proposal` | - | `{encryption, hash, dh_group}` | CRYPTO-001 |
+| `snmp.v3.security_level` | - | `noauth` / `auth` / `priv`, scope = group or user | MGMT-012 |
+| `boundary.interface.unused_enabled` | - | bool, scope = interface | BOUNDARY-005 |
+| `boundary.routing.authenticated` | `bgp` / `ospf` | bool, scope = neighbor or area | BOUNDARY-006 |
+| `mgmt.https.tls_min_version` | - | number (1.0 … 1.3) | CRYPTO-003 |
 
 A predicate exists only if a control consumes it. Adding a question to NetAuditAI means one predicate plus one
 control plus one judge.

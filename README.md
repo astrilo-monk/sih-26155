@@ -5,7 +5,7 @@
 Built for Smart India Hackathon 2026, problem statement **SIH26155** (NTRO, Cybersecurity):
 *AI-Driven Multi-Vendor Network Security Compliance Auditor*.
 
-NetAuditAI reads router, switch, firewall and cloud firewall configurations, answers **23 security checks** on
+NetAuditAI reads router, switch, firewall and cloud firewall configurations, answers **27 security checks** on
 every one of them, and cites the exact configuration line behind every answer. When it cannot decide, it says so
 instead of passing the check. It fixes what it is sure about, proves every fix by rescanning a copy, and never
 runs a command on a device.
@@ -25,7 +25,7 @@ Upload or SSH-collect a config  →  cited PASS / FAIL / UNKNOWN per check  → 
 - [How it works](#how-it-works)
 - [Reading the results](#reading-the-results)
 - [Vendor support](#vendor-support)
-- [The 23 checks](#the-23-checks)
+- [The 27 checks](#the-27-checks)
 - [Measured accuracy](#measured-accuracy)
 - [More than a checklist](#more-than-a-checklist)
 - [Configuration](#configuration)
@@ -138,7 +138,7 @@ flowchart TD
     HEU --> FACTS
 
     subgraph S3["3 . Decide"]
-        CTL["23 checks on every configuration<br/>+ organisation policy"]
+        CTL["27 checks on every configuration<br/>+ organisation policy"]
         SCORE["Posture + coverage<br/>decisive evidence only"]
         CTX["Attack paths, risk, drift,<br/>fleet checks, framework views"]
         CTL --> SCORE
@@ -249,7 +249,7 @@ separately from what a deployment was taught. See [docs/seed-knowledge.md](docs/
 
 ---
 
-## The 23 checks
+## The 27 checks
 
 <details>
 <summary>Show all checks</summary>
@@ -267,6 +267,7 @@ separately from what a deployment was taught. See [docs/seed-knowledge.md](docs/
 | MGMT-009 | Low | Missing login banner |
 | MGMT-010 | Critical | Management reachable from an untrusted interface |
 | MGMT-011 | High | SNMPv1/v2c in use |
+| MGMT-012 | High | SNMPv3 without authentication and encryption (authPriv) |
 | AUTH-001 | High | No login brute-force protection |
 | AUTH-002 | Medium | Weak password policy |
 | AUTH-003 | Medium | Default administrator account in use |
@@ -274,11 +275,17 @@ separately from what a deployment was taught. See [docs/seed-knowledge.md](docs/
 | BOUNDARY-002 | Medium | IP source routing enabled |
 | BOUNDARY-003 | Medium | CDP / LLDP enabled on an external interface |
 | BOUNDARY-004 | Medium | Interface hardening (redirects, proxy-ARP, directed broadcast) |
+| BOUNDARY-005 | Medium | Unused physical interfaces left enabled |
+| BOUNDARY-006 | Medium | Routing protocol (BGP / OSPF) without authentication |
 | LOG-001 | High | No remote syslog server |
 | LOG-002 | Medium | NTP not configured or unauthenticated |
 | LOG-003 | Medium | Traffic rules that do not log |
 | CRYPTO-001 | High | Weak VPN / IPsec algorithms |
 | CRYPTO-002 | High | Weak management cryptography (SSH / HTTPS) |
+| CRYPTO-003 | Medium | Web management accepts TLS 1.0 / 1.1 |
+
+MGMT-012, BOUNDARY-005, BOUNDARY-006 and CRYPTO-003 are read by the Cisco IOS and FortiGate parsers; other dialects
+leave them undecided until a person teaches the syntax (no shipped seeds yet).
 
 Per-vendor facts and remediation: [docs/detection-rules.md](docs/detection-rules.md).
 
@@ -437,7 +444,7 @@ backend/
     parsers/        vendor detection, grammar coverage, Cisco IOS and FortiGate parsers
     structure/      generic tokenizer, JSON and Terraform flattening
     facts/          predicates, parser facts, defaults, lexicon, heuristics, recognizers, seed loader
-    controls/       23-check catalog, judges, evaluator, framework views, policy
+    controls/       27-check catalog, judges, evaluator, framework views, policy
     analysis/       scoring, attack paths, risk, drift, fleet checks, CVE lookup
     ai/             model client, redaction, prompt fence, AI judge, remediation drafts
     adaptive/       teaching flow: capture, relevance, matching, review service
@@ -491,12 +498,12 @@ security reviewers.
 | [security-model.md](docs/security-model.md) | Trust boundaries and safety guarantees |
 | [ai-design.md](docs/ai-design.md) | AI judge, verification, cache, remediation drafts |
 | [seed-knowledge.md](docs/seed-knowledge.md) | Shipped recognizers and how to add one |
-| [detection-rules.md](docs/detection-rules.md) | The 23 checks: how each is decided, per-vendor sources, fixes, every framework requirement |
+| [detection-rules.md](docs/detection-rules.md) | The 27 checks: how each is decided, per-vendor sources, fixes, every framework requirement |
 | [parser-design.md](docs/parser-design.md) | Vendor detection, grammar coverage, the two parsers |
 | [api.md](docs/api.md) | Endpoints and response fields (interactive docs at `/docs` when the backend runs) |
 | [cli.md](docs/cli.md) | Command line, exit codes, SARIF, GitHub Actions |
 | [policy.md](docs/policy.md) | Organisation policy file |
-| [data-model.md](docs/data-model.md) | Every object and table, all 23 predicates |
+| [data-model.md](docs/data-model.md) | Every object and table, all 27 predicates |
 | [decisions.md](docs/decisions.md) | 16 decision records: context, decision, consequences |
 | [glossary.md](docs/glossary.md) | Every term used in the code and the UI |
 | [requirements.md](docs/requirements.md) | SIH26155 requirements and where each is met |

@@ -80,9 +80,11 @@ def test_initial_juniper_score_is_unchanged(client):
     # Was (19, 24) before brace leaves were read by set-form seeds: the users' encrypted-password is a decided MGMT-005 PASS
     # Was (38, 32) before Junos knowledge learned how NTP authentication is written (``trusted-key``): the file names an
     # NTP server and no key, so LOG-002 is a decided FAIL
-    assert (scan["posture"], scan["coverage"]) == (36, 34)
+    # Was (36, 34) with 15 unresolved before MGMT-012, BOUNDARY-005/006, CRYPTO-003: no shipped Junos knowledge
+    # answers them yet, so they are undecided (the file runs OSPF without authentication, which a person can teach)
+    assert (scan["posture"], scan["coverage"]) == (36, 30)
     assert scan["assessed_count"] == 8
-    assert scan["unresolved_count"] == 15
+    assert scan["unresolved_count"] == 19
 
 
 def test_initial_score_comes_from_the_scoring_engine(client):
@@ -293,8 +295,8 @@ def test_control_outcomes_agree_with_the_posture(seeded_adaptive_db):
     results = evaluate_controls(config)
     outcomes = control_outcomes([results])
     posture = calculate_posture([results])
-    assert posture.coverage == 34
-    assert sum(1 for o in outcomes.values() if o == "undecided") == 15
+    assert posture.coverage == 30
+    assert sum(1 for o in outcomes.values() if o == "undecided") == 19
     assert set(posture.critical_unassessed) <= {c for (_, c), o in outcomes.items() if o == "undecided"}
 
 

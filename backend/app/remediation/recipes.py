@@ -517,6 +517,54 @@ def snmp_v3_migration(ctx: Context) -> list[str]:
     )
 
 
+def snmpv3_priv_review(ctx: Context) -> list[str]:
+    raise ManualReview(
+        "Raising an SNMPv3 group or user to authPriv needs a privacy (encryption) key on every user, which only "
+        "the operator can choose, and every SNMP manager has to be given the same key; changing the level alone "
+        "would lock monitoring out"
+    )
+
+
+def routing_auth_review(ctx: Context) -> list[str]:
+    raise ManualReview(
+        "Routing authentication needs the same key configured on both ends at the same time; adding it on this "
+        "device alone drops the BGP session or OSPF adjacency until the peer is changed too"
+    )
+
+
+def ios_shutdown_unused(ctx: Context) -> list[str]:
+    edits = Edits(ctx.lines)
+    failing = ctx.scopes("interface ")
+    for iface in ctx.config.interfaces:
+        header = _header(ctx.lines, iface.source_lines, "interface")
+        if iface.name in failing and header is not None:
+            _ios_set_child(edits, header, r"(no\s+)?shutdown\b", "shutdown")
+    return edits.apply()
+
+
+def forti_shutdown_unused(ctx: Context) -> list[str]:
+    edits, tree = Edits(ctx.lines), _FortiTree(ctx.lines)
+    names = ctx.scopes("interface ")
+    section = tree.find("config system interface")
+    if section is None:
+        raise ManualReview("'config system interface' was not found")
+    for entry in tree.children(section):
+        words = ctx.lines[entry].split()
+        if words[:1] == ["edit"] and len(words) > 1 and words[1].strip('"') in names:
+            _forti_set(edits, tree, entry, "status", "down")
+    return edits.apply()
+
+
+def ios_tls_version(ctx: Context) -> list[str]:
+    return _ios_replace_global(ctx, r"ip\s+http\s+tls-version\s", "ip http tls-version TLSv1.2")
+
+
+def forti_tls_versions(ctx: Context) -> list[str]:
+    edits = Edits(ctx.lines)
+    _forti_global(edits, _FortiTree(ctx.lines), "config system global", [("admin-https-ssl-versions", "tlsv1-2 tlsv1-3")])
+    return edits.apply()
+
+
 def ios_source_route(ctx: Context) -> list[str]:
     edits = Edits(ctx.lines)
     for index in _top_level(ctx.lines, "ip source-route", [n - 1 for r in ctx.fails for n in r.evidence.line_numbers]):
@@ -810,6 +858,8 @@ class Recipe:
 
 _PEER = "Both VPN peers must be changed together, or the tunnel will not come up."
 _LOCKOUT = "Confirm you can still reach the device from the trusted network before deploying."
+_UNUSED = ("A port with no configuration of its own can still be in use (a switch access port in the default VLAN); "
+           "check its link state and traffic before shutting it down.")
 
 RECIPES: dict[tuple[str, Vendor], Recipe] = {
     ("MGMT-001", Vendor.CISCO_IOS): Recipe(
@@ -904,4 +954,21 @@ RECIPES: dict[tuple[str, Vendor], Recipe] = {
     ("CRYPTO-001", Vendor.FORTINET): Recipe(
         forti_crypto, "Removes weak proposals (DES/3DES/MD5) and DH groups 1/2/5 from the failing phase1 interfaces.",
         warnings=(_PEER,)),
+    ("MGMT-012", Vendor.CISCO_IOS): Recipe(snmpv3_priv_review, "SNMPv3 privacy keys are the operator's to choose."),
+    ("MGMT-012", Vendor.FORTINET): Recipe(snmpv3_priv_review, "SNMPv3 privacy keys are the operator's to choose."),
+    ("BOUNDARY-005", Vendor.CISCO_IOS): Recipe(
+        ios_shutdown_unused, "Adds 'shutdown' to every physical interface that carries no configuration of its own.",
+        warnings=(_UNUSED,)),
+    ("BOUNDARY-005", Vendor.FORTINET): Recipe(
+        forti_shutdown_unused, "Sets 'set status down' on every physical port that carries no configuration of its own.",
+        warnings=(_UNUSED,)),
+    ("BOUNDARY-006", Vendor.CISCO_IOS): Recipe(routing_auth_review, "Routing keys must change on both peers together."),
+    ("BOUNDARY-006", Vendor.FORTINET): Recipe(routing_auth_review, "Routing keys must change on both peers together."),
+    ("CRYPTO-003", Vendor.CISCO_IOS): Recipe(
+        ios_tls_version, "Replaces any 'ip http tls-version' with 'ip http tls-version TLSv1.2'.",
+        warnings=("Browsers and tools that only speak TLS 1.0 / 1.1 can no longer open the web interface.",)),
+    ("CRYPTO-003", Vendor.FORTINET): Recipe(
+        forti_tls_versions, "Sets 'set admin-https-ssl-versions tlsv1-2 tlsv1-3' in system global.",
+        warnings=("Browsers and tools that only speak TLS 1.0 / 1.1 can no longer open the web interface.",
+                  "FortiOS releases before 6.2 have no 'tlsv1-3' option: use 'tlsv1-2' alone there.")),
 }

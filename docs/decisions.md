@@ -136,7 +136,7 @@ this file, never that the command is safe to run, and the UI says so.
 (Cisco IOS XE 17.x, FortiGate 7.4.x), the DISA Network Device Management SRG and ISO/IEC 27001:2022 Annex A. PCI DSS
 and CIS Controls v8 are **not** mapped.
 
-**Consequences.** 23 checks answer 78 requirements. ISO Annex A controls are organisational, so a device result is
+**Consequences.** 27 checks answer 82 requirements. ISO Annex A controls are organisational, so a device result is
 reported as evidence towards one, never as the control being met.
 
 ## 11. Never store the configuration
@@ -201,7 +201,7 @@ kept elsewhere (the PDF prints it) to prove the whole database was not replaced.
 * **AI-decided compliance or AI-written recipes.** AI may draft a *candidate* command for an unconfirmed vendor, which
   is verified and confirmed like a typed one (decision 9), but it never writes a recipe and its text is never
   presented as verified until the simulation passes.
-* **Ontologies, graph databases, SMT solvers, embeddings or vector databases.** The questions are bounded (23 checks);
+* **Ontologies, graph databases, SMT solvers, embeddings or vector databases.** The questions are bounded (27 checks);
   typed recognizers and deterministic judges answer them without that machinery.
 * **Large framework crosswalks** (decision 10).
 * **Executing changes on devices.** NetAuditAI reads devices and never writes to one.

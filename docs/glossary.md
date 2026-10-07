@@ -12,7 +12,7 @@ Terms used in the code, the API and the UI, in alphabetical order. Each entry na
 | **Candidate** | A proposed command for an unconfirmed vendor (derived, typed or AI-drafted). Simulated on a copy, confirmed by a person, never executed. | `remediation/candidates.py` |
 | **Confirmed (vendor)** | The detector matched the vendor and the file follows its grammar. Selects the parser, defaults, recipes and CIS view. | `parsers/detector.py` |
 | **Confirmed (assurance)** | A fact read by a recognizer (seed or taught) or a learned mapping. Decisive. | `facts/recognizers.py` |
-| **Control / check** | One of 23 security questions (MGMT-001 … CRYPTO-002). Runs on every configuration. | `controls/catalog.py` |
+| **Control / check** | One of 27 security questions (MGMT-001 … CRYPTO-003). Runs on every configuration. | `controls/catalog.py` |
 | **Control kind** | `prohibition` (must be off), `requirement` (must exist), `threshold` (within a limit), `relational` (depends on how objects relate). | `controls/catalog.py` |
 | **Coverage** | Weighted share of applicable checks decided from decisive evidence. | `analysis/scoring.py` |
 | **Critical not assessed** | Critical checks that were not decided; listed next to posture. | `analysis/scoring.py` |
@@ -42,7 +42,7 @@ Terms used in the code, the API and the UI, in alphabetical order. Each entry na
 | **Platform profile** | A rule that marks device-only checks N/A for formats that cannot have them (security groups, Terraform, NSG, GCP firewall). | `data/platform_profiles.json` |
 | **Posture** | Weighted decided PASS ÷ weighted decided (PASS + FAIL) × 100. "-" when nothing is decided. | `analysis/scoring.py` |
 | **Posture bounds** | Posture if every undecided check failed … if every undecided check passed. | `analysis/scoring.py` |
-| **Predicate** | The name of a fact (`mgmt.ssh.version`). 23 exist; each is read by at least one check. | `facts/predicates.py` |
+| **Predicate** | The name of a fact (`mgmt.ssh.version`). 27 exist; each is read by at least one check. | `facts/predicates.py` |
 | **Proposed status** | The AI's PASS / FAIL awaiting confirmation; the status itself stays UNKNOWN. | `ControlResult.proposed_status` |
 | **Provisional** | A verdict whose weakest evidence is `heuristic` or `ai_verified`. Shown, never scored. | |
 | **Recipe** | A deterministic fix for one check on one confirmed vendor (41 exist). | `remediation/recipes.py` |

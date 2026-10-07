@@ -13,7 +13,7 @@ timeline
     Phase 0 : Golden findings snapshots for 30 Cisco / FortiGate configurations
     Phase 1 : Redaction before every AI call
             : Vendor confirmation by grammar coverage, look-alikes unverified
-    Phase 2 : Control catalog, 23 checks, versioned framework mappings
+    Phase 2 : Control catalog, 27 checks, versioned framework mappings
     Phase 3 : Posture + coverage replaces the penalty score
     Phase 4 : SecurityFacts with assurance, every check on every configuration
     Phase 5 : Generic tokenizer, lexicon heuristics, learned mappings
@@ -26,7 +26,7 @@ timeline
 
 - [x] Cisco IOS and FortiGate parsers with grammar-coverage vendor confirmation (look-alikes stay unverified)
 - [x] Secret redaction before every AI call, prompt fence on every configuration-carrying prompt
-- [x] Control catalog (23 checks) with PASS / FAIL / UNKNOWN / NOT_CONFIGURED / N_A and versioned mappings
+- [x] Control catalog (27 checks) with PASS / FAIL / UNKNOWN / NOT_CONFIGURED / N_A and versioned mappings
 - [x] Posture + coverage scoring with bounds and critical checks not assessed
 - [x] Security facts with assurance; every check runs on every configuration
 - [x] Generic tokenizer and lexicon heuristics for unknown vendors (provisional, no AI needed)
@@ -35,7 +35,7 @@ timeline
 - [x] Seed expansion: lockout and password length for ASA, PAN-OS, NX-OS, Arista, Gaia; SSH and timeouts for ASA;
       new families Dell OS10, VyOS, FortiSwitchOS; ASA `http server enable` no longer a decided HTTP failure
 - [x] Seed coverage pass: 106 more recognizers (380), documented value defaults, `{top}` and chained scopes, IPsec
-      proposals read one algorithm per line; seven of fourteen commercial dialects decide 18 or more of 23 checks when
+      proposals read one algorithm per line; seven of fourteen commercial dialects decide 18 or more of the original 23 checks when
       the configuration states them ([measured](seed-knowledge.md#coverage-per-dialect-measured))
 - [x] JSON and Terraform flattened to one statement per object
 - [x] Serial / model / OS version reported only when the text states them

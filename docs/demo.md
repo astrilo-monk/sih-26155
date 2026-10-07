@@ -60,7 +60,7 @@ Junos, Terraform). Machine seconds are measured by the automated browser test th
 | 4 | **Attack paths:** "Remote takeover through the management plane": reach the login → capture the password → log in as admin, every step citing its line; "Break it: fix MGMT-003". Under it: *each path and its fix were checked against a positive and a negative configuration (commit …)*. | 0.1 s | 20 s |
 | 5 | **Executive summary (PDF)** (four devices: a .zip of one PDF each). | 6.5 s | 5 s |
 | 6 | **Audit ledger → Verify the ledger** (intact), then **Check a report PDF** with the file just downloaded: "Genuine"; change one byte: "Not found". | 0.5 s | 15 s |
-| 7 | **Rules catalog:** 23 checks answer 78 requirements. Close on the numbers: 19/20 planted; 89/112 on labelled fixtures; **held-out, never-seen real configs 21/21** (first run 20/21, the miss was a parser bug, fixed); 0 false alarms; 0 of 6 prompt-injection attacks succeeded. | 0.1 s | 10 s |
+| 7 | **Rules catalog:** 27 checks answer 82 requirements. Close on the numbers: 19/20 planted; 89/112 on labelled fixtures; **held-out, never-seen real configs 21/21** (first run 20/21, the miss was a parser bug, fixed); 0 false alarms; 0 of 6 prompt-injection attacks succeeded. | 0.1 s | 10 s |
 | | **Total: 30 s on screen + 90 s of talk = 2 min** | **30 s** | **90 s** |
 
 Teaching an unknown line is left out of the two minutes (it needs about 40 s on its own): it is step 7 of the full

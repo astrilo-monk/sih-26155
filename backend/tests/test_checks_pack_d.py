@@ -49,10 +49,15 @@ def test_fortigate_has_no_such_interface_services(seeded_adaptive_db):
 
 
 @pytest.mark.parametrize("child, expected", [
-    ("no ip redirects", Status.PASS),
     ("ip proxy-arp", Status.FAIL),
     ("ip directed-broadcast", Status.FAIL),
 ])
 def test_other_dialects_state_it_explicitly(seeded_adaptive_db, child, expected):
     result = analyze_generic_text(f"interface Ethernet1\n   {child}\n")
     assert {(r.status, r.assurance) for r in result.control("BOUNDARY-004")} == {(expected, Assurance.CONFIRMED)}
+
+
+def test_one_interface_switching_a_service_off_decides_nothing(seeded_adaptive_db):
+    """Off on Ethernet1 says nothing of the other interfaces, which keep the platform default: undecided."""
+    result = analyze_generic_text("interface Ethernet1\n   no ip redirects\n")
+    assert {r.status for r in result.control("BOUNDARY-004")} == {Status.UNKNOWN}

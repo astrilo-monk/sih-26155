@@ -64,12 +64,22 @@ DISCOVERY_PROTOCOL = "boundary.discovery_protocol.enabled"
 PERMIT_ANY = "boundary.policy.permit_any"
 # value: {"encryption", "hash", "dh_group"}
 IPSEC_PROPOSAL = "crypto.ipsec.proposal"
+# value: the security level an SNMPv3 group or user requires: "noauth", "auth" (no encryption) or "priv"; scope: it
+SNMPV3_SECURITY = "snmp.v3.security_level"
+# True: a routing peer, area or interface authenticates its routing messages (MD5 / SHA, not a cleartext key);
+# subject: bgp | ospf; scope: the neighbor, area or process
+ROUTING_AUTH = "boundary.routing.authenticated"
+# value: the lowest TLS version HTTPS management accepts (1.0, 1.1, 1.2, 1.3)
+MGMT_TLS_MIN = "mgmt.https.tls_min_version"
+# True: a physical interface with no configuration of its own is administratively up; scope: the interface
+INTERFACE_UNUSED_UP = "boundary.interface.unused_enabled"
 
 PREDICATES = frozenset({
     PROTOCOL_ENABLED, SOURCE_RESTRICTED, MGMT_EXPOSED, SSH_VERSION, IDLE_TIMEOUT, CENTRAL_AAA, PASSWORD_STORAGE,
     PASSWORD_ENCRYPTION_SERVICE, SNMP_COMMUNITY, LOG_REMOTE_DESTINATION, NTP_SERVER, NTP_AUTHENTICATED,
     LOGIN_BANNER, SOURCE_ROUTING, DISCOVERY_PROTOCOL, PERMIT_ANY, IPSEC_PROPOSAL,
     LOGIN_MAX_ATTEMPTS, PASSWORD_MIN_LENGTH, ADMIN_ACCOUNT, MGMT_WEAK_CRYPTO, RULE_LOGGING, ROUTER_UNSAFE_SERVICE,
+    SNMPV3_SECURITY, ROUTING_AUTH, MGMT_TLS_MIN, INTERFACE_UNUSED_UP,
 })
 
 
