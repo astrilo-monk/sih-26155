@@ -2141,6 +2141,866 @@
       "scope_template": "config system global",
       "constant_value": "{\"enable\": false, \"disable\": true}",
       "example_line": "set strong-crypto enable"
+    },
+    {
+      "concept": "ICMP redirects (system)",
+      "vendor": "Juniper Junos",
+      "predicate": "boundary.interface.unsafe_service",
+      "command_pattern": "set system no-redirects",
+      "example_line": "set system no-redirects",
+      "subject": "redirects",
+      "constant_value": "false"
+    },
+    {
+      "concept": "ICMP redirects (interface)",
+      "vendor": "Juniper Junos",
+      "predicate": "boundary.interface.unsafe_service",
+      "command_pattern": "set interfaces {any} unit {any} family inet no-redirects",
+      "example_line": "set interfaces ge-0/0/0 unit 0 family inet no-redirects",
+      "subject": "redirects",
+      "constant_value": "false"
+    },
+    {
+      "concept": "NTP authentication (trusted key)",
+      "vendor": "Juniper Junos",
+      "predicate": "time.ntp.authenticated",
+      "command_pattern": "{neg} set system ntp trusted-key {any}",
+      "example_line": "set system ntp trusted-key 1"
+    },
+    {
+      "concept": "SSH ciphers",
+      "vendor": "Juniper Junos",
+      "predicate": "mgmt.crypto.weak_allowed",
+      "command_pattern": "set system services ssh ciphers {enum:cipher}",
+      "example_line": "set system services ssh ciphers aes256-ctr",
+      "constant_value": "{\"3des-cbc\": true, \"aes128-cbc\": true, \"aes192-cbc\": true, \"aes256-cbc\": true, \"blowfish-cbc\": true, \"cast128-cbc\": true, \"arcfour\": true, \"arcfour128\": true, \"arcfour256\": true, \"aes128-ctr\": false, \"aes192-ctr\": false, \"aes256-ctr\": false, \"aes128-gcm@openssh.com\": false, \"aes256-gcm@openssh.com\": false, \"chacha20-poly1305@openssh.com\": false}"
+    },
+    {
+      "concept": "SSH MACs",
+      "vendor": "Juniper Junos",
+      "predicate": "mgmt.crypto.weak_allowed",
+      "command_pattern": "set system services ssh macs {enum:mac}",
+      "example_line": "set system services ssh macs hmac-sha2-256",
+      "constant_value": "{\"hmac-md5\": true, \"hmac-md5-96\": true, \"hmac-md5-etm@openssh.com\": true, \"hmac-md5-96-etm@openssh.com\": true, \"hmac-sha1\": false, \"hmac-sha2-256\": false, \"hmac-sha2-512\": false, \"hmac-sha2-256-etm@openssh.com\": false, \"hmac-sha2-512-etm@openssh.com\": false, \"umac-128@openssh.com\": false, \"umac-128-etm@openssh.com\": false}"
+    },
+    {
+      "concept": "SSH key exchange",
+      "vendor": "Juniper Junos",
+      "predicate": "mgmt.crypto.weak_allowed",
+      "command_pattern": "set system services ssh key-exchange {enum:kex}",
+      "example_line": "set system services ssh key-exchange ecdh-sha2-nistp256",
+      "constant_value": "{\"dh-group1-sha1\": true, \"dh-group14-sha1\": false, \"dh-group14-sha256\": false, \"dh-group16-sha512\": false, \"ecdh-sha2-nistp256\": false, \"ecdh-sha2-nistp384\": false, \"ecdh-sha2-nistp521\": false, \"curve25519-sha256\": false}"
+    },
+    {
+      "concept": "IKE proposal encryption",
+      "vendor": "Juniper Junos",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "set security ike proposal {any} encryption-algorithm {enum:alg}",
+      "example_line": "set security ike proposal IKE-P1 encryption-algorithm aes-256-cbc",
+      "constant_value": "{\"des-cbc\": {\"encryption\": \"des-cbc\"}, \"3des-cbc\": {\"encryption\": \"3des-cbc\"}, \"aes-128-cbc\": {\"encryption\": \"aes-128-cbc\"}, \"aes-192-cbc\": {\"encryption\": \"aes-192-cbc\"}, \"aes-256-cbc\": {\"encryption\": \"aes-256-cbc\"}, \"aes-128-gcm\": {\"encryption\": \"aes-128-gcm\"}, \"aes-192-gcm\": {\"encryption\": \"aes-192-gcm\"}, \"aes-256-gcm\": {\"encryption\": \"aes-256-gcm\"}}"
+    },
+    {
+      "concept": "IKE proposal authentication",
+      "vendor": "Juniper Junos",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "set security ike proposal {any} authentication-algorithm {enum:alg}",
+      "example_line": "set security ike proposal IKE-P1 authentication-algorithm sha-256",
+      "constant_value": "{\"md5\": {\"hash\": \"md5\"}, \"sha1\": {\"hash\": \"sha1\"}, \"sha-256\": {\"hash\": \"sha-256\"}, \"sha-384\": {\"hash\": \"sha-384\"}, \"sha-512\": {\"hash\": \"sha-512\"}}"
+    },
+    {
+      "concept": "IKE proposal DH group",
+      "vendor": "Juniper Junos",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "set security ike proposal {any} dh-group {enum:group}",
+      "example_line": "set security ike proposal IKE-P1 dh-group group14",
+      "constant_value": "{\"group1\": {\"dh_group\": 1}, \"group2\": {\"dh_group\": 2}, \"group5\": {\"dh_group\": 5}, \"group14\": {\"dh_group\": 14}, \"group15\": {\"dh_group\": 15}, \"group16\": {\"dh_group\": 16}, \"group19\": {\"dh_group\": 19}, \"group20\": {\"dh_group\": 20}, \"group21\": {\"dh_group\": 21}, \"group24\": {\"dh_group\": 24}}"
+    },
+    {
+      "concept": "IPsec proposal encryption",
+      "vendor": "Juniper Junos",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "set security ipsec proposal {any} encryption-algorithm {enum:alg}",
+      "example_line": "set security ipsec proposal IPSEC-P1 encryption-algorithm aes-256-gcm",
+      "constant_value": "{\"des-cbc\": {\"encryption\": \"des-cbc\"}, \"3des-cbc\": {\"encryption\": \"3des-cbc\"}, \"aes-128-cbc\": {\"encryption\": \"aes-128-cbc\"}, \"aes-192-cbc\": {\"encryption\": \"aes-192-cbc\"}, \"aes-256-cbc\": {\"encryption\": \"aes-256-cbc\"}, \"aes-128-gcm\": {\"encryption\": \"aes-128-gcm\"}, \"aes-192-gcm\": {\"encryption\": \"aes-192-gcm\"}, \"aes-256-gcm\": {\"encryption\": \"aes-256-gcm\"}}"
+    },
+    {
+      "concept": "IPsec proposal authentication",
+      "vendor": "Juniper Junos",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "set security ipsec proposal {any} authentication-algorithm {enum:alg}",
+      "example_line": "set security ipsec proposal IPSEC-P1 authentication-algorithm hmac-sha-256-128",
+      "constant_value": "{\"hmac-md5-96\": {\"hash\": \"hmac-md5-96\"}, \"hmac-sha1-96\": {\"hash\": \"hmac-sha1-96\"}, \"hmac-sha-256-96\": {\"hash\": \"hmac-sha-256-96\"}, \"hmac-sha-256-128\": {\"hash\": \"hmac-sha-256-128\"}, \"hmac-sha-384\": {\"hash\": \"hmac-sha-384\"}, \"hmac-sha-512\": {\"hash\": \"hmac-sha-512\"}}"
+    },
+    {
+      "concept": "Zone protection: strict source routing",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "boundary.source_routing.enabled",
+      "command_pattern": "set network profiles zone-protection-profile {any} discard-strict-source-routing {enum:discard}",
+      "example_line": "set network profiles zone-protection-profile ZP-UNTRUST discard-strict-source-routing no",
+      "constant_value": "{\"no\": true}"
+    },
+    {
+      "concept": "Zone protection: loose source routing",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "boundary.source_routing.enabled",
+      "command_pattern": "set network profiles zone-protection-profile {any} discard-loose-source-routing {enum:discard}",
+      "example_line": "set network profiles zone-protection-profile ZP-UNTRUST discard-loose-source-routing no",
+      "constant_value": "{\"no\": true}"
+    },
+    {
+      "concept": "SSH server profile ciphers",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "mgmt.crypto.weak_allowed",
+      "command_pattern": "set deviceconfig system ssh profiles mgmt-profiles server-profiles {any} ciphers {enum:cipher}",
+      "example_line": "set deviceconfig system ssh profiles mgmt-profiles server-profiles HARDENED ciphers aes128-cbc",
+      "constant_value": "{\"aes128-cbc\": true, \"aes192-cbc\": true, \"aes256-cbc\": true}"
+    },
+    {
+      "concept": "IKE crypto profile encryption",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "set network ike crypto-profiles ike-crypto-profiles {any} encryption {enum:alg}",
+      "example_line": "set network ike crypto-profiles ike-crypto-profiles IKE-STRONG encryption aes-256-cbc",
+      "constant_value": "{\"des\": {\"encryption\": \"des\"}, \"3des\": {\"encryption\": \"3des\"}, \"aes-128-cbc\": {\"encryption\": \"aes-128-cbc\"}, \"aes-192-cbc\": {\"encryption\": \"aes-192-cbc\"}, \"aes-256-cbc\": {\"encryption\": \"aes-256-cbc\"}, \"aes-128-gcm\": {\"encryption\": \"aes-128-gcm\"}, \"aes-256-gcm\": {\"encryption\": \"aes-256-gcm\"}}"
+    },
+    {
+      "concept": "IKE crypto profile hash",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "set network ike crypto-profiles ike-crypto-profiles {any} hash {enum:alg}",
+      "example_line": "set network ike crypto-profiles ike-crypto-profiles IKE-STRONG hash sha256",
+      "constant_value": "{\"md5\": {\"hash\": \"md5\"}, \"sha1\": {\"hash\": \"sha1\"}, \"sha256\": {\"hash\": \"sha256\"}, \"sha384\": {\"hash\": \"sha384\"}, \"sha512\": {\"hash\": \"sha512\"}}"
+    },
+    {
+      "concept": "IKE crypto profile DH group",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "set network ike crypto-profiles ike-crypto-profiles {any} dh-group {enum:group}",
+      "example_line": "set network ike crypto-profiles ike-crypto-profiles IKE-STRONG dh-group group14",
+      "constant_value": "{\"group1\": {\"dh_group\": 1}, \"group2\": {\"dh_group\": 2}, \"group5\": {\"dh_group\": 5}, \"group14\": {\"dh_group\": 14}, \"group19\": {\"dh_group\": 19}, \"group20\": {\"dh_group\": 20}, \"group21\": {\"dh_group\": 21}}"
+    },
+    {
+      "concept": "IPsec crypto profile encryption",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "set network ike crypto-profiles ipsec-crypto-profiles {any} esp encryption {enum:alg}",
+      "example_line": "set network ike crypto-profiles ipsec-crypto-profiles IPSEC-STRONG esp encryption aes-256-gcm",
+      "constant_value": "{\"des\": {\"encryption\": \"des\"}, \"3des\": {\"encryption\": \"3des\"}, \"aes-128-cbc\": {\"encryption\": \"aes-128-cbc\"}, \"aes-192-cbc\": {\"encryption\": \"aes-192-cbc\"}, \"aes-256-cbc\": {\"encryption\": \"aes-256-cbc\"}, \"aes-128-gcm\": {\"encryption\": \"aes-128-gcm\"}, \"aes-256-gcm\": {\"encryption\": \"aes-256-gcm\"}}"
+    },
+    {
+      "concept": "IPsec crypto profile authentication",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "set network ike crypto-profiles ipsec-crypto-profiles {any} esp authentication {enum:alg}",
+      "example_line": "set network ike crypto-profiles ipsec-crypto-profiles IPSEC-STRONG esp authentication sha256",
+      "constant_value": "{\"md5\": {\"hash\": \"md5\"}, \"sha1\": {\"hash\": \"sha1\"}, \"sha256\": {\"hash\": \"sha256\"}, \"sha384\": {\"hash\": \"sha384\"}, \"sha512\": {\"hash\": \"sha512\"}}"
+    },
+    {
+      "concept": "IPsec crypto profile PFS group",
+      "vendor": "Palo Alto PAN-OS",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "set network ike crypto-profiles ipsec-crypto-profiles {any} dh-group {enum:group}",
+      "example_line": "set network ike crypto-profiles ipsec-crypto-profiles IPSEC-STRONG dh-group group14",
+      "constant_value": "{\"group1\": {\"dh_group\": 1}, \"group2\": {\"dh_group\": 2}, \"group5\": {\"dh_group\": 5}, \"group14\": {\"dh_group\": 14}, \"group19\": {\"dh_group\": 19}, \"group20\": {\"dh_group\": 20}, \"group21\": {\"dh_group\": 21}}"
+    },
+    {
+      "concept": "LLDP transmit on an interface",
+      "vendor": "Arista EOS / Cisco NX-OS",
+      "predicate": "boundary.discovery_protocol.enabled",
+      "command_pattern": "{neg} lldp transmit",
+      "example_line": "no lldp transmit",
+      "subject": "lldp",
+      "scope_template": "interface {any}"
+    },
+    {
+      "concept": "Login banner (MOTD)",
+      "vendor": "Cisco NX-OS",
+      "predicate": "banner.login.present",
+      "command_pattern": "{neg} banner motd {rest}",
+      "example_line": "banner motd #Authorized access only#"
+    },
+    {
+      "concept": "Default account",
+      "vendor": "Cisco NX-OS",
+      "predicate": "auth.account.name",
+      "command_pattern": "username {enum:user} password {any} {any} role {any}",
+      "example_line": "username admin password 5 <SECRET:type5> role network-admin",
+      "constant_value": "{\"admin\": \"admin\", \"administrator\": \"administrator\", \"root\": \"root\", \"cisco\": \"cisco\", \"manager\": \"manager\"}"
+    },
+    {
+      "concept": "Weak SSH ciphers",
+      "vendor": "Cisco NX-OS",
+      "predicate": "mgmt.crypto.weak_allowed",
+      "command_pattern": "{neg} ssh cipher-mode weak",
+      "example_line": "ssh cipher-mode weak"
+    },
+    {
+      "concept": "NX-API over HTTP",
+      "vendor": "Cisco NX-OS",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "command_pattern": "nxapi http port {enum:port}",
+      "example_line": "nxapi http port 80",
+      "subject": "http",
+      "constant_value": "{\"*\": true}"
+    },
+    {
+      "concept": "ACL on the VTY lines",
+      "vendor": "Huawei VRP",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "{neg} acl {any} inbound",
+      "example_line": "acl 2000 inbound",
+      "scope_template": "user-interface vty {any} {any}"
+    },
+    {
+      "concept": "AAA authentication scheme",
+      "vendor": "Huawei VRP",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "authentication-mode {enum:method} {rest}",
+      "example_line": "authentication-mode hwtacacs local",
+      "scope_template": "authentication-scheme {any}",
+      "constant_value": "{\"hwtacacs\": true, \"radius\": true, \"local\": false, \"none\": false}"
+    },
+    {
+      "concept": "SSH authentication retries",
+      "vendor": "Huawei VRP",
+      "predicate": "auth.login.max_attempts",
+      "command_pattern": "ssh server authentication-retries {int}",
+      "example_line": "ssh server authentication-retries 3"
+    },
+    {
+      "concept": "ICMP redirects",
+      "vendor": "Huawei VRP",
+      "predicate": "boundary.interface.unsafe_service",
+      "command_pattern": "{neg} icmp redirect send",
+      "example_line": "undo icmp redirect send",
+      "subject": "redirects"
+    },
+    {
+      "concept": "IKE proposal encryption",
+      "vendor": "Huawei VRP",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "encryption-algorithm {enum:alg}",
+      "example_line": "encryption-algorithm aes-256",
+      "scope_template": "ike proposal {any}",
+      "constant_value": "{\"des\": {\"encryption\": \"des\"}, \"3des\": {\"encryption\": \"3des\"}, \"aes-128\": {\"encryption\": \"aes-128\"}, \"aes-192\": {\"encryption\": \"aes-192\"}, \"aes-256\": {\"encryption\": \"aes-256\"}, \"aes-cbc-128\": {\"encryption\": \"aes-cbc-128\"}, \"aes-cbc-192\": {\"encryption\": \"aes-cbc-192\"}, \"aes-cbc-256\": {\"encryption\": \"aes-cbc-256\"}, \"des-cbc\": {\"encryption\": \"des-cbc\"}, \"3des-cbc\": {\"encryption\": \"3des-cbc\"}, \"sm4\": {\"encryption\": \"sm4\"}}"
+    },
+    {
+      "concept": "IKE proposal authentication",
+      "vendor": "Huawei VRP",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "authentication-algorithm {enum:alg}",
+      "example_line": "authentication-algorithm sha2-256",
+      "scope_template": "ike proposal {any}",
+      "constant_value": "{\"md5\": {\"hash\": \"md5\"}, \"sha1\": {\"hash\": \"sha1\"}, \"sha2-256\": {\"hash\": \"sha2-256\"}, \"sha2-384\": {\"hash\": \"sha2-384\"}, \"sha2-512\": {\"hash\": \"sha2-512\"}, \"sm3\": {\"hash\": \"sm3\"}}"
+    },
+    {
+      "concept": "IKE proposal DH group",
+      "vendor": "Huawei VRP",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "dh {enum:group}",
+      "example_line": "dh group14",
+      "scope_template": "ike proposal {any}",
+      "constant_value": "{\"group1\": {\"dh_group\": 1}, \"group2\": {\"dh_group\": 2}, \"group5\": {\"dh_group\": 5}, \"group14\": {\"dh_group\": 14}, \"group15\": {\"dh_group\": 15}, \"group16\": {\"dh_group\": 16}, \"group19\": {\"dh_group\": 19}, \"group20\": {\"dh_group\": 20}, \"group21\": {\"dh_group\": 21}}"
+    },
+    {
+      "concept": "IPsec proposal encryption",
+      "vendor": "Huawei VRP",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "esp encryption-algorithm {enum:alg}",
+      "example_line": "esp encryption-algorithm aes-256",
+      "scope_template": "ipsec proposal {any}",
+      "constant_value": "{\"des\": {\"encryption\": \"des\"}, \"3des\": {\"encryption\": \"3des\"}, \"aes-128\": {\"encryption\": \"aes-128\"}, \"aes-192\": {\"encryption\": \"aes-192\"}, \"aes-256\": {\"encryption\": \"aes-256\"}, \"aes-cbc-128\": {\"encryption\": \"aes-cbc-128\"}, \"aes-cbc-192\": {\"encryption\": \"aes-cbc-192\"}, \"aes-cbc-256\": {\"encryption\": \"aes-cbc-256\"}, \"des-cbc\": {\"encryption\": \"des-cbc\"}, \"3des-cbc\": {\"encryption\": \"3des-cbc\"}, \"sm4\": {\"encryption\": \"sm4\"}}"
+    },
+    {
+      "concept": "IPsec proposal authentication",
+      "vendor": "Huawei VRP",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "esp authentication-algorithm {enum:alg}",
+      "example_line": "esp authentication-algorithm sha2-256",
+      "scope_template": "ipsec proposal {any}",
+      "constant_value": "{\"md5\": {\"hash\": \"md5\"}, \"sha1\": {\"hash\": \"sha1\"}, \"sha2-256\": {\"hash\": \"sha2-256\"}, \"sha2-384\": {\"hash\": \"sha2-384\"}, \"sha2-512\": {\"hash\": \"sha2-512\"}, \"sm3\": {\"hash\": \"sm3\"}}"
+    },
+    {
+      "concept": "Local password storage",
+      "vendor": "Check Point Gaia",
+      "predicate": "auth.password.storage",
+      "command_pattern": "set user {any} password-hash {any}",
+      "example_line": "set user admin password-hash <SECRET:password>",
+      "constant_value": "\"hashed\""
+    },
+    {
+      "concept": "Default account",
+      "vendor": "Check Point Gaia",
+      "predicate": "auth.account.name",
+      "command_pattern": "set user {enum:user} password-hash {any}",
+      "example_line": "set user admin password-hash <SECRET:password>",
+      "constant_value": "{\"admin\": \"admin\", \"administrator\": \"administrator\", \"root\": \"root\", \"cisco\": \"cisco\", \"manager\": \"manager\"}"
+    },
+    {
+      "concept": "TACACS+ authentication",
+      "vendor": "Check Point Gaia",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "set aaa tacacs-servers state {polarity}",
+      "example_line": "set aaa tacacs-servers state on"
+    },
+    {
+      "concept": "TACACS+ authentication",
+      "vendor": "Check Point Gaia",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "set aaa tacacs-servers state {polarity} user-uid {any}",
+      "example_line": "set aaa tacacs-servers state on user-uid 0"
+    },
+    {
+      "concept": "Failed-login lockout",
+      "vendor": "Check Point Gaia",
+      "predicate": "auth.login.max_attempts",
+      "command_pattern": "set password-controls deny-on-fail failures-allowed {int}",
+      "example_line": "set password-controls deny-on-fail failures-allowed 3"
+    },
+    {
+      "concept": "Failed-login lockout switched off",
+      "vendor": "Check Point Gaia",
+      "predicate": "auth.login.max_attempts",
+      "command_pattern": "set password-controls deny-on-fail enable {enum:state}",
+      "example_line": "set password-controls deny-on-fail enable off",
+      "constant_value": "{\"off\": 0, \"false\": 0}"
+    },
+    {
+      "concept": "SSH cipher switched on",
+      "vendor": "Check Point Gaia",
+      "predicate": "mgmt.crypto.weak_allowed",
+      "command_pattern": "set ssh server cipher {enum:cipher} on",
+      "example_line": "set ssh server cipher aes128-cbc on",
+      "constant_value": "{\"3des-cbc\": true, \"aes128-cbc\": true, \"aes192-cbc\": true, \"aes256-cbc\": true, \"blowfish-cbc\": true, \"cast128-cbc\": true, \"arcfour\": true, \"arcfour128\": true, \"arcfour256\": true}"
+    },
+    {
+      "concept": "SSH MAC switched on",
+      "vendor": "Check Point Gaia",
+      "predicate": "mgmt.crypto.weak_allowed",
+      "command_pattern": "set ssh server mac {enum:mac} on",
+      "example_line": "set ssh server mac hmac-md5 on",
+      "constant_value": "{\"hmac-md5\": true, \"hmac-md5-96\": true, \"hmac-md5-etm@openssh.com\": true, \"hmac-md5-96-etm@openssh.com\": true}"
+    },
+    {
+      "concept": "SSH key exchange switched on",
+      "vendor": "Check Point Gaia",
+      "predicate": "mgmt.crypto.weak_allowed",
+      "command_pattern": "set ssh server kex {enum:kex} on",
+      "example_line": "set ssh server kex diffie-hellman-group1-sha1 on",
+      "constant_value": "{\"diffie-hellman-group1-sha1\": true}"
+    },
+    {
+      "concept": "Failed CLI logins before disconnect",
+      "vendor": "Extreme Networks EXOS",
+      "predicate": "auth.login.max_attempts",
+      "command_pattern": "configure cli max-failed-logins {int}",
+      "example_line": "configure cli max-failed-logins 3"
+    },
+    {
+      "concept": "Account lockout on failed logins",
+      "vendor": "Extreme Networks EXOS",
+      "predicate": "auth.login.max_attempts",
+      "command_pattern": "configure account {any} password-policy lockout-on-login-failures {enum:state}",
+      "example_line": "configure account all password-policy lockout-on-login-failures on",
+      "constant_value": "{\"on\": 3, \"off\": 0}"
+    },
+    {
+      "concept": "Minimum password length",
+      "vendor": "Extreme Networks EXOS",
+      "predicate": "auth.password.min_length",
+      "command_pattern": "configure account {any} password-policy min-length {int}",
+      "example_line": "configure account all password-policy min-length 12"
+    },
+    {
+      "concept": "TACACS+ authentication",
+      "vendor": "Extreme Networks EXOS",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "{polarity} tacacs",
+      "example_line": "enable tacacs"
+    },
+    {
+      "concept": "RADIUS for management access",
+      "vendor": "Extreme Networks EXOS",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "{polarity} radius mgmt-access",
+      "example_line": "enable radius mgmt-access"
+    },
+    {
+      "concept": "IP loose source route option",
+      "vendor": "Extreme Networks EXOS",
+      "predicate": "boundary.source_routing.enabled",
+      "command_pattern": "enable ip-option loose-source-route",
+      "example_line": "enable ip-option loose-source-route",
+      "constant_value": "true"
+    },
+    {
+      "concept": "IP strict source route option",
+      "vendor": "Extreme Networks EXOS",
+      "predicate": "boundary.source_routing.enabled",
+      "command_pattern": "enable ip-option strict-source-route",
+      "example_line": "enable ip-option strict-source-route",
+      "constant_value": "true"
+    },
+    {
+      "concept": "ICMP redirects on every VLAN",
+      "vendor": "Extreme Networks EXOS",
+      "predicate": "boundary.interface.unsafe_service",
+      "command_pattern": "disable icmp redirects vlan all",
+      "example_line": "disable icmp redirects vlan all",
+      "subject": "redirects",
+      "constant_value": "false"
+    },
+    {
+      "concept": "ICMP redirects on every VLAN",
+      "vendor": "Extreme Networks EXOS",
+      "predicate": "boundary.interface.unsafe_service",
+      "command_pattern": "disable icmp redirects ipv4 vlan all",
+      "example_line": "disable icmp redirects ipv4 vlan all",
+      "subject": "redirects",
+      "constant_value": "false"
+    },
+    {
+      "concept": "NTP authentication",
+      "vendor": "Extreme Networks EXOS",
+      "predicate": "time.ntp.authenticated",
+      "command_pattern": "{polarity} ntp authentication",
+      "example_line": "enable ntp authentication"
+    },
+    {
+      "concept": "NTP server",
+      "vendor": "Extreme Networks EXOS",
+      "predicate": "time.ntp.server",
+      "command_pattern": "configure ntp server add {host} {rest}",
+      "example_line": "configure ntp server add 192.0.2.10 key 1"
+    },
+    {
+      "concept": "CLI session timeout",
+      "vendor": "HPE Aruba AOS-CX",
+      "predicate": "mgmt.session.idle_timeout",
+      "command_pattern": "session-timeout {duration:min}",
+      "example_line": "session-timeout 5",
+      "scope_template": "{top}"
+    },
+    {
+      "concept": "ICMP redirects",
+      "vendor": "HPE Aruba AOS-CX",
+      "predicate": "boundary.interface.unsafe_service",
+      "command_pattern": "{neg} ip icmp redirect",
+      "example_line": "no ip icmp redirect",
+      "subject": "redirects"
+    },
+    {
+      "concept": "Control-plane ACL",
+      "vendor": "HPE Aruba AOS-CX",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "{neg} apply access-list ip {any} control-plane vrf {any}",
+      "example_line": "apply access-list ip MGMT-ONLY control-plane vrf mgmt"
+    },
+    {
+      "concept": "Accept source-routed packets",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "boundary.source_routing.enabled",
+      "command_pattern": "set accept-source-route {enum:accept}",
+      "example_line": "set accept-source-route=no",
+      "scope_template": "/ip settings",
+      "constant_value": "{\"yes\": true, \"no\": false}"
+    },
+    {
+      "concept": "Send ICMP redirects",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "boundary.interface.unsafe_service",
+      "command_pattern": "set send-redirects {enum:send}",
+      "example_line": "set send-redirects=no",
+      "scope_template": "/ip settings",
+      "subject": "redirects",
+      "constant_value": "{\"yes\": true, \"no\": false}"
+    },
+    {
+      "concept": "RADIUS login",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "set use-radius {enum:radius}",
+      "example_line": "set use-radius=yes",
+      "scope_template": "/user aaa",
+      "constant_value": "{\"yes\": true, \"no\": false}"
+    },
+    {
+      "concept": "Minimum password length",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "auth.password.min_length",
+      "command_pattern": "set minimum-password-length {int}",
+      "example_line": "set minimum-password-length=12",
+      "scope_template": "/user settings"
+    },
+    {
+      "concept": "Default account",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "auth.account.name",
+      "command_pattern": "add name {enum:user} group {any}",
+      "example_line": "add name=admin group=full",
+      "scope_template": "/user",
+      "constant_value": "{\"admin\": \"admin\", \"administrator\": \"administrator\", \"root\": \"root\", \"cisco\": \"cisco\", \"manager\": \"manager\"}"
+    },
+    {
+      "concept": "Default account",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "auth.account.name",
+      "command_pattern": "set {enum:user} password {any} group {any}",
+      "example_line": "set admin password=<SECRET:password> group=full",
+      "scope_template": "/user",
+      "constant_value": "{\"admin\": \"admin\", \"administrator\": \"administrator\", \"root\": \"root\", \"cisco\": \"cisco\", \"manager\": \"manager\"}"
+    },
+    {
+      "concept": "Local password storage",
+      "vendor": "Cisco ASA",
+      "predicate": "auth.password.storage",
+      "command_pattern": "username {any} password {any} {enum:storage} privilege {any}",
+      "example_line": "username admin password <SECRET:password> pbkdf2 privilege 15",
+      "constant_value": "{\"pbkdf2\": \"hashed\", \"encrypted\": \"type5_md5\"}"
+    },
+    {
+      "concept": "Default account",
+      "vendor": "Cisco ASA",
+      "predicate": "auth.account.name",
+      "command_pattern": "username {enum:user} password {any} {any} privilege {any}",
+      "example_line": "username admin password <SECRET:password> pbkdf2 privilege 15",
+      "constant_value": "{\"admin\": \"admin\", \"administrator\": \"administrator\", \"root\": \"root\", \"cisco\": \"cisco\", \"manager\": \"manager\"}"
+    },
+    {
+      "concept": "Telnet session timeout",
+      "vendor": "Cisco ASA",
+      "predicate": "mgmt.session.idle_timeout",
+      "command_pattern": "telnet timeout {duration:min}",
+      "example_line": "telnet timeout 5"
+    },
+    {
+      "concept": "SSH cipher level",
+      "vendor": "Cisco ASA",
+      "predicate": "mgmt.crypto.weak_allowed",
+      "command_pattern": "ssh cipher encryption {enum:level}",
+      "example_line": "ssh cipher encryption medium",
+      "constant_value": "{\"all\": true, \"low\": true, \"medium\": true, \"high\": true, \"fips\": true}"
+    },
+    {
+      "concept": "SSH custom cipher list",
+      "vendor": "Cisco ASA",
+      "predicate": "mgmt.crypto.weak_allowed",
+      "command_pattern": "ssh cipher encryption custom {enum:ciphers}",
+      "example_line": "ssh cipher encryption custom aes128-ctr:aes192-ctr:aes256-ctr",
+      "constant_value": "{\"aes128-ctr:aes192-ctr:aes256-ctr\": false, \"aes256-ctr:aes192-ctr:aes128-ctr\": false, \"aes128-ctr:aes256-ctr\": false, \"aes256-ctr\": false, \"aes256-ctr:aes128-ctr\": false}"
+    },
+    {
+      "concept": "IKEV2 policy encryption",
+      "vendor": "Cisco ASA",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "encryption {enum:alg}",
+      "example_line": "encryption aes-256",
+      "scope_template": "crypto ikev2 policy {any}",
+      "constant_value": "{\"des\": {\"encryption\": \"des\"}, \"3des\": {\"encryption\": \"3des\"}, \"aes\": {\"encryption\": \"aes\"}, \"aes-192\": {\"encryption\": \"aes-192\"}, \"aes-256\": {\"encryption\": \"aes-256\"}, \"aes-gcm\": {\"encryption\": \"aes-gcm\"}, \"aes-gcm-192\": {\"encryption\": \"aes-gcm-192\"}, \"aes-gcm-256\": {\"encryption\": \"aes-gcm-256\"}}"
+    },
+    {
+      "concept": "IKEV2 policy integrity",
+      "vendor": "Cisco ASA",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "integrity {enum:alg}",
+      "example_line": "integrity sha256",
+      "scope_template": "crypto ikev2 policy {any}",
+      "constant_value": "{\"md5\": {\"hash\": \"md5\"}, \"sha\": {\"hash\": \"sha\"}, \"sha256\": {\"hash\": \"sha256\"}, \"sha384\": {\"hash\": \"sha384\"}, \"sha512\": {\"hash\": \"sha512\"}}"
+    },
+    {
+      "concept": "IKEV2 policy DH group",
+      "vendor": "Cisco ASA",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "group {enum:group}",
+      "example_line": "group 14",
+      "scope_template": "crypto ikev2 policy {any}",
+      "constant_value": "{\"1\": {\"dh_group\": 1}, \"2\": {\"dh_group\": 2}, \"5\": {\"dh_group\": 5}, \"14\": {\"dh_group\": 14}, \"15\": {\"dh_group\": 15}, \"16\": {\"dh_group\": 16}, \"19\": {\"dh_group\": 19}, \"20\": {\"dh_group\": 20}, \"21\": {\"dh_group\": 21}, \"24\": {\"dh_group\": 24}}"
+    },
+    {
+      "concept": "IKEV1 policy encryption",
+      "vendor": "Cisco ASA",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "encryption {enum:alg}",
+      "example_line": "encryption aes-256",
+      "scope_template": "crypto ikev1 policy {any}",
+      "constant_value": "{\"des\": {\"encryption\": \"des\"}, \"3des\": {\"encryption\": \"3des\"}, \"aes\": {\"encryption\": \"aes\"}, \"aes-192\": {\"encryption\": \"aes-192\"}, \"aes-256\": {\"encryption\": \"aes-256\"}, \"aes-gcm\": {\"encryption\": \"aes-gcm\"}, \"aes-gcm-192\": {\"encryption\": \"aes-gcm-192\"}, \"aes-gcm-256\": {\"encryption\": \"aes-gcm-256\"}}"
+    },
+    {
+      "concept": "IKEV1 policy hash",
+      "vendor": "Cisco ASA",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "hash {enum:alg}",
+      "example_line": "hash sha",
+      "scope_template": "crypto ikev1 policy {any}",
+      "constant_value": "{\"md5\": {\"hash\": \"md5\"}, \"sha\": {\"hash\": \"sha\"}, \"sha256\": {\"hash\": \"sha256\"}, \"sha384\": {\"hash\": \"sha384\"}, \"sha512\": {\"hash\": \"sha512\"}}"
+    },
+    {
+      "concept": "IKEV1 policy DH group",
+      "vendor": "Cisco ASA",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "group {enum:group}",
+      "example_line": "group 14",
+      "scope_template": "crypto ikev1 policy {any}",
+      "constant_value": "{\"1\": {\"dh_group\": 1}, \"2\": {\"dh_group\": 2}, \"5\": {\"dh_group\": 5}, \"14\": {\"dh_group\": 14}, \"15\": {\"dh_group\": 15}, \"16\": {\"dh_group\": 16}, \"19\": {\"dh_group\": 19}, \"20\": {\"dh_group\": 20}, \"21\": {\"dh_group\": 21}, \"24\": {\"dh_group\": 24}}"
+    },
+    {
+      "concept": "SSH version",
+      "vendor": "Cisco IOS-XR",
+      "predicate": "mgmt.ssh.version",
+      "command_pattern": "ssh server {int}",
+      "example_line": "ssh server v2"
+    },
+    {
+      "concept": "SSH restricted by an ACL",
+      "vendor": "Cisco IOS-XR",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "{neg} ssh server vrf {any} ipv4 access-list {any}",
+      "example_line": "ssh server vrf default ipv4 access-list MGMT-SSH"
+    },
+    {
+      "concept": "Telnet server",
+      "vendor": "Cisco IOS-XR",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "command_pattern": "telnet vrf {any} ipv4 server max-servers {enum:n}",
+      "example_line": "telnet vrf default ipv4 server max-servers 10",
+      "subject": "telnet",
+      "constant_value": "{\"*\": true}"
+    },
+    {
+      "concept": "Local secret storage",
+      "vendor": "Cisco IOS-XR",
+      "predicate": "auth.password.storage",
+      "command_pattern": "secret {enum:type} {any}",
+      "example_line": "secret 10 <SECRET:type10>",
+      "scope_template": "username {any}",
+      "constant_value": "{\"5\": \"type5_md5\", \"8\": \"type8_sha256\", \"9\": \"type9_scrypt\", \"10\": \"hashed\"}"
+    },
+    {
+      "concept": "Local password storage",
+      "vendor": "Cisco IOS-XR",
+      "predicate": "auth.password.storage",
+      "command_pattern": "password {enum:type} {any}",
+      "example_line": "password 7 <SECRET:type7>",
+      "scope_template": "username {any}",
+      "constant_value": "{\"0\": \"plaintext\", \"7\": \"type7\"}"
+    },
+    {
+      "concept": "Exec timeout",
+      "vendor": "Cisco IOS-XR",
+      "predicate": "mgmt.session.idle_timeout",
+      "command_pattern": "exec-timeout {duration:min} 0",
+      "example_line": "exec-timeout 10 0",
+      "scope_template": "line {any}"
+    },
+    {
+      "concept": "Login banner",
+      "vendor": "Cisco IOS-XR",
+      "predicate": "banner.login.present",
+      "command_pattern": "{neg} banner login {rest}",
+      "example_line": "banner login ^CAuthorized access only^C"
+    },
+    {
+      "concept": "NTP authentication",
+      "vendor": "Cisco IOS-XR",
+      "predicate": "time.ntp.authenticated",
+      "command_pattern": "{neg} authenticate",
+      "example_line": "authenticate",
+      "scope_template": "ntp"
+    },
+    {
+      "concept": "NTP trusted key",
+      "vendor": "Cisco IOS-XR",
+      "predicate": "time.ntp.authenticated",
+      "command_pattern": "{neg} trusted-key {any}",
+      "example_line": "trusted-key 1",
+      "scope_template": "ntp"
+    },
+    {
+      "concept": "Exec timeout (seconds)",
+      "vendor": "Dell OS10",
+      "predicate": "mgmt.session.idle_timeout",
+      "command_pattern": "exec-timeout {duration:s}",
+      "example_line": "exec-timeout 300",
+      "scope_template": "{top}"
+    },
+    {
+      "concept": "Control-plane ACL (mgmt plane)",
+      "vendor": "Dell OS10",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "{neg} ip access-group {any} mgmt in",
+      "example_line": "ip access-group MGMT_TRAFFIC_FROM_OOBM mgmt in",
+      "scope_template": "control-plane"
+    },
+    {
+      "concept": "Control-plane ACL (data plane)",
+      "vendor": "Dell OS10",
+      "predicate": "mgmt.remote_access.source_restricted",
+      "command_pattern": "{neg} ip access-group {any} data in",
+      "example_line": "ip access-group MGMT_TRAFFIC_FROM_OOBM data in",
+      "scope_template": "control-plane"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Dell OS10",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "seq {any} permit ip any {enum:any}",
+      "example_line": "seq 10 permit ip any any",
+      "scope_template": "ip access-list {any}",
+      "constant_value": "{\"any\": true}"
+    },
+    {
+      "concept": "IP source routing",
+      "vendor": "VyOS",
+      "predicate": "boundary.source_routing.enabled",
+      "command_pattern": "set firewall ip-src-route {polarity}",
+      "example_line": "set firewall ip-src-route disable"
+    },
+    {
+      "concept": "ICMP redirects",
+      "vendor": "VyOS",
+      "predicate": "boundary.interface.unsafe_service",
+      "command_pattern": "set firewall send-redirects {polarity}",
+      "example_line": "set firewall send-redirects disable",
+      "subject": "redirects"
+    },
+    {
+      "concept": "SSH MACs (1.3)",
+      "vendor": "VyOS",
+      "predicate": "mgmt.crypto.weak_allowed",
+      "command_pattern": "set service ssh mac {enum:mac}",
+      "example_line": "set service ssh mac hmac-sha2-256",
+      "constant_value": "{\"hmac-md5\": true, \"hmac-md5-96\": true, \"hmac-md5-etm@openssh.com\": true, \"hmac-md5-96-etm@openssh.com\": true, \"hmac-sha1\": false, \"hmac-sha2-256\": false, \"hmac-sha2-512\": false, \"hmac-sha2-256-etm@openssh.com\": false, \"hmac-sha2-512-etm@openssh.com\": false, \"umac-128@openssh.com\": false, \"umac-128-etm@openssh.com\": false}"
+    },
+    {
+      "concept": "SSH key exchange",
+      "vendor": "VyOS",
+      "predicate": "mgmt.crypto.weak_allowed",
+      "command_pattern": "set service ssh key-exchange {enum:kex}",
+      "example_line": "set service ssh key-exchange diffie-hellman-group14-sha256",
+      "constant_value": "{\"diffie-hellman-group1-sha1\": true, \"diffie-hellman-group14-sha1\": false, \"diffie-hellman-group14-sha256\": false, \"diffie-hellman-group16-sha512\": false, \"diffie-hellman-group18-sha512\": false, \"diffie-hellman-group-exchange-sha256\": false, \"ecdh-sha2-nistp256\": false, \"ecdh-sha2-nistp384\": false, \"ecdh-sha2-nistp521\": false, \"curve25519-sha256@libssh.org\": false}"
+    },
+    {
+      "concept": "IPsec esp-group encryption",
+      "vendor": "VyOS",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "set vpn ipsec esp-group {any} proposal {any} encryption {enum:alg}",
+      "example_line": "set vpn ipsec esp-group office proposal 1 encryption 'aes256'",
+      "constant_value": "{\"3des\": {\"encryption\": \"3des\"}, \"aes128\": {\"encryption\": \"aes128\"}, \"aes256\": {\"encryption\": \"aes256\"}, \"aes128gcm128\": {\"encryption\": \"aes128gcm128\"}, \"aes256gcm128\": {\"encryption\": \"aes256gcm128\"}, \"chacha20poly1305\": {\"encryption\": \"chacha20poly1305\"}}"
+    },
+    {
+      "concept": "IPsec esp-group hash",
+      "vendor": "VyOS",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "set vpn ipsec esp-group {any} proposal {any} hash {enum:alg}",
+      "example_line": "set vpn ipsec esp-group office proposal 1 hash sha256",
+      "constant_value": "{\"md5\": {\"hash\": \"md5\"}, \"sha1\": {\"hash\": \"sha1\"}, \"sha256\": {\"hash\": \"sha256\"}, \"sha384\": {\"hash\": \"sha384\"}, \"sha512\": {\"hash\": \"sha512\"}}"
+    },
+    {
+      "concept": "IPsec ike-group encryption",
+      "vendor": "VyOS",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "set vpn ipsec ike-group {any} proposal {any} encryption {enum:alg}",
+      "example_line": "set vpn ipsec ike-group office proposal 1 encryption 'aes256'",
+      "constant_value": "{\"3des\": {\"encryption\": \"3des\"}, \"aes128\": {\"encryption\": \"aes128\"}, \"aes256\": {\"encryption\": \"aes256\"}, \"aes128gcm128\": {\"encryption\": \"aes128gcm128\"}, \"aes256gcm128\": {\"encryption\": \"aes256gcm128\"}, \"chacha20poly1305\": {\"encryption\": \"chacha20poly1305\"}}"
+    },
+    {
+      "concept": "IPsec ike-group hash",
+      "vendor": "VyOS",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "set vpn ipsec ike-group {any} proposal {any} hash {enum:alg}",
+      "example_line": "set vpn ipsec ike-group office proposal 1 hash sha256",
+      "constant_value": "{\"md5\": {\"hash\": \"md5\"}, \"sha1\": {\"hash\": \"sha1\"}, \"sha256\": {\"hash\": \"sha256\"}, \"sha384\": {\"hash\": \"sha384\"}, \"sha512\": {\"hash\": \"sha512\"}}"
+    },
+    {
+      "concept": "IKE DH group",
+      "vendor": "VyOS",
+      "predicate": "crypto.ipsec.proposal",
+      "command_pattern": "set vpn ipsec ike-group {any} proposal {any} dh-group {enum:group}",
+      "example_line": "set vpn ipsec ike-group office proposal 1 dh-group '14'",
+      "constant_value": "{\"1\": {\"dh_group\": 1}, \"2\": {\"dh_group\": 2}, \"5\": {\"dh_group\": 5}, \"14\": {\"dh_group\": 14}, \"15\": {\"dh_group\": 15}, \"16\": {\"dh_group\": 16}, \"17\": {\"dh_group\": 17}, \"18\": {\"dh_group\": 18}, \"19\": {\"dh_group\": 19}, \"20\": {\"dh_group\": 20}, \"21\": {\"dh_group\": 21}}"
+    },
+    {
+      "concept": "Permissive any-any rule",
+      "vendor": "Cisco IOS-XR",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "{any} permit ipv4 any {enum:any}",
+      "example_line": "10 permit ipv4 any any",
+      "scope_template": "ipv4 access-list {any}",
+      "constant_value": "{\"any\": true}"
+    },
+    {
+      "concept": "SSH v1 compatibility",
+      "vendor": "Fortinet FortiSwitchOS",
+      "predicate": "mgmt.ssh.version",
+      "command_pattern": "set admin-ssh-v1 {enum:v1}",
+      "example_line": "set admin-ssh-v1 disable",
+      "scope_template": "config system global",
+      "constant_value": "{\"enable\": 1, \"disable\": 2}"
+    },
+    {
+      "concept": "Pre-login banner",
+      "vendor": "Fortinet FortiSwitchOS",
+      "predicate": "banner.login.present",
+      "command_pattern": "{neg} set pre-login-banner {rest}",
+      "example_line": "set pre-login-banner \"Authorized access only\"",
+      "scope_template": "config system global"
+    },
+    {
+      "concept": "Minimum password length",
+      "vendor": "Fortinet FortiSwitchOS",
+      "predicate": "auth.password.min_length",
+      "command_pattern": "set minimum-length {int}",
+      "example_line": "set minimum-length 12",
+      "scope_template": "config system password-policy"
+    },
+    {
+      "concept": "Remote syslog server",
+      "vendor": "Fortinet FortiSwitchOS",
+      "predicate": "log.remote.destination",
+      "command_pattern": "set server {host}",
+      "example_line": "set server \"192.0.2.50\"",
+      "scope_template": "config log syslogd setting"
+    },
+    {
+      "concept": "SNMP community",
+      "vendor": "Fortinet FortiSwitchOS",
+      "predicate": "snmp.community",
+      "command_pattern": "set name {community:RO}",
+      "example_line": "set name <SECRET:snmp-community>",
+      "scope_template": "config system snmp community > edit {any}"
+    },
+    {
+      "concept": "Admin password storage",
+      "vendor": "Fortinet FortiSwitchOS",
+      "predicate": "auth.password.storage",
+      "command_pattern": "set password {enum:storage} {any}",
+      "example_line": "set password ENC <SECRET:password>",
+      "scope_template": "config system admin > edit {any}",
+      "constant_value": "{\"enc\": \"hashed\"}"
+    },
+    {
+      "concept": "Remote authentication for an admin",
+      "vendor": "Fortinet FortiSwitchOS",
+      "predicate": "auth.central_aaa.enabled",
+      "command_pattern": "set remote-auth {polarity}",
+      "example_line": "set remote-auth enable",
+      "scope_template": "config system admin > edit {any}"
+    },
+    {
+      "concept": "NTP authentication",
+      "vendor": "Fortinet FortiSwitchOS",
+      "predicate": "time.ntp.authenticated",
+      "command_pattern": "set authentication {polarity}",
+      "example_line": "set authentication enable",
+      "scope_template": "config system ntp"
+    },
+    {
+      "concept": "NTP server",
+      "vendor": "Fortinet FortiSwitchOS",
+      "predicate": "time.ntp.server",
+      "command_pattern": "set server {host}",
+      "example_line": "set server \"192.0.2.10\"",
+      "scope_template": "config system ntp > config ntpserver > edit {any}"
     }
   ]
 }

@@ -35,7 +35,7 @@ from app.facts.heuristics import (
     _Candidate, _interfaces, _polarity, _version, combine, external_interfaces, heuristic_candidates, state_lines,
 )
 from app.facts.predicates import (
-    ADMIN_ACCOUNT, CENTRAL_AAA, DISCOVERY_PROTOCOL, IDLE_TIMEOUT, LOG_REMOTE_DESTINATION, LOGIN_BANNER, LOGIN_MAX_ATTEMPTS,
+    ADMIN_ACCOUNT, CENTRAL_AAA, DISCOVERY_PROTOCOL, IDLE_TIMEOUT, IPSEC_PROPOSAL, LOG_REMOTE_DESTINATION, LOGIN_BANNER, LOGIN_MAX_ATTEMPTS,
     MGMT_EXPOSED, MGMT_WEAK_CRYPTO, NOT_SET, NTP_AUTHENTICATED, PASSWORD_MIN_LENGTH, ROUTER_UNSAFE_SERVICE, RULE_LOGGING,
     NTP_SERVER, PASSWORD_ENCRYPTION_SERVICE, PASSWORD_STORAGE, PERMIT_ANY, PROTOCOL_ENABLED, SOURCE_RESTRICTED,
     SNMP_COMMUNITY, SOURCE_ROUTING, SSH_VERSION, SecurityFact,
@@ -59,7 +59,8 @@ BOOL_PREDICATES = frozenset({
 # names an NTP server and states nothing about authenticating it. Adding a predicate here makes a
 # line that only mentions the setting able to teach it, so the list stays short and deliberate.
 # A login banner is the third: ``set login-banner "…"`` carries the message, and the message is the banner.
-PRESENCE_PREDICATES = frozenset({SOURCE_RESTRICTED, CENTRAL_AAA, LOGIN_BANNER})
+# NTP authentication is stated by naming the key the device trusts (``set system ntp trusted-key 1``)
+PRESENCE_PREDICATES = frozenset({SOURCE_RESTRICTED, CENTRAL_AAA, LOGIN_BANNER, NTP_AUTHENTICATED})
 # How a configuration writes each concept. A line that states nothing of its own is evidence only
 # when it is a line *about* the setting, and this is what says so; see ``_names_concept``.
 CONCEPT_WORDS = {
@@ -71,7 +72,7 @@ CONCEPT_WORDS = {
     MGMT_EXPOSED: (L.MGMT_EXPOSURE_RELATED,), LOGIN_MAX_ATTEMPTS: (L.LOCKOUT_RELATED,),
     PASSWORD_MIN_LENGTH: (L.PASSWORD_RELATED,), ADMIN_ACCOUNT: (L.ACCOUNT_RELATED,),
     MGMT_WEAK_CRYPTO: (L.CRYPTO_SETTING_RELATED,), RULE_LOGGING: (L.RULE_WORDS | L.RULE_LOG_WORDS,),
-    ROUTER_UNSAFE_SERVICE: (L.ROUTER_SERVICE_WORDS,),
+    ROUTER_UNSAFE_SERVICE: (L.ROUTER_SERVICE_WORDS,), IPSEC_PROPOSAL: (L.IPSEC,),
     # both sets must appear: a version is an SSH version, authentication is of the time source
     SSH_VERSION: (L.SSH, L.SSH_VERSION_RELATED), NTP_AUTHENTICATED: (L.TIME_RELATED, L.AUTH_RELATED),
 }
@@ -79,25 +80,41 @@ CONCEPT_WORDS = {
 # A destination is a ``{host}``: an address or a hostname. ``{ip}`` stays valid for recognizers
 # written before ``{host}`` existed (including shipped seeds).
 SLOT_PREDICATES = {
-    SSH_VERSION: ("int",), IDLE_TIMEOUT: ("duration",), LOG_REMOTE_DESTINATION: ("host", "ip"),
-    NTP_SERVER: ("host", "ip"), PASSWORD_STORAGE: ("enum",), SNMP_COMMUNITY: ("community",),
-    LOGIN_MAX_ATTEMPTS: ("int",), PASSWORD_MIN_LENGTH: ("int",), ADMIN_ACCOUNT: ("enum",),
+    SSH_VERSION: ("int", "enum"), IDLE_TIMEOUT: ("duration",), LOG_REMOTE_DESTINATION: ("host", "ip"),
+    NTP_SERVER: ("host", "ip"), PASSWORD_STORAGE: ("enum", None), SNMP_COMMUNITY: ("community",),
+    LOGIN_MAX_ATTEMPTS: ("int", "enum"), PASSWORD_MIN_LENGTH: ("int",), ADMIN_ACCOUNT: ("enum",),
+    # one algorithm per line (``encryption-algorithm aes-256-cbc``), its table naming which part of the proposal
+    # it states: {"aes-256-cbc": {"encryption": "aes-256-cbc"}, "group2": {"dh_group": 2}}
+    IPSEC_PROPOSAL: ("enum",),
 }
+# A number read from a word: ``deny-on-fail enable off`` limits nothing (0), ``compatible-ssh1x enable`` is version 1
+NUMBER_TABLE_PREDICATES = frozenset({SSH_VERSION, LOGIN_MAX_ATTEMPTS})
+# A scope that only a top-level statement has: Dell OS10 ``exec-timeout 300`` (seconds) is not NX-OS ``exec-timeout 15``
+# (minutes) under ``line vty``
+TOP_LEVEL = "{top}"
+# A scope chain: ``config system snmp community > edit {any}``
+SCOPE_CHAIN = " > "
+# The parts of an IPsec / IKE proposal a value table may state
+PROPOSAL_PARTS = frozenset({"encryption", "hash", "dh_group"})
 RECOGNIZER_PREDICATES = BOOL_PREDICATES | frozenset(SLOT_PREDICATES)
 # Read by shipped seeds only, never taught: the line that states an SNMP community holds the community string
 # itself, so a taught example could only be stored by storing the secret; an account is named by a value table
 # of default names, which teaching does not draft.
-SEED_ONLY_PREDICATES = frozenset({SNMP_COMMUNITY, ADMIN_ACCOUNT})
+SEED_ONLY_PREDICATES = frozenset({SNMP_COMMUNITY, ADMIN_ACCOUNT, IPSEC_PROPOSAL})
 TEACHABLE_PREDICATES = RECOGNIZER_PREDICATES - SEED_ONLY_PREDICATES
 # Predicates whose every statement is a separate object, never a second opinion on one setting
 PER_STATEMENT = {SNMP_COMMUNITY: "snmp community", MGMT_EXPOSED: "management access", ADMIN_ACCOUNT: "account",
+                 IPSEC_PROPOSAL: "proposal",
+                 # each limit is its own fact and the weakest decides: Gaia ``deny-on-fail enable false`` beside
+                 # ``failures-allowed 3`` is no limit at all
+                 LOGIN_MAX_ATTEMPTS: "failed-login limit",
                  RULE_LOGGING: "rule", ROUTER_UNSAFE_SERVICE: "interface service"}
 # The access a {community:<level>} slot's template states
 COMMUNITY_ACCESS = frozenset({"RO", "RW"})
 # Settings whose statement may end in ``{rest}``: a destination or an authentication server. What
 # follows it (``514 protocol udp``, ``vrf mgmt``, ``key 1``, ``prefer``) says how to reach the server,
 # never whether there is one. A toggle is different -a trailing word may be the one that switches it.
-REST_PREDICATES = frozenset({LOG_REMOTE_DESTINATION, NTP_SERVER, CENTRAL_AAA})
+REST_PREDICATES = frozenset({LOG_REMOTE_DESTINATION, NTP_SERVER, CENTRAL_AAA, LOGIN_BANNER})
 STOPWORDS = POSITIVE | NEGATIVE | NEGATORS | {"set", "config", "edit", "next", "end", "exit", "state", "status"}
 # A recognizer must be this specific. A hierarchical dialect keeps the nouns in the block header
 # (``ntp { server 1.2.3.4; }``), so the scope template counts too -but never on its own: the
@@ -185,16 +202,18 @@ def validate_recognizer(r) -> None:
         raise RecognizerError(f"Recognizers cannot answer '{r.predicate}' yet")
     try:
         kind, argument = recognizer_slot(r.command_pattern)
-        if r.scope_template:
-            compile_pattern(r.scope_template, EXTRACTION_RECOGNIZER)
+        if r.scope_template and r.scope_template != TOP_LEVEL:
+            for part in _scope_parts(r.scope_template):
+                compile_pattern(part, EXTRACTION_RECOGNIZER)
     except PatternError as e:
         raise RecognizerError(str(e)) from e
     if REST_TOKEN in r.command_pattern.split() and r.predicate not in REST_PREDICATES:
-        raise RecognizerError(f"Only a destination or an authentication server may end in {REST_TOKEN}: "
+        raise RecognizerError(f"Only a destination, an authentication server or a banner's text may end in "
+                              f"{REST_TOKEN}: "
                               "for any other setting a trailing word can change what the line says")
 
     keywords = _keywords(r.command_pattern)
-    scoped = keywords + _keywords(r.scope_template or "")
+    scoped = keywords + _keywords(" ".join(_scope_parts(r.scope_template or "")))
     if not keywords or len(scoped) < MIN_KEYWORDS and not _one_word_feature(r, keywords, kind):
         raise RecognizerError(f"The template needs at least {MIN_KEYWORDS} keywords besides stopwords, counting "
                               f"its scope (found: {', '.join(scoped) or 'none'})")
@@ -218,7 +237,8 @@ def validate_recognizer(r) -> None:
     # A value slot has no polarity to anchor it, so it always has to: otherwise ``class ops`` reads
     # "ops" as a syslog destination, and ``server 10.0.0.1`` under ``ntp`` teaches a log server.
     if r.predicate not in BOOL_PREDICATES or example.polarity is None:
-        if not _names_concept(r.predicate, r.subject, [*example.key_tokens, *(r.scope_template or "").split()]):
+        if not _names_concept(r.predicate, r.subject,
+                              [*example.key_tokens, *" ".join(_scope_parts(r.scope_template or "")).split()]):
             raise RecognizerError("This line states nothing on its own, and it does not name this setting "
                                   "either -so being in the file is not evidence about it. Pick the line "
                                   "that configures the setting, or one that says it is on or off.")
@@ -227,7 +247,7 @@ def validate_recognizer(r) -> None:
         if kind is None:
             statement = tokenize_line(r.example_line)
             polarity = statement.polarity if statement else None
-            if polarity is None and not _declares_presence(r, statement, value):
+            if polarity is None and not _declares_presence(r, statement, value) and not _negated_feature(r, value):
                 raise RecognizerError("Polarity must be stated: a literal such as 'disabled', a {polarity} slot, "
                                       "an {enum:name} slot with a true / false value table, or a scoped bare "
                                       "statement that switches its feature on by existing")
@@ -260,6 +280,18 @@ def validate_recognizer(r) -> None:
                                   "{community:RW}")
         if value is None:
             raise RecognizerError("The example line gives no usable value")
+        if kind is None and not isinstance(value, str):
+            # ``set user admin password-hash …``: the keyword itself names the storage, stated as its value
+            raise RecognizerError('A line without a slot states its value as a constant, e.g. "hashed"')
+        if kind == "enum" and r.predicate in NUMBER_TABLE_PREDICATES and not (
+                isinstance(constant, dict) and constant
+                and all(isinstance(v, int) and not isinstance(v, bool) for v in constant.values())):
+            raise RecognizerError('This setting is a number: its value table maps words to numbers, e.g. {"off": 0}')
+        if r.predicate == IPSEC_PROPOSAL and not (
+                isinstance(constant, dict) and constant and all(
+                    isinstance(v, dict) and v and set(v) <= PROPOSAL_PARTS for v in constant.values())):
+            raise RecognizerError("A proposal value table maps each algorithm to the part it states, e.g. "
+                                  '{"3des": {"encryption": "3des"}, "group2": {"dh_group": 2}}')
 
 
 def _one_word_feature(r, keywords: list[str], kind: Optional[str]) -> bool:
@@ -279,6 +311,9 @@ def _one_word_feature(r, keywords: list[str], kind: Optional[str]) -> bool:
         return False
     if kind == "ip":
         return _names_concept(r.predicate, r.subject, keywords)
+    if kind == "duration":
+        # ``session-timeout 5`` (AOS-CX, top level): a compound word that names the timeout, then its value
+        return "-" in keywords[0] and _names_concept(r.predicate, r.subject, keywords)
     if kind not in ("polarity", "neg"):
         return False
     # The switch is spelled out (``disable telnet``, ``lldp enable``, ``set lldp enabled {polarity}``), or the
@@ -288,12 +323,20 @@ def _one_word_feature(r, keywords: list[str], kind: Optional[str]) -> bool:
             or "-" in keywords[0])
 
 
+def _negated_feature(r, value) -> bool:
+    """``set system no-redirects``: a literal ``no-<feature>`` word switches that feature off, so the value is False
+    and the word after ``no-`` must name the setting itself (``no-redirects``, never ``no-auto-negotiation``)."""
+    return value is False and any(
+        t.lower().startswith("no-") and _names_concept(r.predicate, r.subject, [t[3:]])
+        for t in r.command_pattern.split() if "{" not in t)
+
+
 def _declares_presence(r, statement, value) -> bool:
     """A bare statement inside a named block switches its feature on by existing (``services { telnet; }``).
 
     Only ever True, only with a scope: without one the template would answer the same word anywhere in
     the configuration. Absence of the line still matches nothing, so it can never produce a value."""
-    return (bool(r.scope_template) and value is True and statement is not None
+    return (bool(r.scope_template) and r.scope_template != TOP_LEVEL and value is True and statement is not None
             and len(statement.key_tokens) == 1 and not statement.values)
 
 
@@ -341,7 +384,22 @@ def _scope_matches(scope_template: str, s: Statement) -> bool:
     """The scope is the block the statement is *in*, never some outer ancestor: an NTP ``server``
     recognizer must not answer ``ntp { traceoptions { server … } }``."""
     header = enclosing_header(s)
+    if scope_template == TOP_LEVEL:
+        return header is None
+    parts = _scope_parts(scope_template)
+    if len(parts) > 1:
+        # ``config system snmp community > edit {any}``: the innermost headers, outermost first. FortiOS-style
+        # tables put every entry in an ``edit`` block, which alone says nothing about which table it is
+        headers = list(s.scope_path[:-1] if s.block else s.scope_path)
+        return len(headers) >= len(parts) and all(
+            compile_pattern(part, EXTRACTION_RECOGNIZER).match(h) is not None
+            for part, h in zip(parts, headers[-len(parts):]))
     return header is not None and compile_pattern(scope_template, EXTRACTION_RECOGNIZER).match(header) is not None
+
+
+def _scope_parts(scope_template: str) -> list[str]:
+    """A scope names one block header, or a chain of them separated by ``>`` (outermost first)."""
+    return [part.strip() for part in scope_template.split(SCOPE_CHAIN) if part.strip()]
 
 
 def _dialect_matches(stored: Optional[str], current: set[str]) -> bool:
@@ -383,7 +441,11 @@ def recognize(raw_lines: list[str], extra: Iterable = ()):
                 if via is not s.text and any((r.predicate, headers[:k]) in answered_blocks
                                              for k in range(1, len(headers) + 1)):
                     continue  # ``user admin { class …; }``: the header already stated this account
-                value = recognizer_value(r, match_recognizer(r.command_pattern, via))
+                slot = match_recognizer(r.command_pattern, via)
+                value = recognizer_value(r, slot)
+                if slot[0] == "neg" and value is True and s.polarity is False:
+                    # ``banner motd disable``: no leading negator, and still the line switches the setting off
+                    value = False
             except (PatternError, ValueError, AttributeError) as e:
                 logger.warning("Recognizer #%s skipped: %s", getattr(r, "id", None), e)
                 continue
@@ -407,8 +469,17 @@ def recognize(raw_lines: list[str], extra: Iterable = ()):
             # every community (every exposed zone) is its own fact: two of them are not a conflict about one setting
             scope = f"{PER_STATEMENT[r.predicate]} at line {s.line}" if r.predicate in PER_STATEMENT else None
             # a discovery protocol on an interface an external zone holds: the judge needs to know it is external
-            if r.predicate == DISCOVERY_PROTOCOL and (wan := [n for n in _interfaces(s.key_tokens) if n in external]):
+            if r.predicate == DISCOVERY_PROTOCOL and (wan := [n for n in _local_interfaces(s) if n in external]):
                 scope, lines = f"interface {wan[0]}", sorted({*(lines or [s.line]), external[wan[0]].line})
+            elif r.predicate == DISCOVERY_PROTOCOL and (local := _local_interfaces(s)):
+                # ``no lldp transmit`` on one interface says nothing about the others, and nothing about exposure
+                # unless that interface is known to face outside: read, and left undecided
+                scope, value = f"interface {local[0]}", None
+            elif r.predicate == ROUTER_UNSAFE_SERVICE and value is False and (local := _local_interfaces(s)):
+                # ``no ip redirects`` on one interface: every other routed interface keeps the platform default,
+                # which a file read line by line cannot see. An unsafe service switched on is decided; switched off
+                # here, it is read and left undecided
+                scope, value = f"interface {local[0]}", None
             candidates.append(_Candidate(r.predicate, value, lines or [s.line], subject=r.subject, scope=scope,
                                          unit="min" if r.predicate == IDLE_TIMEOUT else None))
 
@@ -418,6 +489,14 @@ def recognize(raw_lines: list[str], extra: Iterable = ()):
     dialect = _dialect(matched, recognizers, current)
     return (combine(candidates, raw_lines, Assurance.CONFIRMED), frozenset(skip),
             lambda known: _absence(known, dialect, statements))
+
+
+def _local_interfaces(s: Statement) -> list[str]:
+    """The interfaces a statement is about: named in it (``set protocols lldp interface ge-0/0/0``), or the
+    ``interface …`` block it sits in."""
+    header = enclosing_header(s)
+    in_block = _interfaces(header.lower().split()[1:]) if header and header.split()[0].lower() == "interface" else []
+    return [*_interfaces(s.key_tokens), *in_block]
 
 
 def understood_dialect(raw_lines: list[str]) -> Optional[tuple[str, list]]:
@@ -483,7 +562,8 @@ def _absence(known: list[SecurityFact], dialect: Optional[tuple[str, list]],
     if dialect is None:
         return []
     name, own = dialect
-    unset_by_default = _factory_defaults().get(name, {})
+    documented = _factory_defaults().get(name, {})
+    unset_by_default = {p: why for p, why in documented.items() if isinstance(why, str)}
     eligible = (*NO_FACTORY_DEFAULT, *unset_by_default)
     syntax = {}
     for r in own:
@@ -491,10 +571,37 @@ def _absence(known: list[SecurityFact], dialect: Optional[tuple[str, list]],
             syntax.setdefault(r.predicate, r.command_pattern)
     stated = {f.predicate for f in known}
     stated |= {p for p in syntax for st in statements if _mentions_setting(p, st)}
-    return [SecurityFact(p, NOT_SET, Assurance.CONFIRMED,
-                         provenance=f"no line states it; {name} states it as '{_shown(syntax[p])}'"
-                                    + (f". {unset_by_default[p]}" if p in unset_by_default else ""))
-            for p in eligible if p in syntax and p not in stated]
+    unset = [SecurityFact(p, NOT_SET, Assurance.CONFIRMED,
+                          provenance=f"no line states it; {name} states it as '{_shown(syntax[p])}'"
+                                     + (f". {unset_by_default[p]}" if p in unset_by_default else ""))
+             for p in eligible if p in syntax and p not in stated]
+    return unset + _value_defaults(name, documented, known, statements)
+
+
+def _value_defaults(name: str, documented: dict, known: list[SecurityFact],
+                    statements: list[Statement]) -> list[SecurityFact]:
+    """What the platform does when its configuration is silent, for documented value defaults only.
+
+    ``"mgmt.ssh.version": {"value": 2, "reason": "…"}`` (a key may name a subject: ``…protocol_enabled:telnet``).
+    Applied only when nothing states the setting: no fact about it of any assurance, and no line that so much as
+    names it, since a line in a syntax nobody taught may be the one that changes the default."""
+    facts = []
+    for key, entry in documented.items():
+        if not isinstance(entry, dict):
+            continue
+        predicate, _, subject = key.partition(":")
+        subject = subject or None
+        if any(f.predicate == predicate and (subject is None or f.subject == subject) for f in known):
+            continue
+        # a line already read as another setting (ASA ``telnet timeout 5`` is a session timeout) says what it means
+        # (only a confirmed reading counts: a heuristic guess about the line proves nothing)
+        explained = {n for f in known if f.predicate != predicate and f.assurance == Assurance.CONFIRMED
+                     for n in f.evidence.line_numbers}
+        if any(_mentions_setting(predicate, st, subject) for st in statements if st.line not in explained):
+            continue
+        facts.append(SecurityFact(predicate, entry["value"], Assurance.DEFAULT, subject=subject, unit=entry.get("unit"),
+                                  provenance=f"{name} default, no line changes it: {entry['reason']}"))
+    return facts
 
 
 @lru_cache(maxsize=1)
@@ -509,9 +616,9 @@ def _factory_defaults() -> dict[str, dict[str, str]]:
 ABSENCE_WORDS = {PASSWORD_MIN_LENGTH: frozenset({"length", "len", "minlen", "complexity"})}
 
 
-def _mentions_setting(predicate: str, st: Statement) -> bool:
+def _mentions_setting(predicate: str, st: Statement, subject: Optional[str] = None) -> bool:
     words = [*st.key_tokens, *(w for h in st.scope_path for w in h.split())]
-    if not _names_concept(predicate, None, words):
+    if not _names_concept(predicate, subject, words):
         return False
     extra = ABSENCE_WORDS.get(predicate)
     return not extra or bool({p for w in words for p in {w.lower(), *re.split(r"[-_./]", w.lower())}} & extra)

@@ -1,12 +1,63 @@
 {
   "_README": [
     "Reviewed factory defaults for dialects without a dedicated parser, read by app.facts.recognizers._absence.",
-    "A setting listed here for a dialect is one that dialect does NOT enforce unless its configuration states it,",
-    "so when the dialect is understood and no line states it, it is decided NOT_SET (like an AAA server).",
-    "Only add an entry with its source; a guess here would turn a missing line into a false FAIL.",
-    "Keys are the seed 'vendor' labels; values map a predicate to the reason shown to the user."
+    "Keys are the seed 'vendor' labels. Two kinds of entry, each with its source in the reason:",
+    "  \"predicate\": \"reason\"  the dialect does NOT enforce the setting unless its configuration states it, so when",
+    "      the dialect is understood and no line states it, it is decided NOT_SET (like an AAA server).",
+    "  \"predicate[:subject]\": {\"value\": ..., \"reason\": \"...\"}  what the platform does when its configuration is",
+    "      silent (assurance DEFAULT); applied only when no fact and no line so much as names the setting.",
+    "Only add an entry with its source; a guess here would turn a missing line into a false verdict."
   ],
   "Palo Alto PAN-OS": {
     "auth.password.min_length": "PAN-OS ships with Minimum Password Complexity disabled, so no minimum length is enforced until 'set mgt-config password-complexity' enables it (PAN-OS Administrator's Guide, Device > Setup > Management)"
+  },
+  "Cisco NX-OS": {
+    "mgmt.ssh.version": {
+      "value": 2,
+      "reason": "\"The Cisco NX-OS software supports only SSH version 2 (SSHv2)\" (Cisco Nexus 9000 NX-OS Security Configuration Guide, Configuring SSH and Telnet)"
+    },
+    "mgmt.remote_access.protocol_enabled:telnet": {
+      "value": false,
+      "reason": "\"The Telnet server is disabled by default on the Cisco NX-OS device\" until 'feature telnet' enables it (Cisco Nexus 9000 NX-OS Security Configuration Guide, Configuring SSH and Telnet)"
+    },
+    "mgmt.crypto.weak_allowed": {
+      "value": false,
+      "reason": "NX-OS offers only aes128-ctr, aes192-ctr and aes256-ctr until 'ssh cipher-mode weak' adds the CBC ciphers (Cisco TechNote 200663, Unable to SSH into Nexus 9K)"
+    }
+  },
+  "Check Point Gaia": {
+    "auth.login.max_attempts": "Gaia ships with 'set password-controls deny-on-fail enable off', so failed logins are not limited until it is turned on (Gaia Administration Guide R81.20, Configuring Password Policy in Gaia Clish)"
+  },
+  "Extreme Networks EXOS": {
+    "mgmt.ssh.version": {
+      "value": 2,
+      "reason": "\"ExtremeXOS 16.2 supports SSH protocol version 2 from OpenSSH\" (ExtremeXOS 16.2.5 release notes, Secure Shell (SSH) Server Upgrade)"
+    }
+  },
+  "MikroTik RouterOS": {
+    "boundary.source_routing.enabled": {
+      "value": false,
+      "reason": "'accept-source-route' defaults to 'no' under /ip settings (RouterOS manual, IP Settings)"
+    }
+  },
+  "Cisco ASA": {
+    "mgmt.remote_access.protocol_enabled:telnet": {
+      "value": false,
+      "reason": "the ASA accepts Telnet only from the addresses a 'telnet <address> <mask> <interface>' line names, and never on the lowest-security interface outside a VPN (Cisco ASA General Operations Configuration Guide 9.1, Management Access)"
+    },
+    "mgmt.crypto.weak_allowed": {
+      "value": true,
+      "reason": "the default 'ssh cipher encryption medium' accepts 3des-cbc and the AES-CBC ciphers (Cisco TechNote 213283, Disable SSH Server CBC Mode Ciphers on ASA)"
+    }
+  },
+  "VyOS": {
+    "boundary.discovery_protocol.enabled:lldp": {
+      "value": false,
+      "reason": "LLDP runs only once 'set service lldp' enables the service (VyOS 1.3 documentation, Service > LLDP)"
+    },
+    "time.ntp.authenticated": {
+      "value": false,
+      "reason": "VyOS 1.3 offers no NTP authentication: a server takes only noselect, pool, preempt or prefer (VyOS 1.3 documentation, System > NTP)"
+    }
   }
 }

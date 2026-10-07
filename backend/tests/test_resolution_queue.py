@@ -78,9 +78,11 @@ def test_initial_juniper_score_is_unchanged(client):
     # FAIL (posture 24), and more questions apply that this file does not answer. Was (24, 19) before learned absence:
     # Junos knowledge knows how an AAA server and a login banner are written and this file states neither -two FAILs.
     # Was (19, 24) before brace leaves were read by set-form seeds: the users' encrypted-password is a decided MGMT-005 PASS
-    assert (scan["posture"], scan["coverage"]) == (38, 32)
-    assert scan["assessed_count"] == 7
-    assert scan["unresolved_count"] == 16
+    # Was (38, 32) before Junos knowledge learned how NTP authentication is written (``trusted-key``): the file names an
+    # NTP server and no key, so LOG-002 is a decided FAIL
+    assert (scan["posture"], scan["coverage"]) == (36, 34)
+    assert scan["assessed_count"] == 8
+    assert scan["unresolved_count"] == 15
 
 
 def test_initial_score_comes_from_the_scoring_engine(client):
@@ -115,8 +117,8 @@ def test_every_unresolved_item_says_why_and_what_to_do(client):
 def test_queue_offers_the_lines_it_has_and_claims_none_it_does_not(client):
     scan, _ = juniper(client)
     items = {i["control_id"]: i for i in unresolved(client, scan["scan_id"])["items"]}
-    # NTP is configured but its authentication is not stated: the NTP lines are offered
-    assert [line["line_number"] for line in items["LOG-002"]["suggested_lines"]]
+    # syslog is configured, to local files only: the syslog lines are offered
+    assert [line["line_number"] for line in items["LOG-001"]["suggested_lines"]]
     # nothing in this configuration mentions an idle timeout, and none is invented
     assert items["MGMT-006"]["suggested_lines"] == []
 
@@ -227,9 +229,11 @@ def test_a_line_that_states_no_value_cannot_teach_one(client):
     assert draft["errors"], "a line stating no polarity must not pass the gates"
     refused = client.post(f"/api/adaptive/scans/{scan['scan_id']}/recognizers", json=request)
     assert refused.status_code == 422
-    # and the control is still exactly where it was
+    # and the control is still exactly where it was: a FAIL read from absence (no line states a trusted key)
+    log = next(r for r in scan["results"] if r["control_id"] == "LOG-002")
+    assert log["status"] == "fail"
     after = unresolved(client, scan["scan_id"])
-    assert "LOG-002" in {i["control_id"] for i in after["items"]}
+    assert "LOG-002" not in {i["control_id"] for i in after["items"]}
 
 
 def test_a_predicate_the_control_does_not_read_is_refused(client):
@@ -246,7 +250,7 @@ def test_undecided_controls_are_never_counted_as_passed_or_failed(client):
     decided = {r["control_id"] for r in scan["results"] if r["status"] in ("pass", "fail")}
     assert undecided & decided == set()
     # the posture is computed over the decided controls alone
-    assert scan["posture"] == 38 and len(decided) == 7
+    assert scan["posture"] == 36 and len(decided) == 8
 
 
 # ── 14-15. the rest of the product is unaffected ─────────────────────────────
@@ -289,8 +293,8 @@ def test_control_outcomes_agree_with_the_posture(seeded_adaptive_db):
     results = evaluate_controls(config)
     outcomes = control_outcomes([results])
     posture = calculate_posture([results])
-    assert posture.coverage == 32
-    assert sum(1 for o in outcomes.values() if o == "undecided") == 16
+    assert posture.coverage == 34
+    assert sum(1 for o in outcomes.values() if o == "undecided") == 15
     assert set(posture.critical_unassessed) <= {c for (_, c), o in outcomes.items() if o == "undecided"}
 
 

@@ -90,6 +90,11 @@ MGMT_EXPOSURE_RELATED = frozenset({
 LOCKOUT_RELATED = frozenset({
     "lockout", "lockout-threshold", "admin-lockout-threshold", "retry-options", "tries-before-disconnect",
     "max-auth-attempts", "max-fail", "attempts", "block-for", "failed-attempts",
+    # Check Point Gaia ``set password-controls deny-on-fail failures-allowed 3``, Huawei
+    # ``ssh server authentication-retries 3``
+    "deny-on-fail", "failures-allowed", "authentication-retries",
+    # EXOS ``configure cli max-failed-logins 3``
+    "max-failed-logins",
     # Dell OS10: `password-attributes max-retry 3 lockout-period 15`
     "max-retry",
 })
@@ -104,7 +109,9 @@ MGMT_SERVICES = frozenset({"ssh", "https", "http", "telnet", "snmp", "all"})
 READ_WRITE = frozenset({"rw", "read-write", "write"})
 READ_ONLY = frozenset({"ro", "read-only", "read"})
 
-SOURCE_ROUTING = frozenset({"source-route", "source-routing", "ip-src-routing", "src-routing", "source-routed"})
+SOURCE_ROUTING = frozenset({"source-route", "source-routing", "ip-src-routing", "src-routing", "source-routed",
+                            # RouterOS ``/ip settings set accept-source-route=no``, EXOS ``ip-option loose-source-route``
+                            "accept-source-route", "loose-source-route", "strict-source-route"})
 DISCOVERY = frozenset({"cdp", "lldp"})
 BANNER_TYPES = frozenset({"login", "motd", "pre-login", "prelogin"})
 
@@ -117,6 +124,9 @@ SOURCE_RELATED = SOURCE_RESTRICTION | RESTRICTED | frozenset({
     "allow", "allow-address", "source-address", "src-address", "trusthost1", "access-group",
     # EXOS binds a service to an ACL: ``configure ssh2 access-profile MGMT-SSH``
     "access-profile",
+    # an ACL bound to the management lines: Huawei ``acl 2000 inbound`` under ``user-interface vty 0 4``, OS10
+    # ``ip access-class`` under ``line vty``, AOS-CX ``apply access-list ip MGMT control-plane``
+    "acl", "access-list", "access-class",
     # a cloud rule names its source prefix: AWS ``CidrIp``, Azure ``sourceAddressPrefix``, GCP ``sourceRanges``
     "cidrip", "cidripv6", "sourceaddressprefix", "sourceranges",
     # the same keys in Terraform: ``cidr_blocks``, ``cidr_ipv4``, ``source_address_prefix``, ``source_ranges``
@@ -125,11 +135,15 @@ SOURCE_RELATED = SOURCE_RESTRICTION | RESTRICTED | frozenset({
 IDLE_RELATED = IDLE | TIMEOUT_KEYWORDS | frozenset({
     "timeout", "lock", "autolock", "logout", "autologout", "inactive",
 })
-SSH_VERSION_RELATED = VERSION | frozenset({"protocol", "proto", "ver"})
+SSH_VERSION_RELATED = VERSION | frozenset({"protocol", "proto", "ver", "v1", "v2"})
 LOG_RELATED = REMOTE_LOG | frozenset({"logs", "audit", "event", "events", "siem"})
 TIME_RELATED = TIME_SYNC | frozenset({"time", "clock", "time-source", "timesource", "timeserver"})
-AUTH_RELATED = AUTHENTICATED | frozenset({"signed", "trusted", "auth-key", "authentication-key"})
-AAA_RELATED = AAA_SERVERS | CENTRAL | frozenset({"ldap", "remote-auth", "tacacs-plus"})
+AUTH_RELATED = AUTHENTICATED | frozenset({"signed", "trusted", "auth-key", "authentication-key",
+                                         # Network Time Security (VyOS 1.4 ``set service ntp server … nts``)
+                                         "nts"})
+AAA_RELATED = AAA_SERVERS | CENTRAL | frozenset({"ldap", "remote-auth", "tacacs-plus",
+                                                 # Huawei ``authentication-mode hwtacacs local``
+                                                 "hwtacacs", "hwtacacs-server"})
 BANNER_RELATED = frozenset({"banner", "motd", "pre-login", "prelogin", "login-message", "legal-notice",
                             # Junos ``login { message "…"; }``, Huawei ``header login information "…"``
                             "message", "header"})
@@ -167,4 +181,6 @@ CRYPTO_SETTING_RELATED = ALGORITHM_WORDS | frozenset({"strong-crypto", "ssh-cbc-
 # How a traffic rule says it logs
 RULE_LOG_WORDS = frozenset({"log", "log-end", "log-start", "logtraffic", "log-setting"})
 # Router interface services BOUNDARY-004 wants off
-ROUTER_SERVICE_WORDS = frozenset({"redirects", "proxy-arp", "directed-broadcast"})
+ROUTER_SERVICE_WORDS = frozenset({"redirects", "proxy-arp", "directed-broadcast",
+                                  # Huawei ``undo icmp redirect send``, RouterOS ``set send-redirects=no``
+                                  "redirect", "send-redirects"})

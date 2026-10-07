@@ -397,7 +397,26 @@ states it as 'set deviceconfig system syslog-server …'"). Every other absence 
 `NOT_CONFIGURED`.
 
 A second, narrower source is `backend/data/factory_defaults.json`: a reviewed vendor factory default with its source,
-today only PAN-OS password length (Minimum Password Complexity off by default).
+per dialect label. An entry is either *unset by default* (PAN-OS password length, Check Point lockout: the setting
+becomes `NOT_SET` exactly as above) or *a value by default* (`{"value": 2, "reason": "…"}`, e.g. NX-OS SSH version 2,
+ASA CBC ciphers accepted): a fact with assurance `default`, applied under the same three conditions. A line already
+read by a seed as another setting does not silence it (ASA `telnet timeout 5` is a session timeout, not Telnet
+access); any other line that names the setting does. The list and sources are in
+[seed-knowledge.md](seed-knowledge.md#limitations).
+
+```mermaid
+flowchart TD
+    S["A setting the file does not state"] --> U{"dialect understood?<br/>(≥ 3 settings read by one label)"}
+    U -->|no| NC["NOT_CONFIGURED / UNKNOWN"]
+    U -->|yes| M{"a fact about it, or a line that names it<br/>(not already read as another setting)?"}
+    M -->|yes| NC
+    M -->|no| A{"no device ships it (AAA, syslog,<br/>banner, NTP) and the dialect<br/>knows how it writes it?"}
+    A -->|yes| NS["NOT_SET, confirmed<br/>'states it as …'"]
+    A -->|no| F{"factory_defaults.json"}
+    F -->|"unset by default"| NS
+    F -->|"value by default"| DV["the value, assurance default,<br/>reason quotes the source"]
+    F -->|"no entry"| NC2["NOT_CONFIGURED / UNKNOWN"]
+```
 
 ---
 
@@ -612,7 +631,7 @@ completes.
 
 ## 10. Human in the loop: recognizers
 
-A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships **274** reviewed recognizers for
+A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships **380** reviewed recognizers for
 **16 dialects** with no dedicated parser (Juniper Junos, Palo Alto PAN-OS, Arista EOS, Huawei VRP, MikroTik RouterOS,
 HPE Aruba AOS-CX, Check Point Gaia, Extreme EXOS, Cisco NX-OS, ASA, IOS-XR, SONiC `config_db.json`, NVIDIA Cumulus
 NVUE, Dell OS10, VyOS, Fortinet FortiSwitchOS) plus AWS security group, Azure NSG and GCP firewall exports and Terraform for AWS, Azure and GCP. One

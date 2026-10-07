@@ -248,11 +248,13 @@ def test_unrelated_lines_never_trigger_a_seed_recognizer(seeded_adaptive_db, con
     ("line vty\n  exec-timeout 10\n", "mgmt.session.idle_timeout", 10.0),
     ("ip access-list ANY-IN\n  permit ip any any\n", "boundary.policy.permit_any", True),
     ("access-list OUTSIDE_IN extended permit ip any any\n", "boundary.policy.permit_any", True),
-    # PAN-OS from Batfish's test configs: LLDP per interface, TACACS+ / RADIUS server profiles
-    ("set network interface ethernet ethernet1/1 layer3 lldp enable no\n",
+    # PAN-OS from Batfish's test configs: LLDP per interface (decided on an interface an external zone holds,
+    # read and undecided on any other), TACACS+ / RADIUS server profiles
+    ("set zone untrust network layer3 ethernet1/1\nset network interface ethernet ethernet1/1 layer3 lldp enable no\n",
      "boundary.discovery_protocol.enabled", False),
-    ("set network interface ethernet ethernet1/3 layer3 lldp enable yes\n",
+    ("set zone untrust network layer3 ethernet1/3\nset network interface ethernet ethernet1/3 layer3 lldp enable yes\n",
      "boundary.discovery_protocol.enabled", True),
+    ("set network interface ethernet ethernet1/1 layer3 lldp enable no\n", "boundary.discovery_protocol.enabled", "None"),
     ("set shared server-profile tacplus TAC-MGMT server TAC1 address 192.0.2.30\n", "auth.central_aaa.enabled", True),
     ("set shared server-profile radius RAD-MGMT server RAD1 ip-address 192.0.2.31\n", "auth.central_aaa.enabled", True),
     ("set shared log-settings syslog SL1 server S1 server 192.0.2.20\n", "log.remote.destination", ["192.0.2.20"]),
@@ -312,7 +314,8 @@ def test_unrelated_lines_never_trigger_a_seed_recognizer(seeded_adaptive_db, con
     ("set network lldp enable yes\n", "boundary.discovery_protocol.enabled", None),
     ("logging host inside\n", "log.remote.destination", None),                  # an interface is not a host
     ("ntp server 192.0.2.10 key 1\n", "time.ntp.authenticated", None),          # a key alone is not authentication
-    ("line vty\n exec-timeout 5 0\n", "mgmt.session.idle_timeout", None),       # IOS minutes + seconds: its parser's
+    ("line vty\n exec-timeout 5 0\n", "mgmt.session.idle_timeout", 5.0),        # minutes, then 0 seconds (IOS-XR)
+    ("line vty\n exec-timeout 0 30\n", "mgmt.session.idle_timeout", None),      # 30 seconds is not "0 minutes"
     ("router bgp 65000\n  neighbor PG idle-restart-timer 99\n", "mgmt.session.idle_timeout", None),
     ("ip access-list A\n  permit ip 192.0.2.0/24 any\n", "boundary.policy.permit_any", None),
     ("access-list OUTSIDE_IN extended permit ip any host 192.0.2.1\n", "boundary.policy.permit_any", None),
@@ -332,7 +335,8 @@ def test_unrelated_lines_never_trigger_a_seed_recognizer(seeded_adaptive_db, con
 ])
 def test_the_taught_dialect_lines_are_read_and_only_where_they_apply(seeded_adaptive_db, config, predicate, expected):
     values = [f.value for f in _facts(config) if f.predicate == predicate]
-    assert values == ([expected] if expected is not None else [])
+    # "None": the line is read, and its value stays undetermined
+    assert values == ([None] if expected == "None" else [expected] if expected is not None else [])
 
 
 def test_a_heuristic_that_only_repeats_a_recognizer_does_not_make_the_verdict_provisional(seeded_adaptive_db):
@@ -377,8 +381,10 @@ def test_no_shipped_recognizer_holds_or_matches_a_secret(seeded_adaptive_db):
 
     # a password-storage template puts a slot where the secret stands; it never holds a value
     for entry in read_seed_file():
-        for text in (entry["command_pattern"], entry.get("scope_template"), entry.get("example_line")):
-            assert text is None or not _holds_secret(text), entry
+        # a scope chain (``config system snmp community > edit {any}``) is a list of headers, checked one by one
+        scopes = (entry.get("scope_template") or "").split(" > ")
+        for text in (entry["command_pattern"], *scopes, entry.get("example_line")):
+            assert not text or not _holds_secret(text), entry
 
     secrets = (
         "system {\n"
@@ -447,6 +453,9 @@ def test_unknown_vendor_results_only_improve_where_the_seed_covers_the_syntax(se
 # ── 10–11: the demo -a fresh deployment, then teaching ─────────────────────
 
 SEEDED_CONTROLS = {"MGMT-001", "MGMT-002", "MGMT-006", "MGMT-009", "LOG-001", "LOG-002"}
+# decided from absence: the seeds know how Huawei writes an AAA scheme (``authentication-mode hwtacacs``) and the
+# file states none, so no line is cited
+ABSENT_CONTROLS = {"MGMT-008"}
 NEW_CONCEPTS = {"MGMT-007": "SSH version", "MGMT-003": "management source restriction"}
 
 
@@ -471,8 +480,11 @@ def test_a_fresh_deployment_reads_an_unfamiliar_dialect_before_anything_is_taugh
     assert scan["vendor_identification"][0]["status"] != "confirmed"
 
     decisive = {r["control_id"] for r in scan["results"] if r["assurance"] == "confirmed"}
-    assert decisive == SEEDED_CONTROLS
+    assert decisive == SEEDED_CONTROLS | ABSENT_CONTROLS
     assert scan["coverage"] > 0
+    for control_id in ABSENT_CONTROLS:
+        assert _result(scan, control_id)["status"] == "fail"
+        assert "No line states it" in _result(scan, control_id)["reason"]
 
     lines = _text(DIALECTS / "huawei.conf").splitlines()
     for control_id in SEEDED_CONTROLS:
@@ -510,7 +522,7 @@ def test_teaching_adds_to_the_seed_knowledge_instead_of_replacing_it(seeded_adap
     # a rescan answers the taught concept and the shipped ones together
     rescan = _scan(client, DIALECTS / "huawei.conf")
     decisive = {r["control_id"] for r in rescan["results"] if r["assurance"] == "confirmed"}
-    assert decisive == SEEDED_CONTROLS | {"MGMT-007"}
+    assert decisive == SEEDED_CONTROLS | ABSENT_CONTROLS | {"MGMT-007"}
 
 
 # ── 12: structured (JSON) configurations ────────────────────────────────────

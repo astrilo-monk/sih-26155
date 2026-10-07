@@ -293,6 +293,9 @@ def source_routing(fact, facts, vendor):
 
 def discovery_protocol(fact, facts, vendor):
     name = (fact.subject or "discovery protocol").upper()
+    if fact.value is None and fact.scope:
+        return _unknown(fact, f"{name} is set on {fact.scope} only, and whether that interface faces outside "
+                              "could not be determined")
     if fact.value is False:
         return _pass(f"{name} is disabled {'globally' if fact.scope == 'global' else 'on external interfaces'}")
     if fact.value is not True or fact.scope in (None, "global"):
@@ -385,6 +388,9 @@ def ipsec_proposal(fact, facts, vendor):
         problems.append(f"weak hash '{hash_algorithm}'")
     if group in WEAK_DH_GROUPS:
         problems.append(f"weak DH group {group} ({WEAK_DH_GROUPS[group]}-bit)")
+    if not problems and isinstance(fact.value, dict) and "encryption" not in fact.value:
+        # one line of a proposal stated on several (``dh-group group14``): nothing to say until a weak one
+        return None
     if problems:
         return _fail(
             Severity.HIGH,
@@ -443,6 +449,9 @@ def router_services(fact, facts, vendor):
     if fact.value is NOT_SET:
         return None
     what = _ROUTER_SERVICES.get(fact.subject, "ICMP redirects, proxy-ARP and directed broadcasts")
+    if fact.value is None and (fact.scope or "").startswith("interface "):
+        return _unknown(fact, f"{what[0].upper()}{what[1:]} are disabled on {fact.scope} only; the other routed "
+                              "interfaces keep the platform default, which the configuration does not show")
     if fact.value is None:
         return _unknown(fact, f"Whether {what} are enabled{_on(fact)} could not be determined")
     if not fact.value:

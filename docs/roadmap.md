@@ -31,9 +31,12 @@ timeline
 - [x] Security facts with assurance; every check runs on every configuration
 - [x] Generic tokenizer and lexicon heuristics for unknown vendors (provisional, no AI needed)
 - [x] Administrator-confirmed recognizers persisted (SQLite, or Postgres via `DATABASE_URL`)
-- [x] Shipped seed knowledge: 274 recognizers for 16 dialects, AWS / Azure / GCP exports and Terraform
+- [x] Shipped seed knowledge: 380 recognizers for 16 dialects, AWS / Azure / GCP exports and Terraform
 - [x] Seed expansion: lockout and password length for ASA, PAN-OS, NX-OS, Arista, Gaia; SSH and timeouts for ASA;
       new families Dell OS10, VyOS, FortiSwitchOS; ASA `http server enable` no longer a decided HTTP failure
+- [x] Seed coverage pass: 106 more recognizers (380), documented value defaults, `{top}` and chained scopes, IPsec
+      proposals read one algorithm per line; seven of fourteen commercial dialects decide 18 or more of 23 checks when
+      the configuration states them ([measured](seed-knowledge.md#coverage-per-dialect-measured))
 - [x] JSON and Terraform flattened to one statement per object
 - [x] Serial / model / OS version reported only when the text states them
 - [x] Redacted scan archive survives a restart (read-only)
@@ -81,6 +84,8 @@ timeline
       settings need a second object (a PAN-OS syslog profile does nothing until a log-forwarding profile uses it).
       Prerequisite: seeds tagged by source, writing only from syntax seen in real exports.
 - [ ] AI escalation for UNKNOWN checks of confirmed vendors (or drop the legacy interpreter)
+- [ ] A list slot (`set allowaccess ping https ssh`, `cipher aes256-ctr aes128-ctr`) and multi-line joins (a firewall
+      rule's fields, a password policy and the users it applies to): the walls that keep seven dialects under 75 %
 - [ ] Nokia SR OS seeds (Batfish's SR OS configs hold no management settings; needs real or lab exports)
 - [ ] Pin DISA SRG ids to a downloaded NDM SRG revision; verified CIS Controls v8 and PCI DSS mappings
 - [ ] Remove the deprecated `score` once no script depends on it

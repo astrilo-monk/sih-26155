@@ -5,17 +5,16 @@ Shipped knowledge only, no AI. A miss means the engine called an insecure settin
 
 ## Planted vulnerabilities (labelled with the demo files, before any scan)
 
-**18/20** insecure settings detected as a decided FAIL (2 more flagged as suspected, 0 left undecided, **0 missed**) · **0 false alarms** on 4 secure settings (4 confirmed secure, 0 undecided)
+**19/20** insecure settings detected as a decided FAIL (1 more flagged as suspected, 0 left undecided, **0 missed**) · **0 false alarms** on 4 secure settings (4 confirmed secure, 0 undecided)
 
 | File | Vendor path | Detected | Suspected | Undecided | Missed | False alarms | Time |
 |---|---|---|---|---|---|---|---|
 | `backend/tests/fixtures/demo/cisco_edge_vulnerable.cfg` | cisco_ios | 10/10 | 0 | 0 | 0 | 0 | 1049 ms |
-| `backend/tests/fixtures/demo/paloalto_fw_vulnerable.cfg` | unknown | 8/10 | 2 | 0 | 0 | 0 | 3339 ms |
+| `backend/tests/fixtures/demo/paloalto_fw_vulnerable.cfg` | unknown | 9/10 | 1 | 0 | 0 | 0 | 3339 ms |
 
 Not detected as a decided FAIL:
 
 - `paloalto_fw_vulnerable.cfg` BOUNDARY-001: provisional
-- `paloalto_fw_vulnerable.cfg` CRYPTO-001: provisional
 
 ## Labelled fixtures: 8 vendors, SONiC, Cumulus, Terraform for AWS, Azure, GCP, and Azure NSG / GCP firewall exports (labels written by reading each file)
 

@@ -205,4 +205,4 @@ def test_the_shipped_seeds_all_load(seeded_adaptive_db):
     from app.db.mappings import MappingRepository
     from app.facts.seed import read_seed_file
 
-    assert len(MappingRepository().list_mappings()) == len(read_seed_file()) == 274
+    assert len(MappingRepository().list_mappings()) == len(read_seed_file()) == 380

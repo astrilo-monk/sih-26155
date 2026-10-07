@@ -24,6 +24,9 @@ from app.models.results import Assurance, Evidence
 from app.structure.tokenizer import IP, Statement, tokenize
 
 LIST_PREDICATES = frozenset({LOG_REMOTE_DESTINATION, NTP_SERVER})
+# True when any statement says so: each line adds one more algorithm (``set service ssh ciphers …``), and one
+# banner shown is a banner shown (``banner motd disable`` beside ``banner login ^C``)
+ANY_PREDICATES = frozenset({MGMT_WEAK_CRYPTO, LOGIN_BANNER})
 # Facts read across several statements joined by the names they share, never from one line
 _JOINS = frozenset({MGMT_EXPOSED})
 _ENCRYPTION = re.compile(r"^(esp-)?(aes|3des|des)(\d|-|$)")
@@ -599,6 +602,9 @@ def combine(candidates: list[_Candidate], raw_lines: list[str],
         unit, provenance = group[0].unit, ""
         if predicate in LIST_PREDICATES:
             value = list(dict.fromkeys(v for c in group for v in c.value))
+        elif predicate in ANY_PREDICATES and all(isinstance(c.value, bool) for c in group):
+            # every cipher / MAC line is one more algorithm the server accepts: one weak one is enough
+            value = any(c.value for c in group)
         elif len({(repr(c.value), c.unit) for c in group}) == 1:
             value = group[0].value
         else:

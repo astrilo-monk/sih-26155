@@ -169,6 +169,10 @@ def _banner_delimiter(stripped: str) -> Optional[str]:
     if len(parts) < 3 or parts[2].lower() in POSITIVE | NEGATIVE or parts[2][0] in "\"'":
         return None
     body = parts[2]
+    if body[0].isalnum():
+        # ``banner login Authorized access only`` (ASA): one banner line per statement, no delimiter. Taking
+        # the "A" as a delimiter would swallow every line up to the next capital A.
+        return None
     delimiter = body[:2] if body.startswith("^") else body[0]
     return None if delimiter in body[len(delimiter):] else delimiter
 

@@ -1,0 +1,832 @@
+[
+ {
+  "lines": "set system no-redirects",
+  "predicate": "boundary.interface.unsafe_service",
+  "subject": "redirects",
+  "expect": false
+ },
+ {
+  "lines": "system {\n    no-redirects;\n}",
+  "predicate": "boundary.interface.unsafe_service",
+  "subject": "redirects",
+  "expect": false
+ },
+ {
+  "lines": "set interfaces ge-0/0/0 unit 0 family inet no-redirects",
+  "predicate": "boundary.interface.unsafe_service",
+  "subject": "redirects",
+  "expect": "None"
+ },
+ {
+  "lines": "set interfaces ge-0/0/0 unit 0 family inet address 192.0.2.1/24",
+  "predicate": "boundary.interface.unsafe_service",
+  "subject": "redirects",
+  "expect": null
+ },
+ {
+  "lines": "set system ntp trusted-key 1",
+  "predicate": "time.ntp.authenticated",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "set system ntp authentication-key 1 type sha256 value \"$9$abc\"",
+  "predicate": "time.ntp.authenticated",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "set system services ssh ciphers aes256-ctr",
+  "predicate": "mgmt.crypto.weak_allowed",
+  "subject": null,
+  "expect": false
+ },
+ {
+  "lines": "set system services ssh ciphers aes256-ctr\nset system services ssh ciphers aes128-cbc",
+  "predicate": "mgmt.crypto.weak_allowed",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "set system services ssh macs hmac-md5",
+  "predicate": "mgmt.crypto.weak_allowed",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "set system services ssh key-exchange dh-group1-sha1",
+  "predicate": "mgmt.crypto.weak_allowed",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "set system services ssh ciphers [ aes256-ctr aes128-cbc ]",
+  "predicate": "mgmt.crypto.weak_allowed",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "set security ike proposal P1 encryption-algorithm 3des-cbc",
+  "predicate": "crypto.ipsec.proposal",
+  "subject": null,
+  "expect": {
+   "encryption": "3des-cbc"
+  }
+ },
+ {
+  "lines": "set security ike proposal P1 dh-group group2",
+  "predicate": "crypto.ipsec.proposal",
+  "subject": null,
+  "expect": {
+   "dh_group": 2
+  }
+ },
+ {
+  "lines": "set security ipsec proposal P2 authentication-algorithm hmac-md5-96",
+  "predicate": "crypto.ipsec.proposal",
+  "subject": null,
+  "expect": {
+   "hash": "hmac-md5-96"
+  }
+ },
+ {
+  "lines": "set security ike policy P1 proposals P1",
+  "predicate": "crypto.ipsec.proposal",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "set network profiles zone-protection-profile ZP discard-strict-source-routing yes",
+  "predicate": "boundary.source_routing.enabled",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "set network profiles zone-protection-profile ZP discard-loose-source-routing no",
+  "predicate": "boundary.source_routing.enabled",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "set deviceconfig system ssh profiles mgmt-profiles server-profiles H ciphers aes128-cbc",
+  "predicate": "mgmt.crypto.weak_allowed",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "set network ike crypto-profiles ike-crypto-profiles default encryption [ aes-128-cbc 3des ]",
+  "predicate": "crypto.ipsec.proposal",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "set network ike crypto-profiles ike-crypto-profiles P encryption 3des",
+  "predicate": "crypto.ipsec.proposal",
+  "subject": null,
+  "expect": {
+   "encryption": "3des"
+  }
+ },
+ {
+  "lines": "set network ike crypto-profiles ike-crypto-profiles P dh-group group2",
+  "predicate": "crypto.ipsec.proposal",
+  "subject": null,
+  "expect": {
+   "dh_group": 2
+  }
+ },
+ {
+  "lines": "set network ike crypto-profiles ipsec-crypto-profiles P esp authentication md5",
+  "predicate": "crypto.ipsec.proposal",
+  "subject": null,
+  "expect": {
+   "hash": "md5"
+  }
+ },
+ {
+  "lines": "interface Ethernet1\n   no lldp transmit",
+  "predicate": "boundary.discovery_protocol.enabled",
+  "subject": "lldp",
+  "expect": "None"
+ },
+ {
+  "lines": "no lldp transmit",
+  "predicate": "boundary.discovery_protocol.enabled",
+  "subject": "lldp",
+  "expect": null
+ },
+ {
+  "lines": "banner motd #Authorized access only#",
+  "predicate": "banner.login.present",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "banner motd #\nAuthorized access only.\n#",
+  "predicate": "banner.login.present",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "username admin password 5 $5$KdPq role network-admin",
+  "predicate": "auth.account.name",
+  "subject": null,
+  "expect": "admin"
+ },
+ {
+  "lines": "username netops password 5 $5$KdPq role network-admin",
+  "predicate": "auth.account.name",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "ssh cipher-mode weak",
+  "predicate": "mgmt.crypto.weak_allowed",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "no ssh cipher-mode weak",
+  "predicate": "mgmt.crypto.weak_allowed",
+  "subject": null,
+  "expect": false
+ },
+ {
+  "lines": "nxapi http port 80",
+  "predicate": "mgmt.remote_access.protocol_enabled",
+  "subject": "http",
+  "expect": true
+ },
+ {
+  "lines": "nxapi https port 443",
+  "predicate": "mgmt.remote_access.protocol_enabled",
+  "subject": "http",
+  "expect": null
+ },
+ {
+  "lines": "user-interface vty 0 4\n acl 2000 inbound",
+  "predicate": "mgmt.remote_access.source_restricted",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "user-interface vty 0 4\n acl ACL_VTY inbound",
+  "predicate": "mgmt.remote_access.source_restricted",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "user-interface vty 0 4\n undo acl inbound",
+  "predicate": "mgmt.remote_access.source_restricted",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "snmp-agent acl 2000",
+  "predicate": "mgmt.remote_access.source_restricted",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "aaa\n authentication-scheme default\n  authentication-mode hwtacacs local",
+  "predicate": "auth.central_aaa.enabled",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "aaa\n authentication-scheme default\n  authentication-mode local",
+  "predicate": "auth.central_aaa.enabled",
+  "subject": null,
+  "expect": false
+ },
+ {
+  "lines": "user-interface vty 0 4\n authentication-mode aaa",
+  "predicate": "auth.central_aaa.enabled",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "ssh server authentication-retries 3",
+  "predicate": "auth.login.max_attempts",
+  "subject": null,
+  "expect": 3
+ },
+ {
+  "lines": "undo icmp redirect send",
+  "predicate": "boundary.interface.unsafe_service",
+  "subject": "redirects",
+  "expect": false
+ },
+ {
+  "lines": "icmp redirect send",
+  "predicate": "boundary.interface.unsafe_service",
+  "subject": "redirects",
+  "expect": true
+ },
+ {
+  "lines": "ike proposal 1\n encryption-algorithm aes-256",
+  "predicate": "crypto.ipsec.proposal",
+  "subject": null,
+  "expect": {
+   "encryption": "aes-256"
+  }
+ },
+ {
+  "lines": "ipsec proposal p1\n esp authentication-algorithm md5",
+  "predicate": "crypto.ipsec.proposal",
+  "subject": null,
+  "expect": {
+   "hash": "md5"
+  }
+ },
+ {
+  "lines": "encryption-algorithm aes-256",
+  "predicate": "crypto.ipsec.proposal",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "set user admin password-hash $6$abc$def",
+  "predicate": "auth.password.storage",
+  "subject": null,
+  "expect": "hashed"
+ },
+ {
+  "lines": "set user admin password-hash $6$abc$def",
+  "predicate": "auth.account.name",
+  "subject": null,
+  "expect": "admin"
+ },
+ {
+  "lines": "set user netops password-hash $6$abc$def",
+  "predicate": "auth.account.name",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "set aaa tacacs-servers state on",
+  "predicate": "auth.central_aaa.enabled",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "set aaa tacacs-servers state off user-uid 0",
+  "predicate": "auth.central_aaa.enabled",
+  "subject": null,
+  "expect": false
+ },
+ {
+  "lines": "set password-controls deny-on-fail failures-allowed 3",
+  "predicate": "auth.login.max_attempts",
+  "subject": null,
+  "expect": 3
+ },
+ {
+  "lines": "set password-controls deny-on-fail enable off",
+  "predicate": "auth.login.max_attempts",
+  "subject": null,
+  "expect": 0
+ },
+ {
+  "lines": "set password-controls deny-on-fail enable on",
+  "predicate": "auth.login.max_attempts",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "set ssh server cipher aes128-cbc on",
+  "predicate": "mgmt.crypto.weak_allowed",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "set ssh server cipher aes128-cbc off",
+  "predicate": "mgmt.crypto.weak_allowed",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "set ssh server cipher aes256-ctr on",
+  "predicate": "mgmt.crypto.weak_allowed",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "set ssh server kex diffie-hellman-group1-sha1 on",
+  "predicate": "mgmt.crypto.weak_allowed",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "configure cli max-failed-logins 3",
+  "predicate": "auth.login.max_attempts",
+  "subject": null,
+  "expect": 3
+ },
+ {
+  "lines": "configure account all password-policy lockout-on-login-failures on",
+  "predicate": "auth.login.max_attempts",
+  "subject": null,
+  "expect": 3
+ },
+ {
+  "lines": "configure account admin password-policy lockout-on-login-failures off",
+  "predicate": "auth.login.max_attempts",
+  "subject": null,
+  "expect": 0
+ },
+ {
+  "lines": "configure account all password-policy min-length 12",
+  "predicate": "auth.password.min_length",
+  "subject": null,
+  "expect": 12
+ },
+ {
+  "lines": "enable tacacs",
+  "predicate": "auth.central_aaa.enabled",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "disable tacacs",
+  "predicate": "auth.central_aaa.enabled",
+  "subject": null,
+  "expect": false
+ },
+ {
+  "lines": "enable tacacs-authorization",
+  "predicate": "auth.central_aaa.enabled",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "enable radius mgmt-access",
+  "predicate": "auth.central_aaa.enabled",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "enable ip-option loose-source-route",
+  "predicate": "boundary.source_routing.enabled",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "disable ip-option loose-source-route",
+  "predicate": "boundary.source_routing.enabled",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "disable icmp redirects vlan all",
+  "predicate": "boundary.interface.unsafe_service",
+  "subject": "redirects",
+  "expect": false
+ },
+ {
+  "lines": "disable icmp redirects vlan Default",
+  "predicate": "boundary.interface.unsafe_service",
+  "subject": "redirects",
+  "expect": null
+ },
+ {
+  "lines": "enable ntp authentication",
+  "predicate": "time.ntp.authenticated",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "configure ntp server add 192.0.2.10 key 1",
+  "predicate": "time.ntp.server",
+  "subject": null,
+  "expect": [
+   "192.0.2.10"
+  ]
+ },
+ {
+  "lines": "session-timeout 5",
+  "predicate": "mgmt.session.idle_timeout",
+  "subject": null,
+  "expect": 5.0
+ },
+ {
+  "lines": "https-server session-timeout 10",
+  "predicate": "mgmt.session.idle_timeout",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "no ip icmp redirect",
+  "predicate": "boundary.interface.unsafe_service",
+  "subject": "redirects",
+  "expect": false
+ },
+ {
+  "lines": "ip icmp redirect",
+  "predicate": "boundary.interface.unsafe_service",
+  "subject": "redirects",
+  "expect": true
+ },
+ {
+  "lines": "apply access-list ip MGMT-ONLY control-plane vrf mgmt",
+  "predicate": "mgmt.remote_access.source_restricted",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "interface 1/1/1\n    apply access-list ip WAN-IN in",
+  "predicate": "mgmt.remote_access.source_restricted",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "/ip settings\nset accept-source-route=yes",
+  "predicate": "boundary.source_routing.enabled",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "/ip settings\nset accept-source-route=no rp-filter=strict",
+  "predicate": "boundary.source_routing.enabled",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "/ip settings\nset send-redirects=no",
+  "predicate": "boundary.interface.unsafe_service",
+  "subject": "redirects",
+  "expect": false
+ },
+ {
+  "lines": "/user aaa\nset use-radius=yes",
+  "predicate": "auth.central_aaa.enabled",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "/user settings\nset minimum-password-length=12",
+  "predicate": "auth.password.min_length",
+  "subject": null,
+  "expect": 12
+ },
+ {
+  "lines": "/user\nadd name=admin group=full",
+  "predicate": "auth.account.name",
+  "subject": null,
+  "expect": "admin"
+ },
+ {
+  "lines": "/user\nset admin password=Secret123 group=full",
+  "predicate": "auth.account.name",
+  "subject": null,
+  "expect": "admin"
+ },
+ {
+  "lines": "/user\nadd name=netops group=full",
+  "predicate": "auth.account.name",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "username admin password Xh6vKjl3kq pbkdf2 privilege 15",
+  "predicate": "auth.password.storage",
+  "subject": null,
+  "expect": "hashed"
+ },
+ {
+  "lines": "username admin password Xh6vKjl3kq encrypted privilege 15",
+  "predicate": "auth.password.storage",
+  "subject": null,
+  "expect": "type5_md5"
+ },
+ {
+  "lines": "username admin password Xh6vKjl3kq pbkdf2 privilege 15",
+  "predicate": "auth.account.name",
+  "subject": null,
+  "expect": "admin"
+ },
+ {
+  "lines": "username netops password Xh6vKjl3kq pbkdf2 privilege 15",
+  "predicate": "auth.account.name",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "telnet timeout 5",
+  "predicate": "mgmt.session.idle_timeout",
+  "subject": null,
+  "expect": 5.0
+ },
+ {
+  "lines": "ssh cipher encryption medium",
+  "predicate": "mgmt.crypto.weak_allowed",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "ssh cipher encryption custom aes128-ctr:aes192-ctr:aes256-ctr",
+  "predicate": "mgmt.crypto.weak_allowed",
+  "subject": null,
+  "expect": false
+ },
+ {
+  "lines": "ssh cipher encryption custom aes256-cbc:aes256-ctr",
+  "predicate": "mgmt.crypto.weak_allowed",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "crypto ikev2 policy 10\n encryption 3des",
+  "predicate": "crypto.ipsec.proposal",
+  "subject": null,
+  "expect": {
+   "encryption": "3des"
+  }
+ },
+ {
+  "lines": "crypto ikev1 policy 10\n hash md5",
+  "predicate": "crypto.ipsec.proposal",
+  "subject": null,
+  "expect": {
+   "hash": "md5"
+  }
+ },
+ {
+  "lines": "crypto ikev2 policy 10\n group 2",
+  "predicate": "crypto.ipsec.proposal",
+  "subject": null,
+  "expect": {
+   "dh_group": 2
+  }
+ },
+ {
+  "lines": "logging buffered 6\n group 2",
+  "predicate": "crypto.ipsec.proposal",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "ssh server v2",
+  "predicate": "mgmt.ssh.version",
+  "subject": null,
+  "expect": 2
+ },
+ {
+  "lines": "ssh server vrf default",
+  "predicate": "mgmt.ssh.version",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "ssh server vrf default ipv4 access-list MGMT-SSH",
+  "predicate": "mgmt.remote_access.source_restricted",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "telnet vrf default ipv4 server max-servers 10",
+  "predicate": "mgmt.remote_access.protocol_enabled",
+  "subject": "telnet",
+  "expect": true
+ },
+ {
+  "lines": "username admin\n group root-lr\n secret 10 $6$abc$def",
+  "predicate": "auth.password.storage",
+  "subject": null,
+  "expect": "hashed"
+ },
+ {
+  "lines": "username admin\n password 7 0822455D0A16",
+  "predicate": "auth.password.storage",
+  "subject": null,
+  "expect": "type7"
+ },
+ {
+  "lines": "line default\n exec-timeout 10 0",
+  "predicate": "mgmt.session.idle_timeout",
+  "subject": null,
+  "expect": 10.0
+ },
+ {
+  "lines": "banner login ^CAuthorized access only^C",
+  "predicate": "banner.login.present",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "ntp\n authenticate\n server 192.0.2.10",
+  "predicate": "time.ntp.authenticated",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "authenticate",
+  "predicate": "time.ntp.authenticated",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "exec-timeout 300",
+  "predicate": "mgmt.session.idle_timeout",
+  "subject": null,
+  "expect": 5.0
+ },
+ {
+  "lines": "line vty\n  exec-timeout 15",
+  "predicate": "mgmt.session.idle_timeout",
+  "subject": null,
+  "expect": 15.0
+ },
+ {
+  "lines": "control-plane\n ip access-group MGMT_TRAFFIC_FROM_OOBM mgmt in",
+  "predicate": "mgmt.remote_access.source_restricted",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "interface ethernet1/1/4\n ip access-group FILTER in",
+  "predicate": "mgmt.remote_access.source_restricted",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "ip access-list FILTER\n seq 10 permit ip any any",
+  "predicate": "boundary.policy.permit_any",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "ip access-list FILTER\n seq 10 permit ip 192.0.2.0/24 any",
+  "predicate": "boundary.policy.permit_any",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "set firewall ip-src-route enable",
+  "predicate": "boundary.source_routing.enabled",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "set firewall send-redirects disable",
+  "predicate": "boundary.interface.unsafe_service",
+  "subject": "redirects",
+  "expect": false
+ },
+ {
+  "lines": "set service ssh mac hmac-md5",
+  "predicate": "mgmt.crypto.weak_allowed",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "set service ssh key-exchange diffie-hellman-group1-sha1",
+  "predicate": "mgmt.crypto.weak_allowed",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "set vpn ipsec esp-group office proposal 1 encryption '3des'",
+  "predicate": "crypto.ipsec.proposal",
+  "subject": null,
+  "expect": {
+   "encryption": "3des"
+  }
+ },
+ {
+  "lines": "set vpn ipsec ike-group office proposal 1 dh-group '2'",
+  "predicate": "crypto.ipsec.proposal",
+  "subject": null,
+  "expect": {
+   "dh_group": 2
+  }
+ },
+ {
+  "lines": "set vpn ipsec esp-group office proposal 1 hash 'md5'",
+  "predicate": "crypto.ipsec.proposal",
+  "subject": null,
+  "expect": {
+   "hash": "md5"
+  }
+ },
+ {
+  "lines": "ipv4 access-list WAN-IN\n 10 permit ipv4 any any",
+  "predicate": "boundary.policy.permit_any",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "ipv4 access-list WAN-IN\n 10 permit ipv4 any host 192.0.2.1",
+  "predicate": "boundary.policy.permit_any",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "config system global\n    set admin-ssh-v1 enable\nend",
+  "predicate": "mgmt.ssh.version",
+  "subject": null,
+  "expect": 1
+ },
+ {
+  "lines": "config system global\n    set pre-login-banner \"Authorized access only\"\nend",
+  "predicate": "banner.login.present",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "config system password-policy\n    set status enable\n    set minimum-length 12\nend",
+  "predicate": "auth.password.min_length",
+  "subject": null,
+  "expect": 12
+ },
+ {
+  "lines": "config log syslogd setting\n    set status enable\n    set server \"192.0.2.50\"\nend",
+  "predicate": "log.remote.destination",
+  "subject": null,
+  "expect": [
+   "192.0.2.50"
+  ]
+ },
+ {
+  "lines": "config log syslogd setting\n    set status disable\n    set server \"192.0.2.50\"\nend",
+  "predicate": "log.remote.destination",
+  "subject": null,
+  "expect": null
+ },
+ {
+  "lines": "config system snmp community\n    edit 1\n        set name \"public\"\n    next\nend",
+  "predicate": "snmp.community",
+  "subject": null,
+  "expect": {
+   "name": "public",
+   "permission": "RO",
+   "acl": null
+  }
+ },
+ {
+  "lines": "config system admin\n    edit \"admin\"\n        set password ENC SH2abcdef\n    next\nend",
+  "predicate": "auth.password.storage",
+  "subject": null,
+  "expect": "hashed"
+ },
+ {
+  "lines": "config system admin\n    edit \"radius-admin\"\n        set remote-auth enable\n    next\nend",
+  "predicate": "auth.central_aaa.enabled",
+  "subject": null,
+  "expect": true
+ },
+ {
+  "lines": "config system ntp\n    set ntpsync enable\n    set authentication enable\n    config ntpserver\n        edit 1\n            set server \"192.0.2.10\"\n        next\n    end\nend",
+  "predicate": "time.ntp.server",
+  "subject": null,
+  "expect": [
+   "192.0.2.10"
+  ]
+ },
+ {
+  "lines": "config switch vlan\n    edit 10\n        set name \"public\"\n    next\nend",
+  "predicate": "snmp.community",
+  "subject": null,
+  "expect": null
+ }
+]

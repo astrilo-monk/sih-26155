@@ -123,7 +123,7 @@ flowchart TD
     subgraph S2["2 . Read: configuration to SecurityFacts"]
         PAR["Dedicated parser + vendor defaults<br/><i>decisive</i>"]
         TOK["Generic tokenizer<br/>JSON and Terraform flattened first"]
-        REC["Recognizers from the store<br/>274 shipped + taught, <i>decisive</i>"]
+        REC["Recognizers from the store<br/>380 shipped + taught, <i>decisive</i>"]
         HEU["Lexicon heuristics<br/><i>provisional</i>"]
         TOK --> REC
         TOK --> HEU
@@ -243,7 +243,7 @@ The vendor is always decided by code. An AI vendor guess is shown as evidence on
 defaults or remediation. Device identity (hostname, OS version, FortiGate model and firmware) is reported only
 when the file states it; serial numbers and chassis details are never invented.
 
-The **274 shipped recognizers** live in [`backend/data/seed_recognizers.json`](backend/data/seed_recognizers.json),
+The **380 shipped recognizers** live in [`backend/data/seed_recognizers.json`](backend/data/seed_recognizers.json),
 load into an empty database on first start, and are marked `source=seed` so shipped knowledge can be audited
 separately from what a deployment was taught. See [docs/seed-knowledge.md](docs/seed-knowledge.md).
 
@@ -294,7 +294,7 @@ with `python backend/scripts/benchmark.py`; full table in [benchmark/RESULTS.md]
 
 | Set | Insecure settings caught (decided FAIL) | Missed | False alarms on secure settings |
 |---|---|---|---|
-| 20 vulnerabilities planted in the demo files (Cisco IOS, PAN-OS) | **18/20** (other 2 flagged as suspected) | **0** | **0** of 4 |
+| 20 vulnerabilities planted in the demo files (Cisco IOS, PAN-OS) | **19/20** (the other 1 flagged as suspected) | **0** | **0** of 4 |
 | 31 labelled fixtures: 8 vendors without a parser, SONiC, Cumulus, Terraform, Azure / GCP exports | **89/112** (23 left undecided) | **0** | **0** of 84 |
 | **Held-out:** 9 real configurations never seen during development (pybatfish example networks), labels committed before the first run | **21/21** (first run 20/21; the miss was a parser bug, since fixed) | **0** | **0** of 13 |
 
@@ -304,7 +304,7 @@ files are not committed (they are pybatfish's); `backend/scripts/benchmark.py` p
 them at the pinned commit, and the same test then holds them to zero misses and zero false alarms.
 
 **Reproducing from a clone:** 87 of the 112 fixture labels point at configurations in `teach/`, a corpus that
-`.gitignore` excludes, so a clean clone measures the fixtures set on the 25 labels whose files are committed (19/25
+`.gitignore` excludes, so a clean clone measures the fixtures set on the 25 labels whose files are committed (20/25
 decided, 0 missed, 0 false alarms). The planted set reproduces fully. See [testing.md](docs/testing.md#on-a-clean-clone).
 
 A separate live probe of 6 prompt-injection attacks against the AI judge succeeded 0 times

@@ -47,7 +47,7 @@ from app.adaptive.matcher import (
 from app.ai.redaction import Redactor, redact_line
 from app.db.database import _database_url, get_connection, resolve_db_path
 from app.controls.judges import STRONG_PASSWORD_STORAGE, WEAK_PASSWORD_STORAGE
-from app.facts.predicates import FIELD_PREDICATES, PASSWORD_STORAGE
+from app.facts.predicates import FIELD_PREDICATES, IPSEC_PROPOSAL, PASSWORD_STORAGE
 from app.facts.recognizers import RecognizerError, validate_recognizer
 
 
@@ -201,10 +201,19 @@ def _holds_secret(text: str, allowed: frozenset[str] = frozenset()) -> bool:
 
 
 def _refuse_secrets(mapping: LearnedMapping) -> None:
-    texts = [mapping.example_line, mapping.command_pattern, mapping.scope_template, *mapping.negatives]
+    # a scope chain (``config system snmp community > edit {any}``) is checked header by header: ``>`` is no value
+    scopes = (mapping.scope_template or "").split(" > ")
+    texts = [mapping.example_line, mapping.command_pattern, *scopes, *mapping.negatives]
     # a password storage table maps a keyword to how it stores (``{"phash": "hashed"}``): the storage
     # type reads like a password value to the redactor, and is not one
     storage = STRONG_PASSWORD_STORAGE | WEAK_PASSWORD_STORAGE if mapping.predicate == PASSWORD_STORAGE else set()
+    if mapping.predicate == IPSEC_PROPOSAL and mapping.constant_value:
+        # a proposal table names algorithms (``{"md5": {"hash": "md5"}}``): ``hash`` is a key word, its value is not one
+        try:
+            storage = {str(v) for part in json.loads(mapping.constant_value).values() if isinstance(part, dict)
+                       for v in part.values()}
+        except ValueError:
+            pass
     if (any(text and _holds_secret(text) for text in texts)
             or mapping.constant_value and _holds_secret(mapping.constant_value, frozenset(storage))):
         raise MappingValidationError(

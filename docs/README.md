@@ -49,7 +49,7 @@ flowchart TD
 | [detection-rules.md](detection-rules.md) | The 23 checks: how each is decided, what feeds it per vendor, how it is fixed, every framework requirement (generated from the catalog) |
 | [parser-design.md](parser-design.md) | Vendor detection, grammar coverage, the Cisco IOS and FortiGate parsers, the generic path |
 | [data-model.md](data-model.md) | Every object and table, with class and ER diagrams, and all 23 predicates |
-| [seed-knowledge.md](seed-knowledge.md) | The 274 shipped recognizers: slot types, gates, coverage matrix, how to add one |
+| [seed-knowledge.md](seed-knowledge.md) | The 380 shipped recognizers: slot types, gates, coverage matrix and per-dialect measured coverage, how to add one |
 | [api.md](api.md) | Every endpoint, request and response field, and status code |
 | [ai-design.md](ai-design.md) | AI judge, verifier, candidates, assistant, redaction, prompt injection, key rotation |
 | [security-model.md](security-model.md) | Trust boundaries, every guarantee with the code and test that enforce it, what is not protected |
@@ -79,7 +79,7 @@ flowchart TD
 * **Paths** are relative to the repository root unless they start with `app/`, which means `backend/app/`.
 * **Decided** means a verdict from decisive evidence (`parser`, `confirmed`, `default`). **Provisional** means
   `heuristic` or `ai_verified`. See the [glossary](glossary.md).
-* Numbers that come from the code (274 recognizers, 41 recipes, 78 requirements) were checked against it when these
+* Numbers that come from the code (380 recognizers, 41 recipes, 78 requirements) were checked against it when these
   docs were written; [detection-rules.md](detection-rules.md) and the seed coverage matrix are generated directly from
   the code.
 * Diagrams are Mermaid, rendered by GitHub.

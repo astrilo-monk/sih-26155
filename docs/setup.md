@@ -19,7 +19,7 @@ flowchart LR
 |---|---|---|
 | Backend (FastAPI) | 8000 | `uvicorn app.main:app` |
 | Frontend (Vite) | 5173 | `npm run dev` |
-| Knowledge store | file | created automatically at `backend/data/adaptive.db`, seeded with 274 recognizers |
+| Knowledge store | file | created automatically at `backend/data/adaptive.db`, seeded with 380 recognizers |
 
 ---
 

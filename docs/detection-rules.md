@@ -24,29 +24,29 @@ recipe availability are therefore exactly what the code ships.
 
 | ID | Severity | Kind | Check | Recipes | Shipped seeds |
 |---|---|---|---|---|---|
-| [MGMT-001](#mgmt-001) | Critical | prohibition | Insecure Management Protocol (Telnet) Enabled | Cisco IOS, FortiGate | 14 |
-| [MGMT-002](#mgmt-002) | High | prohibition | Insecure HTTP Management Enabled | Cisco IOS, FortiGate | 13 |
-| [MGMT-003](#mgmt-003) | Critical | relational | Unrestricted Management Access | Cisco IOS, FortiGate | 41 |
-| [MGMT-004](#mgmt-004) | Critical | prohibition | Weak or Default SNMP Community Strings | Cisco IOS, FortiGate | 21 |
-| [MGMT-005](#mgmt-005) | Critical | prohibition | Plaintext or Weakly Encrypted Passwords | Cisco IOS | 12 |
-| [MGMT-006](#mgmt-006) | Medium | threshold | Missing or Disabled Session Timeout | Cisco IOS, FortiGate | 13 |
-| [MGMT-007](#mgmt-007) | High | prohibition | SSH Version 1 or Weak SSH Configuration | Cisco IOS, FortiGate | 5 |
-| [MGMT-008](#mgmt-008) | High | requirement | AAA (Authentication, Authorization, Accounting) Not Configured | Cisco IOS | 19 |
-| [MGMT-009](#mgmt-009) | Low | requirement | Missing Login Banner | Cisco IOS, FortiGate | 11 |
+| [MGMT-001](#mgmt-001) | Critical | prohibition | Insecure Management Protocol (Telnet) Enabled | Cisco IOS, FortiGate | 15 |
+| [MGMT-002](#mgmt-002) | High | prohibition | Insecure HTTP Management Enabled | Cisco IOS, FortiGate | 14 |
+| [MGMT-003](#mgmt-003) | Critical | relational | Unrestricted Management Access | Cisco IOS, FortiGate | 46 |
+| [MGMT-004](#mgmt-004) | Critical | prohibition | Weak or Default SNMP Community Strings | Cisco IOS, FortiGate | 22 |
+| [MGMT-005](#mgmt-005) | Critical | prohibition | Plaintext or Weakly Encrypted Passwords | Cisco IOS | 17 |
+| [MGMT-006](#mgmt-006) | Medium | threshold | Missing or Disabled Session Timeout | Cisco IOS, FortiGate | 17 |
+| [MGMT-007](#mgmt-007) | High | prohibition | SSH Version 1 or Weak SSH Configuration | Cisco IOS, FortiGate | 7 |
+| [MGMT-008](#mgmt-008) | High | requirement | AAA (Authentication, Authorization, Accounting) Not Configured | Cisco IOS | 26 |
+| [MGMT-009](#mgmt-009) | Low | requirement | Missing Login Banner | Cisco IOS, FortiGate | 14 |
 | [MGMT-010](#mgmt-010) | Critical | prohibition | Management Reachable from an Untrusted Interface | FortiGate | 2 |
-| [MGMT-011](#mgmt-011) | High | prohibition | SNMPv1/v2c in Use | Cisco IOS, FortiGate | 21 |
-| [AUTH-001](#auth-001) | High | threshold | No Login Brute-Force Protection | Cisco IOS, FortiGate | 10 |
-| [AUTH-002](#auth-002) | Medium | threshold | Weak Password Policy | Cisco IOS, FortiGate | 7 |
-| [AUTH-003](#auth-003) | Medium | prohibition | Default Administrator Account in Use | Cisco IOS, FortiGate | 11 |
-| [BOUNDARY-001](#boundary-001) | Critical | relational | Overly Permissive Firewall/ACL Rules | Cisco IOS, FortiGate | 33 |
-| [BOUNDARY-002](#boundary-002) | Medium | prohibition | IP Source Routing Enabled | Cisco IOS, FortiGate | 3 |
-| [BOUNDARY-003](#boundary-003) | Medium | prohibition | Discovery Protocol (CDP/LLDP) Enabled on External Interface | Cisco IOS, FortiGate | 10 |
-| [BOUNDARY-004](#boundary-004) | Medium | prohibition | Router Interface Hardening (Redirects, Proxy-ARP, Directed Broadcast) | Cisco IOS | 3 |
-| [LOG-001](#log-001) | High | requirement | No Remote Syslog Server Configured | Cisco IOS, FortiGate | 18 |
-| [LOG-002](#log-002) | Medium | requirement | NTP Not Configured or Unauthenticated | Cisco IOS, FortiGate | 22 |
+| [MGMT-011](#mgmt-011) | High | prohibition | SNMPv1/v2c in Use | Cisco IOS, FortiGate | 22 |
+| [AUTH-001](#auth-001) | High | threshold | No Login Brute-Force Protection | Cisco IOS, FortiGate | 15 |
+| [AUTH-002](#auth-002) | Medium | threshold | Weak Password Policy | Cisco IOS, FortiGate | 10 |
+| [AUTH-003](#auth-003) | Medium | prohibition | Default Administrator Account in Use | Cisco IOS, FortiGate | 16 |
+| [BOUNDARY-001](#boundary-001) | Critical | relational | Overly Permissive Firewall/ACL Rules | Cisco IOS, FortiGate | 35 |
+| [BOUNDARY-002](#boundary-002) | Medium | prohibition | IP Source Routing Enabled | Cisco IOS, FortiGate | 9 |
+| [BOUNDARY-003](#boundary-003) | Medium | prohibition | Discovery Protocol (CDP/LLDP) Enabled on External Interface | Cisco IOS, FortiGate | 11 |
+| [BOUNDARY-004](#boundary-004) | Medium | prohibition | Router Interface Hardening (Redirects, Proxy-ARP, Directed Broadcast) | Cisco IOS | 11 |
+| [LOG-001](#log-001) | High | requirement | No Remote Syslog Server Configured | Cisco IOS, FortiGate | 19 |
+| [LOG-002](#log-002) | Medium | requirement | NTP Not Configured or Unauthenticated | Cisco IOS, FortiGate | 29 |
 | [LOG-003](#log-003) | Medium | requirement | Traffic Rules That Do Not Log | FortiGate | 1 |
-| [CRYPTO-001](#crypto-001) | High | threshold | Weak VPN/IPsec Cryptographic Algorithms | Cisco IOS, FortiGate | 0 |
-| [CRYPTO-002](#crypto-002) | High | prohibition | Weak Management Cryptography (SSH/HTTPS) | Cisco IOS, FortiGate | 5 |
+| [CRYPTO-001](#crypto-001) | High | threshold | Weak VPN/IPsec Cryptographic Algorithms | Cisco IOS, FortiGate | 27 |
+| [CRYPTO-002](#crypto-002) | High | prohibition | Weak Management Cryptography (SSH/HTTPS) | Cisco IOS, FortiGate | 17 |
 
 ```mermaid
 flowchart LR
@@ -115,8 +115,8 @@ Severity **critical** · kind `prohibition` · category `management`
 | UNKNOWN when | Telnet is mentioned but on/off cannot be read; IOS VTY lines with no `transport input` (the default differs by release) |
 | Cisco IOS | VTY `transport input` (`telnet` or `all` = on; `ssh` only = off) |
 | FortiGate | `telnet` in an interface `allowaccess` list |
-| Generic path | Junos `services { telnet; }` / `set system services telnet`, PAN-OS `disable-telnet no`, Huawei `telnet server enable` / `undo telnet server enable`, RouterOS `/ip service set telnet disabled=yes`, Aruba `no telnet server`, EXOS `disable telnet`, Gaia `set telnet-server enabled false`, Arista `no management telnet`, NX-OS `feature telnet`, Dell OS10 `ip telnet server enable` / `no …` |
-| Shipped seeds | 14: Huawei VRP 2, Juniper Junos 2, MikroTik RouterOS 2, Palo Alto PAN-OS 2, Arista EOS 1, Check Point Gaia 1, Cisco NX-OS 1, Dell OS10 1, Extreme Networks EXOS 1, HPE Aruba AOS-CX 1 |
+| Generic path | Junos `services { telnet; }` / `set system services telnet`, PAN-OS `disable-telnet no`, Huawei `telnet server enable` / `undo telnet server enable`, RouterOS `/ip service set telnet disabled=yes`, Aruba `no telnet server`, EXOS `disable telnet`, Gaia `set telnet-server enabled false`, Arista `no management telnet`, NX-OS `feature telnet`, Dell OS10 `ip telnet server enable` / `no …`, IOS-XR `telnet vrf … ipv4 server`; documented defaults: NX-OS and ASA Telnet off unless a line enables it |
+| Shipped seeds | 15: Huawei VRP 2, Juniper Junos 2, MikroTik RouterOS 2, Palo Alto PAN-OS 2, Arista EOS 1, Check Point Gaia 1, Cisco IOS-XR 1, Cisco NX-OS 1, Dell OS10 1, Extreme Networks EXOS 1, HPE Aruba AOS-CX 1 |
 | Fix: Cisco IOS | `transport input ssh` on every failing VTY range |
 | Fix: FortiGate | remove `telnet` from `allowaccess` on the interface |
 | Fix: other vendors | seed write-back flips the slot (`disable-telnet no` → `yes`, `telnet yes` → `no`); a removal candidate (`delete system services telnet`) can be derived |
@@ -151,8 +151,8 @@ Severity **high** · kind `prohibition` · category `management`
 | UNKNOWN when | HTTP is mentioned but its state cannot be read |
 | Cisco IOS | `ip http server` / `no ip http server` |
 | FortiGate | `http` in a WAN interface `allowaccess` |
-| Generic path | PAN-OS `disable-http no` and interface-management profile `http no`, Junos `set system services web-management http`, Huawei `http server enable` / `undo …`, RouterOS `set www disabled=yes`, Arista `management http-commands`, Gaia `set web-server enabled false`, EXOS `disable web`, Aruba `no http vrf default` |
-| Shipped seeds | 13: Juniper Junos 3, Arista EOS 2, Huawei VRP 2, Palo Alto PAN-OS 2, Check Point Gaia 1, Extreme Networks EXOS 1, HPE Aruba AOS-CX 1, MikroTik RouterOS 1 |
+| Generic path | PAN-OS `disable-http no` and interface-management profile `http no`, Junos `set system services web-management http`, Huawei `http server enable` / `undo …`, RouterOS `set www disabled=yes`, Arista `management http-commands`, Gaia `set web-server enabled false`, EXOS `disable web`, Aruba `no http vrf default`, NX-OS `nxapi http port` |
+| Shipped seeds | 14: Juniper Junos 3, Arista EOS 2, Huawei VRP 2, Palo Alto PAN-OS 2, Check Point Gaia 1, Cisco NX-OS 1, Extreme Networks EXOS 1, HPE Aruba AOS-CX 1, MikroTik RouterOS 1 |
 | Fix: Cisco IOS | `no ip http server` (and `ip http secure-server`) |
 | Fix: FortiGate | remove `http` from `allowaccess` on WAN interfaces |
 | Fix: other vendors | seed write-back flips the slot; removal candidate derivable |
@@ -186,8 +186,8 @@ Severity **critical** · kind `relational` · category `management`
 | UNKNOWN when | relational: with no fact at all the control is UNKNOWN, never NOT_CONFIGURED |
 | Cisco IOS | VTY `access-class` (per range; the first open range is the failing scope) |
 | FortiGate | management services on WAN interfaces |
-| Generic path | PAN-OS `permitted-ip`, Junos `allow-address` / `allow-sources`, Arista `ip access-group` under `management ssh`, EXOS SSH `access-profile`, NX-OS `access-class … in`; Terraform and cloud JSON rules open to `0.0.0.0/0` or `::/0` on port 22 / 23 / 3389 |
-| Shipped seeds | 41: Terraform (AWS) 12, Azure NSG (JSON) 6, Terraform (Azure) 6, GCP firewall rules (JSON) 4, AWS security group (JSON) 3, Juniper Junos 2, Palo Alto PAN-OS 2, Terraform (GCP) 2, Arista EOS 1, Check Point Gaia 1, Cisco NX-OS 1, Extreme Networks EXOS 1 |
+| Generic path | PAN-OS `permitted-ip`, Junos `allow-address` / `allow-sources`, Arista `ip access-group` under `management ssh`, EXOS SSH `access-profile`, NX-OS `access-class … in`; Terraform and cloud JSON rules open to `0.0.0.0/0` or `::/0` on port 22 / 23 / 3389, Huawei `acl … inbound` under `user-interface vty`, AOS-CX `apply access-list ip … control-plane`, Dell OS10 `ip access-group … mgmt|data in` under `control-plane`, IOS-XR `ssh server vrf … ipv4 access-list` |
+| Shipped seeds | 46: Terraform (AWS) 12, Azure NSG (JSON) 6, Terraform (Azure) 6, GCP firewall rules (JSON) 4, AWS security group (JSON) 3, Dell OS10 2, Juniper Junos 2, Palo Alto PAN-OS 2, Terraform (GCP) 2, Arista EOS 1, Check Point Gaia 1, Cisco IOS-XR 1, Cisco NX-OS 1, Extreme Networks EXOS 1, HPE Aruba AOS-CX 1, Huawei VRP 1 |
 | Fix: Cisco IOS | a management ACL from `management_subnet` plus `access-class MGMT in` on each VTY range |
 | Fix: FortiGate | remove management services from WAN interfaces |
 | Fix: other vendors | write-back replaces the wildcard with the operator's `management_subnet`; cloud rules get no generated command |
@@ -225,7 +225,7 @@ Severity **critical** · kind `prohibition` · category `management`
 | Cisco IOS | `snmp-server community NAME RO|RW [acl]`; none configured = PASS by documented default |
 | FortiGate | `config system snmp community` entries; none = PASS by documented default |
 | Generic path | seed-only `{community:RO}` / `{community:RW}` slots (read at scan time, never stored) for Junos, NX-OS, Arista (also read on Dell OS10), Huawei, PAN-OS, Gaia, Aruba, EXOS, RouterOS, SONiC, Cumulus, VyOS (read-only) |
-| Shipped seeds | 21: Arista EOS 4, MikroTik RouterOS 3, Huawei VRP 2, NVIDIA Cumulus Linux (NVUE) 2, SONiC (config_db.json) 2, VyOS 2, Check Point Gaia 1, Cisco NX-OS 1, Extreme Networks EXOS 1, HPE Aruba AOS-CX 1, Juniper Junos 1, Palo Alto PAN-OS 1 |
+| Shipped seeds | 22: Arista EOS 4, MikroTik RouterOS 3, Huawei VRP 2, NVIDIA Cumulus Linux (NVUE) 2, SONiC (config_db.json) 2, VyOS 2, Check Point Gaia 1, Cisco NX-OS 1, Extreme Networks EXOS 1, Fortinet FortiSwitchOS 1, HPE Aruba AOS-CX 1, Juniper Junos 1, Palo Alto PAN-OS 1 |
 | Fix: Cisco IOS | comment out the failing `snmp-server community` lines |
 | Fix: FortiGate | comment out the failing community block (the whole nested block) |
 | Fix: other vendors | removal candidate only; cannot be taught (the line holds the secret) |
@@ -261,8 +261,8 @@ Severity **critical** · kind `prohibition` · category `management`
 | UNKNOWN when | a storage type that cannot be classified |
 | Cisco IOS | `enable secret|password [type]`, `username … secret|password [type]`, `service password-encryption` |
 | FortiGate | not read: UNKNOWN with the reason "the fortinet parser does not read …" |
-| Generic path | password lines read with `{enum:type}` slots so the type is read and the value never stored (Arista, Huawei, Aruba, EXOS, NX-OS, Junos `encrypted-password`, PAN-OS `phash`, RouterOS `password=` read as plaintext) |
-| Shipped seeds | 12: MikroTik RouterOS 4, Arista EOS 2, Cisco NX-OS 1, Extreme Networks EXOS 1, HPE Aruba AOS-CX 1, Huawei VRP 1, Juniper Junos 1, Palo Alto PAN-OS 1 |
+| Generic path | password lines read with `{enum:type}` slots so the type is read and the value never stored (Arista, Huawei, Aruba, EXOS, NX-OS, Junos `encrypted-password`, PAN-OS `phash`, RouterOS `password=` read as plaintext), Gaia `password-hash`, ASA `pbkdf2` / `encrypted`, IOS-XR `secret 5|8|9|10` / `password 7`, FortiSwitchOS `password ENC` |
+| Shipped seeds | 17: MikroTik RouterOS 4, Arista EOS 2, Cisco IOS-XR 2, Check Point Gaia 1, Cisco ASA 1, Cisco NX-OS 1, Extreme Networks EXOS 1, Fortinet FortiSwitchOS 1, HPE Aruba AOS-CX 1, Huawei VRP 1, Juniper Junos 1, Palo Alto PAN-OS 1 |
 | Fix: Cisco IOS | `service password-encryption` only; changing a weak password needs a person (`manual_review`) |
 | Fix: FortiGate | none |
 | Fix: other vendors | none: a new password must come from a person |
@@ -296,8 +296,8 @@ Severity **medium** · kind `threshold` · category `management`
 | UNKNOWN when | a timeout with no known unit |
 | Cisco IOS | VTY and console `exec-timeout M [S]` (worst VTY range is the scope); no timeout = FAIL (CIS requires it set) |
 | FortiGate | `set admintimeout N`; default 5 minutes (PASS by documented default) |
-| Generic path | Junos `idle-timeout`, PAN-OS `idle-timeout` (minutes), Arista `idle-timeout` (minutes), Huawei, Gaia (`session-timeout`, seconds), EXOS (`inactivity-timeout`, seconds), NX-OS, ASA `ssh timeout` / `console timeout` / `http server idle-timeout` (minutes), FortiSwitchOS `admintimeout` |
-| Shipped seeds | 13: Cisco ASA 3, Juniper Junos 2, Palo Alto PAN-OS 2, Arista EOS 1, Check Point Gaia 1, Cisco NX-OS 1, Extreme Networks EXOS 1, Fortinet FortiSwitchOS 1, Huawei VRP 1 |
+| Generic path | Junos `idle-timeout`, PAN-OS `idle-timeout` (minutes), Arista `idle-timeout` (minutes), Huawei, Gaia (`session-timeout`, seconds), EXOS (`inactivity-timeout`, seconds), NX-OS, ASA `ssh timeout` / `console timeout` / `http server idle-timeout` (minutes), FortiSwitchOS `admintimeout`, AOS-CX top-level `session-timeout` (minutes), Dell OS10 top-level `exec-timeout` (seconds), IOS-XR `exec-timeout <min> 0`, ASA `telnet timeout` |
+| Shipped seeds | 17: Cisco ASA 4, Juniper Junos 2, Palo Alto PAN-OS 2, Arista EOS 1, Check Point Gaia 1, Cisco IOS-XR 1, Cisco NX-OS 1, Dell OS10 1, Extreme Networks EXOS 1, Fortinet FortiSwitchOS 1, HPE Aruba AOS-CX 1, Huawei VRP 1 |
 | Fix: Cisco IOS | `exec-timeout 5 0` on failing lines |
 | Fix: FortiGate | `set admintimeout 5` |
 | Fix: other vendors | write-back sets 10 minutes in the dialect's own unit; never a removal (a threshold control is not derivable) |
@@ -332,8 +332,8 @@ Severity **high** · kind `prohibition` · category `management`
 | UNKNOWN when | a version that cannot be interpreted |
 | Cisco IOS | `ip ssh version N`; absent = NOT_CONFIGURED (no default assumed: it differs by release) |
 | FortiGate | `set admin-ssh-v1 enable|disable`; default disable = version 2 |
-| Generic path | Junos `protocol-version v2`, PAN-OS, Arista, ASA `ssh version 2` |
-| Shipped seeds | 5: Juniper Junos 2, Arista EOS 1, Cisco ASA 1, Palo Alto PAN-OS 1 |
+| Generic path | Junos `protocol-version v2`, PAN-OS, Arista, ASA `ssh version 2`, IOS-XR `ssh server v2`, FortiSwitchOS `admin-ssh-v1 enable|disable`; documented defaults: NX-OS and EXOS support SSH version 2 only |
+| Shipped seeds | 7: Juniper Junos 2, Arista EOS 1, Cisco ASA 1, Cisco IOS-XR 1, Fortinet FortiSwitchOS 1, Palo Alto PAN-OS 1 |
 | Fix: Cisco IOS | `ip ssh version 2` |
 | Fix: FortiGate | `set admin-ssh-v1 disable` |
 | Fix: other vendors | write-back `protocol-version v1` → `v2` |
@@ -366,8 +366,8 @@ Severity **high** · kind `requirement` · category `management`
 | UNKNOWN when | AAA mentioned but not readable |
 | Cisco IOS | `aaa new-model` |
 | FortiGate | not read: UNKNOWN |
-| Generic path | Junos `authentication-order`, `tacplus-server`, `radius-server`; PAN-OS TACACS+ / RADIUS profiles; NX-OS; ASA (`LOCAL` alone is not central); SONiC and Cumulus TACACS+ entries; VyOS `set system login radius-server`; learned absence fails it for an understood dialect |
-| Shipped seeds | 19: Juniper Junos 8, Cisco NX-OS 2, NVIDIA Cumulus Linux (NVUE) 2, Palo Alto PAN-OS 2, SONiC (config_db.json) 2, Arista EOS 1, Cisco ASA 1, VyOS 1 |
+| Generic path | Junos `authentication-order`, `tacplus-server`, `radius-server`; PAN-OS TACACS+ / RADIUS profiles; NX-OS; ASA (`LOCAL` alone is not central); SONiC and Cumulus TACACS+ entries; VyOS `set system login radius-server`; learned absence fails it for an understood dialect; Huawei `authentication-mode hwtacacs|radius|local`, Gaia `aaa tacacs-servers state`, EXOS `enable tacacs` / `radius mgmt-access`, RouterOS `use-radius`, FortiSwitchOS `remote-auth` |
+| Shipped seeds | 26: Juniper Junos 8, Check Point Gaia 2, Cisco NX-OS 2, Extreme Networks EXOS 2, NVIDIA Cumulus Linux (NVUE) 2, Palo Alto PAN-OS 2, SONiC (config_db.json) 2, Arista EOS 1, Cisco ASA 1, Fortinet FortiSwitchOS 1, Huawei VRP 1, MikroTik RouterOS 1, VyOS 1 |
 | Fix: Cisco IOS | AAA with local login only if a strong local account exists, otherwise `manual_review` (lockout risk) |
 | Fix: FortiGate | none |
 | Fix: other vendors | never added: AAA needs a shared secret |
@@ -400,8 +400,8 @@ Severity **low** · kind `requirement` · category `management`
 | UNKNOWN when | a banner statement that cannot be read |
 | Cisco IOS | `banner login` / `banner motd` |
 | FortiGate | `set pre-login-banner enable|disable`; default disable = FAIL |
-| Generic path | Junos `message`, PAN-OS `login-banner`, Arista `banner login`, Huawei `header login`, RouterOS `/system note`, Aruba, EXOS, Gaia, Dell OS10 `banner login ^C`, VyOS `set system login banner pre-login`; learned absence fails it for an understood dialect |
-| Shipped seeds | 11: Juniper Junos 2, Arista EOS 1, Check Point Gaia 1, Dell OS10 1, Extreme Networks EXOS 1, HPE Aruba AOS-CX 1, Huawei VRP 1, MikroTik RouterOS 1, Palo Alto PAN-OS 1, VyOS 1 |
+| Generic path | Junos `message`, PAN-OS `login-banner`, Arista `banner login`, Huawei `header login`, RouterOS `/system note`, Aruba, EXOS, Gaia, Dell OS10 `banner login ^C`, VyOS `set system login banner pre-login`; learned absence fails it for an understood dialect, NX-OS `banner motd`, IOS-XR `banner login`, FortiSwitchOS `pre-login-banner` |
+| Shipped seeds | 14: Juniper Junos 2, Arista EOS 1, Check Point Gaia 1, Cisco IOS-XR 1, Cisco NX-OS 1, Dell OS10 1, Extreme Networks EXOS 1, Fortinet FortiSwitchOS 1, HPE Aruba AOS-CX 1, Huawei VRP 1, MikroTik RouterOS 1, Palo Alto PAN-OS 1, VyOS 1 |
 | Fix: Cisco IOS | adds a fixed legal-warning `banner login` |
 | Fix: FortiGate | `set pre-login-banner enable` |
 | Fix: other vendors | added from `banner_text` with the dialect's own template |
@@ -467,7 +467,7 @@ Severity **high** · kind `prohibition` · category `management`
 | Cisco IOS | any `snmp-server community` (none = PASS by default) |
 | FortiGate | any SNMP community block |
 | Generic path | the same community seeds as MGMT-004 |
-| Shipped seeds | 21: Arista EOS 4, MikroTik RouterOS 3, Huawei VRP 2, NVIDIA Cumulus Linux (NVUE) 2, SONiC (config_db.json) 2, VyOS 2, Check Point Gaia 1, Cisco NX-OS 1, Extreme Networks EXOS 1, HPE Aruba AOS-CX 1, Juniper Junos 1, Palo Alto PAN-OS 1 |
+| Shipped seeds | 22: Arista EOS 4, MikroTik RouterOS 3, Huawei VRP 2, NVIDIA Cumulus Linux (NVUE) 2, SONiC (config_db.json) 2, VyOS 2, Check Point Gaia 1, Cisco NX-OS 1, Extreme Networks EXOS 1, Fortinet FortiSwitchOS 1, HPE Aruba AOS-CX 1, Juniper Junos 1, Palo Alto PAN-OS 1 |
 | Fix: Cisco IOS | `manual_review`: SNMPv3 users and keys are the operator's to choose |
 | Fix: FortiGate | the same |
 | Fix: other vendors | removal candidate |
@@ -499,8 +499,8 @@ Severity **high** · kind `threshold` · category `authentication`
 | UNKNOWN when | a limit that cannot be read |
 | Cisco IOS | `login block-for … attempts N`, `aaa local authentication attempts max-fail N`; none = FAIL |
 | FortiGate | `set admin-lockout-threshold N`; default 3 (PASS by documented default) |
-| Generic path | Junos `retry-options tries-before-disconnect`, Aruba `ssh server max-auth-attempts`, PAN-OS `admin-lockout failed-attempts`, ASA `aaa local authentication attempts max-fail`, NX-OS `ssh login-attempts`, Arista `aaa authentication policy lockout failure`, Dell OS10 `password-attributes max-retry`, FortiSwitchOS `admin-lockout-threshold` |
-| Shipped seeds | 10: Arista EOS 2, Dell OS10 2, Cisco ASA 1, Cisco NX-OS 1, Fortinet FortiSwitchOS 1, HPE Aruba AOS-CX 1, Juniper Junos 1, Palo Alto PAN-OS 1 |
+| Generic path | Junos `retry-options tries-before-disconnect`, Aruba `ssh server max-auth-attempts`, PAN-OS `admin-lockout failed-attempts`, ASA `aaa local authentication attempts max-fail`, NX-OS `ssh login-attempts`, Arista `aaa authentication policy lockout failure`, Dell OS10 `password-attributes max-retry`, FortiSwitchOS `admin-lockout-threshold`, Huawei `ssh server authentication-retries`, Gaia `deny-on-fail` (off by default: a reviewed factory default), EXOS `max-failed-logins` / `lockout-on-login-failures`; every limit is its own fact and the weakest decides |
+| Shipped seeds | 15: Arista EOS 2, Check Point Gaia 2, Dell OS10 2, Extreme Networks EXOS 2, Cisco ASA 1, Cisco NX-OS 1, Fortinet FortiSwitchOS 1, HPE Aruba AOS-CX 1, Huawei VRP 1, Juniper Junos 1, Palo Alto PAN-OS 1 |
 | Fix: Cisco IOS | `login block-for 900 attempts 3 within 120` |
 | Fix: FortiGate | `set admin-lockout-threshold 3` |
 | Fix: other vendors | write-back sets 3 |
@@ -529,8 +529,8 @@ Severity **medium** · kind `threshold` · category `authentication`
 | UNKNOWN when | a length that cannot be read |
 | Cisco IOS | `security passwords min-length N`; none = FAIL |
 | FortiGate | `config system password-policy` with `status enable` and `minimum-length`; default off = FAIL |
-| Generic path | Junos `password minimum-length`, PAN-OS `password-complexity minimum-length` (and its reviewed factory default: off), ASA `password-policy minimum-length`, Gaia `set password-controls min-password-length`, NX-OS `userpassphrase min-length`, Arista `password minimum length` (under `management security`), Dell OS10 `password-attributes min-length` |
-| Shipped seeds | 7: Arista EOS 1, Check Point Gaia 1, Cisco ASA 1, Cisco NX-OS 1, Dell OS10 1, Juniper Junos 1, Palo Alto PAN-OS 1 |
+| Generic path | Junos `password minimum-length`, PAN-OS `password-complexity minimum-length` (and its reviewed factory default: off), ASA `password-policy minimum-length`, Gaia `set password-controls min-password-length`, NX-OS `userpassphrase min-length`, Arista `password minimum length` (under `management security`), Dell OS10 `password-attributes min-length`, EXOS `password-policy min-length`, RouterOS `minimum-password-length`, FortiSwitchOS `minimum-length` |
+| Shipped seeds | 10: Arista EOS 1, Check Point Gaia 1, Cisco ASA 1, Cisco NX-OS 1, Dell OS10 1, Extreme Networks EXOS 1, Fortinet FortiSwitchOS 1, Juniper Junos 1, MikroTik RouterOS 1, Palo Alto PAN-OS 1 |
 | Fix: Cisco IOS | `security passwords min-length 12` |
 | Fix: FortiGate | enable the password policy with length 12 |
 | Fix: other vendors | write-back sets 12 |
@@ -559,8 +559,8 @@ Severity **medium** · kind `prohibition` · category `authentication`
 | UNKNOWN when | an account name that cannot be read |
 | Cisco IOS | `username NAME …`; no users = PASS |
 | FortiGate | `config system admin` → `edit NAME`; no section = the shipped `admin` (FAIL by documented default) |
-| Generic path | value table of default names, seed-only (teaching does not draft value tables): Junos `login user … class`, PAN-OS `mgt-config users … superuser yes`, Aruba, Arista, EXOS, Huawei, Dell OS10 `username … role`, VyOS `set system login user … authentication` |
-| Shipped seeds | 11: Arista EOS 2, Dell OS10 2, Juniper Junos 2, Extreme Networks EXOS 1, HPE Aruba AOS-CX 1, Huawei VRP 1, Palo Alto PAN-OS 1, VyOS 1 |
+| Generic path | value table of default names, seed-only (teaching does not draft value tables): Junos `login user … class`, PAN-OS `mgt-config users … superuser yes`, Aruba, Arista, EXOS, Huawei, Dell OS10 `username … role`, VyOS `set system login user … authentication`, Gaia `set user … password-hash`, ASA `username … privilege`, NX-OS `username … role`, RouterOS `/user add|set` |
+| Shipped seeds | 16: Arista EOS 2, Dell OS10 2, Juniper Junos 2, MikroTik RouterOS 2, Check Point Gaia 1, Cisco ASA 1, Cisco NX-OS 1, Extreme Networks EXOS 1, HPE Aruba AOS-CX 1, Huawei VRP 1, Palo Alto PAN-OS 1, VyOS 1 |
 | Fix: Cisco IOS | `manual_review`: a named account needs new credentials |
 | Fix: FortiGate | the same |
 | Fix: other vendors | removal candidate |
@@ -590,8 +590,8 @@ Severity **critical** · kind `relational` · category `boundary`
 | UNKNOWN when | relational: no rule found at all, or a rule that cannot be resolved |
 | Cisco IOS | numbered and named ACL entries (`permit ip any any`) |
 | FortiGate | `config firewall policy` with `all` addresses and service `ALL`, action accept |
-| Generic path | heuristic rule composition across statements (Junos, PAN-OS policies); seeds for Arista, ASA, Huawei, Aruba, EXOS, RouterOS, Gaia, NX-OS; Terraform and cloud JSON any-protocol rules from anywhere |
-| Shipped seeds | 33: Azure NSG (JSON) 6, Terraform (Azure) 6, Terraform (AWS) 5, GCP firewall rules (JSON) 4, Huawei VRP 2, Terraform (GCP) 2, AWS security group (JSON) 1, Arista EOS 1, Arista EOS / Cisco NX-OS 1, Check Point Gaia 1, Cisco ASA 1, Extreme Networks EXOS 1, HPE Aruba AOS-CX 1, MikroTik RouterOS 1 |
+| Generic path | heuristic rule composition across statements (Junos, PAN-OS policies); seeds for Arista, ASA, Huawei, Aruba, EXOS, RouterOS, Gaia, NX-OS; Terraform and cloud JSON any-protocol rules from anywhere, Dell OS10 `seq N permit ip any any`, IOS-XR `permit ipv4 any any` |
+| Shipped seeds | 35: Azure NSG (JSON) 6, Terraform (Azure) 6, Terraform (AWS) 5, GCP firewall rules (JSON) 4, Huawei VRP 2, Terraform (GCP) 2, AWS security group (JSON) 1, Arista EOS 1, Arista EOS / Cisco NX-OS 1, Check Point Gaia 1, Cisco ASA 1, Cisco IOS-XR 1, Dell OS10 1, Extreme Networks EXOS 1, HPE Aruba AOS-CX 1, MikroTik RouterOS 1 |
 | Fix: Cisco IOS | always `manual_review`: a replacement rule needs the intended traffic |
 | Fix: FortiGate | the same |
 | Fix: other vendors | removal candidate (deleting a rule is a decision a person must own) |
@@ -624,8 +624,8 @@ Severity **medium** · kind `prohibition` · category `boundary`
 | UNKNOWN when | mentioned but not readable |
 | Cisco IOS | `ip source-route` / `no ip source-route`; absent = NOT_CONFIGURED (the default differs by release) |
 | FortiGate | `set ip-src-routing`; default disable |
-| Generic path | Arista, Huawei, Gaia |
-| Shipped seeds | 3: Arista EOS 1, Check Point Gaia 1, Huawei VRP 1 |
+| Generic path | Arista, Huawei, Gaia, VyOS `set firewall ip-src-route`, RouterOS `accept-source-route` (and its default: off), EXOS `enable ip-option …-source-route` and PAN-OS zone protection `discard-…-source-routing no` (read when they fail only: one option says nothing of the other) |
+| Shipped seeds | 9: Extreme Networks EXOS 2, Palo Alto PAN-OS 2, Arista EOS 1, Check Point Gaia 1, Huawei VRP 1, MikroTik RouterOS 1, VyOS 1 |
 | Fix: Cisco IOS | `no ip source-route` |
 | Fix: FortiGate | `set ip-src-routing disable` |
 | Fix: other vendors | write-back flips the slot |
@@ -657,8 +657,8 @@ Severity **medium** · kind `prohibition` · category `boundary`
 | UNKNOWN when | on, but no interface is identified as external |
 | Cisco IOS | `cdp run` / `no cdp run` and per-interface CDP on WAN-identified interfaces |
 | FortiGate | `lldp-transmission` on WAN interfaces |
-| Generic path | LLDP seeds for Junos, Arista, Huawei, Gaia, EXOS, RouterOS, PAN-OS, NX-OS; tied to an interface only when an external-named zone holds it |
-| Shipped seeds | 10: Juniper Junos 3, Arista EOS 1, Check Point Gaia 1, Cisco NX-OS 1, Extreme Networks EXOS 1, Huawei VRP 1, MikroTik RouterOS 1, Palo Alto PAN-OS 1 |
+| Generic path | LLDP seeds for Junos, Arista, Huawei, Gaia, EXOS, RouterOS, PAN-OS, NX-OS; tied to an interface only when an external-named zone holds it or names it in its `interface` block; elsewhere a per-interface line is read and stays undecided; VyOS LLDP off by default (documented) |
+| Shipped seeds | 11: Juniper Junos 3, Arista EOS 1, Arista EOS / Cisco NX-OS 1, Check Point Gaia 1, Cisco NX-OS 1, Extreme Networks EXOS 1, Huawei VRP 1, MikroTik RouterOS 1, Palo Alto PAN-OS 1 |
 | Fix: Cisco IOS | `no cdp enable` on the failing interfaces |
 | Fix: FortiGate | `set lldp-transmission disable` |
 | Fix: other vendors | write-back flips the slot |
@@ -689,8 +689,8 @@ Severity **medium** · kind `prohibition` · category `boundary` · optional fea
 | UNKNOWN when | mentioned but not readable |
 | Cisco IOS | per routed interface: `no ip redirects`, `no ip proxy-arp` (IOS default: both on, assurance `default`), `ip directed-broadcast` |
 | FortiGate | N/A (optional feature a confirmed parser found none of) |
-| Generic path | Arista / NX-OS interface `ip redirects`, `ip proxy-arp`, `ip directed-broadcast` (stated only: other vendors' defaults are not assumed) |
-| Shipped seeds | 3: Arista EOS / Cisco NX-OS 3 |
+| Generic path | Arista / NX-OS interface `ip redirects`, `ip proxy-arp`, `ip directed-broadcast` (switched on: decided; switched off on one interface: undecided, the others keep the default); device-wide: Junos `set system no-redirects`, Huawei `undo icmp redirect send`, AOS-CX `no ip icmp redirect`, RouterOS `send-redirects`, VyOS `set firewall send-redirects`, EXOS `disable icmp redirects vlan all` |
+| Shipped seeds | 11: Arista EOS / Cisco NX-OS 3, Extreme Networks EXOS 2, Juniper Junos 2, HPE Aruba AOS-CX 1, Huawei VRP 1, MikroTik RouterOS 1, VyOS 1 |
 | Fix: Cisco IOS | add the three `no …` lines to the failing interfaces |
 | Fix: FortiGate | none |
 | Fix: other vendors | removal candidate |
@@ -721,7 +721,7 @@ Severity **high** · kind `requirement` · category `logging`
 | Cisco IOS | `logging host X` / `logging X.X.X.X` |
 | FortiGate | `config log syslogd setting` with `status enable` and `server` |
 | Generic path | 13 dialects including PAN-OS syslog server profiles, Junos `syslog host`, SONiC `SYSLOG_SERVER`, Cumulus; learned absence fails it for an understood dialect |
-| Shipped seeds | 18: Palo Alto PAN-OS 4, Arista EOS 2, Check Point Gaia 1, Cisco ASA 1, Cisco IOS-XR 1, Cisco NX-OS 1, Extreme Networks EXOS 1, HPE Aruba AOS-CX 1, Huawei VRP 1, Juniper Junos 1, Juniper Junos / VyOS 1, MikroTik RouterOS 1, NVIDIA Cumulus Linux (NVUE) 1, SONiC (config_db.json) 1 |
+| Shipped seeds | 19: Palo Alto PAN-OS 4, Arista EOS 2, Check Point Gaia 1, Cisco ASA 1, Cisco IOS-XR 1, Cisco NX-OS 1, Extreme Networks EXOS 1, Fortinet FortiSwitchOS 1, HPE Aruba AOS-CX 1, Huawei VRP 1, Juniper Junos 1, Juniper Junos / VyOS 1, MikroTik RouterOS 1, NVIDIA Cumulus Linux (NVUE) 1, SONiC (config_db.json) 1 |
 | Fix: Cisco IOS | add `logging host` from `syslog_server` |
 | Fix: FortiGate | enable syslogd with `syslog_server` |
 | Fix: other vendors | added from `syslog_server` with the dialect's own template |
@@ -753,8 +753,8 @@ Severity **medium** · kind `requirement` · category `logging`
 | UNKNOWN when | servers configured but authentication cannot be read |
 | Cisco IOS | `ntp server X`, `ntp authenticate` |
 | FortiGate | `config system ntp` `authentication`, `config ntpserver` entries |
-| Generic path | NTP server seeds for 9 dialects (SONiC most), authentication seeds for Arista (`ntp authenticate`, `ntp authenticate servers`), Gaia, Aruba, Huawei, PAN-OS; Junos / VyOS `set system ntp server`; learned absence for servers |
-| Shipped seeds | 22: SONiC (config_db.json) 6, Arista EOS 3, Check Point Gaia 2, Huawei VRP 2, MikroTik RouterOS 2, Palo Alto PAN-OS 2, Extreme Networks EXOS 1, HPE Aruba AOS-CX 1, Juniper Junos 1, Juniper Junos / VyOS 1, NVIDIA Cumulus Linux (NVUE) 1 |
+| Generic path | NTP server seeds for 9 dialects (SONiC most), authentication seeds for Arista (`ntp authenticate`, `ntp authenticate servers`), Gaia, Aruba, Huawei, PAN-OS; Junos / VyOS `set system ntp server`; learned absence for servers; authentication also Junos `trusted-key`, IOS-XR `authenticate` / `trusted-key`, EXOS `enable ntp authentication`, FortiSwitchOS; documented default: VyOS 1.3 has no NTP authentication |
+| Shipped seeds | 29: SONiC (config_db.json) 6, Arista EOS 3, Extreme Networks EXOS 3, Check Point Gaia 2, Cisco IOS-XR 2, Fortinet FortiSwitchOS 2, Huawei VRP 2, Juniper Junos 2, MikroTik RouterOS 2, Palo Alto PAN-OS 2, HPE Aruba AOS-CX 1, Juniper Junos / VyOS 1, NVIDIA Cumulus Linux (NVUE) 1 |
 | Fix: Cisco IOS | add key and authentication (needs `ntp_key_id`, `ntp_key`; `ntp_server` if none) |
 | Fix: FortiGate | enable authentication with the key |
 | Fix: other vendors | never added: NTP authentication needs a key the recognizer does not describe |
@@ -820,8 +820,8 @@ Severity **high** · kind `threshold` · category `cryptography` · optional fea
 | UNKNOWN when | a proposal that does not state its encryption (the platform default applies) |
 | Cisco IOS | ISAKMP policies (`encr`, `hash`, `group`), transform sets |
 | FortiGate | phase1-interface `proposal`, `dhgrp` |
-| Generic path | not answerable by a recognizer (a proposal is several values); heuristics only |
-| Shipped seeds | 0 (none) |
+| Generic path | seeds read a proposal written one algorithm per line (Junos, PAN-OS, Huawei, ASA, VyOS): each line's table names the part it states and a weak part on any line fails; a list on one line is not read; heuristics otherwise |
+| Shipped seeds | 27: Cisco ASA 6, Palo Alto PAN-OS 6, Huawei VRP 5, Juniper Junos 5, VyOS 5 |
 | Fix: Cisco IOS | upgrades ISAKMP policies and transform sets to AES-256 / SHA-256 / DH 14; warns that VPN peers must match |
 | Fix: FortiGate | removes weak proposals (DES / 3DES / MD5) and DH groups 1, 2, 5 from the failing phase1 interfaces |
 | Fix: other vendors | none |
@@ -852,8 +852,8 @@ Severity **high** · kind `prohibition` · category `cryptography`
 | UNKNOWN when | mentioned but not readable |
 | Cisco IOS | `ip ssh server algorithm encryption|mac|kex …`, `ip http secure-ciphersuite …`; no list = NOT_CONFIGURED (the release decides) |
 | FortiGate | `strong-crypto` (default enable), `ssh-cbc-cipher`, `ssh-hmac-md5`, `ssh-kex-sha1` |
-| Generic path | RouterOS `/ip ssh set strong-crypto=`, VyOS `set service ssh ciphers` / `macs` (weak ones only: CBC, 3DES, arcfour, blowfish, cast, MD5), FortiSwitchOS `strong-crypto` |
-| Shipped seeds | 5: MikroTik RouterOS 2, VyOS 2, Fortinet FortiSwitchOS 1 |
+| Generic path | RouterOS `/ip ssh set strong-crypto=`, VyOS `set service ssh ciphers` / `macs` (weak ones only: CBC, 3DES, arcfour, blowfish, cast, MD5), FortiSwitchOS `strong-crypto`, Junos `ciphers` / `macs` / `key-exchange`, NX-OS `ssh cipher-mode weak` (default: CTR only), ASA `ssh cipher encryption` (every predefined level, and the default, includes CBC), Gaia `cipher|mac|kex … on`, PAN-OS a CBC cipher in an SSH server profile; one weak algorithm makes the answer weak |
+| Shipped seeds | 17: VyOS 4, Check Point Gaia 3, Juniper Junos 3, Cisco ASA 2, MikroTik RouterOS 2, Cisco NX-OS 1, Fortinet FortiSwitchOS 1, Palo Alto PAN-OS 1 |
 | Fix: Cisco IOS | replaces each weak list with AES-CTR ciphers, SHA-2 MACs and ECDH / DH group 14 key exchange; an HTTPS cipher-suite list goes to `manual_review` |
 | Fix: FortiGate | `set strong-crypto enable`, weak switches off |
 | Fix: other vendors | removal candidate |
@@ -870,8 +870,10 @@ Severity **high** · kind `prohibition` · category `cryptography`
 
 ## Where the remaining coverage gaps are
 
-* **IPsec proposals (CRYPTO-001)** need several values from one object and cannot be expressed by a recognizer; on the
-  generic path only heuristics read them, provisionally.
+* **IPsec proposals (CRYPTO-001)** are read by seeds only when written one algorithm per line; a list on one line is
+  read by heuristics only, provisionally.
+* **Measured coverage per dialect** (checks decided when the configuration states them) and why each dialect stops
+  where it does: [seed-knowledge.md](seed-knowledge.md#coverage-per-dialect-measured).
 * **Password storage and AAA on FortiGate** are UNKNOWN by design (the parser does not read them).
 * **SNMP communities** cannot be taught, only shipped as seeds, because the line holds the secret.
 * **Default account names** are seed-only because teaching does not draft value tables.

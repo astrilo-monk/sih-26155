@@ -51,7 +51,7 @@ These tests fail the run if NetAuditAI gets less accurate:
 
 | Gate | What it pins | Test |
 |---|---|---|
-| Benchmark floors | planted ≥ 18 detected, fixtures ≥ 89, **0 missed, 0 false alarms** | `test_benchmark.py` |
+| Benchmark floors | planted ≥ 19 detected, fixtures ≥ 89, **0 missed, 0 false alarms** | `test_benchmark.py` |
 | Held-out set | 0 missed and 0 false alarms on the pybatfish files (when fetched; see `scripts/benchmark.py`) | `test_benchmark.py`, `test_heldout_labels.py` |
 | Citations | every cited line exists and says the cited text; every attack-path step cites a decided FAIL; posture and coverage recompute from the returned results | `test_citations.py` |
 | Demo fix-to-100 | each `demo-sih/` file goes from its first scan to posture 100 with 0 findings | `test_demo_fix_to_100.py` |
@@ -80,6 +80,7 @@ These tests fail the run if NetAuditAI gets less accurate:
 | The verified corrected copy: retained only on verification and exactly equal to the simulated result, cleared by rejection and by a re-check that fails, downloadable only when verified or confirmed-after-verifying, one copy per candidate, correct content type and safe filename, never in SQLite, gone with the scan, `/download-fixed` still confirmed-vendor only, and the original `sample/juniper.cfg` byte-identical throughout | `test_candidate_remediation.py` |
 | Derived remediation: a verified change from the configuration alone on Junos / PAN-OS / RouterOS / Huawei, the words come from the file's own block path, a setting that must exist is never deleted to silence a check, a block opener is never removed alone, a provisional finding cannot be derived from, confirmed vendors keep recipes, the upload and the scan never move | `test_derived_remediation.py` |
 | Generic engine on hierarchical, terminator-separated dialects | `test_generic_hierarchical.py` |
+| Seed coverage pass: every new seed's lines and near-misses (132 cases), the per-dialect floor of decided checks on the reference configurations (`scripts/seed_coverage.py`), documented defaults and what silences them, top-level and chained scopes, interface-local LLDP and redirects left undecided, IPsec proposals read one algorithm per line, ASA one-line banners, weak algorithms and banners that add up | `test_seed_coverage.py`, fixtures in `tests/fixtures/seed_coverage/` |
 | Seed expansion: every new seed's lines and near-misses (61 cases), Dell OS10 / VyOS / FortiSwitchOS / ASA verdicts, the ASA `http server enable` false alarm, migration v7 on an existing database, the redaction and quoted-slot changes | `test_seed_expansion.py` |
 | MGMT-010 (management on an untrusted interface) and MGMT-011 (SNMPv1/v2c) | `test_checks_pack_a.py` |
 | AUTH-001 (failed-login limit), AUTH-002 (password length), AUTH-003 (default account names) | `test_checks_pack_b.py` |
@@ -110,7 +111,7 @@ These tests fail the run if NetAuditAI gets less accurate:
 | Optional API key: open when unset, `401` without or with a wrong `X-API-Key`, `/health` always open | `test_api_key.py` |
 | `DATABASE_URL`: a raw password holding `@` or `$` is percent-encoded so the right host is used | `test_database_url.py` |
 | Browser UI audit regressions -no secret in API responses, `config_index` identity, generic hostnames, manual-review consistency, CIS banner mapping, scan status | `test_ui_audit_regressions.py` |
-| Accuracy benchmark floors (planted ≥ 18, fixtures ≥ 89, 0 missed, 0 false alarms; held-out 0 missed and 0 false alarms wherever its files are fetched) | `test_benchmark.py` |
+| Accuracy benchmark floors (planted ≥ 19, fixtures ≥ 89, 0 missed, 0 false alarms; held-out 0 missed and 0 false alarms wherever its files are fetched) | `test_benchmark.py` |
 | Held-out labels well formed: every label names a real control, has evidence, and every cited line says the cited text (shapes only when the pybatfish files are absent) | `test_heldout_labels.py` |
 | Prompt injection: the fence cannot be closed from inside, a fully hijacked AI changes no verdict | `test_prompt_injection.py` |
 | Attack paths, evidence chain, contextual risk | `test_attack_paths.py`, `test_evidence_chain.py`, `test_risk.py` |
@@ -179,6 +180,7 @@ python -m pytest tests -q -n auto                    # parallel
 python -m pytest tests/test_seed_knowledge.py -q     # one file
 NETAUDIT_LIVE_AI=1 python -m pytest tests -q         # also the 2 live-AI tests (needs a Groq key)
 python scripts/benchmark.py                          # the accuracy table in benchmark/RESULTS.md
+python scripts/seed_coverage.py                      # checks decided per dialect on its reference configuration
 
 # frontend
 cd frontend
@@ -198,7 +200,7 @@ Expect **23 failed and 2 errors** that have nothing to do with the code under te
 | Tests | Why they fail on a clean clone |
 |---|---|
 | 16 `test_citations.py` cases, `test_baseline_model.py` (2 errors), 2 `test_learned_absence.py` cases | they read configurations from `teach/`, which `.gitignore` excludes |
-| `test_benchmark.py` | the "fixtures" floor (89) counts labels whose files live in `teach/`; a clean clone measures 19 of 25 |
+| `test_benchmark.py` | the "fixtures" floor (89) counts labels whose files live in `teach/`; a clean clone measures 20 of 25 |
 | 4 `test_config_loading.py` cases | they expect a developer `backend/.env` holding a Groq key |
 
 Committing the `teach/` corpus (or moving those cases behind a skip when it is absent) and making the `.env` tests
