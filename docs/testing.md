@@ -19,7 +19,7 @@ flowchart TB
 
 | Suite | Files | Test functions | Runner |
 |---|---|---|---|
-| Backend | 68 | 736 (parametrized into about 1,730 cases) | pytest, pytest-xdist |
+| Backend | 70 | 753 (parametrized into 1,886 cases) | pytest, pytest-xdist |
 | Frontend | 29 | about 150 | Vitest + Testing Library + jsdom |
 | End to end | 1 | 1 | Playwright |
 
@@ -190,6 +190,9 @@ npm run build
 ```
 
 Windows: `venv\Scripts\python -m pytest tests -q -n auto`.
+
+Run the full backend suite with `-n auto`: one at a time it took about an hour on a laptop (1,886 cases).
+For a quick check, `python scripts/benchmark.py` measures the accuracy table in under a minute.
 
 No linter or type checker is configured in the repository, and no CI workflow ships: the suites run locally.
 

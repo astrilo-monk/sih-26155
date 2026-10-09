@@ -100,8 +100,8 @@ still knows the password is Type 7 without the value leaving the process.
 ## 7. Technology and scale
 
 Python 3.10, FastAPI, ReportLab, Netmiko (NAPALM optional), SQLite or Postgres via psycopg, Groq LLM API
-(optional), React 19 and Vite with no runtime UI dependencies. About **1,730 backend test cases** (736 pytest
-functions in 68 files), about **150 frontend tests** (Vitest) and one Playwright end-to-end run. Everything runs
+(optional), React 19 and Vite with no runtime UI dependencies. About **1,890 backend test cases** (753 pytest
+functions in 70 files), about **150 frontend tests** (Vitest) and one Playwright end-to-end run. Everything runs
 without AI; AI only raises coverage.
 
 Honest scope: two vendors have dedicated parsers (Cisco IOS, FortiGate). Everything else is read generically,

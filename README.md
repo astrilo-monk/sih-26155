@@ -10,6 +10,9 @@ every one of them, and cites the exact configuration line behind every answer. W
 instead of passing the check. It fixes what it is sure about, proves every fix by rescanning a copy, and never
 runs a command on a device.
 
+**Live:** [netaudit-three.vercel.app](https://netaudit-three.vercel.app/). Nothing to install, AI features on. The
+backend sleeps when idle, so the first request can take about 30 seconds while it wakes; after that it is fast.
+
 ```text
 Upload or SSH-collect a config  →  cited PASS / FAIL / UNKNOWN per check  →  posture + coverage
                                 →  verified fixes  →  PDF report, SARIF, tamper-evident audit ledger
@@ -465,7 +468,7 @@ docs/               design and reference documentation
 ```bash
 # backend: every AI call is mocked, every test gets its own SQLite database
 cd backend
-python -m pytest tests -q -n auto
+python -m pytest tests -q -n auto                       # parallel; without -n auto it took about an hour on a laptop
 NETAUDIT_LIVE_AI=1 python -m pytest tests -q          # also runs the 2 live-AI tests (needs a Groq key)
 
 # frontend
