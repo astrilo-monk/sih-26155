@@ -120,8 +120,9 @@ def test_each_new_seed_reads_its_line_and_nothing_near_it(seeded_adaptive_db, te
                                "AUTH-002": "pass", "LOG-001": "pass", "LOG-002": "pass"}),
     ("vyos_insecure.conf", {"MGMT-004": "fail", "MGMT-011": "fail", "MGMT-008": "fail", "MGMT-009": "fail",
                             "AUTH-003": "fail", "CRYPTO-002": "fail",
-                            # 'set system syslog global …' names syslog, so its absence is never asserted
-                            "LOG-001": None}),
+                            # 'set system syslog global …' keeps logs on the device: it names syslog but no place off
+                            # it (no 'host'), so the missing 'set system syslog host …' is now a decided FAIL
+                            "LOG-001": "fail"}),
     ("vyos_secure.conf", {"MGMT-008": "pass", "MGMT-009": "pass", "LOG-001": "pass", "CRYPTO-002": "pass"}),
 ])
 def test_new_dialects_are_decided_from_shipped_knowledge(seeded_adaptive_db, name, expected):
@@ -205,4 +206,4 @@ def test_the_shipped_seeds_all_load(seeded_adaptive_db):
     from app.db.mappings import MappingRepository
     from app.facts.seed import read_seed_file
 
-    assert len(MappingRepository().list_mappings()) == len(read_seed_file()) == 380
+    assert len(MappingRepository().list_mappings()) == len(read_seed_file()) == 396
