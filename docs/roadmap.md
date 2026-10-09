@@ -26,7 +26,7 @@ timeline
 
 - [x] Cisco IOS and FortiGate parsers with grammar-coverage vendor confirmation (look-alikes stay unverified)
 - [x] Secret redaction before every AI call, prompt fence on every configuration-carrying prompt
-- [x] Control catalog (23 checks) with PASS / FAIL / UNKNOWN / NOT_CONFIGURED / N_A and versioned mappings
+- [x] Control catalog (24 checks) with PASS / FAIL / UNKNOWN / NOT_CONFIGURED / N_A and versioned mappings
 - [x] Posture + coverage scoring with bounds and critical checks not assessed
 - [x] Security facts with assurance; every check runs on every configuration
 - [x] Generic tokenizer and lexicon heuristics for unknown vendors (provisional, no AI needed)

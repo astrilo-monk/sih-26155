@@ -43,6 +43,8 @@ LOGIN_MAX_ATTEMPTS = "auth.login.max_attempts"
 PASSWORD_MIN_LENGTH = "auth.password.min_length"
 # value: a local administrative account's name; scope: the account
 ADMIN_ACCOUNT = "auth.account.name"
+# True: the root (superuser) account can log in directly over SSH
+ROOT_LOGIN = "auth.root_login.allowed"
 # True: management SSH / HTTPS accepts a weak algorithm (DES, 3DES, RC4, CBC ciphers, MD5 MACs, DH group 1)
 MGMT_WEAK_CRYPTO = "mgmt.crypto.weak_allowed"
 # True: a traffic rule logs what it matches; scope: the rule
@@ -70,6 +72,7 @@ PREDICATES = frozenset({
     PASSWORD_ENCRYPTION_SERVICE, SNMP_COMMUNITY, LOG_REMOTE_DESTINATION, NTP_SERVER, NTP_AUTHENTICATED,
     LOGIN_BANNER, SOURCE_ROUTING, DISCOVERY_PROTOCOL, PERMIT_ANY, IPSEC_PROPOSAL,
     LOGIN_MAX_ATTEMPTS, PASSWORD_MIN_LENGTH, ADMIN_ACCOUNT, MGMT_WEAK_CRYPTO, RULE_LOGGING, ROUTER_UNSAFE_SERVICE,
+    ROOT_LOGIN,
 })
 
 

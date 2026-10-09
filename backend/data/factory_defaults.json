@@ -9,7 +9,11 @@
     "Only add an entry with its source; a guess here would turn a missing line into a false verdict."
   ],
   "Palo Alto PAN-OS": {
-    "auth.password.min_length": "PAN-OS ships with Minimum Password Complexity disabled, so no minimum length is enforced until 'set mgt-config password-complexity' enables it (PAN-OS Administrator's Guide, Device > Setup > Management)"
+    "auth.password.min_length": "PAN-OS ships with Minimum Password Complexity disabled, so no minimum length is enforced until 'set mgt-config password-complexity' enables it (PAN-OS Administrator's Guide, Device > Setup > Management)",
+    "mgmt.remote_access.source_restricted": {
+      "value": false,
+      "reason": "the management interface accepts connections from any address until 'set deviceconfig system permitted-ip' lists the allowed ones (PAN-OS Administrator's Guide, Perform Initial Configuration: Permitted IP Addresses; CIS Palo Alto Firewall Benchmark: 'Ensure Permitted IP Addresses is set to those necessary for device management')"
+    }
   },
   "Cisco NX-OS": {
     "mgmt.ssh.version": {
@@ -38,6 +42,10 @@
     "boundary.source_routing.enabled": {
       "value": false,
       "reason": "'accept-source-route' defaults to 'no' under /ip settings (RouterOS manual, IP Settings)"
+    },
+    "mgmt.remote_access.source_restricted": {
+      "value": false,
+      "reason": "an IP service accepts connections from any address until '/ip service set <service> address=<prefixes>' restricts it (RouterOS manual, IP Services: 'address' lists the prefixes the service is accessible from; none by default)"
     }
   },
   "Cisco ASA": {
@@ -58,6 +66,15 @@
     "time.ntp.authenticated": {
       "value": false,
       "reason": "VyOS 1.3 offers no NTP authentication: a server takes only noselect, pool, preempt or prefer (VyOS 1.3 documentation, System > NTP)"
+    }
+  },
+  "Juniper Junos": {
+    "mgmt.session.idle_timeout": "Junos logs no idle user off unless the login class sets 'idle-timeout' (Junos OS User Access and Authentication Guide, idle-timeout: 'If you omit this statement, a user is never forced off the system after extended idle times')"
+  },
+  "Huawei VRP": {
+    "mgmt.remote_access.source_restricted": {
+      "value": false,
+      "reason": "no ACL restricts a VTY user interface until 'acl <number> inbound' binds one in the user-interface view (Huawei VRP command reference, acl (user interface view): no ACL is configured by default)"
     }
   }
 }

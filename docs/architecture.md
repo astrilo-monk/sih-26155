@@ -422,7 +422,7 @@ flowchart TD
 
 ## 6. Controls and ControlResult
 
-`app/controls/catalog.py` declares 23 controls (MGMT-001 to MGMT-011, AUTH-001 to AUTH-003, BOUNDARY-001 to
+`app/controls/catalog.py` declares 24 controls (MGMT-001 to MGMT-011, AUTH-001 to AUTH-004, BOUNDARY-001 to
 BOUNDARY-004, LOG-001 to LOG-003, CRYPTO-001 and CRYPTO-002) with `question`, `kind`, `severity`, `category`,
 `needs` (predicates), `optional_feature` and versioned framework `mappings`. `app/controls/judges.py` says what one
 fact means for one control; `app/controls/evaluate.py` combines the outcomes. No vendor decides whether a control
@@ -522,7 +522,7 @@ critical_unassessed = critical controls whose outcome is undecided
 * bounds = 12 / 39 to 28 / 39 = **31 to 72**
 * critical not assessed = **MGMT-003**
 
-With all 23 controls applicable the maximum weight is 133 (6 critical, 8 high, 8 medium, 1 low). A configuration with
+With all 24 controls applicable the maximum weight is 139 (6 critical, 9 high, 8 medium, 1 low). A configuration with
 nothing decided shows posture "-" and coverage 0, never 100. The legacy `score` (100 minus penalties) is still
 returned, deprecated, and not used by the UI, remediation or framework views.
 
@@ -631,7 +631,7 @@ completes.
 
 ## 10. Human in the loop: recognizers
 
-A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships **380** reviewed recognizers for
+A fresh deployment does not start blank. `backend/data/seed_recognizers.json` ships **396** reviewed recognizers for
 **16 dialects** with no dedicated parser (Juniper Junos, Palo Alto PAN-OS, Arista EOS, Huawei VRP, MikroTik RouterOS,
 HPE Aruba AOS-CX, Check Point Gaia, Extreme EXOS, Cisco NX-OS, ASA, IOS-XR, SONiC `config_db.json`, NVIDIA Cumulus
 NVUE, Dell OS10, VyOS, Fortinet FortiSwitchOS) plus AWS security group, Azure NSG and GCP firewall exports and Terraform for AWS, Azure and GCP. One

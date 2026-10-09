@@ -272,6 +272,8 @@ class FortinetParser(BaseParser):
                         norm.logging.source_lines.append(line_num)
 
     def _parse_ntp(self, groups, norm: NormalizedConfig):
+        server_auth: list[bool] = []
+        server_auth_lines: list[int] = []
         for ctx, cmds in groups.items():
             if ctx == ("config system ntp",):
                 for line_num, cmd in cmds:
@@ -283,8 +285,10 @@ class FortinetParser(BaseParser):
                         norm.ntp.authentication_enabled = True
                         norm.ntp.source_lines.append(line_num)
                         
-            # Extract NTP servers from nested block
+            # Extract NTP servers from nested block. FortiOS 7 authenticates each server in its own entry
+            # (``set authentication enable`` with ``set key-id`` / ``set key``)
             if len(ctx) >= 3 and ctx[0] == "config system ntp" and ctx[1] == "config ntpserver" and ctx[2].startswith("edit"):
+                authenticated = False
                 for line_num, cmd in cmds:
                     vals = self._extract_values(cmd)
                     if not vals:
@@ -293,6 +297,14 @@ class FortinetParser(BaseParser):
                     if k == "server":
                         norm.ntp.servers.append(vals[0])
                         norm.ntp.source_lines.append(line_num)
+                    elif k == "authentication" and vals[0] == "enable":
+                        authenticated = True
+                        server_auth_lines.append(line_num)
+                server_auth.append(authenticated)
+        # authenticated only when every server entry is: one unauthenticated server can still set the clock
+        if server_auth and all(server_auth):
+            norm.ntp.authentication_enabled = True
+            norm.ntp.source_lines.extend(server_auth_lines)
 
     def _parse_firewall_policies(self, groups, norm: NormalizedConfig):
         for ctx, cmds in groups.items():

@@ -20,7 +20,7 @@ MGMT_PROTOCOLS = {
     "http": frozenset({"http", "http-server", "httpd"}),
 }
 # Keywords that only switch a block on or off: ``remote-console state enabled``
-STATE_WORDS = frozenset({"state", "status", "admin-state", "admin-status", "service"})
+STATE_WORDS = frozenset({"state", "status", "admin-state", "admin-status", "service", "shutdown"})
 # Traffic rules mention protocols without configuring management
 RULE_WORDS = frozenset({"permit", "deny", "accept", "action", "rule", "rules", "rulebase", "access-list", "acl",
                         # cloud security groups / NSGs, as flattened JSON (app.structure.structured)
@@ -75,6 +75,9 @@ PASSWORD_RELATED = frozenset({
     # NX-OS names its password rules after the passphrase: `userpassphrase min-length 16`
     "userpassphrase",
     "secret", "hash", "hashed", "encrypted", "plaintext", "cipher", "irreversible-cipher", "algorithm-type",
+    # an account or line with no credential at all: Arista ``username backup nopassword``, Huawei VRP
+    # ``authentication-mode none`` under ``user-interface vty``
+    "nopassword", "authentication-mode",
 })
 
 SNMP = frozenset({"snmp", "snmp-server", "snmpd"})
@@ -106,6 +109,19 @@ DEFAULT_ACCOUNT_NAMES = frozenset({"admin", "administrator", "root", "cisco", "m
                                    "vyos"})
 # The services MGMT-010 counts as management (ping is a diagnostic: reachable, not manageable)
 MGMT_SERVICES = frozenset({"ssh", "https", "http", "telnet", "snmp", "all"})
+# A management service by name, as a service menu lists it: RouterOS ``/ip service set ssh address=…``
+MGMT_SERVICE_NAMES = MGMT_SERVICES - {"all"} | frozenset({"winbox", "www", "www-ssl", "api", "api-ssl", "ftp"})
+ADDRESS_WORDS = frozenset({"address", "addresses"})
+# Where management is reached: a line restricts management sources only if it names one of these (an ACL
+# definition, or a traffic rule named ``allow-web``, restricts nothing until it is applied to management)
+MGMT_PLACES = MGMT_SERVICE_NAMES | frozenset({"ssh2", "vty", "console", "management", "mgmt", "user-interface",
+                                             "line", "permitted-ip", "access-class", "trusthost", "trusted-host",
+                                             "allowed-hosts", "management-acl"})
+# Where a log goes off the device: ``logging buffered`` and RouterOS ``memory-lines`` keep logs local
+LOG_DESTINATION_WORDS = frozenset({"remote", "host", "server", "loghost", "log-host", "log-server", "syslog-server",
+                                   "syslog-host", "destination", "collector"})
+# Direct superuser login over SSH: Junos ``services ssh root-login allow``, OpenSSH ``PermitRootLogin``
+ROOT_LOGIN_RELATED = frozenset({"root-login", "permitrootlogin", "permit-root-login"})
 READ_WRITE = frozenset({"rw", "read-write", "write"})
 READ_ONLY = frozenset({"ro", "read-only", "read"})
 

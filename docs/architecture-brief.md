@@ -34,7 +34,7 @@ Ingest ... uploaded file (single or bulk, CLI text or JSON export)
                             -> lexicon heuristics                              [provisional]
                             -> AI judge on what is still undecided             [budgeted, must cite]
   -> Security Baseline Model: facts with value, scope, evidence lines, assurance
-  -> Deviation analysis: 23 controls -> PASS / FAIL / UNKNOWN / NOT_CONFIGURED / N_A
+  -> Deviation analysis: 24 controls -> PASS / FAIL / UNKNOWN / NOT_CONFIGURED / N_A
   -> Posture (pass / decided) + Coverage (decided / applicable) + critical controls not assessed
   -> Framework views: NIST SP 800-53 Rev. 5 · CIS · DISA NDM SRG · ISO/IEC 27001:2022 Annex A
   -> Remediation: vendor CLI for confirmed vendors, verified by re-parse; candidates simulated on a copy
@@ -67,7 +67,7 @@ Safety gates (`validate_recognizer`) reject anything that would match too much: 
 a value table, a unit for durations, and no secret is ever stored. The recognizer saves to SQLite or Postgres and
 answers the **very next scan**: decisive, deterministic, no AI call, **no redeployment**, reversible later.
 
-Shipped seed knowledge is the same mechanism reviewed in Git rather than taught at runtime: **380 recognizers**
+Shipped seed knowledge is the same mechanism reviewed in Git rather than taught at runtime: **396 recognizers**
 across Juniper Junos, Palo Alto PAN-OS, Arista EOS, Huawei VRP, HPE Aruba AOS-CX, Check Point Gaia, Extreme EXOS,
 MikroTik RouterOS, Cisco NX-OS, ASA, IOS-XR, SONiC, Cumulus, Dell OS10, VyOS and FortiSwitchOS, plus AWS / Azure / GCP firewall exports and Terraform.
 A fresh deployment reads those dialects before anyone teaches it.

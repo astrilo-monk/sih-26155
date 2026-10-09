@@ -245,7 +245,7 @@ const PROTOCOLS = { telnet: 'Telnet', http: 'HTTP', https: 'HTTPS', ssh: 'SSH', 
 const onOff = (v, on, off) => (v === true ? on : v === false ? off : null);
 const list = (v) => (Array.isArray(v) ? v.join(', ') : typeof v === 'string' ? v : null);
 const STORAGE = { plaintext: 'plain text', type7: 'weak reversible encryption (type 7)', type5: 'an MD5 hash (type 5)',
-  type8: 'a PBKDF2 hash (type 8)', type9_scrypt: 'a strong scrypt hash (type 9)', type9: 'a strong scrypt hash (type 9)' };
+  type8: 'a PBKDF2 hash (type 8)', type9_scrypt: 'a strong scrypt hash (type 9)', type9: 'a strong scrypt hash (type 9)', empty: 'nothing (no password at all)' };
 
 export const MEANING = {
   'mgmt.remote_access.protocol_enabled': { say: (s, v) => onOff(v, `turns on ${PROTOCOLS[s] || s} remote access`, `turns off ${PROTOCOLS[s] || s} remote access`) },
@@ -256,6 +256,7 @@ export const MEANING = {
   'auth.login.max_attempts': { say: (s, v) => (v != null ? `limits failed logins to ${v} attempts` : null) },
   'auth.password.min_length': { say: (s, v) => (v != null ? `requires passwords of at least ${v} characters` : null) },
   'auth.account.name': { say: (s, v) => (v ? `defines the local account '${v}'` : null) },
+  'auth.root_login.allowed': { say: (s, v) => onOff(v, 'lets root log in directly over SSH', 'denies direct root login over SSH') },
   'mgmt.remote_access.exposed_externally': { say: (s, v) => onOff(v, 'opens management services on an internet-facing interface', 'keeps management services off internet-facing interfaces') },
   'mgmt.ssh.version': { say: (s, v) => (v != null ? `sets the SSH version to ${v}` : null) },
   'mgmt.session.idle_timeout': { say: (s, v) => (v != null ? `sets an idle session timeout (${v})` : null) }, // the reading carries no unit: none is claimed

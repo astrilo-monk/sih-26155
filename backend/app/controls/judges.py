@@ -24,7 +24,8 @@ from app.models.normalized import Vendor
 from app.models.results import FailureDetail, Status
 
 DEFAULT_SNMP_COMMUNITIES = {"public", "private", "community", "snmp", "default"}
-WEAK_PASSWORD_STORAGE = {"plaintext", "type7", "type0"}
+# "empty": no credential at all (Arista ``nopassword``, RouterOS ``password=""``, VRP ``authentication-mode none``)
+WEAK_PASSWORD_STORAGE = {"plaintext", "type7", "type0", "empty"}
 STRONG_PASSWORD_STORAGE = {"secret", "encrypted", "hashed", "type5_md5", "type8_sha256", "type9_scrypt"}
 WEAK_ENCRYPTION = {"des", "3des", "des-cbc", "3des-cbc"}
 WEAK_HASH = {"md5", "md5-hmac", "esp-md5-hmac"}
@@ -164,6 +165,16 @@ def passwords(fact, facts, vendor):
         return _pass("Passwords use non-reversible or encrypted storage")
     if storage not in WEAK_PASSWORD_STORAGE:
         return _unknown(fact, f"The storage of the {fact.subject} password could not be classified")
+    if storage == "empty":
+        where = fact.scope.split(" at ", 1)[1] if fact.scope and " at line " in fact.scope else None
+        who = fact.subject.removeprefix("user ") if fact.subject else (f"the login on {where}" if where else "an account")
+        return _fail(
+            Severity.CRITICAL,
+            f"No password is required for {who}: anyone who reaches "
+            "the login can sign in.",
+            "An account or login line without a credential gives management access to anyone who can reach it.",
+            _advice(vendor, "Set a strong password (or require AAA) for every account and management line."),
+        )
     if fact.subject == "enable":
         description = (f"The enable password uses {storage} encoding, which is trivially reversible. "
                        "Anyone with access to the config file can recover the password instantly.")
@@ -531,6 +542,22 @@ def login_attempts(fact, facts, vendor):
     )
 
 
+def root_login(fact, facts, vendor):
+    if fact.value is None:
+        return _unknown(fact, "Whether root can log in directly over SSH could not be determined")
+    if not fact.value:
+        return _pass("The root account cannot log in directly over SSH")
+    return _fail(
+        Severity.HIGH,
+        "The root account can log in directly over SSH. Root is shared and all-powerful: a root login names no "
+        "person, and a guessed or leaked root password gives full control of the device.",
+        "Direct root logins remove individual accountability and give an attacker a single, well-known account "
+        "to brute-force.",
+        _advice(vendor, "Deny root login over SSH (Junos: 'set system services ssh root-login deny') and have "
+                        "administrators log in with their own accounts."),
+    )
+
+
 def password_length(fact, facts, vendor):
     p = policy.current()
     minimum = p.password_min_length
@@ -583,6 +610,7 @@ JUDGES: dict[str, Judge] = {
     "AUTH-001": login_attempts,
     "AUTH-002": password_length,
     "AUTH-003": default_account,
+    "AUTH-004": root_login,
     "BOUNDARY-001": permit_any,
     "BOUNDARY-002": source_routing,
     "BOUNDARY-003": discovery_protocol,

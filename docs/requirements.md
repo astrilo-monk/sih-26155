@@ -11,7 +11,7 @@ asks for, and where NetAuditAI meets it.
 flowchart LR
     R1["Unified ingestion"] --> M1["Upload one or many files,<br/>CLI text, JSON, Terraform,<br/>or SSH collection (12 platforms)"]
     R2["AI-powered training module"] --> M2["Teach page: plain-words meaning →<br/>typed recognizer → decisive on the<br/>next scan, no redeployment"]
-    R3["Multi-framework engine"] --> M3["NIST 800-53 r5, CIS, DISA NDM SRG,<br/>ISO 27001:2022; 23 checks →<br/>78 requirements"]
+    R3["Multi-framework engine"] --> M3["NIST 800-53 r5, CIS, DISA NDM SRG,<br/>ISO 27001:2022; 24 checks →<br/>80 requirements"]
     R4["Actionable intelligence + PDF"] --> M4["Cited findings, severity, framework,<br/>device-specific verified fix,<br/>per-device PDF"]
     R5["Vendor-agnostic scalability"] --> M5["Generic path + 380 shipped<br/>recognizers; a new vendor is<br/>taught, not coded"]
 ```
@@ -31,7 +31,7 @@ flowchart LR
 - [x] Upload configurations and detect the vendor deterministically
 - [x] Dedicated parsers for two distinct vendors (Cisco IOS, FortiGate)
 - [x] Vendor-agnostic analysis for every other vendor (generic tokenizer, heuristics, recognizers), honestly provisional
-- [x] Deterministic security checks with evidence (23 checks)
+- [x] Deterministic security checks with evidence (24 checks)
 - [x] Compliance mappings to NIST SP 800-53 Rev. 5, CIS Benchmarks, DISA STIG (NDM SRG) and ISO/IEC 27001:2022, with versions
 - [x] Posture and coverage scoring
 - [x] Optional AI for explanations, chat and proposals on undecided checks

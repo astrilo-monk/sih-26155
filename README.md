@@ -5,7 +5,7 @@
 Built for Smart India Hackathon 2026, problem statement **SIH26155** (NTRO, Cybersecurity):
 *AI-Driven Multi-Vendor Network Security Compliance Auditor*.
 
-NetAuditAI reads router, switch, firewall and cloud firewall configurations, answers **23 security checks** on
+NetAuditAI reads router, switch, firewall and cloud firewall configurations, answers **24 security checks** on
 every one of them, and cites the exact configuration line behind every answer. When it cannot decide, it says so
 instead of passing the check. It fixes what it is sure about, proves every fix by rescanning a copy, and never
 runs a command on a device.
@@ -25,7 +25,7 @@ Upload or SSH-collect a config  →  cited PASS / FAIL / UNKNOWN per check  → 
 - [How it works](#how-it-works)
 - [Reading the results](#reading-the-results)
 - [Vendor support](#vendor-support)
-- [The 23 checks](#the-23-checks)
+- [The 24 checks](#the-24-checks)
 - [Measured accuracy](#measured-accuracy)
 - [More than a checklist](#more-than-a-checklist)
 - [Configuration](#configuration)
@@ -138,7 +138,7 @@ flowchart TD
     HEU --> FACTS
 
     subgraph S3["3 . Decide"]
-        CTL["23 checks on every configuration<br/>+ organisation policy"]
+        CTL["24 checks on every configuration<br/>+ organisation policy"]
         SCORE["Posture + coverage<br/>decisive evidence only"]
         CTX["Attack paths, risk, drift,<br/>fleet checks, framework views"]
         CTL --> SCORE
@@ -243,13 +243,13 @@ The vendor is always decided by code. An AI vendor guess is shown as evidence on
 defaults or remediation. Device identity (hostname, OS version, FortiGate model and firmware) is reported only
 when the file states it; serial numbers and chassis details are never invented.
 
-The **380 shipped recognizers** live in [`backend/data/seed_recognizers.json`](backend/data/seed_recognizers.json),
+The **396 shipped recognizers** live in [`backend/data/seed_recognizers.json`](backend/data/seed_recognizers.json),
 load into an empty database on first start, and are marked `source=seed` so shipped knowledge can be audited
 separately from what a deployment was taught. See [docs/seed-knowledge.md](docs/seed-knowledge.md).
 
 ---
 
-## The 23 checks
+## The 24 checks
 
 <details>
 <summary>Show all checks</summary>
@@ -270,6 +270,7 @@ separately from what a deployment was taught. See [docs/seed-knowledge.md](docs/
 | AUTH-001 | High | No login brute-force protection |
 | AUTH-002 | Medium | Weak password policy |
 | AUTH-003 | Medium | Default administrator account in use |
+| AUTH-004 | High | Direct root login over SSH allowed |
 | BOUNDARY-001 | Critical | Overly permissive firewall / ACL rules |
 | BOUNDARY-002 | Medium | IP source routing enabled |
 | BOUNDARY-003 | Medium | CDP / LLDP enabled on an external interface |
@@ -492,7 +493,7 @@ security reviewers.
 | [security-model.md](docs/security-model.md) | Trust boundaries and safety guarantees |
 | [ai-design.md](docs/ai-design.md) | AI judge, verification, cache, remediation drafts |
 | [seed-knowledge.md](docs/seed-knowledge.md) | Shipped recognizers and how to add one |
-| [detection-rules.md](docs/detection-rules.md) | The 23 checks: how each is decided, per-vendor sources, fixes, every framework requirement |
+| [detection-rules.md](docs/detection-rules.md) | The 24 checks: how each is decided, per-vendor sources, fixes, every framework requirement |
 | [parser-design.md](docs/parser-design.md) | Vendor detection, grammar coverage, the two parsers |
 | [api.md](docs/api.md) | Endpoints and response fields (interactive docs at `/docs` when the backend runs) |
 | [cli.md](docs/cli.md) | Command line, exit codes, SARIF, GitHub Actions |

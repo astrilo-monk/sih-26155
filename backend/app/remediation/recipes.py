@@ -509,6 +509,13 @@ def default_account_review(ctx: Context) -> list[str]:
     )
 
 
+def root_login_review(ctx: Context) -> list[str]:
+    raise ManualReview(
+        "Deny root login over SSH in the device's own syntax (Junos: 'set system services ssh root-login deny') once "
+        "every administrator can log in with a named account; denying it first could leave no way in"
+    )
+
+
 def snmp_v3_migration(ctx: Context) -> list[str]:
     raise ManualReview(
         "Moving to SNMPv3 needs users with authentication and privacy keys that only the operator can choose, "
@@ -869,6 +876,9 @@ RECIPES: dict[tuple[str, Vendor], Recipe] = {
         warnings=("Applies to passwords set from now on; existing shorter passwords keep working until changed.",)),
     ("AUTH-003", Vendor.CISCO_IOS): Recipe(default_account_review, "Named accounts need new credentials."),
     ("AUTH-003", Vendor.FORTINET): Recipe(default_account_review, "Named accounts need new credentials."),
+    # IOS and FortiOS have no root account: these never apply there, but say what the change is wherever it does
+    ("AUTH-004", Vendor.CISCO_IOS): Recipe(root_login_review, "Root login over SSH is denied in the device's own syntax."),
+    ("AUTH-004", Vendor.FORTINET): Recipe(root_login_review, "Root login over SSH is denied in the device's own syntax."),
     ("BOUNDARY-004", Vendor.CISCO_IOS): Recipe(
         ios_router_services, "Adds 'no ip redirects', 'no ip proxy-arp' and 'no ip directed-broadcast' to the failing "
                              "interfaces.",

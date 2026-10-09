@@ -3001,6 +3001,145 @@
       "command_pattern": "set server {host}",
       "example_line": "set server \"192.0.2.10\"",
       "scope_template": "config system ntp > config ntpserver > edit {any}"
+    },
+    {
+      "concept": "Telnet service",
+      "vendor": "Arista EOS",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "command_pattern": "no shutdown",
+      "subject": "telnet",
+      "scope_template": "management telnet",
+      "constant_value": "true",
+      "example_line": "no shutdown"
+    },
+    {
+      "concept": "Telnet service",
+      "vendor": "Arista EOS",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "command_pattern": "shutdown",
+      "subject": "telnet",
+      "scope_template": "management telnet",
+      "constant_value": "false",
+      "example_line": "shutdown"
+    },
+    {
+      "concept": "HTTP management",
+      "vendor": "Arista EOS",
+      "predicate": "mgmt.remote_access.protocol_enabled",
+      "command_pattern": "{neg} protocol http",
+      "subject": "http",
+      "scope_template": "management api http-commands",
+      "example_line": "protocol http"
+    },
+    {
+      "concept": "Account without a password",
+      "vendor": "Arista EOS",
+      "predicate": "auth.password.storage",
+      "command_pattern": "username {any} nopassword",
+      "constant_value": "\"empty\"",
+      "example_line": "username backup nopassword"
+    },
+    {
+      "concept": "Account without a password",
+      "vendor": "Arista EOS",
+      "predicate": "auth.password.storage",
+      "command_pattern": "username {any} privilege {any} nopassword",
+      "constant_value": "\"empty\"",
+      "example_line": "username backup privilege 15 nopassword"
+    },
+    {
+      "concept": "Account without a password",
+      "vendor": "Arista EOS",
+      "predicate": "auth.password.storage",
+      "command_pattern": "username {any} privilege {any} role {any} nopassword",
+      "constant_value": "\"empty\"",
+      "example_line": "username backup privilege 15 role network-operator nopassword"
+    },
+    {
+      "concept": "VTY login without authentication",
+      "vendor": "Huawei VRP",
+      "predicate": "auth.password.storage",
+      "command_pattern": "authentication-mode none",
+      "scope_template": "user-interface vty {any} {any}",
+      "constant_value": "\"empty\"",
+      "example_line": "authentication-mode none"
+    },
+    {
+      "concept": "NTP server",
+      "vendor": "Huawei VRP",
+      "predicate": "time.ntp.server",
+      "command_pattern": "ntp-service unicast-server {host} {rest}",
+      "example_line": "ntp-service unicast-server 192.0.2.30 authentication-keyid 1"
+    },
+    {
+      "concept": "Permissive ACL rule",
+      "vendor": "Huawei VRP",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "rule {any} {enum:action} ip",
+      "scope_template": "acl number {any}",
+      "constant_value": "{\"permit\": true}",
+      "example_line": "rule 5 permit ip"
+    },
+    {
+      "concept": "Permissive firewall rule",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "add action {enum:action} chain {any}",
+      "scope_template": "{any} firewall filter",
+      "constant_value": "{\"accept\": true}",
+      "example_line": "add action=accept chain=input"
+    },
+    {
+      "concept": "Permissive firewall rule",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "boundary.policy.permit_any",
+      "command_pattern": "add action {enum:action} chain {any} comment {any}",
+      "scope_template": "{any} firewall filter",
+      "constant_value": "{\"accept\": true}",
+      "example_line": "add action=accept chain=input comment=\"allow all\""
+    },
+    {
+      "concept": "Login note",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "banner.login.present",
+      "command_pattern": "set note {any} show-at-login {enum:show}",
+      "scope_template": "{any} note",
+      "constant_value": "{\"yes\": true, \"no\": false}",
+      "example_line": "set note=\"Authorized access only\" show-at-login=yes"
+    },
+    {
+      "concept": "Remote logging action",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "log.remote.destination",
+      "command_pattern": "add name {any} remote {host} target remote",
+      "scope_template": "{any} logging action",
+      "example_line": "add name=remote1 remote=192.0.2.60 target=remote"
+    },
+    {
+      "concept": "Account without a password",
+      "vendor": "MikroTik RouterOS",
+      "predicate": "auth.password.storage",
+      "command_pattern": "set [ find name {any} ] password \"\"",
+      "scope_template": "/user",
+      "constant_value": "\"empty\"",
+      "example_line": "set [ find name=admin ] password=\"\""
+    },
+    {
+      "concept": "SSH root login",
+      "vendor": "Juniper Junos",
+      "predicate": "auth.root_login.allowed",
+      "command_pattern": "root-login {enum:mode}",
+      "scope_template": "ssh",
+      "constant_value": "{\"allow\": true, \"deny\": false}",
+      "example_line": "root-login allow"
+    },
+    {
+      "concept": "SSH root login",
+      "vendor": "Juniper Junos",
+      "predicate": "auth.root_login.allowed",
+      "command_pattern": "set system services ssh root-login {enum:mode}",
+      "constant_value": "{\"allow\": true, \"deny\": false}",
+      "example_line": "set system services ssh root-login allow"
     }
   ]
 }

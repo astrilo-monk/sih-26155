@@ -403,6 +403,27 @@ _CONTROLS = (
         needs=(P.ADMIN_ACCOUNT,),
     ),
     Control(
+        control_id="AUTH-004",
+        title="Direct Root Login over SSH Allowed",
+        question="Is the root (superuser) account prevented from logging in directly over SSH?",
+        kind=ControlKind.PROHIBITION,
+        severity=Severity.HIGH,
+        category="authentication",
+        mappings=(
+            _nist("AC-6(5)", "Privileged Accounts"),
+            _nist("IA-2(5)", "Individual Authentication with Group Authentication"),
+            _stig("SRG-APP-000033-NDM-000212",
+                  "The network device must be configured to enforce approved authorizations for logical access "
+                  "to information and system resources"),
+            _iso("A.8.2", "Privileged access rights"),
+            _iso("A.5.16", "Identity management"),
+        ),
+        remediation_keys=("AUTH-004",),
+        needs=(P.ROOT_LOGIN,),
+        # IOS and FortiOS have no root account to log in as: N/A there, undecided only where one might exist
+        optional_feature="a root account that can log in over SSH",
+    ),
+    Control(
         control_id="BOUNDARY-001",
         title="Overly Permissive Firewall/ACL Rules",
         question="Does every ACL and firewall policy avoid permitting all traffic from any source to any destination?",

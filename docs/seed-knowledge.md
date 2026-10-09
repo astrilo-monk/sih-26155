@@ -152,7 +152,7 @@ parser's password fact does; every path to the AI redacts evidence first.
 
 ## What is covered
 
-380 recognizers under 24 `vendor` labels: **16 device dialects** with no dedicated parser (Junos, PAN-OS, Arista EOS,
+396 recognizers under 24 `vendor` labels: **16 device dialects** with no dedicated parser (Junos, PAN-OS, Arista EOS,
 Huawei VRP, MikroTik RouterOS, Check Point Gaia, Extreme EXOS, HPE Aruba AOS-CX, Cisco NX-OS, ASA, IOS-XR, SONiC,
 Cumulus NVUE, Dell OS10, VyOS, Fortinet FortiSwitchOS), two shared labels (Arista and NX-OS; Junos and VyOS, whose
 `set system syslog host` and `set system ntp server` spellings are identical), three cloud exports (AWS security groups, Azure NSG, GCP firewall
@@ -176,11 +176,11 @@ proposal (CRYPTO-001).
 
 | Dialect | Total | Telnet | HTTP | Src | Ext | SSH | Idle | Cry | AAA | Pwd | Lock | Len | Acct | SNMP | Syslog | NTP | NTPa | Ban | SrcR | LLDP | Rtr | Any | RLog | VPN |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Juniper Junos | 45 | 2 | 3 | 2 | 2 | 2 | 2 | 3 | 8 | 1 | 1 | 1 | 2 | 1 | 1 | 1 | 1 | 2 |  | 3 | 2 |  |  | 5. Coverage pass: `set system no-redirects` (and per-interface `family inet no-redirects`, read but undecided), NTP `trusted-key`, SSH `ciphers` / `macs` / `key-exchange` one per line, IKE and IPsec `proposal` encryption / authentication / DH group |
+| Juniper Junos | 47 | 2 | 3 | 2 | 2 | 2 | 2 | 3 | 8 | 1 | 1 | 1 | 2 | 1 | 1 | 1 | 1 | 2 |  | 3 | 2 |  |  | 5. Coverage pass: `set system no-redirects` (and per-interface `family inet no-redirects`, read but undecided), NTP `trusted-key`, SSH `ciphers` / `macs` / `key-exchange` one per line, IKE and IPsec `proposal` encryption / authentication / DH group |
 | Palo Alto PAN-OS | 34 | 2 | 2 | 2 |  | 1 | 2 | 1 | 2 | 1 | 1 | 1 | 1 | 1 | 4 | 1 | 1 | 1 | 2 | 1 |  |  | 1 | 6. Coverage pass: zone-protection `discard-strict-source-routing` / `discard-loose-source-routing no` (only `no` is read: `yes` on one option says nothing of the other), a CBC cipher in an SSH server profile (a strong list proves nothing about the profile in force), IKE and IPsec crypto profiles (one value per line) |
-| Arista EOS | 27 | 1 | 2 | 1 |  | 1 | 1 |  | 1 | 2 | 2 | 1 | 2 | 4 | 2 | 1 | 2 | 1 | 1 | 1 |  | 1 |  | . Coverage pass: `no lldp transmit` under an interface (read; decided only on an interface an external zone holds) |
-| Huawei VRP | 26 | 2 | 2 | 1 |  |  | 1 |  | 1 | 1 | 1 |  | 1 | 2 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 2 |  | 5. Coverage pass: `acl … inbound` under `user-interface vty`, `authentication-mode hwtacacs|radius|local` under `authentication-scheme`, `ssh server authentication-retries`, `undo icmp redirect send`, `ike proposal` / `ipsec proposal` algorithms |
-| MikroTik RouterOS | 24 | 2 | 1 |  |  |  |  | 2 | 1 | 4 |  | 1 | 2 | 3 | 1 | 2 |  | 1 | 1 | 1 | 1 | 1 |  | . Coverage pass: `/ip settings set accept-source-route=` and `send-redirects=` (one property per line; RouterOS prints several on one line, which is then left undecided), `/user aaa set use-radius=`, `/user settings set minimum-password-length=`, a default account in `/user add name=` or `/user set admin …` |
+| Arista EOS | 33 | 3 | 3 | 1 |  | 1 | 1 |  | 1 | 5 | 2 | 1 | 2 | 4 | 2 | 1 | 2 | 1 | 1 | 1 |  | 1 |  | . Coverage pass: `no lldp transmit` under an interface (read; decided only on an interface an external zone holds) |
+| Huawei VRP | 29 | 2 | 2 | 1 |  |  | 1 |  | 1 | 2 | 1 |  | 1 | 2 | 1 | 2 | 1 | 1 | 1 | 1 | 1 | 3 |  | 5. Coverage pass: `acl … inbound` under `user-interface vty`, `authentication-mode hwtacacs |radius|local` under `authentication-scheme`, `ssh server authentication-retries`, `undo icmp redirect send`, `ike proposal` / `ipsec proposal` algorithms |
+| MikroTik RouterOS | 29 | 2 | 1 |  |  |  |  | 2 | 1 | 5 |  | 1 | 2 | 3 | 2 | 2 |  | 2 | 1 | 1 | 1 | 3 |  | . Coverage pass: `/ip settings set accept-source-route=` and `send-redirects=` (one property per line; RouterOS prints several on one line, which is then left undecided), `/user aaa set use-radius=`, `/user settings set minimum-password-length=`, a default account in `/user add name=` or `/user set admin …` |
 | Extreme Networks EXOS | 23 | 1 | 1 | 1 |  |  | 1 |  | 2 | 1 | 2 | 1 | 1 | 1 | 1 | 2 | 1 | 1 | 2 | 1 | 2 | 1 |  | . Coverage pass: `configure cli max-failed-logins`, `password-policy lockout-on-login-failures on` (three attempts) / `off`, `password-policy min-length`, `enable|disable tacacs` and `radius mgmt-access`, `enable ip-option loose-|strict-source-route`, `disable icmp redirects [ipv4] vlan all`, `enable ntp authentication`, `configure ntp server add` |
 | Check Point Gaia | 22 | 1 | 1 | 1 |  |  | 1 | 3 | 2 | 1 | 2 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |  | 1 |  | . Coverage pass: `set user … password-hash` (hashed) and the default `admin` account, `set aaa tacacs-servers state on|off`, `deny-on-fail failures-allowed` and `deny-on-fail enable off` (no limit), a weak cipher / MAC / key exchange switched `on` |
 | Cisco ASA | 20 |  |  |  |  | 1 | 4 | 2 | 1 | 1 | 1 | 1 | 1 |  | 1 |  |  |  |  |  |  | 1 |  | 6. Coverage pass: `username … pbkdf2|encrypted privilege` storage and the default account, `telnet timeout`, `ssh cipher encryption <level>` (every predefined level includes CBC) and four CTR-only `custom` lists, `crypto ikev1|ikev2 policy` encryption / hash / integrity / group. A one-line `banner login <text>` no longer hides the lines after it |
@@ -200,7 +200,7 @@ proposal (CRYPTO-001).
 | AWS security group (JSON) | 4 |  |  | 3 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 1 |  |  |
 | Terraform (GCP) | 4 |  |  | 2 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 2 |  |  |
 | Juniper Junos / VyOS | 2 |  |  |  |  |  |  |  |  |  |  |  |  |  | 1 | 1 |  |  |  |  |  |  |  |  |
-| **All** | **380** | **15** | **14** | **46** | **2** | **7** | **17** | **17** | **26** | **17** | **15** | **10** | **16** | **22** | **19** | **18** | **11** | **14** | **9** | **11** | **11** | **35** | **1** | **27** |
+| **All** | **396** | **17** | **15** | **46** | **2** | **7** | **17** | **17** | **26** | **22** | **15** | **10** | **16** | **22** | **20** | **19** | **11** | **15** | **9** | **11** | **11** | **38** | **1** | **27** |
 
 **VPN** is CRYPTO-001: a proposal written one algorithm per line (`encryption-algorithm 3des-cbc`, `dh-group group2`)
 is read line by line, each line's value table naming the part it states (`{"group2": {"dh_group": 2}}`); a weak part
@@ -262,11 +262,11 @@ committed.
 
 | Dialect | Concepts read |
 |---|---|
-| Juniper Junos | Brace and `set` forms (each `set` seed also reads the brace form): Telnet, HTTP management, SSH version, session idle timeout, remote syslog, NTP server, LLDP (on, or `lldp disable`), RADIUS / TACACS+ servers, `authentication-order` (one method or a bracketed list), `allow-address` and `allow-sources` source restriction, login `message` banner, `encrypted-password` storage (set form), `host-inbound-traffic system-services` on an `untrust`/`outside`/`internet` zone (MGMT-010) |
+| Juniper Junos | Brace and `set` forms (each `set` seed also reads the brace form): Telnet, HTTP management, SSH version, session idle timeout, remote syslog, NTP server, LLDP (on, or `lldp disable`), RADIUS / TACACS+ servers, `authentication-order` (one method or a bracketed list), `allow-address` and `allow-sources` source restriction, login `message` banner, `encrypted-password` storage (set form), `host-inbound-traffic system-services` on an `untrust`/`outside`/`internet` zone (MGMT-010), SSH `root-login allow|deny` (AUTH-004; `deny-password` is not decided); documented default: no `idle-timeout` in a login class means sessions never time out (MGMT-006 FAIL by learned absence) |
 | Palo Alto PAN-OS | Telnet (service and interface profile), HTTP management (service and interface profile), SSH version, session idle timeout (two spellings), remote syslog (`log-settings syslog` server profiles, shared and per vsys, plus two `deviceconfig` spellings), NTP server, NTP authentication, `permitted-ip` (system and interface profile; `0.0.0.0/0` reads as unrestricted), login banner, `phash` password storage, LLDP per interface, TACACS+ and RADIUS server profiles, admin lockout (`set deviceconfig setting management admin-lockout failed-attempts`) |
-| Arista EOS | Telnet, HTTP management (both polarities), SSH version, session idle timeout, remote syslog, NTP server, NTP authentication, IP source routing, LLDP, login banner, management ACL applied under `management ssh`, permissive any-any rule, local-only login, password storage, lockout (`aaa authentication policy lockout failure N [duration …]`), minimum password length (`password minimum length N` under `management security`), `ntp authenticate servers` |
-| Huawei VRP | Telnet (`enable` and `undo`), HTTP management (`enable` and `undo`), remote syslog, NTP server, NTP authentication, session idle timeout, IP source routing, LLDP, login banner, password storage, permissive ACL rule |
-| MikroTik RouterOS | Telnet (also with `port=`), HTTP management (`www`), NTP server (two spellings), remote syslog, LLDP, login note, permissive input rule, SNMP community (`/snmp community set [ find … ] name=` and `add name=`, read-only), a password written in the file (`/user set|add … password=`, either side of `group=`) |
+| Arista EOS | Telnet, HTTP management (both polarities), SSH version, session idle timeout, remote syslog, NTP server, NTP authentication, IP source routing, LLDP, login banner, management ACL applied under `management ssh`, permissive any-any rule, local-only login, password storage, lockout (`aaa authentication policy lockout failure N [duration …]`), minimum password length (`password minimum length N` under `management security`), `ntp authenticate servers`, `management api http-commands` with `protocol http` / `no protocol http` (a shut-down API serves nothing), `username … nopassword` (no credential) |
+| Huawei VRP | Telnet (`enable` and `undo`), HTTP management (`enable` and `undo`), remote syslog, NTP server, NTP authentication, session idle timeout, IP source routing, LLDP, login banner, password storage, permissive ACL rule, `ntp-service unicast-server <address> …` with trailing options (`authentication-keyid`), advanced ACL `rule <n> permit ip` (any to any), `authentication-mode none` under `user-interface vty` (no credential); documented default: a VTY with no `acl … inbound` accepts any source |
+| MikroTik RouterOS | Telnet (also with `port=`), HTTP management (`www`), NTP server (two spellings), remote syslog, LLDP, login note, permissive input rule, SNMP community (`/snmp community set [ find … ] name=` and `add name=`, read-only), a password written in the file (`/user set|add … password=`, either side of `group=`), the property order `/export` writes: `/ip firewall filter add action=accept chain=<chain>` with no condition (permit-any), `/system note set note=… show-at-login=yes`, `/system logging action add name=… remote=<address> target=remote`, `/user set [ find name=… ] password=""` (no credential); documented default: IP services accept any source address |
 | HPE Aruba AOS-CX | Telnet, HTTP management, NTP authentication, login banner, permissive any-any rule, remote syslog, LLDP, local-only login, password storage |
 | Check Point Gaia | Telnet, HTTP management, remote syslog, NTP server, NTP authentication, SNMP source restriction, LLDP, IP source routing, session idle timeout, login banner, permissive access rule, minimum password length (`set password-controls min-password-length`) |
 | Terraform (AWS) | `aws_security_group` `ingress { }`, `aws_security_group_rule` (`type = "ingress"`), `aws_vpc_security_group_ingress_rule`: SSH / Telnet / RDP from `0.0.0.0/0` or `::/0` (or restricted to a prefix: PASS), any protocol (`-1`) or every TCP port from anywhere. A rule with other attributes (`self`, `security_groups`, several CIDRs) matches no template and stays undecided |
@@ -552,8 +552,39 @@ Earlier decisions this pass reversed, and why:
 
 Still not seeded, and why: Huawei `ssh server compatible-ssh1x` (not verified), AOS-CX `password complexity`
 `minimum-length` (counts only after `enable` in the same block), IOS-XR `aaa password-policy` (applies only to the
-users that name it), RouterOS `/ip service set ssh address=` (one service of six), any cipher list written on one
+users that name it), RouterOS `/ip service set ssh address=` (one service of six: it is not read as restricted,
+but it does withhold the RouterOS default below), any cipher list written on one
 line, and every rule-logging keyword whose absence a single line cannot show.
+
+## Sources for the detection-gaps pass (October 2026)
+
+Branch `feat/defaults-and-gaps`: settings an independent benchmark found undecided or misread on the dialects without
+a parser, each checked against a pair of configurations in `backend/tests/fixtures/gaps/` (one with the problem, one
+hardened), `tests/test_gaps.py`.
+
+| Seeds / defaults | Source |
+|---|---|
+| Arista `management telnet` + `shutdown` / `no shutdown`, `management api http-commands` + `protocol http` | Arista EOS User Manual, Management Interfaces (`management telnet`, `management api http-commands`: `protocol http`, `shutdown`) |
+| Arista `username … nopassword` | Arista EOS User Manual, User Security (`username`: `nopassword` creates an account with no password) |
+| Huawei `ntp-service unicast-server <ip> authentication-keyid <n>`, `ntp-service authentication enable` | Huawei VRP command reference, NTP (`ntp-service unicast-server`, `ntp-service authentication enable`) |
+| Huawei `rule <n> permit ip` in an advanced ACL | Huawei VRP command reference, ACL (`rule` in an advanced ACL view: no source or destination matches every packet) |
+| Huawei `authentication-mode none` under `user-interface vty` | Huawei VRP command reference, User Interface (`authentication-mode none`: no authentication) |
+| RouterOS firewall `add action=… chain=…`, `/system note`, `/system logging action … target=remote`, `/user set … password=` | MikroTik RouterOS manual: Filter, Note, Logging, User |
+| Junos `services ssh root-login allow|deny` | Junos OS Administration Library, `root-login` (SSH) |
+| Junos: no `idle-timeout` means no timeout (`factory_defaults.json`, learned absence) | Junos OS User Access and Authentication Guide, `idle-timeout`: "If you omit this statement, a user is never forced off the system after extended idle times" |
+| PAN-OS: management accepts any address until `permitted-ip` (value default) | PAN-OS Administrator's Guide, Perform Initial Configuration (Permitted IP Addresses); CIS Palo Alto Firewall Benchmark, "Ensure Permitted IP Addresses is set to those necessary for device management" |
+| Huawei VRP: a VTY accepts any source until `acl <n> inbound` (value default) | Huawei VRP command reference, `acl` (user interface view): no ACL is configured by default |
+| RouterOS: an IP service accepts any address until `address=` (value default) | MikroTik RouterOS manual, IP Services (`address`: the prefixes the service is accessible from; empty by default) |
+
+Each value default applies only when no line so much as names the setting. For management sources a line now names
+it only when it is also about management (a service, `vty`, `line`, `management`, `permitted-ip` …): an ACL definition
+or a rule called `allow-web` restricts nothing until it is applied. For a remote log destination a line names it only
+when it names a place off the device (`host`, `server`, `remote`, `loghost` …) or carries an address, so a log line
+that keeps logs on the device (`memory-lines`, Junos `syslog { file … }`) no longer hides that none leaves it.
+
+Considered and left out: a Junos default for failed-login limits. With no `retry-options` Junos still ends a session
+after a few failed passwords (the statement has documented defaults), so silence is not "no limit"; AUTH-001 stays
+undecided there.
 
 ## Adding a seed recognizer safely
 

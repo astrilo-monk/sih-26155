@@ -36,7 +36,7 @@ ORIGINAL_RULE_IDS = {
 }
 # Controls added after the original catalog: new questions, held to the same description rules
 ADDED_RULE_IDS = {
-    "MGMT-010", "MGMT-011", "AUTH-001", "AUTH-002", "AUTH-003", "LOG-003", "CRYPTO-002", "BOUNDARY-004",
+    "MGMT-010", "MGMT-011", "AUTH-001", "AUTH-002", "AUTH-003", "AUTH-004", "LOG-003", "CRYPTO-002", "BOUNDARY-004",
 }
 RULE_IDS = ORIGINAL_RULE_IDS | ADDED_RULE_IDS
 
@@ -46,6 +46,7 @@ NIST_REV5_TITLES = {
     "AC-2": "Account Management",
     "AC-3": "Access Enforcement",
     "AC-4": "Information Flow Enforcement",
+    "AC-6(5)": "Privileged Accounts",
     "AC-7": "Unsuccessful Logon Attempts",
     "AU-2": "Event Logging",
     "AU-12": "Audit Record Generation",
@@ -59,6 +60,7 @@ NIST_REV5_TITLES = {
     "AU-9(2)": "Store on Separate Physical Systems or Components",
     "CM-7": "Least Functionality",
     "IA-2": "Identification and Authentication (Organizational Users)",
+    "IA-2(5)": "Individual Authentication with Group Authentication",
     "IA-5": "Authenticator Management",
     "IA-5(1)": "Password-based Authentication",
     "SC-7": "Boundary Protection",

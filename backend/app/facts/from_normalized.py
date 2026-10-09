@@ -279,15 +279,20 @@ class _ParserFacts:
             if iface.allowed_services:
                 self.add(PROTOCOL_ENABLED, "telnet" in iface.allowed_services, iface.source_lines,
                          "telnet", f"interface {iface.name}")
+            # cleartext HTTP management is weak on any interface, not only a WAN one (CIS FortiGate: allow only
+            # HTTPS for administrative access); a WAN interface that allows nothing still says HTTP is off
+            if iface.allowed_services or iface.is_wan:
+                self.add(PROTOCOL_ENABLED, "http" in iface.allowed_services, iface.source_lines,
+                         "http", f"interface {iface.name}")
 
         if not wan:
-            self.add(PROTOCOL_ENABLED, None, (), "http", provenance=no_wan)
+            if not any(i.allowed_services for i in c.interfaces):
+                self.add(PROTOCOL_ENABLED, None, (), "http", provenance=no_wan)
             self.add(SOURCE_RESTRICTED, None, (), provenance=no_wan)
             self.add(MGMT_EXPOSED, None, (), provenance=no_wan)
             self.add(DISCOVERY_PROTOCOL, None, (), "lldp", provenance=no_wan)
         for iface in wan:
             scope = f"interface {iface.name}"
-            self.add(PROTOCOL_ENABLED, "http" in iface.allowed_services, iface.source_lines, "http", scope)
             # CIS FortiGate 1.3: every management-related service counts, not only the login protocols
             reachable = sorted(_EXPOSED_SERVICES.intersection(iface.allowed_services))
             self.add(MGMT_EXPOSED, bool(reachable), iface.source_lines, scope=scope,

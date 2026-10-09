@@ -135,8 +135,10 @@ def evaluate_control(control: Control, facts: list[SecurityFact], config: Normal
 
 
 def _unstated(reason: str, fact: SecurityFact) -> str:
-    """A failure read from absence says how the configuration would have stated the setting."""
-    if fact.value is NOT_SET and fact.assurance == Assurance.CONFIRMED and fact.provenance:
+    """A failure read from absence says how the configuration would have stated the setting, and one read from a
+    vendor default names that default and its source."""
+    absent = fact.value is NOT_SET and fact.assurance == Assurance.CONFIRMED
+    if (absent or fact.assurance == Assurance.DEFAULT) and fact.provenance and fact.provenance not in reason:
         return f"{reason} ({fact.provenance[0].upper()}{fact.provenance[1:]}.)"
     return reason
 

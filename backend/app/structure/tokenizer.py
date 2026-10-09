@@ -37,6 +37,8 @@ REMOVERS = frozenset({"delete", "remove"})
 # Words that only switch a polarity word before them: ``disabled=yes``
 SWITCHES = frozenset({"yes", "no", "true", "false"})
 FREE_TEXT = frozenset({"description", "remark", "comment", "alias"})
+# Words that are themselves a switched-off state: ``shutdown`` is off, so ``no shutdown`` is on (a double negative)
+OFF_STATES = frozenset({"shutdown"})
 _IGNORED = frozenset({"set", "{", "}", "};", ";"})
 _CLOSERS = frozenset({"end", "next", "exit", "quit"})
 
@@ -106,13 +108,17 @@ def tokenize_line(text: str, line: int = 1, scope_path: tuple[str, ...] = ()) ->
             # ``disable-telnet no``: the keyword carries its own negation
             polarities.append(False)
             statement.key_tokens.append(lowered[8:])
+        elif lowered in OFF_STATES:
+            polarities.append(False)
+            statement.key_tokens.append(lowered)
         else:
             statement.key_tokens.append(lowered)
 
     if not statement.key_tokens or statement.key_tokens[0] in FREE_TEXT:
         return None
     if negated:
-        statement.polarity = False
+        # ``no shutdown`` negates an off state, so it says on; any other negation says off
+        statement.polarity = bool(polarities) and set(statement.key_tokens) <= OFF_STATES and not polarities[-1]
     elif polarities:
         statement.polarity = polarities[-1]
     return statement

@@ -56,7 +56,7 @@ N = {
     fail="cleartext HTTP management is on",
     unknown="HTTP is mentioned but its state cannot be read",
     cisco="`ip http server` / `no ip http server`",
-    forti="`http` in a WAN interface `allowaccess`",
+    forti="`http` in any interface `allowaccess` (CIS FortiGate: HTTPS only); a WAN interface that allows nothing reads as HTTP off",
     generic="PAN-OS `disable-http no` and interface-management profile `http no`, Junos `set system services web-management http`, Huawei `http server enable` / `undo …`, RouterOS `set www disabled=yes`, Arista `management http-commands`, Gaia `set web-server enabled false`, EXOS `disable web`, Aruba `no http vrf default`, NX-OS `nxapi http port`",
     fix_cisco="`no ip http server` (and `ip http secure-server`)",
     fix_forti="remove `http` from `allowaccess` on WAN interfaces",
@@ -69,7 +69,7 @@ N = {
     unknown="relational: with no fact at all the control is UNKNOWN, never NOT_CONFIGURED",
     cisco="VTY `access-class` (per range; the first open range is the failing scope)",
     forti="management services on WAN interfaces",
-    generic="PAN-OS `permitted-ip`, Junos `allow-address` / `allow-sources`, Arista `ip access-group` under `management ssh`, EXOS SSH `access-profile`, NX-OS `access-class … in`; Terraform and cloud JSON rules open to `0.0.0.0/0` or `::/0` on port 22 / 23 / 3389, Huawei `acl … inbound` under `user-interface vty`, AOS-CX `apply access-list ip … control-plane`, Dell OS10 `ip access-group … mgmt|data in` under `control-plane`, IOS-XR `ssh server vrf … ipv4 access-list`",
+    generic="PAN-OS `permitted-ip`, Junos `allow-address` / `allow-sources`, Arista `ip access-group` under `management ssh`, EXOS SSH `access-profile`, NX-OS `access-class … in`; Terraform and cloud JSON rules open to `0.0.0.0/0` or `::/0` on port 22 / 23 / 3389, Huawei `acl … inbound` under `user-interface vty`, AOS-CX `apply access-list ip … control-plane`, Dell OS10 `ip access-group … mgmt|data in` under `control-plane`, IOS-XR `ssh server vrf … ipv4 access-list`; documented defaults (no line names management sources): PAN-OS management port, Huawei VTY and RouterOS IP services accept any address (FAIL by default, provenance cited); a line pairing a management service with an address or a source word withholds the default",
     fix_cisco="a management ACL from `management_subnet` plus `access-class MGMT in` on each VTY range",
     fix_forti="remove management services from WAN interfaces",
     fix_generic="write-back replaces the wildcard with the operator's `management_subnet`; cloud rules get no generated command",
@@ -89,7 +89,7 @@ N = {
 "MGMT-005": dict(
     reads="`auth.password.storage` (subject `enable`, `user <name>`, `console`) and `auth.password.encryption_service`",
     pass_="every stored password uses a strong type (`secret`, `type5_md5`, `type8_sha256`, `type9_scrypt`, `encrypted`, `hashed`) and the encryption service is on",
-    fail="a `plaintext`, `type0` or `type7` password (critical), or no `service password-encryption` (high)",
+    fail="a `plaintext`, `type0` or `type7` password (critical), or no `service password-encryption` (high), or no credential at all (`empty`: Arista `nopassword`, RouterOS `password=""`, Huawei VTY `authentication-mode none`; critical); each account or login line is its own fact",
     unknown="a storage type that cannot be classified",
     cisco="`enable secret|password [type]`, `username … secret|password [type]`, `service password-encryption`",
     forti="not read: UNKNOWN with the reason \"the fortinet parser does not read …\"",
@@ -105,7 +105,7 @@ N = {
     unknown="a timeout with no known unit",
     cisco="VTY and console `exec-timeout M [S]` (worst VTY range is the scope); no timeout = FAIL (CIS requires it set)",
     forti="`set admintimeout N`; default 5 minutes (PASS by documented default)",
-    generic="Junos `idle-timeout`, PAN-OS `idle-timeout` (minutes), Arista `idle-timeout` (minutes), Huawei, Gaia (`session-timeout`, seconds), EXOS (`inactivity-timeout`, seconds), NX-OS, ASA `ssh timeout` / `console timeout` / `http server idle-timeout` (minutes), FortiSwitchOS `admintimeout`, AOS-CX top-level `session-timeout` (minutes), Dell OS10 top-level `exec-timeout` (seconds), IOS-XR `exec-timeout <min> 0`, ASA `telnet timeout`",
+    generic="Junos `idle-timeout`, PAN-OS `idle-timeout` (minutes), Arista `idle-timeout` (minutes), Huawei, Gaia (`session-timeout`, seconds), EXOS (`inactivity-timeout`, seconds), NX-OS, ASA `ssh timeout` / `console timeout` / `http server idle-timeout` (minutes), FortiSwitchOS `admintimeout`, AOS-CX top-level `session-timeout` (minutes), Dell OS10 top-level `exec-timeout` (seconds), IOS-XR `exec-timeout <min> 0`, ASA `telnet timeout`; documented default: Junos never logs an idle user off without `idle-timeout` (FAIL by learned absence, source cited)",
     fix_cisco="`exec-timeout 5 0` on failing lines",
     fix_forti="`set admintimeout 5`",
     fix_generic="write-back sets 10 minutes in the dialect's own unit; never a removal (a threshold control is not derivable)",
@@ -206,6 +206,18 @@ N = {
     fix_forti="the same",
     fix_generic="removal candidate",
 ),
+"AUTH-004": dict(
+    reads="`auth.root_login.allowed`",
+    pass_="root login over SSH is denied",
+    fail="root may log in over SSH (Junos `root-login allow`)",
+    unknown="a root-login line that cannot be read; Junos `root-login deny-password` (key-only root login) is not decided",
+    cisco="not applicable: IOS has no root account",
+    forti="not applicable: FortiOS has no root account",
+    generic="Junos `services { ssh { root-login allow|deny; } }` / `set system services ssh root-login allow|deny`; no default is claimed (silence stays NOT_CONFIGURED)",
+    fix_cisco="none",
+    fix_forti="none",
+    fix_generic="candidate (`set system services ssh root-login deny`)",
+),
 "BOUNDARY-001": dict(
     reads="`boundary.policy.permit_any` (scope: the ACL or policy)",
     pass_="no rule permits any source to any destination for any service",
@@ -261,7 +273,7 @@ N = {
     unknown="a destination line that cannot be read",
     cisco="`logging host X` / `logging X.X.X.X`",
     forti="`config log syslogd setting` with `status enable` and `server`",
-    generic="13 dialects including PAN-OS syslog server profiles, Junos `syslog host`, SONiC `SYSLOG_SERVER`, Cumulus; learned absence fails it for an understood dialect",
+    generic="13 dialects including PAN-OS syslog server profiles, Junos `syslog host`, SONiC `SYSLOG_SERVER`, Cumulus; learned absence fails it for an understood dialect; a log line names a remote destination only with a place off the device (`host`, `server`, `remote`, `loghost` …) or an address, so `memory-lines` or `syslog { file … }` no longer hide its absence",
     fix_cisco="add `logging host` from `syslog_server`",
     fix_forti="enable syslogd with `syslog_server`",
     fix_generic="added from `syslog_server` with the dialect's own template",
@@ -272,7 +284,7 @@ N = {
     fail="no servers, authentication off, or a server not on the policy's list",
     unknown="servers configured but authentication cannot be read",
     cisco="`ntp server X`, `ntp authenticate`",
-    forti="`config system ntp` `authentication`, `config ntpserver` entries",
+    forti="`config system ntp` `authentication`, or `set authentication enable` in every `config ntpserver` entry (FortiOS 7; one unauthenticated server leaves it unauthenticated), `config ntpserver` entries",
     generic="NTP server seeds for 9 dialects (SONiC most), authentication seeds for Arista (`ntp authenticate`, `ntp authenticate servers`), Gaia, Aruba, Huawei, PAN-OS; Junos / VyOS `set system ntp server`; learned absence for servers; authentication also Junos `trusted-key`, IOS-XR `authenticate` / `trusted-key`, EXOS `enable ntp authentication`, FortiSwitchOS; documented default: VyOS 1.3 has no NTP authentication",
     fix_cisco="add key and authentication (needs `ntp_key_id`, `ntp_key`; `ntp_server` if none)",
     fix_forti="enable authentication with the key",
@@ -318,9 +330,9 @@ N = {
 
 out = []
 w = out.append
-w("""# Controls Reference
+w(f"""# Controls Reference
 
-The 23 security checks in `backend/app/controls/catalog.py`, how each one is decided, which configuration lines feed
+The {len(CONTROLS)} security checks in `backend/app/controls/catalog.py`, how each one is decided, which configuration lines feed
 it on every path, how it is fixed, and which framework requirements it answers.
 
 This file is generated by `backend/scripts/build_detection_rules.py` from the catalog, the shipped recognizers and

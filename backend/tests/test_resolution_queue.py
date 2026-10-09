@@ -80,9 +80,12 @@ def test_initial_juniper_score_is_unchanged(client):
     # Was (19, 24) before brace leaves were read by set-form seeds: the users' encrypted-password is a decided MGMT-005 PASS
     # Was (38, 32) before Junos knowledge learned how NTP authentication is written (``trusted-key``): the file names an
     # NTP server and no key, so LOG-002 is a decided FAIL
-    assert (scan["posture"], scan["coverage"]) == (36, 34)
-    assert scan["assessed_count"] == 8
-    assert scan["unresolved_count"] == 15
+    # Was (36, 34) before the detection-gaps pass, three more decided FAILs: no login class sets 'idle-timeout'
+    # (Junos default: never logs an idle user off, MGMT-006), 'root-login allow' (AUTH-004, a new check), and syslog
+    # writes only to 'user *' and 'file messages' (LOG-001: the word 'syslog' alone no longer hides that no 'host' is set)
+    assert (scan["posture"], scan["coverage"]) == (27, 43)
+    assert scan["assessed_count"] == 11
+    assert scan["unresolved_count"] == 13
 
 
 def test_initial_score_comes_from_the_scoring_engine(client):
@@ -117,10 +120,11 @@ def test_every_unresolved_item_says_why_and_what_to_do(client):
 def test_queue_offers_the_lines_it_has_and_claims_none_it_does_not(client):
     scan, _ = juniper(client)
     items = {i["control_id"]: i for i in unresolved(client, scan["scan_id"])["items"]}
-    # syslog is configured, to local files only: the syslog lines are offered
-    assert [line["line_number"] for line in items["LOG-001"]["suggested_lines"]]
-    # nothing in this configuration mentions an idle timeout, and none is invented
-    assert items["MGMT-006"]["suggested_lines"] == []
+    # LLDP runs on every interface, which may face outside: the lldp lines are offered
+    # (syslog to local files and the missing idle timeout were the examples here; both are decided FAILs now)
+    assert [line["line_number"] for line in items["BOUNDARY-003"]["suggested_lines"]]
+    # nothing in this configuration mentions a failed-login limit, and none is invented
+    assert items["AUTH-001"]["suggested_lines"] == []
 
 
 def test_a_read_dialect_is_told_what_to_do_instead_of_being_told_about_recognizers(client):
@@ -250,7 +254,7 @@ def test_undecided_controls_are_never_counted_as_passed_or_failed(client):
     decided = {r["control_id"] for r in scan["results"] if r["status"] in ("pass", "fail")}
     assert undecided & decided == set()
     # the posture is computed over the decided controls alone
-    assert scan["posture"] == 36 and len(decided) == 8
+    assert scan["posture"] == 27 and len(decided) == 11
 
 
 # ── 14-15. the rest of the product is unaffected ─────────────────────────────
@@ -293,8 +297,8 @@ def test_control_outcomes_agree_with_the_posture(seeded_adaptive_db):
     results = evaluate_controls(config)
     outcomes = control_outcomes([results])
     posture = calculate_posture([results])
-    assert posture.coverage == 34
-    assert sum(1 for o in outcomes.values() if o == "undecided") == 15
+    assert posture.coverage == 43
+    assert sum(1 for o in outcomes.values() if o == "undecided") == 13
     assert set(posture.critical_unassessed) <= {c for (_, c), o in outcomes.items() if o == "undecided"}
 
 

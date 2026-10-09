@@ -30,7 +30,11 @@ def test_the_default_community_named_public_fails_and_the_password_is_plaintext(
     assert results["MGMT-004"].status.value == "fail"
     assert 4 in results["MGMT-004"].evidence.line_numbers
     assert results["MGMT-005"].status.value == "fail"
-    assert {7, 9} <= set(results["MGMT-005"].evidence.line_numbers)
+    # each account stores its own password, so each is its own FAIL citing its own line
+    from tests.test_seed_knowledge import _unknown, evaluate_controls
+    cited = {n for r in evaluate_controls(_unknown(_text())) if r.control_id == "MGMT-005" and r.status.value == "fail"
+             for n in r.evidence.line_numbers}
+    assert {7, 9} <= cited
 
 
 @pytest.mark.parametrize("line", [

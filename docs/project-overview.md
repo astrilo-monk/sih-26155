@@ -1,6 +1,6 @@
 # Project Overview
 
-NetAuditAI audits network device and cloud firewall configurations against 23 security checks, with cited evidence,
+NetAuditAI audits network device and cloud firewall configurations against 24 security checks, with cited evidence,
 honest UNKNOWN / NOT_CONFIGURED results, posture and coverage, framework views, human-confirmed recognizers for
 unfamiliar vendors, and fixes verified by rescan. Built for Smart India Hackathon 2026, problem SIH26155 (NTRO).
 
@@ -38,7 +38,7 @@ backend/
     parsers/                  detector + grammar coverage, Cisco IOS and FortiGate parsers
     structure/                generic tokenizer; JSON and Terraform flattening
     facts/                    predicates, parser facts, defaults, lexicon, heuristics, recognizers, seed loader, teaching
-    controls/                 catalog (23 checks), judges, evaluator, finding view, frameworks, organisation policy
+    controls/                 catalog (24 checks), judges, evaluator, finding view, frameworks, organisation policy
     analysis/                 scoring (posture, coverage; legacy score), attack paths, risk, drift, fleet checks, CVE
     ai/                       model client, redaction, prompt fence, AI judge, remediation drafts, prompts
     adaptive/                 line capture, block paths, relevance, matcher, legacy interpreter / mapper, service
@@ -46,7 +46,7 @@ backend/
     reporting/                per-device PDF report (full and executive)
     db/                       SQLite / Postgres migrations, recognizer repository, scan archive
     models/                   NormalizedConfig, findings, results, legacy field catalog
-  data/                       seed_recognizers.json (380), factory_defaults.json, platform_profiles.json,
+  data/                       seed_recognizers.json (396), factory_defaults.json, platform_profiles.json,
                               cve_cache.json, path_validation.json
   scripts/                    benchmark, CVE cache builder, attack-path proof, injection probe, architecture PDF
   tests/                      67 pytest files, fixtures, Phase 0 golden snapshots

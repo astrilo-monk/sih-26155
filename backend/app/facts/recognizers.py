@@ -38,7 +38,7 @@ from app.facts.predicates import (
     ADMIN_ACCOUNT, CENTRAL_AAA, DISCOVERY_PROTOCOL, IDLE_TIMEOUT, IPSEC_PROPOSAL, LOG_REMOTE_DESTINATION, LOGIN_BANNER, LOGIN_MAX_ATTEMPTS,
     MGMT_EXPOSED, MGMT_WEAK_CRYPTO, NOT_SET, NTP_AUTHENTICATED, PASSWORD_MIN_LENGTH, ROUTER_UNSAFE_SERVICE, RULE_LOGGING,
     NTP_SERVER, PASSWORD_ENCRYPTION_SERVICE, PASSWORD_STORAGE, PERMIT_ANY, PROTOCOL_ENABLED, SOURCE_RESTRICTED,
-    SNMP_COMMUNITY, SOURCE_ROUTING, SSH_VERSION, SecurityFact,
+    ROOT_LOGIN, SNMP_COMMUNITY, SOURCE_ROUTING, SSH_VERSION, SecurityFact,
 )
 from app.models.results import Assurance
 from app.structure.tokenizer import IP, NEGATIVE, NEGATORS, NUMBER, POSITIVE, Statement, tokenize, tokenize_line
@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 BOOL_PREDICATES = frozenset({
     PROTOCOL_ENABLED, SOURCE_RESTRICTED, CENTRAL_AAA, NTP_AUTHENTICATED, LOGIN_BANNER, SOURCE_ROUTING,
     DISCOVERY_PROTOCOL, PERMIT_ANY, PASSWORD_ENCRYPTION_SERVICE, MGMT_EXPOSED, MGMT_WEAK_CRYPTO, RULE_LOGGING,
-    ROUTER_UNSAFE_SERVICE,
+    ROUTER_UNSAFE_SERVICE, ROOT_LOGIN,
 })
 # Settings a configuration states by *naming a thing*: the line exists only to configure them, so the
 # address or name it carries is which instance, not whether the setting is on. No dialect writes
@@ -72,7 +72,7 @@ CONCEPT_WORDS = {
     MGMT_EXPOSED: (L.MGMT_EXPOSURE_RELATED,), LOGIN_MAX_ATTEMPTS: (L.LOCKOUT_RELATED,),
     PASSWORD_MIN_LENGTH: (L.PASSWORD_RELATED,), ADMIN_ACCOUNT: (L.ACCOUNT_RELATED,),
     MGMT_WEAK_CRYPTO: (L.CRYPTO_SETTING_RELATED,), RULE_LOGGING: (L.RULE_WORDS | L.RULE_LOG_WORDS,),
-    ROUTER_UNSAFE_SERVICE: (L.ROUTER_SERVICE_WORDS,), IPSEC_PROPOSAL: (L.IPSEC,),
+    ROUTER_UNSAFE_SERVICE: (L.ROUTER_SERVICE_WORDS,), IPSEC_PROPOSAL: (L.IPSEC,), ROOT_LOGIN: (L.ROOT_LOGIN_RELATED,),
     # both sets must appear: a version is an SSH version, authentication is of the time source
     SSH_VERSION: (L.SSH, L.SSH_VERSION_RELATED), NTP_AUTHENTICATED: (L.TIME_RELATED, L.AUTH_RELATED),
 }
@@ -108,7 +108,10 @@ PER_STATEMENT = {SNMP_COMMUNITY: "snmp community", MGMT_EXPOSED: "management acc
                  # each limit is its own fact and the weakest decides: Gaia ``deny-on-fail enable false`` beside
                  # ``failures-allowed 3`` is no limit at all
                  LOGIN_MAX_ATTEMPTS: "failed-login limit",
-                 RULE_LOGGING: "rule", ROUTER_UNSAFE_SERVICE: "interface service"}
+                 RULE_LOGGING: "rule", ROUTER_UNSAFE_SERVICE: "interface service",
+                 # each account (each login line) stores its own password: a hashed one beside one with none is
+                 # two facts, not a conflict about one setting
+                 PASSWORD_STORAGE: "password"}
 # The access a {community:<level>} slot's template states
 COMMUNITY_ACCESS = frozenset({"RO", "RW"})
 # Settings whose statement may end in ``{rest}``: a destination or an authentication server. What
@@ -636,7 +639,14 @@ def _factory_defaults() -> dict[str, dict[str, str]]:
 
 # Password words alone name a password (a hash, a user's secret), not its policy: a line may only be the length
 # setting stated some other way when it also speaks of length or complexity
-ABSENCE_WORDS = {PASSWORD_MIN_LENGTH: frozenset({"length", "len", "minlen", "complexity"})}
+ABSENCE_WORDS = {PASSWORD_MIN_LENGTH: frozenset({"length", "len", "minlen", "complexity"}),
+                 # a log line says where logs go only when it names a place off the device (or an address):
+                 # ``logging buffered``, Junos ``syslog { file messages … }`` and RouterOS ``memory-lines`` keep
+                 # them on it
+                 LOG_REMOTE_DESTINATION: L.LOG_DESTINATION_WORDS,
+                 # a line restricts management sources only when it is about management: an ACL definition or a
+                 # rule named ``allow-web`` restricts nothing until it is applied to a management service
+                 SOURCE_RESTRICTED: L.MGMT_PLACES}
 
 
 def _mentions_setting(predicate: str, st: Statement, subject: Optional[str] = None) -> bool:
@@ -644,6 +654,8 @@ def _mentions_setting(predicate: str, st: Statement, subject: Optional[str] = No
     if not _names_concept(predicate, subject, words):
         return False
     extra = ABSENCE_WORDS.get(predicate)
+    if predicate == LOG_REMOTE_DESTINATION and any(IP.match(v) for v in st.values):
+        return True
     return not extra or bool({p for w in words for p in {w.lower(), *re.split(r"[-_./]", w.lower())}} & extra)
 
 
@@ -721,6 +733,8 @@ def _names_concept(predicate: str, subject: Optional[str], words: Iterable[str])
     if not required or not all(required):
         return False
     parts = {p for w in words for p in ({w.lower()} | set(re.split(r"[-_./]", w.lower())))}
+    if predicate == SOURCE_RESTRICTED and parts & L.ADDRESS_WORDS and parts & L.MGMT_SERVICE_NAMES:
+        return True  # a service menu names the sources it accepts: RouterOS ``/ip service set ssh address=…``
     return all(parts & vocabulary for vocabulary in required)
 
 
