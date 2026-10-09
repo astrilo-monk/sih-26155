@@ -171,8 +171,7 @@ export const apiClient = {
     return postJson('/remediation/final', { scan_id: scanId, device_inputs: deviceInputs });
   },
 
-  // Candidate remediation for a device whose vendor is not confirmed. `action` is 'derive' (the change
-  // NetAuditAI works out from the configuration itself, already verified when it comes back), 'propose' (the
+  // Candidate remediation for a device whose vendor is not confirmed. `action` is 'propose' (the
   // command an administrator typed), 'generate' (ask the AI for one), 'verify' (simulate it on a copy of the
   // uploaded configuration), 'confirm' or 'reject'. Command text is never executed and never sent to a device.
   remediationCandidate(action, scanId, ruleId, deviceHostname, configIndex, body = {}) {

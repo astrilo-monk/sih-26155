@@ -224,10 +224,11 @@ resolution queue's `suggested_lines`, and a person still confirms it.
 
 ## 5. Remediation candidates (unconfirmed vendors, on request)
 
-**Not AI: the derived candidate.** The Fix page's *Fix it for me* asks no model anything. `candidates.derive` takes
-the lines the decisive FAIL cites, removes them from a copy and re-reads it with the generic engine; the text it shows
-is built from the configuration's own block path and keywords. The AI path is only for what it refuses (a control
-that needs a setting **added**, or a change it cannot state safely).
+**Not AI: the derived candidate (API only).** `POST /api/remediation/candidate/derive` asks no model anything.
+`candidates.derive` takes the lines the decisive FAIL cites, removes them from a copy and re-reads it with the generic
+engine; the text it shows is built from the configuration's own block path and keywords. The Fix page does not offer
+it: a removal can never add a setting, so it was rarely a good enough fix. The page offers the AI draft and a typed
+command instead.
 
 ```mermaid
 sequenceDiagram
