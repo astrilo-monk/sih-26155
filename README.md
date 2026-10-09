@@ -295,17 +295,18 @@ with `python backend/scripts/benchmark.py`; full table in [benchmark/RESULTS.md]
 | Set | Insecure settings caught (decided FAIL) | Missed | False alarms on secure settings |
 |---|---|---|---|
 | 20 vulnerabilities planted in the demo files (Cisco IOS, PAN-OS) | **19/20** (the other 1 flagged as suspected) | **0** | **0** of 4 |
-| 31 labelled fixtures: 8 vendors without a parser, SONiC, Cumulus, Terraform, Azure / GCP exports | **89/112** (23 left undecided) | **0** | **0** of 84 |
-| **Held-out:** 9 real configurations never seen during development (pybatfish example networks), labels committed before the first run | **21/21** (first run 20/21; the miss was a parser bug, since fixed) | **0** | **0** of 13 |
+| 31 labelled fixtures: 8 vendors without a parser, SONiC, Cumulus, Terraform, Azure / GCP exports | **92/112** (1 more flagged as suspected, 19 left undecided) | **0** | **0** of 84 |
+| **Held-out:** 9 real configurations never seen during development (pybatfish example networks), labels committed before the first run. **Not in the repository: needs the download step below** | **21/21** (first run 20/21; the miss was a parser bug, since fixed) | **0** | **0** of 13 |
 
 "Undecided" is not a miss: the engine shows the line and what it would need, and never calls an insecure setting
 secure. `tests/test_benchmark.py` fails if detection drops or a single miss or false alarm appears. The held-out
 files are not committed (they are pybatfish's); `backend/scripts/benchmark.py` prints the command that fetches
 them at the pinned commit, and the same test then holds them to zero misses and zero false alarms.
 
-**Reproducing from a clone:** 87 of the 112 fixture labels point at configurations in `teach/`, a corpus that
-`.gitignore` excludes, so a clean clone measures the fixtures set on the 25 labels whose files are committed (20/25
-decided, 0 missed, 0 false alarms). The planted set reproduces fully. See [testing.md](docs/testing.md#on-a-clean-clone).
+**Reproducing from a clone:** the planted and fixtures sets reproduce as shown (their files, including the
+`teach/*_5_configs` dialect sets, are committed). The held-out row does not until you fetch the pybatfish files into
+`datasets/pybatfish/` with the command `backend/scripts/benchmark.py` prints; without them it is skipped, not failed.
+See [testing.md](docs/testing.md#on-a-clean-clone).
 
 A separate live probe of 6 prompt-injection attacks against the AI judge succeeded 0 times
 (`backend/scripts/probe_injection.py`), and a fully hijacked model is tested to change no verdict.

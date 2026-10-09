@@ -195,13 +195,13 @@ No linter or type checker is configured in the repository, and no CI workflow sh
 
 ### On a clean clone
 
-Expect **23 failed and 2 errors** that have nothing to do with the code under test:
+Nothing fails. The configurations the tests and the benchmark read, including the `teach/*_5_configs` dialect sets,
+are committed. What skips, and why:
 
-| Tests | Why they fail on a clean clone |
+| Tests | Why they skip on a clean clone |
 |---|---|
-| 16 `test_citations.py` cases, `test_baseline_model.py` (2 errors), 2 `test_learned_absence.py` cases | they read configurations from `teach/`, which `.gitignore` excludes |
-| `test_benchmark.py` | the "fixtures" floor (89) counts labels whose files live in `teach/`; a clean clone measures 20 of 25 |
-| 4 `test_config_loading.py` cases | they expect a developer `backend/.env` holding a Groq key |
+| 4 `test_config_loading.py` cases | they prove a developer `backend/.env` with a Groq key loads; a clone has neither |
+| 9 `test_heldout_labels.py` cases | the held-out pybatfish files are not committed (`datasets/` is git-ignored); fetch them with the command `backend/scripts/benchmark.py` prints |
+| 2 `test_adaptive_generic.py` cases | they call the real Groq API only with `NETAUDIT_LIVE_AI=1` |
 
-Committing the `teach/` corpus (or moving those cases behind a skip when it is absent) and making the `.env` tests
-create their own temporary file would make the suite green from a clone.
+The benchmark measures the planted and fixtures sets in full from a clone; the held-out set only once fetched.

@@ -9,8 +9,8 @@ Shipped knowledge only, no AI. A miss means the engine called an insecure settin
 
 | File | Vendor path | Detected | Suspected | Undecided | Missed | False alarms | Time |
 |---|---|---|---|---|---|---|---|
-| `backend/tests/fixtures/demo/cisco_edge_vulnerable.cfg` | cisco_ios | 10/10 | 0 | 0 | 0 | 0 | 1049 ms |
-| `backend/tests/fixtures/demo/paloalto_fw_vulnerable.cfg` | unknown | 9/10 | 1 | 0 | 0 | 0 | 3339 ms |
+| `backend/tests/fixtures/demo/cisco_edge_vulnerable.cfg` | cisco_ios | 10/10 | 0 | 0 | 0 | 0 | 70 ms |
+| `backend/tests/fixtures/demo/paloalto_fw_vulnerable.cfg` | unknown | 9/10 | 1 | 0 | 0 | 0 | 160 ms |
 
 Not detected as a decided FAIL:
 
@@ -18,41 +18,41 @@ Not detected as a decided FAIL:
 
 ## Labelled fixtures: 8 vendors, SONiC, Cumulus, Terraform for AWS, Azure, GCP, and Azure NSG / GCP firewall exports (labels written by reading each file)
 
-**89/112** insecure settings detected as a decided FAIL (0 more flagged as suspected, 23 left undecided, **0 missed**) · **0 false alarms** on 84 secure settings (68 confirmed secure, 16 undecided)
+**92/112** insecure settings detected as a decided FAIL (1 more flagged as suspected, 19 left undecided, **0 missed**) · **0 false alarms** on 84 secure settings (68 confirmed secure, 16 undecided)
 
 | File | Vendor path | Detected | Suspected | Undecided | Missed | False alarms | Time |
 |---|---|---|---|---|---|---|---|
-| `backend/tests/fixtures/seed_dialects/sonic_insecure.json` | unknown | 2/5 | 0 | 3 | 0 | 0 | 181 ms |
-| `backend/tests/fixtures/seed_dialects/sonic_secure.json` | unknown | 1/1 | 0 | 0 | 0 | 0 | 186 ms |
-| `backend/tests/fixtures/seed_dialects/cumulus_insecure.conf` | unknown | 2/4 | 0 | 2 | 0 | 0 | 173 ms |
-| `backend/tests/fixtures/seed_dialects/cumulus_secure.conf` | unknown | 1/1 | 0 | 0 | 0 | 0 | 254 ms |
-| `backend/tests/fixtures/cloud_json/azure_nsg_insecure.json` | unknown | 2/2 | 0 | 0 | 0 | 0 | 128 ms |
-| `backend/tests/fixtures/cloud_json/azure_nsg_secure.json` | unknown | 0/0 | 0 | 0 | 0 | 0 | 174 ms |
-| `backend/tests/fixtures/cloud_json/gcp_firewall_insecure.json` | unknown | 2/2 | 0 | 0 | 0 | 0 | 100 ms |
-| `backend/tests/fixtures/cloud_json/gcp_firewall_secure.json` | unknown | 0/0 | 0 | 0 | 0 | 0 | 133 ms |
-| `backend/tests/fixtures/terraform/aws_insecure.tf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 180 ms |
-| `backend/tests/fixtures/terraform/aws_secure.tf` | unknown | 0/0 | 0 | 0 | 0 | 0 | 133 ms |
-| `backend/tests/fixtures/terraform/azure_insecure.tf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 146 ms |
-| `backend/tests/fixtures/terraform/azure_secure.tf` | unknown | 0/0 | 0 | 0 | 0 | 0 | 177 ms |
-| `backend/tests/fixtures/terraform/gcp_insecure.tf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 181 ms |
-| `backend/tests/fixtures/terraform/gcp_secure.tf` | unknown | 0/0 | 0 | 0 | 0 | 0 | 136 ms |
-| `backend/tests/fixtures/seed_dialects/routeros_credentials.rsc` | unknown | 3/4 | 0 | 1 | 0 | 0 | 203 ms |
-| `teach/arista_eos_5_configs/arista_01_secure.conf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 1028 ms |
-| `teach/arista_eos_5_configs/arista_02_insecure.conf` | unknown | 11/13 | 0 | 2 | 0 | 0 | 965 ms |
-| `teach/checkpoint_gaia_5_configs/checkpoint_01_secure.conf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 463 ms |
-| `teach/checkpoint_gaia_5_configs/checkpoint_02_insecure.conf` | unknown | 9/9 | 0 | 0 | 0 | 0 | 861 ms |
-| `teach/extreme_networks_exos_5_configs/extreme_01_secure.conf` | unknown | 1/2 | 0 | 1 | 0 | 0 | 571 ms |
-| `teach/extreme_networks_exos_5_configs/extreme_02_insecure.conf` | unknown | 7/11 | 0 | 4 | 0 | 0 | 810 ms |
-| `teach/hpe_aruba_aoscx_5_configs/aruba_01_secure.conf` | unknown | 3/3 | 0 | 0 | 0 | 0 | 730 ms |
-| `teach/hpe_aruba_aoscx_5_configs/aruba_02_insecure.conf` | unknown | 8/10 | 0 | 2 | 0 | 0 | 581 ms |
-| `teach/huawei_vrp_5_configs/huawei_01_secure.conf` | unknown | 0/0 | 0 | 0 | 0 | 0 | 697 ms |
-| `teach/huawei_vrp_5_configs/huawei_02_insecure.conf` | unknown | 9/9 | 0 | 0 | 0 | 0 | 917 ms |
-| `teach/juniper_junos_5_configs/juniper_01_secure.conf` | unknown | 2/3 | 0 | 1 | 0 | 0 | 849 ms |
-| `teach/juniper_junos_5_configs/juniper_02_insecure.conf` | unknown | 5/6 | 0 | 1 | 0 | 0 | 870 ms |
-| `teach/mikrotik_routeros_5_configs/mikrotik_01_secure.rsc` | unknown | 0/2 | 0 | 2 | 0 | 0 | 813 ms |
-| `teach/mikrotik_routeros_5_configs/mikrotik_02_insecure.rsc` | unknown | 5/8 | 0 | 3 | 0 | 0 | 885 ms |
-| `teach/paloalto_pan_os_5_configs/paloalto_01_secure.conf` | unknown | 1/1 | 0 | 0 | 0 | 0 | 647 ms |
-| `teach/paloalto_pan_os_5_configs/paloalto_02_insecure.conf` | unknown | 5/6 | 0 | 1 | 0 | 0 | 1012 ms |
+| `backend/tests/fixtures/seed_dialects/sonic_insecure.json` | unknown | 2/5 | 0 | 3 | 0 | 0 | 37 ms |
+| `backend/tests/fixtures/seed_dialects/sonic_secure.json` | unknown | 1/1 | 0 | 0 | 0 | 0 | 41 ms |
+| `backend/tests/fixtures/seed_dialects/cumulus_insecure.conf` | unknown | 2/4 | 0 | 2 | 0 | 0 | 30 ms |
+| `backend/tests/fixtures/seed_dialects/cumulus_secure.conf` | unknown | 1/1 | 0 | 0 | 0 | 0 | 131 ms |
+| `backend/tests/fixtures/cloud_json/azure_nsg_insecure.json` | unknown | 2/2 | 0 | 0 | 0 | 0 | 86 ms |
+| `backend/tests/fixtures/cloud_json/azure_nsg_secure.json` | unknown | 0/0 | 0 | 0 | 0 | 0 | 33 ms |
+| `backend/tests/fixtures/cloud_json/gcp_firewall_insecure.json` | unknown | 2/2 | 0 | 0 | 0 | 0 | 180 ms |
+| `backend/tests/fixtures/cloud_json/gcp_firewall_secure.json` | unknown | 0/0 | 0 | 0 | 0 | 0 | 236 ms |
+| `backend/tests/fixtures/terraform/aws_insecure.tf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 254 ms |
+| `backend/tests/fixtures/terraform/aws_secure.tf` | unknown | 0/0 | 0 | 0 | 0 | 0 | 69 ms |
+| `backend/tests/fixtures/terraform/azure_insecure.tf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 29 ms |
+| `backend/tests/fixtures/terraform/azure_secure.tf` | unknown | 0/0 | 0 | 0 | 0 | 0 | 28 ms |
+| `backend/tests/fixtures/terraform/gcp_insecure.tf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 26 ms |
+| `backend/tests/fixtures/terraform/gcp_secure.tf` | unknown | 0/0 | 0 | 0 | 0 | 0 | 18 ms |
+| `backend/tests/fixtures/seed_dialects/routeros_credentials.rsc` | unknown | 4/4 | 0 | 0 | 0 | 0 | 69 ms |
+| `teach/arista_eos_5_configs/arista_01_secure.conf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 102 ms |
+| `teach/arista_eos_5_configs/arista_02_insecure.conf` | unknown | 11/13 | 0 | 2 | 0 | 0 | 74 ms |
+| `teach/checkpoint_gaia_5_configs/checkpoint_01_secure.conf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 61 ms |
+| `teach/checkpoint_gaia_5_configs/checkpoint_02_insecure.conf` | unknown | 9/9 | 0 | 0 | 0 | 0 | 73 ms |
+| `teach/extreme_networks_exos_5_configs/extreme_01_secure.conf` | unknown | 2/2 | 0 | 0 | 0 | 0 | 84 ms |
+| `teach/extreme_networks_exos_5_configs/extreme_02_insecure.conf` | unknown | 7/11 | 0 | 4 | 0 | 0 | 62 ms |
+| `teach/hpe_aruba_aoscx_5_configs/aruba_01_secure.conf` | unknown | 3/3 | 0 | 0 | 0 | 0 | 87 ms |
+| `teach/hpe_aruba_aoscx_5_configs/aruba_02_insecure.conf` | unknown | 8/10 | 0 | 2 | 0 | 0 | 102 ms |
+| `teach/huawei_vrp_5_configs/huawei_01_secure.conf` | unknown | 0/0 | 0 | 0 | 0 | 0 | 102 ms |
+| `teach/huawei_vrp_5_configs/huawei_02_insecure.conf` | unknown | 8/9 | 1 | 0 | 0 | 0 | 74 ms |
+| `teach/juniper_junos_5_configs/juniper_01_secure.conf` | unknown | 3/3 | 0 | 0 | 0 | 0 | 131 ms |
+| `teach/juniper_junos_5_configs/juniper_02_insecure.conf` | unknown | 6/6 | 0 | 0 | 0 | 0 | 62 ms |
+| `teach/mikrotik_routeros_5_configs/mikrotik_01_secure.rsc` | unknown | 0/2 | 0 | 2 | 0 | 0 | 104 ms |
+| `teach/mikrotik_routeros_5_configs/mikrotik_02_insecure.rsc` | unknown | 5/8 | 0 | 3 | 0 | 0 | 60 ms |
+| `teach/paloalto_pan_os_5_configs/paloalto_01_secure.conf` | unknown | 1/1 | 0 | 0 | 0 | 0 | 121 ms |
+| `teach/paloalto_pan_os_5_configs/paloalto_02_insecure.conf` | unknown | 5/6 | 0 | 1 | 0 | 0 | 64 ms |
 
 Not detected as a decided FAIL:
 
@@ -61,18 +61,15 @@ Not detected as a decided FAIL:
 - `sonic_insecure.json` MGMT-008: undecided
 - `cumulus_insecure.conf` LOG-001: undecided
 - `cumulus_insecure.conf` MGMT-008: undecided
-- `routeros_credentials.rsc` AUTH-003: undecided
 - `arista_02_insecure.conf` MGMT-001: undecided
 - `arista_02_insecure.conf` MGMT-003: undecided
-- `extreme_01_secure.conf` LOG-002: undecided
 - `extreme_02_insecure.conf` MGMT-003: undecided
 - `extreme_02_insecure.conf` LOG-001: undecided
 - `extreme_02_insecure.conf` LOG-002: undecided
 - `extreme_02_insecure.conf` BOUNDARY-004: undecided
 - `aruba_02_insecure.conf` MGMT-006: undecided
 - `aruba_02_insecure.conf` LOG-002: undecided
-- `juniper_01_secure.conf` LOG-002: undecided
-- `juniper_02_insecure.conf` LOG-002: undecided
+- `huawei_02_insecure.conf` MGMT-002: provisional
 - `mikrotik_01_secure.rsc` MGMT-011: undecided
 - `mikrotik_01_secure.rsc` LOG-002: undecided
 - `mikrotik_02_insecure.rsc` MGMT-004: undecided
@@ -88,15 +85,15 @@ First run (2026-09-28, labels committed in 738ff1d before it): 20/21 detected, 1
 
 | File | Vendor path | Detected | Suspected | Undecided | Missed | False alarms | Time |
 |---|---|---|---|---|---|---|---|
-| `datasets/pybatfish/networks/failure-analysis/configs/philadelphia.cfg` | cisco_ios | 4/4 | 0 | 0 | 0 | 0 | 1279 ms |
-| `datasets/pybatfish/networks/failure-analysis/configs/newyork.cfg` | cisco_ios | 4/4 | 0 | 0 | 0 | 0 | 2265 ms |
-| `datasets/pybatfish/networks/forwarding-change-validation/base/configs/border1.cfg` | cisco_ios | 3/3 | 0 | 0 | 0 | 0 | 1355 ms |
-| `datasets/pybatfish/networks/hybrid-cloud/configs/exitgw.cfg` | cisco_ios | 6/6 | 0 | 0 | 0 | 0 | 2977 ms |
-| `datasets/pybatfish/networks/example-filters/current/configs/firewall.cfg` | cisco_ios | 0/0 | 0 | 0 | 0 | 0 | 9152 ms |
-| `datasets/pybatfish/networks/hybrid-cloud/configs/Leaf1.cfg` | unknown | 1/1 | 0 | 0 | 0 | 0 | 825 ms |
-| `datasets/pybatfish/networks/hybrid-cloud/configs/Spine1.cfg` | unknown | 1/1 | 0 | 0 | 0 | 0 | 1298 ms |
-| `datasets/pybatfish/networks/hybrid-cloud/aws_configs/us-east-2/SecurityGroups.json` | unknown | 1/1 | 0 | 0 | 0 | 0 | 325 ms |
-| `datasets/pybatfish/networks/hybrid-cloud/aws_configs/us-west-2/SecurityGroups.json` | unknown | 1/1 | 0 | 0 | 0 | 0 | 288 ms |
+| `datasets/pybatfish/networks/failure-analysis/configs/philadelphia.cfg` | cisco_ios | 4/4 | 0 | 0 | 0 | 0 | 33 ms |
+| `datasets/pybatfish/networks/failure-analysis/configs/newyork.cfg` | cisco_ios | 4/4 | 0 | 0 | 0 | 0 | 53 ms |
+| `datasets/pybatfish/networks/forwarding-change-validation/base/configs/border1.cfg` | cisco_ios | 3/3 | 0 | 0 | 0 | 0 | 51 ms |
+| `datasets/pybatfish/networks/hybrid-cloud/configs/exitgw.cfg` | cisco_ios | 6/6 | 0 | 0 | 0 | 0 | 117 ms |
+| `datasets/pybatfish/networks/example-filters/current/configs/firewall.cfg` | cisco_ios | 0/0 | 0 | 0 | 0 | 0 | 242 ms |
+| `datasets/pybatfish/networks/hybrid-cloud/configs/Leaf1.cfg` | unknown | 1/1 | 0 | 0 | 0 | 0 | 127 ms |
+| `datasets/pybatfish/networks/hybrid-cloud/configs/Spine1.cfg` | unknown | 1/1 | 0 | 0 | 0 | 0 | 125 ms |
+| `datasets/pybatfish/networks/hybrid-cloud/aws_configs/us-east-2/SecurityGroups.json` | unknown | 1/1 | 0 | 0 | 0 | 0 | 47 ms |
+| `datasets/pybatfish/networks/hybrid-cloud/aws_configs/us-west-2/SecurityGroups.json` | unknown | 1/1 | 0 | 0 | 0 | 0 | 46 ms |
 
 Secure settings not confirmed (undecided):
 

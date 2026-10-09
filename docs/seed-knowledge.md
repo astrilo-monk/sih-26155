@@ -255,9 +255,10 @@ documents**. Getting past them needs engine work (a list slot, multi-line joins)
 
 ### Concepts per dialect
 
-References to `teach/` below mean the local corpus of configurations used while writing the seeds; it is
-git-ignored and not part of the repository. Batfish test configurations (Apache-2.0) were used the same way and are
-not committed either.
+References to `teach/` below mean the corpus of configurations used while writing the seeds. Its eight
+`teach/*_5_configs` dialect sets are committed (tests and the benchmark read them; secrets are `TEST-REDACTED`); the
+rest of `teach/` stays git-ignored. Batfish test configurations (Apache-2.0) were used the same way and are not
+committed.
 
 | Dialect | Concepts read |
 |---|---|

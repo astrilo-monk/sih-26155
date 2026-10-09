@@ -29,8 +29,9 @@ def test_an_understood_dialect_without_the_setting_fails_and_says_how_it_would_b
     aaa = _only(junos, "MGMT-008")
     assert aaa.status == Status.FAIL and aaa.assurance == Assurance.CONFIRMED and not aaa.evidence.line_numbers
     assert "Juniper Junos states it as 'authentication-order [ … password ]'" in aaa.reason
-    # nobody taught how Junos writes NTP authentication: its absence is not evidence
-    assert _only(junos, "LOG-002").status == Status.UNKNOWN
+    # the seeds now read Junos NTP authentication (``set system ntp trusted-key``): servers without it fail, as
+    # benchmark/labels.json labels this file. Untaught syntax staying silent is covered by the next two tests
+    assert _only(junos, "LOG-002").status == Status.FAIL
 
 
 def test_a_line_naming_the_setting_in_untaught_syntax_keeps_absence_silent(seeded_adaptive_db):
