@@ -249,47 +249,6 @@ it('offers a candidate fix instead of a dead end when the vendor is not confirme
   expect(screen.getByText(/It never connects to the device\./)).toBeTruthy();
 });
 
-it('derives the fix from the configuration itself: no AI, already verified, still needs confirming', async () => {
-  apiClient.getRemediationPlan.mockResolvedValue(unknownPlan());
-  apiClient.remediationCandidate.mockResolvedValueOnce(candidate('verified', {
-    source: 'derived', command: 'delete system services telnet',
-    explanation: 'NetAuditAI derived this from the configuration itself: the lines this finding cites, removed from the block they sit in.',
-    confidence: '', assumptions: [], control_status_after: 'not_configured', download_available: true,
-    diff: '--- before\n+++ after\n@@ -30,3 +30,2 @@\n-        telnet;',
-    checks: [{ name: 'target', passed: true, detail: 'MGMT-001 fail → not_configured on the edited copy' },
-             { name: 'no_regression', passed: true, detail: 'No other control got worse' },
-             { name: 'generic_path', passed: true, detail: 'The edited copy is still read by generic analysis' }],
-    reason: 'Verified against the uploaded configuration: MGMT-001 fail → not_configured on a copy of it. This does not establish that the command is safe to run on the physical device.',
-  }));
-  render(<Harness scan={UNKNOWN_SCAN} />);
-
-  fireEvent.click(await screen.findByRole('button', { name: 'Fix it for me' }));
-  await waitFor(() => expect(apiClient.remediationCandidate).toHaveBeenCalledWith(
-    'derive', 'scan-1', 'MGMT-001', 'JUNIPER-EDGE-01', 0, {}));
-
-  // it is labelled as NetAuditAI's own reading of the file, not an AI guess and not a typed command
-  expect(await screen.findByText('Derived from your configuration')).toBeTruthy();
-  expect(screen.queryByText('AI-generated candidate')).toBeNull();
-  expect(screen.getByText('delete system services telnet')).toBeTruthy();
-  // verified when it arrives, and still nothing applied anywhere
-  expect(screen.getByText(/does not establish that the command is safe to run on the physical device/)).toBeTruthy();
-  expect(screen.getByRole('button', { name: /Confirm/ })).toBeTruthy();
-});
-
-it('says a removal cannot resolve a check that needs a setting', async () => {
-  apiClient.getRemediationPlan.mockResolvedValue(unknownPlan());
-  apiClient.remediationCandidate.mockRejectedValueOnce(Object.assign(
-    new Error('NetAuditAI cannot derive a change for MGMT-001 from this configuration: it can only remove settings the finding cites, and this one needs a setting to be added or changed in syntax it does not know.'),
-    { status: 422 }));
-  render(<Harness scan={UNKNOWN_SCAN} />);
-
-  fireEvent.click(await screen.findByRole('button', { name: 'Fix it for me' }));
-  expect(await screen.findByText(/it can only remove settings the finding cites/)).toBeTruthy();
-  // the other two ways to get a command are still offered
-  expect(screen.getByRole('button', { name: 'Ask AI for a command' })).toBeTruthy();
-  expect(screen.getByRole('button', { name: 'Enter command manually' })).toBeTruthy();
-});
-
 it('generates an AI candidate, labels it unverified, verifies it and confirms it', async () => {
   apiClient.getRemediationPlan.mockResolvedValue(unknownPlan());
   apiClient.remediationCandidate

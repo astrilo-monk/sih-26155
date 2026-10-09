@@ -125,33 +125,20 @@ export function CandidateFix({ item, audit }) {
     </form>
   );
 
-  // Nothing proposed yet: three ways to get a command, one of them primary.
+  // Nothing proposed yet: two ways to get a command, AI first.
   if (!candidate) {
     if (editing) return <div className="fix">{editor}</div>;
-    // a missing setting cites no line: there is nothing for Fix it for me to remove
-    const cites = (item.primary?.evidence?.line_numbers || []).length > 0;
     return (
       <div className="fix">
         {item.finding?.recommendation && (
           <dl className="fix-steps"><dt>What to change</dt><dd>{item.finding.recommendation}</dd></dl>
         )}
         <div className="actions">
-          {cites && (
-            <button type="button" className="btn btn-primary" onClick={() => step('derive')} disabled={!!busy}>
-              {busy === 'derive' ? 'Working it out…' : 'Fix it for me'}
-            </button>
-          )}
-          <button type="button" className={`btn ${cites ? 'btn-quiet' : 'btn-primary'}`} onClick={() => step('generate')} disabled={!!busy}>
+          <button type="button" className="btn btn-primary" onClick={() => step('generate')} disabled={!!busy}>
             {busy === 'generate' ? 'Asking AI…' : 'Ask AI for a command'}
           </button>
           <button type="button" className="btn btn-quiet" onClick={openEditor} disabled={!!busy}>Enter command manually</button>
         </div>
-        <p className="small muted">
-          {cites ? (
-            <><strong>Fix it for me</strong> removes exactly the lines this finding cites from a copy of your file and
-              re-checks it. It needs no AI and no vendor grammar -but it can only remove a setting, never add one.</>
-          ) : 'This setting is missing, so there is no line to remove: enter the command that adds it on your device, or have AI draft one.'}
-        </p>
         {errorLine}
       </div>
     );
