@@ -48,11 +48,13 @@ def test_fortigate_has_no_such_interface_services(seeded_adaptive_db):
     assert {r.status for r in analyze_text(FORTI).control("BOUNDARY-004")} == {Status.N_A}
 
 
+# a service switched on at one interface is decided; switched off there, the other routed interfaces keep the
+# platform default, which a line-by-line read cannot see: read and left undecided (45c2a04)
 @pytest.mark.parametrize("child, expected", [
-    ("no ip redirects", Status.PASS),
-    ("ip proxy-arp", Status.FAIL),
-    ("ip directed-broadcast", Status.FAIL),
+    ("no ip redirects", (Status.UNKNOWN, None)),
+    ("ip proxy-arp", (Status.FAIL, Assurance.CONFIRMED)),
+    ("ip directed-broadcast", (Status.FAIL, Assurance.CONFIRMED)),
 ])
 def test_other_dialects_state_it_explicitly(seeded_adaptive_db, child, expected):
     result = analyze_generic_text(f"interface Ethernet1\n   {child}\n")
-    assert {(r.status, r.assurance) for r in result.control("BOUNDARY-004")} == {(expected, Assurance.CONFIRMED)}
+    assert {(r.status, r.assurance) for r in result.control("BOUNDARY-004")} == {expected}

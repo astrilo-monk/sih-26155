@@ -65,7 +65,9 @@ claude.txt
 fix.md
 flow-temp.md
 front-fix.md
-teach/
+teach/*
+# the five-config dialect sets are test and benchmark fixtures (secrets already TEST-REDACTED)
+!teach/*_5_configs/
 ign NetAuditAI frontend*
 
 # Internal working notes -not part of the deliverable
