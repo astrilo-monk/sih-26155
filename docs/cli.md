@@ -168,4 +168,11 @@ python -m app.cli scan ../configs --policy ../policy.json
 
 # list every decided FAIL as JSON for another tool
 python -m app.cli scan ../configs --json | jq '.results[] | select(.status=="fail" and (.assurance=="parser" or .assurance=="confirmed" or .assurance=="default"))'
+
+# check the audit ledger offline: export it, then verify with a public key kept apart from the server
+curl -s http://localhost:8000/api/ledger/export > ledger.json
+python -m app.cli ledger-verify ledger.json --public-key <hex from GET /api/ledger/public-key>
+# intact: 42 entries, 42 signed by key 3f9c0a1b2d4e5f60      (exit 0)
+# TAMPERED: entry #17: its signature does not match: ...     (exit 1)
+# unsigned entries (recorded before signing existed) also exit 1 unless --allow-unsigned
 ```

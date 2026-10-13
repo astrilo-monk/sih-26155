@@ -422,9 +422,9 @@ flowchart TD
 
 ## 6. Controls and ControlResult
 
-`app/controls/catalog.py` declares 24 controls (MGMT-001 to MGMT-011, AUTH-001 to AUTH-004, BOUNDARY-001 to
+`backend/data/controls.json` declares 24 controls (loaded and validated by `app/controls/catalog.py`: MGMT-001 to MGMT-011, AUTH-001 to AUTH-004, BOUNDARY-001 to
 BOUNDARY-004, LOG-001 to LOG-003, CRYPTO-001 and CRYPTO-002) with `question`, `kind`, `severity`, `category`,
-`needs` (predicates), `optional_feature` and versioned framework `mappings`. `app/controls/judges.py` says what one
+`needs` (predicates), `optional_feature`, `judge` (a built-in judge by name, or a rule written in the file), `phase` (fix order), per-vendor reference `remediation` and versioned framework `mappings`. `app/controls/judges.py` says what one
 fact means for one control; `app/controls/evaluate.py` combines the outcomes. No vendor decides whether a control
 runs. The per-control reference is [detection-rules.md](detection-rules.md).
 

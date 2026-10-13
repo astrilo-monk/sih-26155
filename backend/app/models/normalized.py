@@ -252,6 +252,8 @@ class DeviceInfo:
     os_version: Optional[str] = None
     model: Optional[str] = None  # hardware platform, only when the configuration states it
     serial: Optional[str] = None  # only when the uploaded text states it (show version / inventory output)
+    # the command output (file name, or the command run on a collected device) that added identity items
+    identity_source: Optional[str] = None
     source_lines: list[int] = field(default_factory=list)
 
 

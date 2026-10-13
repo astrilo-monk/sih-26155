@@ -20,7 +20,7 @@ flowchart LR
 |---|---|---|
 | **Unified ingestion** | One dashboard: single or bulk upload, CLI text or JSON exports, Terraform, or pull straight from devices over SSH | `routes/scan.py`, `collect/`, `structure/structured.py` |
 | **AI-powered training module** | The Teach page: an undecided check, a line, a meaning in plain words; a typed recognizer is drafted, gated, replayed and saved; live on the next scan | `routes/adaptive.py`, `facts/recognizers.py`, `facts/teaching.py` |
-| **Multi-framework engine** | NIST SP 800-53 Rev. 5, CIS (Cisco IOS XE 17.x, FortiGate 7.4.x), DISA NDM SRG, ISO/IEC 27001:2022 Annex A; one chosen at upload or all four | `controls/catalog.py`, `controls/frameworks.py` |
+| **Multi-framework engine** | NIST SP 800-53 Rev. 5, CIS (Cisco IOS XE 17.x, FortiGate 7.4.x), DISA NDM SRG, ISO/IEC 27001:2022 Annex A; one chosen at upload or all four | `data/controls.json`, `controls/catalog.py`, `controls/frameworks.py` |
 | **Actionable intelligence and PDF report** | Per device: identification (when the file states it), PASS / FAIL with severity and cited lines, framework mapping, verified remediation, undecided checks with what they need | `reporting/report.py`, `remediation/` |
 | **Vendor-agnostic scalability** | Every check runs on every configuration through vendor-neutral facts; new dialects are taught or shipped as seeds; a new structured format is flattened automatically | `facts/`, `data/seed_recognizers.json` |
 

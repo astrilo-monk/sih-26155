@@ -153,16 +153,18 @@ def test_provisional_readings_are_never_presented_as_compliance(client):
             assert " | PASS |" not in line and " | FAIL |" not in line
 
 
-def test_an_unconfirmed_vendor_gets_no_vendor_commands(client):
+def test_an_unconfirmed_vendor_gets_only_verified_or_labelled_commands(client):
     body = text_of(client, upload(client, "juniper.cfg", JUNIPER_CFG.read_text(encoding="utf-8")))
-    assert "generates no vendor commands for it" in body
-    assert "Configuration change" not in body
+    assert "is not confirmed by a dedicated parser" in body
+    # anything not verified on a copy is the vendor's reference, and says so
+    assert "Reference commands for Juniper Junos, NOT verified against this file" in body
 
 
 def test_a_confirmed_vendor_gets_the_deterministic_change_and_its_verification(client):
     body = text_of(client, upload(client, "cisco.cfg", CISCO_WITH_SECRETS))
-    assert "Configuration change" in body
-    assert "transport input ssh" in body
+    assert "Device commands (verified against a copy" in body
+    assert "Step by step: every verified fix as device commands" in body
+    assert "transport input ssh" in body and "configure terminal" in body
     assert "Deterministic fix generated and verified by rescan" in body
     assert "PASSED -" in body
 

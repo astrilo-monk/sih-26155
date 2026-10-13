@@ -12,7 +12,7 @@ Terms used in the code, the API and the UI, in alphabetical order. Each entry na
 | **Candidate** | A proposed command for an unconfirmed vendor (derived, typed or AI-drafted). Simulated on a copy, confirmed by a person, never executed. | `remediation/candidates.py` |
 | **Confirmed (vendor)** | The detector matched the vendor and the file follows its grammar. Selects the parser, defaults, recipes and CIS view. | `parsers/detector.py` |
 | **Confirmed (assurance)** | A fact read by a recognizer (seed or taught) or a learned mapping. Decisive. | `facts/recognizers.py` |
-| **Control / check** | One of 23 security questions (MGMT-001 … CRYPTO-002). Runs on every configuration. | `controls/catalog.py` |
+| **Control / check** | One of 24 security questions (MGMT-001 … CRYPTO-002). Runs on every configuration. | `data/controls.json` |
 | **Control kind** | `prohibition` (must be off), `requirement` (must exist), `threshold` (within a limit), `relational` (depends on how objects relate). | `controls/catalog.py` |
 | **Coverage** | Weighted share of applicable checks decided from decisive evidence. | `analysis/scoring.py` |
 | **Critical not assessed** | Critical checks that were not decided; listed next to posture. | `analysis/scoring.py` |

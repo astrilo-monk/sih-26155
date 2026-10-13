@@ -26,15 +26,21 @@ from app.adaptive import capture_unrecognized_lines
 from app.adaptive.service import AdaptiveService
 from app.analysis.scoring import _control_outcome, calculate_posture
 from app.controls.catalog import CONTROLS
+
+# Fixes are applied (and printed) so that a lower phase comes first: SSH v2 and remote logging before Telnet is
+# switched off, and the management ACL last, when every other change is already in place. Pasted top to bottom,
+# the sequence never cuts the administrator's own session. Within a phase, catalog order.
+FIX_ORDER = sorted(CONTROLS, key=lambda c: CONTROLS[c].phase)
 from app.controls.evaluate import evaluate_controls
 from app.facts.heuristics import generic_hostname
 from app.models.normalized import DeviceInfo, NormalizedConfig, Vendor
 from app.models.results import DECISIVE_ASSURANCE, ControlResult, Status
 from app.parsers.detector import VendorIdentification, identify_vendor
+from app.remediation.cli import cli_body
 from app.remediation.recipes import INPUTS, RECIPES, Context, ManualReview, NeedsInput, parse_inputs
 
 __all__ = [
-    "RemediationStatus", "Analysis", "Check", "Outcome", "Plan", "INPUTS", "parse_inputs",
+    "RemediationStatus", "Analysis", "Check", "Outcome", "Plan", "FIX_ORDER", "INPUTS", "parse_inputs",
     "analyze_text", "analyze_generic_text", "remediate_control", "remediate_all",
     "generate_remediation", "apply_remediation",
 ]
@@ -143,6 +149,10 @@ class Outcome:
     after: Optional[dict] = None
     # generated configuration (after state), kept for review even when verification failed
     fixed_config: Optional[str] = None
+    # a FIXED change as device commands in the configuration's dialect (app.remediation.cli), without the
+    # enter / save wrapper so a plan can join several; empty when the dialect has no CLI form
+    cli: list[str] = field(default_factory=list)
+    cli_style: Optional[str] = None
 
 
 def _join(lines: list[str], like: str) -> str:
@@ -284,6 +294,7 @@ def remediate_control(text: str, control_id: str, inputs: dict,
         return outcome, None
     outcome.status = RemediationStatus.FIXED
     outcome.reason = next(c.detail for c in outcome.checks if c.name == "target")
+    outcome.cli_style, outcome.cli = cli_body(text, new_text)
     return outcome, after
 
 
@@ -322,14 +333,15 @@ def credit_earlier_fix(outcome: Outcome, current: Analysis, outcomes: list[Outco
 
 
 def remediate_all(text: str, inputs: dict, skip: frozenset[str] | set[str] = frozenset()) -> Plan:
-    """Remediate every failing control in catalog order; each step is verified against the previous text.
+    """Remediate every failing control in fix-phase order (``FIX_ORDER``); each step is verified against the
+    previous text.
 
     ``skip``: controls the caller knows to be provisional (e.g. an AI proposal in the stored scan) -never changed.
     """
     original = current = analyze_text(text)
     outcomes = []
     if original.confirmed:
-        failing = [c for c in CONTROLS if c in skip or any(r.status == Status.FAIL or r.proposed_status
+        failing = [c for c in FIX_ORDER if c in skip or any(r.status == Status.FAIL or r.proposed_status
                                                            for r in original.control(c))]
         for control_id in failing:
             if control_id in skip:

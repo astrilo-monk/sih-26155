@@ -113,6 +113,11 @@ MIGRATIONS: list[str] = [
         WHERE source = 'seed' AND vendor = 'Juniper Junos'
           AND command_pattern IN ('set system syslog host {host} {rest}', 'set system ntp server {host} {rest}');
     """,
+    # v8 -ledger entries are signed with the deployment's Ed25519 key (app/ledger.py); older rows stay unsigned
+    """
+    ALTER TABLE ledger ADD COLUMN key_id TEXT;
+    ALTER TABLE ledger ADD COLUMN signature TEXT;
+    """,
 ]
 
 
@@ -189,6 +194,11 @@ PG_MIGRATIONS: list[str] = [
     UPDATE learned_mappings SET vendor = 'Juniper Junos / VyOS'
         WHERE source = 'seed' AND vendor = 'Juniper Junos'
           AND command_pattern IN ('set system syslog host {host} {rest}', 'set system ntp server {host} {rest}');
+    """,
+    # SQLite v8: signed ledger entries
+    """
+    ALTER TABLE ledger ADD COLUMN IF NOT EXISTS key_id TEXT;
+    ALTER TABLE ledger ADD COLUMN IF NOT EXISTS signature TEXT;
     """,
 ]
 

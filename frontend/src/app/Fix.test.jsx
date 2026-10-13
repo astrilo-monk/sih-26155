@@ -18,7 +18,7 @@ vi.mock('../api/client', () => ({
 
 import { apiClient } from '../api/client';
 import { useAudit } from '../lib/useAudit';
-import Fix from './Fix';
+import Fix, { CliBlock } from './Fix';
 
 const store = new Map();
 vi.stubGlobal('localStorage', {
@@ -492,4 +492,11 @@ it('gives an answer to one device only, unless the person asks for every device 
   fireEvent.click(screen.getAllByRole('button', { name: 'Generate fix' })[0]);
   await waitFor(() => expect(apiClient.getRemediationPlan).toHaveBeenLastCalledWith('scan-1',
     { 0: { syslog_server: '10.20.0.5' }, 1: { syslog_server: '10.20.0.5' } }));
+});
+
+it('shows device commands one per line, in the order they are entered', () => {
+  render(<CliBlock lines={['configure terminal', 'line vty 0 4', '   transport input ssh', 'end']} file="core-01" caption="verified on a copy" />);
+  const block = screen.getByText(/configure terminal/);
+  expect(block.textContent.split('\n')).toEqual(['configure terminal', 'line vty 0 4', '   transport input ssh', 'end']);
+  expect(screen.getByText('core-01')).toBeTruthy();
 });

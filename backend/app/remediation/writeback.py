@@ -44,8 +44,9 @@ from app.facts.recognizers import (
     _scope_matches, _stored_knowledge, recognizer_value, stated_value, understood_dialect,
 )
 from app.models.results import DECISIVE_ASSURANCE, Status
+from app.remediation.cli import cli_body
 from app.remediation.engine import (
-    INPUTS, Analysis, Check, Outcome, Plan, RemediationStatus, _join, _status_text, analyze_generic_text, credit_earlier_fix,
+    FIX_ORDER, INPUTS, Analysis, Check, Outcome, Plan, RemediationStatus, _join, _status_text, analyze_generic_text, credit_earlier_fix,
     no_regression,
 )
 from app.structure.tokenizer import NEGATIVE, POSITIVE, Statement, tokenize, tokenize_line
@@ -261,6 +262,31 @@ def applied_command(text: str, command: str, control_id: str) -> Optional[str]:
     return "\n".join(lines) + "\n"
 
 
+def reference_commands(text: str, control_id: str, inputs: dict) -> tuple[str, list[str]]:
+    """The reference commands ``data/controls.json`` gives this control for the dialect the configuration is
+    written in, with operator values filled in: ``(dialect label, lines)``, or ``("", [])``. A ``<placeholder>``
+    left in a line is a value only the operator knows."""
+    dialect = understood_dialect(text.splitlines())
+    if dialect is None:
+        return "", []
+    for label, lines in CONTROLS[control_id].remediation.items():
+        if label in dialect[0]:
+            filled = []
+            for line in lines:
+                for name in re.findall(r"\{(\w+)\}", line):
+                    if name in inputs:
+                        line = line.replace("{" + name + "}", str(inputs[name]))
+                filled.append(line)
+            return label, filled
+    return "", []
+
+
+def _verifiable(lines: list[str]) -> bool:
+    """A reference the rescan can check: complete (no value left to supply), flat, and only adding settings."""
+    return bool(lines) and not any(
+        re.search(r"[<{]", line) or line[:1].isspace() or line.split()[0] in ("delete", "no", "undo") for line in lines)
+
+
 def verify(before: Analysis, after: Analysis, control_id: Optional[str]) -> list[Check]:
     """Rescan checks for a generic-path copy. ``control_id`` None: the whole plan (regressions and path)."""
     checks = []
@@ -355,6 +381,7 @@ def writeback_control(text: str, control_id: str, inputs: dict, before: Optional
         return outcome, None
     outcome.status = RemediationStatus.FIXED
     outcome.reason = next(c.detail for c in outcome.checks if c.name == "target")
+    outcome.cli_style, outcome.cli = cli_body(text, new_text)
     return outcome, after
 
 
@@ -367,7 +394,7 @@ def writeback_all(text: str, inputs: dict, skip: frozenset[str] | set[str] = fro
     commands = commands or {}
     original = current = analyze_generic_text(text)
     outcomes = []
-    for control_id in CONTROLS:
+    for control_id in FIX_ORDER:
         if not any(r.status == Status.FAIL for r in original.control(control_id)):
             continue
         if control_id in skip or not _failing(original, control_id):
@@ -380,6 +407,16 @@ def writeback_all(text: str, inputs: dict, skip: frozenset[str] | set[str] = fro
             outcome, after = writeback_control(current.text, control_id, inputs, current, commands[control_id])
         if after is None:
             outcome, after = writeback_control(current.text, control_id, inputs, before=current)
+        if after is None:
+            # the vendor's reference command, when the rescan can check it: applied and verified like any other
+            _, reference = reference_commands(current.text, control_id, inputs)
+            if _verifiable(reference):
+                tried, checked = writeback_control(current.text, control_id, inputs, current, "\n".join(reference))
+                if checked is not None:
+                    outcome, after = tried, checked
+                    outcome.explanation = ("The vendor's reference command for this setting, applied to a copy: a "
+                                           "reviewed recognizer reads every line of it and the rescan shows the "
+                                           "check passing.")
         if after is not None:
             current = after
             outcome.fixed_config = None  # the plan keeps one combined output

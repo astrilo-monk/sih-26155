@@ -1,0 +1,1518 @@
+{
+  "_README": [
+    "The security checks NetAuditAI answers, as data. Adding a check, a framework mapping or a whole framework is an edit here, not a code change (app.controls.catalog loads and validates this file at start).",
+    "needs: the security-fact predicates the check reads (app.facts.predicates, or a boolean predicate declared under 'predicates' below).",
+    "judge: the name of a built-in judge in app.controls.judges, or a rule: {\"forbid\": true} fails when the fact is true, {\"require\": true} fails when it is false or absent, {\"max\": n} / {\"min\": n} bound a number; 'fail' and 'advice' give the finding text.",
+    "phase: the order fixes are applied and printed in, so applying them top to bottom never locks the administrator out: 0 establish the safe path (SSH v2, remote logging, time), 1 harden, 2 switch off what the safe path replaced (Telnet, HTTP, SNMP communities), 3 restrict who may manage the device.",
+    "mappings: framework requirement ids with the exact framework version; 'vendor' marks a product benchmark item that applies only to that confirmed vendor.",
+    "remediation: per-dialect reference commands; each one is applied to a copy and rescanned, and is offered as a fix only when the rescan shows the check now passes."
+  ],
+  "predicates": {},
+  "controls": [
+    {
+      "id": "MGMT-001",
+      "title": "Insecure Management Protocol (Telnet) Enabled",
+      "question": "Is cleartext Telnet disabled for remote management?",
+      "kind": "prohibition",
+      "severity": "critical",
+      "category": "management",
+      "needs": [
+        "mgmt.remote_access.protocol_enabled"
+      ],
+      "judge": "telnet",
+      "phase": 2,
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "AC-17(2)",
+          "title": "Protection of Confidentiality and Integrity Using Encryption"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "SC-8",
+          "title": "Transmission Confidentiality and Integrity"
+        },
+        {
+          "framework": "CIS",
+          "version": "Cisco IOS XE 17.x Benchmark v2.2.1 (Level 1)",
+          "id": "1.2.2",
+          "title": "Set 'transport input ssh' for 'line vty' connections",
+          "vendor": "cisco_ios"
+        },
+        {
+          "framework": "CIS",
+          "version": "FortiGate 7.4.x Benchmark v1.0.1 (Level 1)",
+          "id": "2.4.5",
+          "title": "Ensure only encrypted access channels are enabled",
+          "vendor": "fortinet"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000142-NDM-000245",
+          "title": "The network device must be configured to prohibit the use of all unnecessary and nonsecure functions, ports, protocols, and services"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000412-NDM-000331",
+          "title": "The network device must be configured to implement cryptographic mechanisms to protect the confidentiality of remote maintenance sessions"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.20",
+          "title": "Networks security"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.24",
+          "title": "Use of cryptography"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.5.14",
+          "title": "Information transfer"
+        }
+      ],
+      "remediation": {
+        "Juniper Junos": [
+          "delete system services telnet"
+        ],
+        "Palo Alto PAN-OS": [
+          "set deviceconfig system service disable-telnet yes"
+        ],
+        "Arista EOS": [
+          "management telnet",
+          "   shutdown"
+        ]
+      }
+    },
+    {
+      "id": "MGMT-002",
+      "title": "Insecure HTTP Management Enabled",
+      "question": "Is cleartext HTTP management disabled?",
+      "kind": "prohibition",
+      "severity": "high",
+      "category": "management",
+      "needs": [
+        "mgmt.remote_access.protocol_enabled"
+      ],
+      "judge": "http",
+      "phase": 2,
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "AC-17(2)",
+          "title": "Protection of Confidentiality and Integrity Using Encryption"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "SC-8",
+          "title": "Transmission Confidentiality and Integrity"
+        },
+        {
+          "framework": "CIS",
+          "version": "FortiGate 7.4.x Benchmark v1.0.1 (Level 1)",
+          "id": "1.3",
+          "title": "Disable all management related services on WAN port",
+          "vendor": "fortinet"
+        },
+        {
+          "framework": "CIS",
+          "version": "FortiGate 7.4.x Benchmark v1.0.1 (Level 1)",
+          "id": "2.4.5",
+          "title": "Ensure only encrypted access channels are enabled",
+          "vendor": "fortinet"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000142-NDM-000245",
+          "title": "The network device must be configured to prohibit the use of all unnecessary and nonsecure functions, ports, protocols, and services"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000412-NDM-000331",
+          "title": "The network device must be configured to implement cryptographic mechanisms to protect the confidentiality of remote maintenance sessions"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.20",
+          "title": "Networks security"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.24",
+          "title": "Use of cryptography"
+        }
+      ],
+      "remediation": {
+        "Juniper Junos": [
+          "delete system services web-management http"
+        ],
+        "Palo Alto PAN-OS": [
+          "set deviceconfig system service disable-http yes"
+        ],
+        "Arista EOS": [
+          "management api http-commands",
+          "   no protocol http"
+        ]
+      }
+    },
+    {
+      "id": "MGMT-003",
+      "title": "Unrestricted Management Access",
+      "question": "Is management access restricted to trusted sources?",
+      "kind": "relational",
+      "severity": "critical",
+      "category": "management",
+      "needs": [
+        "mgmt.remote_access.source_restricted"
+      ],
+      "judge": "source_restricted",
+      "phase": 3,
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "AC-3",
+          "title": "Access Enforcement"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "AC-17(1)",
+          "title": "Monitoring and Control"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "SC-7",
+          "title": "Boundary Protection"
+        },
+        {
+          "framework": "CIS",
+          "version": "Cisco IOS XE 17.x Benchmark v2.2.1 (Level 1)",
+          "id": "1.2.4",
+          "title": "Create 'access-list' for use with 'line vty'",
+          "vendor": "cisco_ios"
+        },
+        {
+          "framework": "CIS",
+          "version": "Cisco IOS XE 17.x Benchmark v2.2.1 (Level 1)",
+          "id": "1.2.5",
+          "title": "Set 'access-class' for 'line vty'",
+          "vendor": "cisco_ios"
+        },
+        {
+          "framework": "CIS",
+          "version": "FortiGate 7.4.x Benchmark v1.0.1 (Level 1)",
+          "id": "1.3",
+          "title": "Disable all management related services on WAN port",
+          "vendor": "fortinet"
+        },
+        {
+          "framework": "CIS",
+          "version": "FortiGate 7.4.x Benchmark v1.0.1 (Level 1)",
+          "id": "2.4.2",
+          "title": "Ensure all the login accounts having specific trusted hosts enabled",
+          "vendor": "fortinet"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000033-NDM-000212",
+          "title": "The network device must be configured to enforce approved authorizations for logical access to information and system resources"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.5.15",
+          "title": "Access control"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.3",
+          "title": "Information access restriction"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.20",
+          "title": "Networks security"
+        }
+      ],
+      "remediation": {
+        "Juniper Junos": [
+          "set firewall family inet filter PROTECT-RE term MGMT from source-address {management_subnet}",
+          "set firewall family inet filter PROTECT-RE term MGMT from protocol tcp",
+          "set firewall family inet filter PROTECT-RE term MGMT from destination-port ssh",
+          "set firewall family inet filter PROTECT-RE term MGMT then accept",
+          "set firewall family inet filter PROTECT-RE term NO-SSH from protocol tcp",
+          "set firewall family inet filter PROTECT-RE term NO-SSH from destination-port ssh",
+          "set firewall family inet filter PROTECT-RE term NO-SSH then discard",
+          "set firewall family inet filter PROTECT-RE term REST then accept",
+          "set interfaces lo0 unit 0 family inet filter input PROTECT-RE"
+        ],
+        "Palo Alto PAN-OS": [
+          "set deviceconfig system permitted-ip {management_subnet}"
+        ],
+        "Arista EOS": [
+          "ip access-list standard MGMT-ONLY",
+          "   permit {management_subnet}",
+          "management ssh",
+          "   ip access-group MGMT-ONLY in"
+        ]
+      }
+    },
+    {
+      "id": "MGMT-004",
+      "title": "Weak or Default SNMP Community Strings",
+      "question": "Are SNMP communities free of default strings and unrestricted write access?",
+      "kind": "prohibition",
+      "severity": "critical",
+      "category": "management",
+      "needs": [
+        "snmp.community"
+      ],
+      "judge": "snmp_community",
+      "phase": 2,
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "IA-5",
+          "title": "Authenticator Management"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "AC-3",
+          "title": "Access Enforcement"
+        },
+        {
+          "framework": "CIS",
+          "version": "Cisco IOS XE 17.x Benchmark v2.2.1 (Level 1)",
+          "id": "1.5.2",
+          "title": "Unset 'private' for 'snmp-server community'",
+          "vendor": "cisco_ios"
+        },
+        {
+          "framework": "CIS",
+          "version": "Cisco IOS XE 17.x Benchmark v2.2.1 (Level 1)",
+          "id": "1.5.3",
+          "title": "Unset 'public' for 'snmp-server community'",
+          "vendor": "cisco_ios"
+        },
+        {
+          "framework": "CIS",
+          "version": "Cisco IOS XE 17.x Benchmark v2.2.1 (Level 1)",
+          "id": "1.5.4",
+          "title": "Do not set 'RW' for any 'snmp-server community'",
+          "vendor": "cisco_ios"
+        },
+        {
+          "framework": "CIS",
+          "version": "Cisco IOS XE 17.x Benchmark v2.2.1 (Level 1)",
+          "id": "1.5.5",
+          "title": "Set the ACL for each 'snmp-server community'",
+          "vendor": "cisco_ios"
+        },
+        {
+          "framework": "CIS",
+          "version": "FortiGate 7.4.x Benchmark v1.0.1 (Level 1)",
+          "id": "2.3.1",
+          "title": "Ensure only SNMPv3 is enabled",
+          "vendor": "fortinet"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000142-NDM-000245",
+          "title": "The network device must be configured to prohibit the use of all unnecessary and nonsecure functions, ports, protocols, and services"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.5.17",
+          "title": "Authentication information"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.21",
+          "title": "Security of network services"
+        }
+      ],
+      "remediation": {
+        "Juniper Junos": [
+          "delete snmp community <community>"
+        ],
+        "Palo Alto PAN-OS": [
+          "set deviceconfig system snmp-setting access-setting version v3"
+        ],
+        "Arista EOS": [
+          "no snmp-server community <community>"
+        ]
+      }
+    },
+    {
+      "id": "MGMT-005",
+      "title": "Plaintext or Weakly Encrypted Passwords",
+      "question": "Are stored passwords protected with strong, non-reversible encoding?",
+      "kind": "prohibition",
+      "severity": "critical",
+      "category": "management",
+      "needs": [
+        "auth.password.storage",
+        "auth.password.encryption_service"
+      ],
+      "judge": "passwords",
+      "phase": 1,
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "IA-5",
+          "title": "Authenticator Management"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "IA-5(1)",
+          "title": "Password-based Authentication"
+        },
+        {
+          "framework": "CIS",
+          "version": "Cisco IOS XE 17.x Benchmark v2.2.1 (Level 1)",
+          "id": "1.4.1",
+          "title": "Set 'password' for 'enable secret'",
+          "vendor": "cisco_ios"
+        },
+        {
+          "framework": "CIS",
+          "version": "Cisco IOS XE 17.x Benchmark v2.2.1 (Level 1)",
+          "id": "1.4.2",
+          "title": "Enable 'service password-encryption'",
+          "vendor": "cisco_ios"
+        },
+        {
+          "framework": "CIS",
+          "version": "Cisco IOS XE 17.x Benchmark v2.2.1 (Level 1)",
+          "id": "1.4.3",
+          "title": "Set 'username secret' for all local users",
+          "vendor": "cisco_ios"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000172-NDM-000259",
+          "title": "The network device must be configured to use an encrypted representation of passwords"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.5.17",
+          "title": "Authentication information"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.5",
+          "title": "Secure authentication"
+        }
+      ],
+      "remediation": {
+        "Arista EOS": [
+          "username <name> secret <password>"
+        ]
+      }
+    },
+    {
+      "id": "MGMT-006",
+      "title": "Missing or Disabled Session Timeout",
+      "question": "Do idle management sessions time out?",
+      "kind": "threshold",
+      "severity": "medium",
+      "category": "management",
+      "needs": [
+        "mgmt.session.idle_timeout"
+      ],
+      "judge": "idle_timeout",
+      "phase": 1,
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "AC-11",
+          "title": "Device Lock"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "AC-12",
+          "title": "Session Termination"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "SC-10",
+          "title": "Network Disconnect"
+        },
+        {
+          "framework": "CIS",
+          "version": "Cisco IOS XE 17.x Benchmark v2.2.1 (Level 1)",
+          "id": "1.2.7",
+          "title": "Set 'exec-timeout' to less than or equal to 10 minutes 'line console 0'",
+          "vendor": "cisco_ios"
+        },
+        {
+          "framework": "CIS",
+          "version": "Cisco IOS XE 17.x Benchmark v2.2.1 (Level 1)",
+          "id": "1.2.8",
+          "title": "Set 'exec-timeout' to less than or equal to 10 minutes 'line vty'",
+          "vendor": "cisco_ios"
+        },
+        {
+          "framework": "CIS",
+          "version": "FortiGate 7.4.x Benchmark v1.0.1 (Level 1)",
+          "id": "2.4.4",
+          "title": "Ensure Admin idle timeout time is configured",
+          "vendor": "fortinet"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000190-NDM-000267",
+          "title": "The network device must be configured to terminate a management session after an organization-defined period of inactivity"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.5.15",
+          "title": "Access control"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.5",
+          "title": "Secure authentication"
+        }
+      ],
+      "remediation": {
+        "Juniper Junos": [
+          "set system login class <class> idle-timeout 10"
+        ],
+        "Palo Alto PAN-OS": [
+          "set deviceconfig setting management idle-timeout 10"
+        ],
+        "Arista EOS": [
+          "management ssh",
+          "   idle-timeout 10"
+        ]
+      }
+    },
+    {
+      "id": "MGMT-007",
+      "title": "SSH Version 1 or Weak SSH Configuration",
+      "question": "Is SSH restricted to protocol version 2?",
+      "kind": "prohibition",
+      "severity": "high",
+      "category": "management",
+      "needs": [
+        "mgmt.ssh.version"
+      ],
+      "judge": "ssh_version",
+      "phase": 0,
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "SC-8",
+          "title": "Transmission Confidentiality and Integrity"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "AC-17(2)",
+          "title": "Protection of Confidentiality and Integrity Using Encryption"
+        },
+        {
+          "framework": "CIS",
+          "version": "Cisco IOS XE 17.x Benchmark v2.2.1 (Level 1)",
+          "id": "2.1.1.2",
+          "title": "Set version 2 for 'ip ssh version'",
+          "vendor": "cisco_ios"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000412-NDM-000331",
+          "title": "The network device must be configured to implement cryptographic mechanisms to protect the confidentiality of remote maintenance sessions"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000142-NDM-000245",
+          "title": "The network device must be configured to prohibit the use of all unnecessary and nonsecure functions, ports, protocols, and services"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.24",
+          "title": "Use of cryptography"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.20",
+          "title": "Networks security"
+        }
+      ],
+      "remediation": {
+        "Juniper Junos": [
+          "set system services ssh protocol-version v2"
+        ]
+      }
+    },
+    {
+      "id": "MGMT-008",
+      "title": "AAA (Authentication, Authorization, Accounting) Not Configured",
+      "question": "Is AAA enabled for administrative access?",
+      "kind": "requirement",
+      "severity": "high",
+      "category": "management",
+      "needs": [
+        "auth.central_aaa.enabled"
+      ],
+      "judge": "central_aaa",
+      "phase": 1,
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "IA-2",
+          "title": "Identification and Authentication (Organizational Users)"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "AC-2",
+          "title": "Account Management"
+        },
+        {
+          "framework": "CIS",
+          "version": "Cisco IOS XE 17.x Benchmark v2.2.1 (Level 1)",
+          "id": "1.1.1",
+          "title": "Enable 'aaa new-model'",
+          "vendor": "cisco_ios"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000516-NDM-000336",
+          "title": "The network device must be configured to use an authentication server to authenticate users prior to granting administrative access"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.5.16",
+          "title": "Identity management"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.5",
+          "title": "Secure authentication"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.2",
+          "title": "Privileged access rights"
+        }
+      ],
+      "remediation": {
+        "Juniper Junos": [
+          "set system tacplus-server <server> secret <secret>",
+          "set system authentication-order [ tacplus password ]"
+        ],
+        "Palo Alto PAN-OS": [
+          "set shared server-profile tacplus <profile> server <name> address <server> secret <secret>",
+          "set shared authentication-profile <profile> method tacplus server-profile <profile>"
+        ],
+        "Arista EOS": [
+          "tacacs-server host <server> key <secret>",
+          "aaa authentication login default group tacacs+ local"
+        ]
+      }
+    },
+    {
+      "id": "MGMT-009",
+      "title": "Missing Login Banner",
+      "question": "Is a legal warning banner shown before login?",
+      "kind": "requirement",
+      "severity": "low",
+      "category": "management",
+      "needs": [
+        "banner.login.present"
+      ],
+      "judge": "login_banner",
+      "phase": 1,
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "AC-8",
+          "title": "System Use Notification"
+        },
+        {
+          "framework": "CIS",
+          "version": "Cisco IOS XE 17.x Benchmark v2.2.1 (Level 1)",
+          "id": "1.3.2",
+          "title": "Set the 'banner-text' for 'banner login'",
+          "vendor": "cisco_ios"
+        },
+        {
+          "framework": "CIS",
+          "version": "FortiGate 7.4.x Benchmark v1.0.1 (Level 1)",
+          "id": "2.1.1",
+          "title": "Ensure 'Pre-Login Banner' is set",
+          "vendor": "fortinet"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000068-NDM-000215",
+          "title": "The network device must be configured to display the Standard Mandatory DoD Notice and Consent Banner before granting access"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.5.10",
+          "title": "Acceptable use of information and other associated assets"
+        }
+      ],
+      "remediation": {
+        "Juniper Junos": [
+          "set system login message \"{banner_text}\""
+        ],
+        "Palo Alto PAN-OS": [
+          "set deviceconfig system login-banner \"{banner_text}\""
+        ],
+        "Arista EOS": [
+          "banner login",
+          "{banner_text}",
+          "EOF"
+        ]
+      }
+    },
+    {
+      "id": "MGMT-010",
+      "title": "Management Reachable from an Untrusted Interface",
+      "question": "Are management services kept off external (internet-facing) interfaces and zones?",
+      "kind": "prohibition",
+      "severity": "critical",
+      "category": "management",
+      "needs": [
+        "mgmt.remote_access.exposed_externally"
+      ],
+      "judge": "exposed_management",
+      "phase": 3,
+      "optional_feature": "management services bound to interfaces",
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "SC-7",
+          "title": "Boundary Protection"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "AC-17(1)",
+          "title": "Monitoring and Control"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "CM-7",
+          "title": "Least Functionality"
+        },
+        {
+          "framework": "CIS",
+          "version": "FortiGate 7.4.x Benchmark v1.0.1 (Level 1)",
+          "id": "1.3",
+          "title": "Disable all management related services on WAN port",
+          "vendor": "fortinet"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000142-NDM-000245",
+          "title": "The network device must be configured to prohibit the use of all unnecessary and nonsecure functions, ports, protocols, and services"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.20",
+          "title": "Networks security"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.22",
+          "title": "Segregation of networks"
+        }
+      ]
+    },
+    {
+      "id": "MGMT-011",
+      "title": "SNMPv1/v2c in Use",
+      "question": "Is SNMP limited to version 3, with no community-based (v1/v2c) access?",
+      "kind": "prohibition",
+      "severity": "high",
+      "category": "management",
+      "needs": [
+        "snmp.community"
+      ],
+      "judge": "snmp_version",
+      "phase": 2,
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "SC-8",
+          "title": "Transmission Confidentiality and Integrity"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "IA-2",
+          "title": "Identification and Authentication (Organizational Users)"
+        },
+        {
+          "framework": "CIS",
+          "version": "FortiGate 7.4.x Benchmark v1.0.1 (Level 1)",
+          "id": "2.3.1",
+          "title": "Ensure only SNMPv3 is enabled",
+          "vendor": "fortinet"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000142-NDM-000245",
+          "title": "The network device must be configured to prohibit the use of all unnecessary and nonsecure functions, ports, protocols, and services"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.21",
+          "title": "Security of network services"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.24",
+          "title": "Use of cryptography"
+        }
+      ],
+      "remediation": {
+        "Juniper Junos": [
+          "delete snmp community <community>",
+          "set snmp v3 usm local-engine user <user> authentication-sha authentication-password <password>",
+          "set snmp v3 usm local-engine user <user> privacy-aes128 privacy-password <password>"
+        ],
+        "Palo Alto PAN-OS": [
+          "set deviceconfig system snmp-setting access-setting version v3"
+        ],
+        "Arista EOS": [
+          "no snmp-server community <community>",
+          "snmp-server group <group> v3 priv",
+          "snmp-server user <user> <group> v3 auth sha <password> priv aes <password>"
+        ]
+      }
+    },
+    {
+      "id": "AUTH-001",
+      "title": "No Login Brute-Force Protection",
+      "question": "Does the device limit failed login attempts (10 or fewer before a lockout or disconnect)?",
+      "kind": "threshold",
+      "severity": "high",
+      "category": "authentication",
+      "needs": [
+        "auth.login.max_attempts"
+      ],
+      "judge": "login_attempts",
+      "phase": 1,
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "AC-7",
+          "title": "Unsuccessful Logon Attempts"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "IA-2",
+          "title": "Identification and Authentication (Organizational Users)"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.5",
+          "title": "Secure authentication"
+        }
+      ],
+      "remediation": {
+        "Juniper Junos": [
+          "set system login retry-options tries-before-disconnect 3",
+          "set system login retry-options lockout-period 15"
+        ],
+        "Palo Alto PAN-OS": [
+          "set shared authentication-profile <profile> lockout failed-attempts 3",
+          "set shared authentication-profile <profile> lockout lockout-time 15"
+        ]
+      }
+    },
+    {
+      "id": "AUTH-002",
+      "title": "Weak Password Policy",
+      "question": "Does the device enforce a minimum password length of at least 8 characters?",
+      "kind": "threshold",
+      "severity": "medium",
+      "category": "authentication",
+      "needs": [
+        "auth.password.min_length"
+      ],
+      "judge": "password_length",
+      "phase": 1,
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "IA-5(1)",
+          "title": "Password-based Authentication"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "IA-5",
+          "title": "Authenticator Management"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.5.17",
+          "title": "Authentication information"
+        }
+      ],
+      "remediation": {
+        "Juniper Junos": [
+          "set system login password minimum-length 12"
+        ],
+        "Palo Alto PAN-OS": [
+          "set mgt-config password-complexity enabled yes",
+          "set mgt-config password-complexity minimum-length 12"
+        ],
+        "Arista EOS": [
+          "management security",
+          "   password minimum length 12"
+        ]
+      }
+    },
+    {
+      "id": "AUTH-003",
+      "title": "Default Administrator Account in Use",
+      "question": "Are local administrative accounts renamed from vendor defaults such as 'admin' or 'root'?",
+      "kind": "prohibition",
+      "severity": "medium",
+      "category": "authentication",
+      "needs": [
+        "auth.account.name"
+      ],
+      "judge": "default_account",
+      "phase": 2,
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "AC-2",
+          "title": "Account Management"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "IA-2",
+          "title": "Identification and Authentication (Organizational Users)"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.5.16",
+          "title": "Identity management"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.2",
+          "title": "Privileged access rights"
+        }
+      ],
+      "remediation": {
+        "Arista EOS": [
+          "username <named-admin> privilege 15 role network-admin secret <password>",
+          "no username admin"
+        ]
+      }
+    },
+    {
+      "id": "AUTH-004",
+      "title": "Direct Root Login over SSH Allowed",
+      "question": "Is the root (superuser) account prevented from logging in directly over SSH?",
+      "kind": "prohibition",
+      "severity": "high",
+      "category": "authentication",
+      "needs": [
+        "auth.root_login.allowed"
+      ],
+      "judge": "root_login",
+      "phase": 2,
+      "optional_feature": "a root account that can log in over SSH",
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "AC-6(5)",
+          "title": "Privileged Accounts"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "IA-2(5)",
+          "title": "Individual Authentication with Group Authentication"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000033-NDM-000212",
+          "title": "The network device must be configured to enforce approved authorizations for logical access to information and system resources"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.2",
+          "title": "Privileged access rights"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.5.16",
+          "title": "Identity management"
+        }
+      ],
+      "remediation": {
+        "Juniper Junos": [
+          "set system services ssh root-login deny"
+        ]
+      }
+    },
+    {
+      "id": "BOUNDARY-001",
+      "title": "Overly Permissive Firewall/ACL Rules",
+      "question": "Does every ACL and firewall policy avoid permitting all traffic from any source to any destination?",
+      "kind": "relational",
+      "severity": "critical",
+      "category": "boundary",
+      "needs": [
+        "boundary.policy.permit_any"
+      ],
+      "judge": "permit_any",
+      "phase": 3,
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "AC-4",
+          "title": "Information Flow Enforcement"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "SC-7",
+          "title": "Boundary Protection"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "SC-7(5)",
+          "title": "Deny by Default -Allow by Exception"
+        },
+        {
+          "framework": "CIS",
+          "version": "FortiGate 7.4.x Benchmark v1.0.1 (Level 1)",
+          "id": "3.2",
+          "title": "Ensure that policies do not use \"ALL\" as Service",
+          "vendor": "fortinet"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.20",
+          "title": "Networks security"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.22",
+          "title": "Segregation of networks"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.3",
+          "title": "Information access restriction"
+        }
+      ]
+    },
+    {
+      "id": "BOUNDARY-002",
+      "title": "IP Source Routing Enabled",
+      "question": "Is IP source routing disabled?",
+      "kind": "prohibition",
+      "severity": "medium",
+      "category": "boundary",
+      "needs": [
+        "boundary.source_routing.enabled"
+      ],
+      "judge": "source_routing",
+      "phase": 1,
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "SC-7",
+          "title": "Boundary Protection"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "CM-7",
+          "title": "Least Functionality"
+        },
+        {
+          "framework": "CIS",
+          "version": "Cisco IOS XE 17.x Benchmark v2.1.0 (Level 1)",
+          "id": "3.1.1",
+          "title": "Set 'no ip source-route'",
+          "vendor": "cisco_ios"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000142-NDM-000245",
+          "title": "The network device must be configured to prohibit the use of all unnecessary and nonsecure functions, ports, protocols, and services"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.20",
+          "title": "Networks security"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.9",
+          "title": "Configuration management"
+        }
+      ]
+    },
+    {
+      "id": "BOUNDARY-003",
+      "title": "Discovery Protocol (CDP/LLDP) Enabled on External Interface",
+      "question": "Are discovery protocols disabled on external interfaces?",
+      "kind": "prohibition",
+      "severity": "medium",
+      "category": "boundary",
+      "needs": [
+        "boundary.discovery_protocol.enabled"
+      ],
+      "judge": "discovery_protocol",
+      "phase": 1,
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "CM-7",
+          "title": "Least Functionality"
+        },
+        {
+          "framework": "CIS",
+          "version": "Cisco IOS XE 17.x Benchmark v2.2.1 (Level 1)",
+          "id": "2.1.2",
+          "title": "Set 'no cdp run'",
+          "vendor": "cisco_ios"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000142-NDM-000245",
+          "title": "The network device must be configured to prohibit the use of all unnecessary and nonsecure functions, ports, protocols, and services"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.20",
+          "title": "Networks security"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.9",
+          "title": "Configuration management"
+        }
+      ]
+    },
+    {
+      "id": "BOUNDARY-004",
+      "title": "Router Interface Hardening (Redirects, Proxy-ARP, Directed Broadcast)",
+      "question": "Do routed interfaces refuse to send ICMP redirects, answer proxy-ARP or forward directed broadcasts?",
+      "kind": "prohibition",
+      "severity": "medium",
+      "category": "boundary",
+      "needs": [
+        "boundary.interface.unsafe_service"
+      ],
+      "judge": "router_services",
+      "phase": 1,
+      "optional_feature": "IOS-style routed interface services",
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "SC-7",
+          "title": "Boundary Protection"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "CM-7",
+          "title": "Least Functionality"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.20",
+          "title": "Networks security"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.22",
+          "title": "Segregation of networks"
+        }
+      ]
+    },
+    {
+      "id": "LOG-001",
+      "title": "No Remote Syslog Server Configured",
+      "question": "Are logs forwarded to a remote log server?",
+      "kind": "requirement",
+      "severity": "high",
+      "category": "logging",
+      "needs": [
+        "log.remote.destination"
+      ],
+      "judge": "remote_log",
+      "phase": 0,
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "AU-4(1)",
+          "title": "Transfer to Alternate Storage"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "AU-9(2)",
+          "title": "Store on Separate Physical Systems or Components"
+        },
+        {
+          "framework": "CIS",
+          "version": "FortiGate 7.4.x Benchmark v1.0.1 (Level 2)",
+          "id": "7.2.1",
+          "title": "Centralized Logging and Reporting",
+          "vendor": "fortinet"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000515-NDM-000325",
+          "title": "The network device must be configured to offload audit records onto a different system than the system being audited"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.15",
+          "title": "Logging"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.16",
+          "title": "Monitoring activities"
+        }
+      ],
+      "remediation": {
+        "Juniper Junos": [
+          "set system syslog host {syslog_server} any notice"
+        ],
+        "Palo Alto PAN-OS": [
+          "set shared log-settings syslog <profile> server <name> server {syslog_server}"
+        ],
+        "Arista EOS": [
+          "logging host {syslog_server}"
+        ]
+      }
+    },
+    {
+      "id": "LOG-002",
+      "title": "NTP Not Configured or Unauthenticated",
+      "question": "Is the clock synchronized from authenticated NTP servers?",
+      "kind": "requirement",
+      "severity": "medium",
+      "category": "logging",
+      "needs": [
+        "time.ntp.server",
+        "time.ntp.authenticated"
+      ],
+      "judge": "ntp",
+      "phase": 0,
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "AU-8",
+          "title": "Time Stamps"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "SC-45",
+          "title": "System Time Synchronization"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "SC-45(1)",
+          "title": "Synchronization with Authoritative Time Source"
+        },
+        {
+          "framework": "CIS",
+          "version": "Cisco IOS XE 17.x Benchmark v2.2.1 (Level 2)",
+          "id": "2.3.1.4",
+          "title": "Set 'key' for each 'ntp server'",
+          "vendor": "cisco_ios"
+        },
+        {
+          "framework": "CIS",
+          "version": "FortiGate 7.4.x Benchmark v1.0.1 (Level 1)",
+          "id": "2.1.4",
+          "title": "Ensure correct system time is configured through NTP",
+          "vendor": "fortinet"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000373-NDM-000298",
+          "title": "The network device must be configured to synchronize internal information system clocks with the primary and secondary time sources"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000395-NDM-000347",
+          "title": "The network device must be configured to authenticate Network Time Protocol sources"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.17",
+          "title": "Clock synchronisation"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.15",
+          "title": "Logging"
+        }
+      ],
+      "remediation": {
+        "Juniper Junos": [
+          "set system ntp authentication-key {ntp_key_id} type sha256 value {ntp_key}",
+          "set system ntp trusted-key {ntp_key_id}",
+          "set system ntp server {ntp_server} key {ntp_key_id}"
+        ],
+        "Arista EOS": [
+          "ntp authentication-key {ntp_key_id} sha1 {ntp_key}",
+          "ntp trusted-key {ntp_key_id}",
+          "ntp authenticate",
+          "ntp server {ntp_server} key {ntp_key_id}"
+        ]
+      }
+    },
+    {
+      "id": "LOG-003",
+      "title": "Traffic Rules That Do Not Log",
+      "question": "Does every firewall rule that permits traffic log what it matches?",
+      "kind": "requirement",
+      "severity": "medium",
+      "category": "logging",
+      "needs": [
+        "boundary.policy.logging"
+      ],
+      "judge": "rule_logging",
+      "phase": 1,
+      "optional_feature": "firewall policies",
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "AU-2",
+          "title": "Event Logging"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "AU-12",
+          "title": "Audit Record Generation"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.15",
+          "title": "Logging"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.16",
+          "title": "Monitoring activities"
+        }
+      ],
+      "remediation": {
+        "Palo Alto PAN-OS": [
+          "set rulebase security rules <rule> log-end yes"
+        ]
+      }
+    },
+    {
+      "id": "CRYPTO-001",
+      "title": "Weak VPN/IPsec Cryptographic Algorithms",
+      "question": "Do VPN proposals avoid weak encryption, hashing and Diffie-Hellman groups?",
+      "kind": "threshold",
+      "severity": "high",
+      "category": "cryptography",
+      "needs": [
+        "crypto.ipsec.proposal"
+      ],
+      "judge": "ipsec_proposal",
+      "phase": 1,
+      "optional_feature": "a VPN or IPsec tunnel",
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "SC-13",
+          "title": "Cryptographic Protection"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "SC-8",
+          "title": "Transmission Confidentiality and Integrity"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000412-NDM-000331",
+          "title": "The network device must be configured to implement cryptographic mechanisms to protect the confidentiality of remote maintenance sessions"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.24",
+          "title": "Use of cryptography"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.20",
+          "title": "Networks security"
+        }
+      ]
+    },
+    {
+      "id": "CRYPTO-002",
+      "title": "Weak Management Cryptography (SSH/HTTPS)",
+      "question": "Do SSH and HTTPS management avoid weak ciphers, MACs and key exchange (DES, 3DES, RC4, CBC, MD5, DH group 1)?",
+      "kind": "prohibition",
+      "severity": "high",
+      "category": "cryptography",
+      "needs": [
+        "mgmt.crypto.weak_allowed"
+      ],
+      "judge": "weak_management_crypto",
+      "phase": 2,
+      "mappings": [
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "SC-13",
+          "title": "Cryptographic Protection"
+        },
+        {
+          "framework": "NIST_800_53",
+          "version": "SP 800-53 Rev. 5 (5.2.0)",
+          "id": "SC-8",
+          "title": "Transmission Confidentiality and Integrity"
+        },
+        {
+          "framework": "DISA_STIG",
+          "version": "Network Device Management SRG V4",
+          "id": "SRG-APP-000412-NDM-000331",
+          "title": "The network device must be configured to implement cryptographic mechanisms to protect the confidentiality of remote maintenance sessions"
+        },
+        {
+          "framework": "ISO_27001",
+          "version": "ISO/IEC 27001:2022 Annex A",
+          "id": "A.8.24",
+          "title": "Use of cryptography"
+        }
+      ],
+      "remediation": {
+        "Juniper Junos": [
+          "set system services ssh ciphers [ aes256-ctr aes192-ctr aes128-ctr ]",
+          "set system services ssh macs [ hmac-sha2-512 hmac-sha2-256 ]"
+        ],
+        "Arista EOS": [
+          "management ssh",
+          "   cipher aes256-ctr aes192-ctr aes128-ctr",
+          "   mac hmac-sha2-512 hmac-sha2-256"
+        ]
+      }
+    }
+  ]
+}

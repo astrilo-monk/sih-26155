@@ -51,6 +51,7 @@ def analyze(config: NormalizedConfig) -> ScanResult:
             "os_version": config.device.os_version or "unknown",
             "model": config.device.model,
             "serial": config.device.serial,
+            "identity_source": config.device.identity_source,
             "assessed": assessed,
         }],
         device_results=[results],

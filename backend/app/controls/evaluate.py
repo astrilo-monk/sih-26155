@@ -27,7 +27,7 @@ from typing import Optional
 
 from app.adaptive.context import structural_paths
 from app.controls.catalog import CONTROLS, Control, ControlKind
-from app.controls.judges import JUDGES
+from app.controls.judges import JUDGES, judge_for
 from app.facts.defaults import default_facts
 from app.facts.from_normalized import PARSER_COVERAGE, facts_from_config, weakest
 from app.facts.predicates import NOT_SET, SecurityFact
@@ -92,7 +92,7 @@ def evaluate_control(control: Control, facts: list[SecurityFact], config: Normal
                             f"The {vendor.value} parser does not read {', '.join(unread)}")]
         needed = default_facts(vendor, control.needs)
 
-    judge = JUDGES[control.control_id]
+    judge = JUDGES.get(control.control_id) or judge_for(control)
     judged = [(fact, outcome) for fact in needed if (outcome := judge(fact, needed, vendor)) is not None]
 
     fails = [(fact, o) for fact, o in judged if o.status == Status.FAIL]

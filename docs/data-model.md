@@ -289,7 +289,7 @@ classDiagram
     ControlResult o-- SecurityFact : cites
 ```
 
-* `Control` (`app/controls/catalog.py`): `kind` is `prohibition`, `requirement`, `threshold` or `relational`;
+* `Control` (`backend/data/controls.json`, loaded by `app/controls/catalog.py`): `kind` is `prohibition`, `requirement`, `threshold` or `relational`;
   `severity` is `critical`, `high`, `medium` or `low`; `optional_feature` names the feature whose absence makes it
   N/A on a confirmed parser.
 * `Mapping`: `framework` is `NIST_800_53`, `CIS`, `DISA_STIG` or `ISO_27001`; `vendor` is set only for product

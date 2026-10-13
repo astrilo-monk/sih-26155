@@ -84,7 +84,7 @@ def test_catalog_has_exactly_one_control_per_rule():
 @pytest.mark.parametrize("control_id", sorted(RULE_IDS))
 def test_every_control_is_fully_described(control_id):
     control = CONTROLS[control_id]
-    # Phase 8: remediation keys name the deterministic recipes (control, vendor)
+    # Phase 8: every control has a deterministic recipe (control, vendor) under its own id
     templates = {control_id for control_id, _ in remediation_engine.RECIPES}
 
     assert control.title and control.question.endswith("?")
@@ -92,7 +92,7 @@ def test_every_control_is_fully_described(control_id):
     assert control.category in {"management", "authentication", "boundary", "logging", "cryptography"}
     assert any(m.framework == NIST for m in control.mappings)
     assert all(m.version for m in control.mappings)
-    assert control.remediation_keys and all(key in templates for key in control.remediation_keys)
+    assert control.control_id in templates
     assert control.needs and set(control.needs) <= PREDICATES
 
 

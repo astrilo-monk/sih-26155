@@ -262,6 +262,13 @@ export default function Results({ scan, audit, onOpen, onTeach, go }) {
         </Notice>
       )}
 
+      {scan.unpaired_outputs?.length > 0 && (
+        <Notice kind="warning" label="Device output not matched">
+          <strong>{scan.unpaired_outputs.join(', ')} {scan.unpaired_outputs.length > 1 ? 'look' : 'looks'} like show version or inventory output, but matched no single configuration.</strong>
+          <span>Its serial number and model were not used. Name it after its configuration (core-01.cfg and core-01-version.txt) or upload it with that configuration alone.</span>
+        </Notice>
+      )}
+
       {unfamiliar && unreadable.length < scan.devices.length && (
         <Notice label="Generic analysis">
           <strong>NetAuditAI has no dedicated reader for {multi ? 'some of these devices' : 'this device'}.</strong>

@@ -103,7 +103,15 @@ Upload one or more raw configuration files for analysis.
     / null when the file does not state them). For a
     configuration no parser reads, the hostname is the one a single statement states (`hostname X`, `system-name X`,
     `set … hostname X`); `unknown` when absent or conflicting. Hostnames can repeat: a device is identified by its
-    position, `config_index`.
+    position, `config_index`. `serial` and `model` are also filled from command output uploaded with the
+    configuration, and `identity_source` names that file (or, for a collected device, the command run).
+  * Identity command output (`show version`, `show inventory`, `show chassis hardware`, `get system status`,
+    `show system info`, `display version`) is recognised by lines only such output prints. It is attached to the
+    configuration whose hostname it states, else the one whose file name it extends (`core-01.cfg`,
+    `core-01-version.txt`), else the only configuration uploaded; it is never scanned as a device and never
+    decides a check. Output naming a different hostname is never attached.
+  * `unpaired_outputs[]`: file names of command outputs that matched no single configuration. Uploading only
+    command output is refused with 400.
   * `framework`: the benchmark chosen at upload, `null` when every framework is reported
   * `policy`: the organisation policy the scan was checked against, `null` for the defaults
   * `vendor_identification[]`: `detected_vendor`, `status` (`confirmed` / `unverified` / `unknown`), `parse_coverage`, `uncovered_lines`, `reason`
@@ -202,18 +210,34 @@ to mark entries expired after a restart.
 
 ## Audit ledger
 
-An append-only, hash-chained record (`backend/app/ledger.py`): every archived scan state, taught recognizer,
-confirmed or rejected candidate fix and generated PDF report appends `{seq, at, kind, subject, content_hash,
-prev_hash, hash}`, where `content_hash` is the SHA-256 of the redacted artefact (never a secret or configuration)
-and `hash` = SHA-256 of the entry including the previous hash. The report PDF prints the scan's ledger entry.
+An append-only, hash-chained, signed record (`backend/app/ledger.py`): every archived scan state, taught
+recognizer, confirmed or rejected candidate fix and generated PDF report appends `{seq, at, kind, subject,
+content_hash, prev_hash, hash, key_id, signature}`, where `content_hash` is the SHA-256 of the redacted artefact
+(never a secret or configuration), `hash` = SHA-256 of the entry including the previous hash, and `signature` is the
+deployment's Ed25519 signature over `hash` (`key_id`: the first 16 hex digits of the public key's SHA-256). The
+report PDF prints the scan's ledger entry and the key that signed it. Entries recorded before signing existed have
+no signature and still chain.
 
 ### `GET /api/ledger?limit=100`
 The most recent entries, newest first: `{"entries": [...]}`.
 
 ### `GET /api/ledger/verify`
-Recomputes the chain: `{"ok": true, "entries": 12, "broken_at": null, "reason": null, "head": "<hash>"}`. On
-tampering `ok` is false, `broken_at` names the first bad entry and `reason` says why (`entry #n is missing`, `it
-does not follow the entry before it`, `its content was changed after it was recorded`).
+Recomputes the chain and every signature: `{"ok": true, "entries": 12, "signed": 12, "unsigned": 0, "fully_signed": true, "broken_at":
+null, "reason": null, "head": "<hash>", "public_key": "<hex>", "key_id": "<16 hex>"}`. On tampering `ok` is false,
+`broken_at` names the first bad entry and `reason` says why (`entry #n is missing`, `it does not follow the entry
+before it`, `its content was changed after it was recorded`, `its signature does not match: it was rewritten
+without the signing key`, `it is signed by key …, which is not a trusted key`, `it is unsigned but follows signed
+entries: its signature was removed`). Only entries from before signing existed may be unsigned, and they leave
+`fully_signed` false: the hash chain alone does not stop someone who can write to the database. Trusted keys are this deployment's
+and any listed in `LEDGER_TRUSTED_KEYS`.
+
+### `GET /api/ledger/public-key`
+`{"public_key": "<hex>", "key_id": "<16 hex>", "algorithm": "Ed25519"}`. Keep a copy apart from the server: an
+offline check proves something only against a key the database could not have rewritten.
+
+### `GET /api/ledger/export`
+`{"public_key", "key_id", "entries": [...]}`, oldest first, for `python -m app.cli ledger-verify` on another
+machine (see [cli.md](cli.md)).
 
 ### `POST /api/ledger/verify-report`
 `multipart/form-data` with `file`: `{"match": true, "sha256": "...", "entry": {...}, "chain": {...}}`: whether the
@@ -244,7 +268,8 @@ archive or the logs; `Target.__repr__` is overridden so a traceback cannot print
 What this backend can collect, so the form can say so before a credential is typed. Always `200` -"collection is off
 here" and "Netmiko is not installed" are answers, not errors.
 * **Response:** `enabled` (the setting), `methods[]` (the drivers installed: `napalm`, `netmiko`), and `platforms[]`
-  with `platform`, `label`, `command` (what will actually be run), `napalm_driver`, `methods[]` and `available`.
+  with `platform`, `label`, `command` (what will actually be run), `identity_commands[]` (the read-only commands run
+  in the same session for serial number, model and OS version), `napalm_driver`, `methods[]` and `available`.
 
 ### `POST /api/collect`
 Collect from each device, then audit what was collected.
@@ -302,7 +327,7 @@ Inputs (all optional, validated, `422` when invalid):
 
 ```mermaid
 flowchart LR
-    REQ["POST /api/remediation/plan"] --> EACH["each device, each failing control,<br/>catalog order"]
+    REQ["POST /api/remediation/plan"] --> EACH["each device, each failing control,<br/>fix-phase order"]
     EACH --> VS{"vendor"}
     VS -->|"confirmed"| REC["recipe → rescan"]
     VS -->|"unconfirmed"| WB["write-back → rescan"]
@@ -320,12 +345,21 @@ Remediate one control on one device.
 * **Response JSON:** `RemediationResponse`, e.g. `{"status": "fixed", "diff": "…\n+logging host 10.20.0.5\n end", "checks": [{"name": "target", "passed": true, "detail": "LOG-001 now passes: Logs are forwarded to 10.20.0.5"}, …], …}`. Without the input: `{"status": "needs_input", "missing_inputs": ["syslog_server"], "fixed_config": null, …}`. Unknown or unverified vendor: `{"status": "vendor_unverified", …}`.
 
 ### `POST /api/remediation/plan`
-Remediate every failing control of every device, in catalog order, verifying each step.
+Remediate every failing control of every device, verifying each step, in fix-phase order (`phase` in
+`backend/data/controls.json`): 0 establish the safe path (SSH v2, remote logging, time), 1 harden, 2 switch off what
+the safe path replaced (Telnet, HTTP, SNMP communities), 3 restrict management access. Applied top to bottom, the
+sequence never cuts the administrator's own session.
 * **Request JSON:** `{"scan_id": "123-abc", "inputs": {}, "device_inputs": {"0": {"ntp_key": "NtpKey-2026"}}}`
   -`inputs` apply to every device; `device_inputs` holds one device's own values by config index and overrides
   `inputs` for that device only. The UI sends only `device_inputs`, so one router's answer never fills in another's
   unless the person ticks *Use these values for every device that still needs them*.
-* **Response JSON:** `RemediationPlanResponse`: `inputs` (every input spec) and `devices[]`, each with `vendor_status`, `remediations[]`, `candidates[]` (unconfirmed vendors), `fixed_controls`, the combined `checks`, `before` / `after`, `fixed_config` (every verified change; `null` when none) and `fixed_diff` (the uploaded file against `fixed_config`, both redacted, for the *Preview the corrected file* panel).
+* **Response JSON:** `RemediationPlanResponse`: `inputs` (every input spec) and `devices[]`, each with `vendor_status`, `remediations[]`, `candidates[]` (unconfirmed vendors), `fixed_controls`, the combined `checks`, `before` / `after`, `fixed_config` (every verified change; `null` when none), `fixed_diff` (the uploaded file against `fixed_config`, both redacted, for the *Preview the corrected file* panel) and `cli` (every verified fix as one device command sequence, in phase order, entered and saved once).
+* Each `remediations[]` entry carries `phase` / `phase_name`, `cli` (a verified fix as the device's own commands:
+  IOS-style blocks with `no`, FortiOS `config` / `edit` with `unset`, Junos and PAN-OS `set` / `delete`, Huawei
+  `undo`, RouterOS sections; empty for JSON / Terraform) and, when nothing could be verified on an unconfirmed
+  vendor, `reference_cli` with `reference_source`: that vendor's reference commands from `controls.json`, **not**
+  checked against the file, with `<value>` placeholders for what only the operator knows. A reference command the
+  rescan can check (complete, flat, only adding settings) is tried first and becomes a verified fix when it holds.
 * A refused value answers `422` with `{"message": "Please check what you entered", "errors": {"NTP key": "use 8-32 letters, … e.g. NtpKey-2026"}}`, keyed by the field's label.
 
 ### `POST /api/remediation/final`

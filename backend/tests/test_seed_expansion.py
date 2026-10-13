@@ -173,6 +173,8 @@ def test_existing_databases_get_the_seed_corrections_by_migration(seeded_adaptiv
                      " expected_value_type, confirmed, active, created_at, updated_at, predicate, subject, source)"
                      " VALUES ('x', '', 'Huawei VRP', 'http server {polarity}', 'recognizer', 'boolean', 1, 0, 'now',"
                      " 'now', 'mgmt.remote_access.protocol_enabled', 'http', 'runtime')")
+        # back to the v6 ledger too: later migrations add its signature columns
+        conn.executescript("DROP TABLE ledger;" + database.MIGRATIONS[5])
         conn.execute("PRAGMA user_version = 6")
     database.init_db(db)
     with sqlite3.connect(db) as conn:
@@ -181,7 +183,7 @@ def test_existing_databases_get_the_seed_corrections_by_migration(seeded_adaptiv
         relabelled = conn.execute("SELECT COUNT(*) FROM learned_mappings WHERE vendor = 'Juniper Junos / VyOS'"
                                   " AND source = 'seed'").fetchone()[0]
         version = conn.execute("PRAGMA user_version").fetchone()[0]
-    assert version == 7
+    assert version == len(database.MIGRATIONS)
     assert sorted(fp is not None for source, fp in rows if source == "seed") == [True, True]
     assert [fp for source, fp in rows if source == "runtime"] == [None]
     assert relabelled == 2

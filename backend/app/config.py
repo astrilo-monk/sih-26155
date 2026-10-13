@@ -49,6 +49,14 @@ class Settings(BaseSettings):
     # wiped on restart. Empty = SQLite.
     database_url: str = ""
 
+    # Ed25519 key that signs every audit-ledger entry (app/ledger.py). Created here on first use, owner-only and
+    # git-ignored. LEDGER_SIGNING_KEY (base64 of the 32-byte private key) takes precedence: set it on a host whose
+    # disk is wiped on restart, or every restart starts a new key. LEDGER_TRUSTED_KEYS: public keys (hex,
+    # comma-separated) of earlier keys whose entries should still verify after a rotation.
+    ledger_key_path: Path = _BACKEND_DIR / "data" / "ledger_signing_key.pem"
+    ledger_signing_key: str = ""
+    ledger_trusted_keys: str = ""
+
     # LEGACY, isolated: send lines the Cisco/FortiGate parsers do not read to the line-by-line interpreter
     # (app.adaptive.interpreter). The Phase 7 judge never escalates confirmed vendors, so it cannot replace this
     # yet. Off by default; when on, every interpretation goes to the review queue and is never applied without

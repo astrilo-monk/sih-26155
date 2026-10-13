@@ -396,6 +396,7 @@ button { font: inherit; color: inherit; letter-spacing: inherit; }
 }
 .evidence-scope { color: var(--muted-fg); text-transform: none; }
 .evidence-body, .diff-body { overflow-x: auto; padding: var(--s-2) 0; }
+.cli-body { margin: 0; padding: var(--s-2) var(--s-3); white-space: pre; }
 .ev-row, .diff-row {
   display: grid; grid-template-columns: 56px 1fr; min-width: max-content;
   font: 400 var(--fs-sm)/var(--lh-relaxed) var(--mono); color: var(--muted-fg);

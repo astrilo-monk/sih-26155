@@ -60,6 +60,7 @@ export default function Devices({ scan, audit }) {
                 {device.model && <><dt>Hardware model</dt><dd className="mono">{device.model}</dd></>}
                 {device.serial && <><dt>Serial number</dt><dd className="mono">{device.serial}</dd></>}
                 {device.os_version && device.os_version !== 'unknown' && <><dt>OS / firmware</dt><dd className="mono">{device.os_version}</dd></>}
+                {device.identity_source && <><dt>Identity read from</dt><dd className="mono">{device.identity_source}</dd></>}
                 {device.known_cves && (
                   <><dt>Known CVEs for {device.known_cves.train}</dt>
                     <dd>

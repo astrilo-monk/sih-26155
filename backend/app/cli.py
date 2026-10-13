@@ -3,6 +3,7 @@ Command line for CI pipelines: check configurations before they reach a device.
 
     python -m app.cli scan configs/ --fail-on high --sarif netaudit.sarif
     python -m app.cli scan edge.cfg fw.conf --json
+    python -m app.cli ledger-verify ledger-export.json --public-key <hex>
 
 The same engine as the web app, without the server. It runs on a throwaway database holding the shipped
 knowledge only, with AI off, so the same files always give the same answer and nothing is written to the
@@ -10,6 +11,9 @@ deployment's database. ``--db`` uses a knowledge database instead (to include wh
 
 Exit codes: 0 no decided FAIL at or above ``--fail-on``; 1 there is one; 2 bad arguments or unreadable input.
 Only decided FAILs count, the same rule as scoring: a suspected problem never fails a build.
+
+``ledger-verify`` checks an exported audit ledger (``GET /api/ledger/export``) on any machine, offline: every
+hash link and every Ed25519 signature, against a public key you kept apart from the server. Exit 0 intact, 1 not.
 """
 
 from __future__ import annotations
@@ -35,6 +39,8 @@ def isolated_engine(db: Path | None = None) -> None:
     fresh = db is None
     db = db or Path(tempfile.mkdtemp()) / "netaudit.db"
     settings.adaptive_db_path, settings.database_url, settings.api_key = db, "", ""
+    # a throwaway database gets a throwaway signing key, never the deployment's
+    settings.ledger_key_path, settings.ledger_signing_key = db.parent / "ledger_signing_key.pem", ""
     settings.ai_judge_max_calls_per_scan, settings.local_ai_url = 0, ""
     for name in [n for n in type(settings).model_fields if n.startswith("groq_api_key")]:
         setattr(settings, name, "")
@@ -83,21 +89,52 @@ def _files(paths: list[str]) -> list[Path]:
     return out
 
 
+def ledger_verify(path: Path, public_key: str, allow_unsigned: bool = False) -> int:
+    from app.ledger import key_id, verify_rows
+
+    try:
+        rows = json.loads(path.read_text(encoding="utf-8"))["entries"]
+        trusted = {key_id(public_key.strip()): public_key.strip()}
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        print(f"netaudit: cannot read the ledger export: {e}", file=sys.stderr)
+        return 2
+    result = verify_rows(rows, trusted)
+    if not result["ok"]:
+        print(f"TAMPERED: entry #{result['broken_at']}: {result['reason']}")
+        return 1
+    print(f"intact: {result['entries']} entries, {result['signed']} signed by key {key_id(public_key.strip())}"
+          + (f", {result['unsigned']} recorded before signing" if result["unsigned"] else ""))
+    if result["unsigned"] and not allow_unsigned:
+        # an unsigned entry is protected by the hash chain alone, which a database writer can recompute
+        print("NOT PROVEN: unsigned entries are not protected by a signature (--allow-unsigned accepts them)")
+        return 1
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
+    from app.controls.catalog import FRAMEWORKS
+
     parser = argparse.ArgumentParser(prog="python -m app.cli", description=__doc__.split("\n\n")[0].strip())
     sub = parser.add_subparsers(dest="command", required=True)
     scan = sub.add_parser("scan", help="check configuration files")
     scan.add_argument("paths", nargs="+", help="configuration files or directories")
     scan.add_argument("--fail-on", choices=SEVERITIES, default="high",
                       help="exit 1 when a decided FAIL at or above this severity exists (default: high)")
-    scan.add_argument("--framework", choices=["NIST_800_53", "CIS", "DISA_STIG", "ISO_27001"])
+    scan.add_argument("--framework", choices=FRAMEWORKS)
     scan.add_argument("--sarif", metavar="FILE", help="also write SARIF 2.1.0 here")
     scan.add_argument("--json", action="store_true", help="print the full scan result as JSON instead of a summary")
     scan.add_argument("--policy", metavar="FILE", help="organisation policy (JSON) to check against")
     scan.add_argument("--db", type=Path, help="knowledge database to use instead of the shipped knowledge")
+    check = sub.add_parser("ledger-verify", help="check an exported audit ledger offline")
+    check.add_argument("export", type=Path, help="the JSON from GET /api/ledger/export")
+    check.add_argument("--public-key", required=True, help="the deployment's Ed25519 public key (hex), kept apart")
+    check.add_argument("--allow-unsigned", action="store_true",
+                       help="accept entries recorded before the ledger was signed (they come first)")
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.ERROR)
+    if args.command == "ledger-verify":
+        return ledger_verify(args.export, args.public_key, args.allow_unsigned)
     try:
         files = _files(args.paths)
         sources = [(str(f), f.read_text(encoding="utf-8")) for f in files]

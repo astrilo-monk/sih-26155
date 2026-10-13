@@ -12,7 +12,7 @@ runs a command on a device.
 
 ```text
 Upload or SSH-collect a config  →  cited PASS / FAIL / UNKNOWN per check  →  posture + coverage
-                                →  verified fixes  →  PDF report, SARIF, tamper-evident audit ledger
+                                →  verified fixes as device commands  →  PDF report, SARIF, signed audit ledger
 ```
 
 ---
@@ -169,7 +169,7 @@ flowchart TD
     CTL --> RCP
     CTL --> WB
 
-    OUT["UI, PDF report, baseline JSON, SARIF<br/>+ hash-chained audit ledger"]
+    OUT["UI, PDF report, baseline JSON, SARIF<br/>+ signed, hash-chained audit ledger"]
     SCORE --> OUT
     CTX --> OUT
     OK --> OUT
@@ -182,8 +182,8 @@ flowchart TD
 | Read | Parsers, recognizers and heuristics all produce the same vendor-neutral **SecurityFacts**. This is the Security Baseline Model, downloadable from `GET /api/scan/{id}/baseline`. | `app/parsers/`, `app/structure/`, `app/facts/` |
 | Decide | Every check runs on every configuration; the vendor only decides where facts come from. | `app/controls/`, `app/analysis/` |
 | Learn | AI proposals and suspected lines become recognizers only through an administrator. | `app/ai/judge.py`, `app/adaptive/`, `app/db/` |
-| Fix | Recipes (Cisco, FortiGate), seed write-back and candidate commands, each verified by rescanning a copy. | `app/remediation/` |
-| Report | PDF per device, executive summary, SARIF, hash-chained ledger. | `app/reporting/`, `app/ledger.py` |
+| Fix | Recipes (Cisco, FortiGate), seed write-back, vendor reference commands and candidate commands, each verified by rescanning a copy, then written as the device's own CLI in lockout-safe order. | `app/remediation/` |
+| Report | PDF per device, executive summary, SARIF, Ed25519-signed hash-chained ledger. | `app/reporting/`, `app/ledger.py` |
 
 The full design, including the exact gates a recognizer must pass, is in [docs/architecture.md](docs/architecture.md).
 
@@ -243,6 +243,13 @@ The vendor is always decided by code. An AI vendor guess is shown as evidence on
 defaults or remediation. Device identity (hostname, OS version, FortiGate model and firmware) is reported only
 when the file states it; serial numbers and chassis details are never invented.
 
+**Serial number and hardware.** A configuration rarely states them, so upload the device's `show version`,
+`show inventory`, `show chassis hardware`, `get system status` or `show system info` output in the same upload
+(`core-01.cfg` with `core-01-version.txt`). It is recognised as command output, attached to its configuration by
+the hostname it states or by file name, and never scanned as a device of its own; an output that matches no
+single configuration is reported, never guessed onto one. Live collection runs the same read-only command for
+you. The report names the file the serial number came from.
+
 The **396 shipped recognizers** live in [`backend/data/seed_recognizers.json`](backend/data/seed_recognizers.json),
 load into an empty database on first start, and are marked `source=seed` so shipped knowledge can be audited
 separately from what a deployment was taught. See [docs/seed-knowledge.md](docs/seed-knowledge.md).
@@ -285,6 +292,13 @@ Per-vendor facts and remediation: [docs/detection-rules.md](docs/detection-rules
 
 </details>
 
+**The checks are data.** All 24 live in [`backend/data/controls.json`](backend/data/controls.json): question,
+severity, the facts each reads, its judge, its fix phase, its framework mappings and per-vendor reference
+commands. Adding a check, a framework mapping or a whole framework is an edit to that file, not to code. A check
+can even bring its own boolean fact and decide it with a rule written in the file (`{"forbid": true}`,
+`{"max": 15}`), read by recognizers taught or shipped for it. The file is validated when the backend starts: a
+check naming an unknown fact, judge or phase stops it instead of silently deciding nothing.
+
 ---
 
 ## Measured accuracy
@@ -321,11 +335,12 @@ A separate live probe of 6 prompt-injection attacks against the AI judge succeed
 | **Attack paths** | Chains decided FAILs into how an attacker gets in (reach the login → capture the password → log in as admin), each step citing its line, plus the one fix that breaks the path. Each path is validated against a positive and a negative configuration. |
 | **Contextual risk** | Worst problem, internet exposure, attack paths and the asset importance you set, by a formula shown on screen and in the report. |
 | **Fix order** | Remediation sorted by risk removed per unit of effort, with the reason for each position. |
+| **Device commands** | Every verified fix is also written as the commands that make it, in the device's own dialect (IOS / EOS `configure terminal` blocks, FortiOS `config` / `edit`, Junos and PAN-OS `set` / `delete`, Huawei `undo`, RouterOS sections). They are ordered by phase, not severity: secure access first, then hardening, then switching off what it replaced, and management restrictions last, so entering them top to bottom never cuts your own session. Where nothing could be verified, the vendor's reference commands are shown and labelled as not checked against your file. |
 | **Changes since last audit** | Rescan a device and see what was fixed, what newly broke and which attack paths closed. Losing evidence is never counted as a fix. |
 | **Fleet checks** | Problems only visible across devices: the same SNMP community on several devices (compared by hash, never shown) and inconsistent NTP / syslog servers. |
 | **Organisation policy** | Your own stricter baseline (idle timeout, login attempts, password length, approved NTP / syslog servers). It can only tighten, never loosen. See [docs/policy.md](docs/policy.md). |
 | **Known CVEs** | CVEs for the OS version the file states, from a committed NVD cache. Labelled as context, not an assessment. No live call. |
-| **Audit ledger** | Scans, taught recognizers, fix decisions and reports are hash-chained. Editing any entry is detected, and a report PDF can be checked byte for byte. |
+| **Audit ledger** | Scans, taught recognizers, fix decisions and reports are hash-chained, and every entry is signed with the deployment's Ed25519 key. Rewriting an entry and recomputing the chain after it is still caught, because the signature needs the private key. Anyone can check an export offline with only the public key: `python -m app.cli ledger-verify`. A report PDF can be checked byte for byte. |
 | **Assistant** | Ask about the open scan; it answers from that scan's redacted results and is told that undecided is not failed. |
 | **Offline AI** | `LOCAL_AI_URL` sends every AI call to a local OpenAI-compatible server (Ollama, llama.cpp, vLLM) so nothing leaves the network. |
 
@@ -344,6 +359,8 @@ Every setting is optional. Backend settings go in `backend/.env`, frontend setti
 | `CORS_ORIGINS` | `*` | Comma-separated list of allowed origins. |
 | `ADAPTIVE_DB_PATH` | `backend/data/adaptive.db` | SQLite file for recognizers, rejected lines, the AI cache, the scan archive and the audit ledger. |
 | `DATABASE_URL` | empty | Postgres URI (e.g. Supabase session pooler) instead of SQLite, for hosts that wipe their disk on restart. |
+| `LEDGER_SIGNING_KEY` | empty | Base64 of a 32-byte Ed25519 private key that signs the ledger. Empty: a key file is created in `backend/data/` on first use (owner-only, git-ignored). Set it on a host that wipes its disk, or each restart starts a new key. |
+| `LEDGER_TRUSTED_KEYS` | empty | Comma-separated public keys (hex) of earlier signing keys whose entries should still verify after a rotation. |
 | `VENDOR_PARSE_COVERAGE_THRESHOLD` | `0.7` | Share of lines that must follow a vendor's grammar before its parser is trusted. |
 | `LIVE_COLLECTION_ENABLED` | `true` | SSH collection from devices. **Set `false` on any backend others can reach.** |
 | `LIVE_COLLECTION_NETWORKS` | `private` | Only RFC1918 and loopback hosts may be collected from; link-local (cloud metadata) is always refused. `any` lifts the restriction. |
@@ -371,6 +388,8 @@ python -m app.cli scan ../configs/ --fail-on high --sarif netaudit.sarif
 - **Only decided FAILs fail the build.** Suspected problems are reported but never block.
 - **Exit codes:** `0` passed, `1` a decided problem at or above `--fail-on`, `2` bad input.
 - **SARIF 2.1.0** output shows each problem on its line in a pull request (GitHub code scanning).
+- **Offline ledger check:** `python -m app.cli ledger-verify export.json --public-key <hex>` checks every hash and
+  signature of `GET /api/ledger/export` on any machine. Exit `0` intact, `1` not.
 
 Options, `--policy`, `--framework` and a ready GitHub Actions workflow: [docs/cli.md](docs/cli.md).
 
@@ -386,7 +405,8 @@ Options, `--policy`, `--framework` and a ready GitHub Actions workflow: [docs/cl
 | Recognizers and learned mappings (shipped and taught) | `learned_mappings` | Yes |
 | Lines an administrator rejected | `rejected_lines`, redacted | Yes |
 | Verified AI judge answers | `ai_judge_cache`, keyed by a hash of the redacted prompt | Yes |
-| Audit ledger: hashes of scans, recognizers, fix decisions, reports | `ledger` | Yes |
+| Audit ledger: hashes of scans, recognizers, fix decisions, reports, each signed | `ledger` | Yes |
+| Ledger signing key | `backend/data/ledger_signing_key.pem` (or `LEDGER_SIGNING_KEY`) | Yes, unless the disk is wiped |
 | History list in the UI | Browser `localStorage`, summaries only | Browser only |
 
 Tables live in SQLite by default or in Postgres when `DATABASE_URL` is set; the same SQL runs on both. A line
@@ -404,6 +424,8 @@ This is a prototype built to run on a laptop for a demo. If you expose it anyway
 3. Set `API_KEY` and put a proxy in front that adds the header for the UI.
 4. Set `CORS_ORIGINS` to your frontend origin.
 5. Set `DATABASE_URL` if the host loses its disk on restart, or everything administrators taught is lost.
+6. On such a host also set `LEDGER_SIGNING_KEY`, and keep a copy of `GET /api/ledger/public-key` somewhere else:
+   an offline check is only as good as a public key kept apart from the server.
 
 Trust boundaries and guarantees: [docs/security-model.md](docs/security-model.md).
 
@@ -439,17 +461,18 @@ backend/
     parsers/        vendor detection, grammar coverage, Cisco IOS and FortiGate parsers
     structure/      generic tokenizer, JSON and Terraform flattening
     facts/          predicates, parser facts, defaults, lexicon, heuristics, recognizers, seed loader
-    controls/       23-check catalog, judges, evaluator, framework views, policy
+    controls/       catalog loader, judges, evaluator, framework views, policy
     analysis/       scoring, attack paths, risk, drift, fleet checks, CVE lookup
     ai/             model client, redaction, prompt fence, AI judge, remediation drafts
     adaptive/       teaching flow: capture, relevance, matching, review service
-    remediation/    recipes, verifying engine, seed write-back, candidate commands
+    remediation/    recipes, verifying engine, seed write-back, candidate commands, device CLI
     reporting/      PDF reports
     db/             SQLite / Postgres, recognizer store, scan archive
     api/routes/     scan, collect, remediation, adaptive, assistant, report, ledger
     cli.py          command line for CI
-    ledger.py       hash-chained audit ledger
-  data/             shipped recognizers, factory defaults, CVE cache, attack-path validation
+    ledger.py       signed, hash-chained audit ledger
+  data/             the 24 checks (controls.json), shipped recognizers, factory defaults, CVE cache,
+                    attack-path validation
   scripts/          benchmark, CVE cache builder, injection probe, architecture PDF
   tests/            pytest suite and labelled fixtures
 frontend/src/       React 19 + Vite app (hand-written CSS, no component library)

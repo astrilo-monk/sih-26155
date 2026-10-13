@@ -33,7 +33,7 @@ from app.analysis.engine import analyze, analyze_multiple, evaluate_controls
 from app.analysis.scoring import calculate_posture, control_outcomes
 from app.facts.from_normalized import facts_from_config
 from app.facts.predicates import NOT_SET, PREDICATES, SNMP_COMMUNITY
-from app.controls.catalog import CIS, CONTROLS, ISO, NIST, STIG
+from app.controls.catalog import CONTROLS, FRAMEWORKS
 from app.controls.frameworks import framework_views
 from app.models.results import ControlResult, Status
 from app.models.normalized import Vendor, NormalizedConfig, DeviceInfo, AIFieldMapping
@@ -58,7 +58,8 @@ from app.adaptive.context import redaction_paths
 from app.ai.redaction import Redactor, placeholder
 from app import ledger
 from app.db.scans import earlier_scans, load_scan, save_scan, scan_exists
-from app.facts.heuristics import generic_hostname, stated_identity
+from app.facts.heuristics import generic_hostname
+from app.facts.identity import apply_identity, is_command_output, pair_outputs, stated_identity
 from app.structure.structured import flatten_hcl, flatten_json
 from app.adaptive.interpreter import interpret_lines
 from app.adaptive.mapper import REVIEWABLE_SOURCES, determine_tier
@@ -76,8 +77,6 @@ logger = logging.getLogger(__name__)
 # each is archived in the database (app.db.scans), so history survives a restart.
 # ponytail: the archive is never pruned; add a retention limit if it grows past what the database should hold.
 _scan_store: dict[str, dict] = {}
-# Frameworks a scan can be limited to at upload; none chosen means all of them
-FRAMEWORKS = (NIST, CIS, STIG, ISO)
 
 def config_redactor(configs) -> Redactor:
     """A redactor that knows every secret value in the scanned configs.
@@ -524,6 +523,7 @@ def build_scan_response(scan_id: str) -> ScanResultResponse:
         frameworks=[FrameworkViewSchema(**view) for view in views],
         framework=selected,
         unreadable_configs=[idx for idx, cfg in enumerate(configs) if not is_configuration(cfg)],
+        unpaired_outputs=entry.get("unpaired_outputs", []),
         assessed_count=sum(1 for o in outcomes.values() if o in ("pass", "fail")),
         unresolved_count=sum(1 for o in outcomes.values() if o == "undecided"),
         # built from the redacted results above, so a path quotes nothing the results do not
@@ -584,21 +584,34 @@ def validated_framework(framework: Optional[str]) -> Optional[str]:
 
 
 def run_scan(sources: list[tuple[str, str]], framework: Optional[str] = None,
-             context: Optional[dict] = None, policy: Optional[org_policy.Policy] = None) -> ScanResultResponse:
+             context: Optional[dict] = None, policy: Optional[org_policy.Policy] = None,
+             identity: Optional[dict[str, tuple[str, str]]] = None) -> ScanResultResponse:
     """Analyse configurations that are already text, under ``policy`` (the organisation's; None = defaults), and
     return the scan they produce. See ``_run_scan``."""
     with org_policy.using(policy):
-        return _run_scan(sources, framework, context, policy)
+        return _run_scan(sources, framework, context, policy, identity)
 
 
 def _run_scan(sources: list[tuple[str, str]], framework: Optional[str] = None,
-             context: Optional[dict] = None, policy: Optional[org_policy.Policy] = None) -> ScanResultResponse:
+             context: Optional[dict] = None, policy: Optional[org_policy.Policy] = None,
+             identity: Optional[dict[str, tuple[str, str]]] = None) -> ScanResultResponse:
     """Analyse configurations that are already text, and return the scan they produce.
 
-    ``sources`` are ``(name, configuration)`` pairs. The name is only for error messages: nothing in
-    the pipeline reads it, so a configuration collected from a live device (``routes.collect``) takes
-    exactly the same path as an uploaded file, with the same redaction and the same AI rules.
+    ``sources`` are ``(name, configuration)`` pairs. The name is only for error messages and for tying a
+    command output to its configuration, so a configuration collected from a live device (``routes.collect``)
+    takes exactly the same path as an uploaded file, with the same redaction and the same AI rules.
+
+    A source that is identity command output (``show version``, ``show inventory`` ...) rather than a
+    configuration is not scanned: it adds serial, model and OS version to the configuration it belongs to
+    (``app.facts.identity``). ``identity`` maps a source name to ``(command, output)`` collected with it.
     """
+    outputs = [(name, text) for name, text in sources
+               if is_command_output(text) and not identify_vendor(text).confirmed]
+    if outputs:
+        sources = [source for source in sources if source not in outputs]
+        if not sources:
+            raise HTTPException(400, "Only command output was uploaded (show version, show inventory ...): "
+                                     "upload the device's configuration together with it")
     service = _new_adaptive_service()
     configs: list[NormalizedConfig] = []
     adaptive_runs: list[Optional[dict]] = []
@@ -649,6 +662,15 @@ def _run_scan(sources: list[tuple[str, str]], framework: Optional[str] = None,
         configs.append(normalized)
         adaptive_runs.append(run)
 
+    names = [name for name, _ in sources]
+    pairs = pair_outputs(outputs, [(name, cfg.device.hostname) for name, cfg in zip(names, configs)])
+    for n, idx in pairs.items():
+        if idx is not None:
+            apply_identity(configs[idx].device, outputs[n][1], outputs[n][0])
+    for name, (command, text) in (identity or {}).items():
+        if name in names:
+            apply_identity(configs[names.index(name)].device, text, command)
+
     # settings read at call time: tests (and a config reload) replace the settings object
     if had_unknown_vendor and is_available():
         had_ai_available = True
@@ -684,6 +706,8 @@ def _run_scan(sources: list[tuple[str, str]], framework: Optional[str] = None,
         "context": context or {},
         # the organisation policy every evaluation of this scan uses (app.controls.policy); None = defaults
         "policy": policy,
+        # command outputs that could not be tied to exactly one configuration: reported, never guessed onto one
+        "unpaired_outputs": [outputs[n][0] for n, idx in pairs.items() if idx is None],
     }
 
     if not (had_unknown_vendor and not had_ai_available and not anything_applied):

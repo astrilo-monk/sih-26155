@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Optional
 
 from app.controls import policy
+from app.controls.catalog import CONTROLS, CatalogError, Control
 from app.facts import lexicon as L
 from app.facts.predicates import (
     CENTRAL_AAA, DISCOVERY_PROTOCOL, IDLE_TIMEOUT, IPSEC_PROPOSAL, LOG_REMOTE_DESTINATION, LOGIN_BANNER,
@@ -595,29 +596,59 @@ def default_account(fact, facts, vendor):
     )
 
 
-JUDGES: dict[str, Judge] = {
-    "MGMT-001": telnet,
-    "MGMT-002": http,
-    "MGMT-003": source_restricted,
-    "MGMT-004": snmp_community,
-    "MGMT-005": passwords,
-    "MGMT-006": idle_timeout,
-    "MGMT-007": ssh_version,
-    "MGMT-008": central_aaa,
-    "MGMT-009": login_banner,
-    "MGMT-010": exposed_management,
-    "MGMT-011": snmp_version,
-    "AUTH-001": login_attempts,
-    "AUTH-002": password_length,
-    "AUTH-003": default_account,
-    "AUTH-004": root_login,
-    "BOUNDARY-001": permit_any,
-    "BOUNDARY-002": source_routing,
-    "BOUNDARY-003": discovery_protocol,
-    "LOG-001": remote_log,
-    "LOG-002": ntp,
-    "CRYPTO-001": ipsec_proposal,
-    "LOG-003": rule_logging,
-    "CRYPTO-002": weak_management_crypto,
-    "BOUNDARY-004": router_services,
-}
+BUILT_IN: dict[str, Judge] = {judge.__name__: judge for judge in (
+    telnet, http, source_restricted, snmp_community, passwords, idle_timeout, ssh_version, central_aaa,
+    login_banner, exposed_management, snmp_version, login_attempts, password_length, default_account, root_login,
+    permit_any, source_routing, discovery_protocol, remote_log, ntp, ipsec_proposal, rule_logging,
+    weak_management_crypto, router_services,
+)}
+_RULES = {"forbid", "require", "max", "min"}
+_TEXT = {"fail", "pass", "impact", "advice"}
+
+
+def rule_judge(control: Control) -> Judge:
+    """A judge written as data in the control's entry: exactly one of ``forbid`` (FAIL when the fact has this
+    value), ``require`` (FAIL unless it has it, absence included), ``max`` / ``min`` (a number's bound), and
+    optional ``fail`` / ``pass`` / ``impact`` / ``advice`` texts. A value no reader determined is UNKNOWN, and a
+    forbidden setting that is merely absent decides nothing: absence is never a pass."""
+    rule = control.judge
+    kinds = _RULES & set(rule)
+    if len(kinds) != 1 or set(rule) - _RULES - _TEXT:
+        raise CatalogError(f"{control.control_id}: a judge rule needs exactly one of {sorted(_RULES)}, "
+                           f"plus optional {sorted(_TEXT)}")
+    kind = kinds.pop()
+    bound = rule[kind]
+
+    def judge(fact, facts, vendor):
+        value = fact.value
+        if value is None:
+            return _unknown(fact, "The setting's value could not be determined")
+        if value is NOT_SET:
+            if kind == "forbid":
+                return None
+            bad = True
+        elif kind == "forbid":
+            bad = value == bound
+        elif kind == "require":
+            bad = value != bound
+        elif not isinstance(value, (int, float)) or isinstance(value, bool):
+            return _unknown(fact, f"'{value}' is not a number")
+        else:
+            bad = value > bound if kind == "max" else value < bound
+        if not bad:
+            return _pass(rule.get("pass", f"{control.question.rstrip('?')}: yes"))
+        return _fail(control.severity, rule.get("fail", f"{control.title}{_on(fact)}."), rule.get("impact", ""),
+                     rule.get("advice", ""))
+
+    return judge
+
+
+def judge_for(control: Control) -> Judge:
+    if isinstance(control.judge, dict):
+        return rule_judge(control)
+    if control.judge not in BUILT_IN:
+        raise CatalogError(f"{control.control_id}: no built-in judge named '{control.judge}'")
+    return BUILT_IN[control.judge]
+
+
+JUDGES: dict[str, Judge] = {cid: judge_for(control) for cid, control in CONTROLS.items()}

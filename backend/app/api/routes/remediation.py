@@ -43,15 +43,16 @@ from app.api.schemas import (
     RemediationCandidateRequest, RemediationCandidateSchema, RemediationCheckSchema, RemediationInputSchema,
     RemediationPlanRequest, RemediationPlanResponse, RemediationRequest, RemediationResponse,
 )
-from app.controls.catalog import CONTROLS
+from app.controls.catalog import CONTROLS, PHASES
 from app.models.normalized import Vendor
 from app.models.results import DECISIVE_ASSURANCE, Status
 from app.remediation import candidates as cand
 from app import ledger
 from app.remediation.engine import (
-    INPUTS, Outcome, RemediationStatus, analyze_generic_text, parse_inputs, remediate_all, remediate_control,
+    FIX_ORDER, INPUTS, Outcome, RemediationStatus, analyze_generic_text, parse_inputs, remediate_all, remediate_control,
 )
-from app.remediation.writeback import writeback_all, writeback_control
+from app.remediation.cli import dialect, wrap
+from app.remediation.writeback import reference_commands, writeback_all, writeback_control
 
 router = APIRouter()
 
@@ -150,15 +151,24 @@ def _redactor(stored: dict, inputs: dict, index: int) -> Redactor:
     return redactor
 
 
-def _response(outcome: Outcome, index: int, redactor: Redactor) -> RemediationResponse:
-    """What the browser sees: every configuration quote redacted. /download-fixed alone returns the real file."""
+def _response(outcome: Outcome, index: int, redactor: Redactor,
+              reference: tuple[str, list[str]] = ("", [])) -> RemediationResponse:
+    """What the browser sees: every configuration quote redacted. /download-fixed alone returns the real file.
+
+    ``reference``: the vendor's reference commands for a fix the engine could not verify, shown as such."""
     numbers, lines = zip(*outcome.evidence) if outcome.evidence else ((), ())
+    label, commands = reference if outcome.status != RemediationStatus.FIXED else ("", [])
 
     def scrub(text):
         return display_scrub(redactor, text)
     return RemediationResponse(
         rule_id=outcome.control_id,
         title=CONTROLS[outcome.control_id].title,
+        phase=CONTROLS[outcome.control_id].phase,
+        phase_name=PHASES[CONTROLS[outcome.control_id].phase],
+        cli=redact_lines(redactor, wrap(outcome.cli_style, outcome.cli)),
+        reference_cli=redact_lines(redactor, commands),
+        reference_source=label,
         device_hostname=outcome.hostname,
         vendor=outcome.vendor,
         config_index=index,
@@ -224,12 +234,23 @@ def _written_back(stored: dict, index: int, control_id: str, inputs: dict) -> Op
     return outcome
 
 
+def _reference(text: str, control_id: str, inputs: dict) -> tuple[str, list[str]]:
+    label, lines = reference_commands(text, control_id, inputs)
+    return label, wrap(dialect(text.splitlines()), lines)
+
+
+def _plan_cli(outcomes, redactor: Redactor) -> list[str]:
+    """Every verified fix of a plan as one command sequence, in fix-phase order, entered and saved once."""
+    fixed = [o for o in outcomes if o.status == RemediationStatus.FIXED and o.cli]
+    return redact_lines(redactor, wrap(fixed[0].cli_style, [line for o in fixed for line in o.cli])) if fixed else []
+
+
 def _device_plan(stored: dict, index: int, inputs: dict) -> DeviceRemediationPlanSchema:
     config = stored["configs"][index]
     redactor = _redactor(stored, inputs, index)
     if not _confirmed(stored, index):
         results = _device_results(stored.get("result"), stored["configs"], index)
-        flagged = [c for c in CONTROLS if any(r.control_id == c and (r.status == Status.FAIL or r.proposed_status)
+        flagged = [c for c in FIX_ORDER if any(r.control_id == c and (r.status == Status.FAIL or r.proposed_status)
                                               for r in results)]
         identification = (stored.get("identifications") or [None] * (index + 1))[index]
         # seed write-back settles what a reviewed recognizer can write; the rest keeps the candidate path
@@ -240,13 +261,15 @@ def _device_plan(stored: dict, index: int, inputs: dict) -> DeviceRemediationPla
         return DeviceRemediationPlanSchema(
             config_index=index, device_hostname=config.device.hostname, vendor=config.device.vendor.value,
             vendor_status=identification.status if identification is not None else "unknown",
-            remediations=[_response(written.get(c) or _gate(stored, index, c), index, redactor) for c in flagged],
+            remediations=[_response(written.get(c) or _gate(stored, index, c), index, redactor,
+                                    _reference(config.raw_config, c, inputs)) for c in flagged],
             candidates=[_candidate_schema(stored, item) for item in _candidates(stored).values()
                         if item.config_index == index],
             fixed_controls=plan.fixed_controls, checks=_checks(plan.checks) if plan.fixed_controls else [],
             before=_summary(plan.before), after=_summary(plan.after) if plan.fixed_controls else None,
             fixed_config=redact_config_text(redactor, plan.fixed_config),
             fixed_diff=_diff(redactor, config.raw_config, plan.fixed_config),
+            cli=_plan_cli(plan.outcomes, redactor),
         )
     gates = _provisional(stored, index)
     plan = remediate_all(config.raw_config, inputs, skip=set(gates))
@@ -257,6 +280,7 @@ def _device_plan(stored: dict, index: int, inputs: dict) -> DeviceRemediationPla
         before=_summary(plan.before), after=_summary(plan.after),
         fixed_config=redact_config_text(redactor, plan.fixed_config),
         fixed_diff=_diff(redactor, config.raw_config, plan.fixed_config),
+        cli=_plan_cli(plan.outcomes, redactor),
     )
 
 

@@ -27,6 +27,9 @@ def isolated_adaptive_db(tmp_path, monkeypatch):
     monkeypatch.setattr(app_config.settings, "adaptive_db_path", db_path)
     # a dev .env may point at a real Postgres: tests always use their own SQLite file
     monkeypatch.setattr(app_config.settings, "database_url", "")
+    # each test signs its ledger with its own key, never one in backend/data
+    monkeypatch.setattr(app_config.settings, "ledger_key_path", tmp_path / "ledger_signing_key.pem")
+    monkeypatch.setattr(app_config.settings, "ledger_signing_key", "")
     # and a dev .env API key must not lock the test client out
     monkeypatch.setattr(app_config.settings, "api_key", "")
     # archives run after the response in production; tests check them straight away

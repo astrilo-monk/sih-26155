@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient
 from app import config as app_config
 from app.api.routes import scan as scan_route
 from app.collect import PLATFORMS, CollectionError, Target, collect, platform_choices
+from app.collect.collector import Collected
 from app.main import app
 
 # Enough Cisco IOS for the detector to confirm the vendor and the engine to decide controls
@@ -123,7 +124,7 @@ def test_a_driver_failure_is_summarized_rather_than_re_raised():
 
 def test_a_collected_scan_stores_no_credential(client):
     """The scan store outlives the request and is archived; a credential must not be in it."""
-    with patch("app.api.routes.collect.collect", return_value=IOS_CONFIG):
+    with patch("app.api.routes.collect.collect", return_value=Collected(IOS_CONFIG)):
         resp = client.post("/api/collect", json={"targets": [_body()]})
     assert resp.status_code == 200, resp.text
     entry = scan_route.get_scan_store()[resp.json()["scan"]["scan_id"]]
@@ -135,7 +136,7 @@ def test_a_collected_scan_stores_no_credential(client):
 
 def test_a_collected_config_is_scanned_exactly_like_an_uploaded_one(client):
     """Same text, same verdicts: nothing downstream may treat a collected config differently."""
-    with patch("app.api.routes.collect.collect", return_value=IOS_CONFIG):
+    with patch("app.api.routes.collect.collect", return_value=Collected(IOS_CONFIG)):
         collected = client.post("/api/collect", json={"targets": [_body()]}).json()["scan"]
     uploaded = client.post(
         "/api/scan", files=[("files", ("device.cfg", IOS_CONFIG.encode(), "text/plain"))]
@@ -149,7 +150,7 @@ def test_a_collected_config_is_scanned_exactly_like_an_uploaded_one(client):
 
 def test_an_unconfirmed_vendor_is_collected_and_read_generically(client, seeded_adaptive_db):
     """The engine is vendor-agnostic, so collection is not limited to the three parsers."""
-    with patch("app.api.routes.collect.collect", return_value=JUNOS_CONFIG):
+    with patch("app.api.routes.collect.collect", return_value=Collected(JUNOS_CONFIG)):
         resp = client.post("/api/collect", json={"targets": [_body(platform="juniper_junos")]})
     scan = resp.json()["scan"]
     assert scan["devices"][0]["hostname"] == "CORE-01"
@@ -157,13 +158,13 @@ def test_an_unconfirmed_vendor_is_collected_and_read_generically(client, seeded_
 
 
 def test_the_chosen_framework_reaches_a_collected_scan(client):
-    with patch("app.api.routes.collect.collect", return_value=IOS_CONFIG):
+    with patch("app.api.routes.collect.collect", return_value=Collected(IOS_CONFIG)):
         resp = client.post("/api/collect", json={"targets": [_body()], "framework": "CIS"})
     assert resp.json()["scan"]["framework"] == "CIS"
 
 
 def test_a_collected_scan_rejects_an_unknown_framework(client):
-    with patch("app.api.routes.collect.collect", return_value=IOS_CONFIG):
+    with patch("app.api.routes.collect.collect", return_value=Collected(IOS_CONFIG)):
         resp = client.post("/api/collect", json={"targets": [_body()], "framework": "SOX"})
     assert resp.status_code == 422
 
@@ -175,7 +176,7 @@ def test_one_unreachable_device_does_not_deny_an_audit_of_the_others(client):
     def one_fails(target):
         if target.host == "10.0.0.2":
             raise CollectionError("Could not collect from 10.0.0.2 over netmiko: TimeoutError")
-        return IOS_CONFIG
+        return Collected(IOS_CONFIG)
 
     with patch("app.api.routes.collect.collect", side_effect=one_fails):
         resp = client.post("/api/collect", json={
@@ -196,7 +197,7 @@ def test_every_device_failing_is_an_error_because_there_is_nothing_to_audit(clie
 
 def test_a_device_answering_with_an_enormous_configuration_is_refused(client):
     """The size limit guards the pipeline, not the upload form: a device can answer with just as much."""
-    with patch("app.api.routes.collect.collect", return_value="! padding\n" * 300_000):
+    with patch("app.api.routes.collect.collect", return_value=Collected("! padding\n" * 300_000)):
         resp = client.post("/api/collect", json={"targets": [_body()]})
     assert resp.status_code == 413
 
@@ -204,7 +205,7 @@ def test_a_device_answering_with_an_enormous_configuration_is_refused(client):
 def test_an_empty_configuration_is_reported_as_a_privilege_problem():
     """A device that answers with nothing usually means the account cannot read the config."""
     with patch("app.collect.collector.available_methods", return_value=("netmiko",)), \
-         patch("app.collect.collector._collect_netmiko", return_value="   \n"):
+         patch("app.collect.collector._collect_netmiko", return_value=Collected("   \n")):
         with pytest.raises(CollectionError, match="empty configuration"):
             collect(_target(method="netmiko"))
 
@@ -249,7 +250,7 @@ def test_the_driver_is_given_the_vetted_address_not_the_name():
 
     def record(t):
         seen["host"] = t.host
-        return "hostname R1\n"
+        return Collected("hostname R1\n")
 
     with patch.object(collector.socket, "getaddrinfo",
                       lambda *a, **k: [(None, None, None, "", ("10.4.4.4", 0))]), \

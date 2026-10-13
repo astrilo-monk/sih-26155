@@ -33,6 +33,8 @@ frontend/.env
 
 # Database
 *.db
+# the ledger signing key (app/ledger.py) never leaves the host it was made on
+*.pem
 *.sqlite3
 
 # Uploads

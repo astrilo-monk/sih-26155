@@ -89,10 +89,14 @@ async def collect_and_scan(request: CollectRequest):
     ]
 
     sources: list[tuple[str, str]] = []
+    identity: dict[str, tuple[str, str]] = {}
     failures: list[dict] = []
     for target in targets:
         try:
-            sources.append((target.host, collect(target)))
+            collected = collect(target)
+            sources.append((target.host, collected.config))
+            if collected.identity.strip():
+                identity[target.host] = (collected.identity_source, collected.identity)
         except CollectionError as e:
             # str(e) is written for an operator and never quotes a credential; the Target repr is
             # overridden for the same reason, so this log line cannot leak one either
@@ -109,7 +113,7 @@ async def collect_and_scan(request: CollectRequest):
         )
 
     return CollectResponse(
-        scan=run_scan(sources, framework),
+        scan=run_scan(sources, framework, identity=identity),
         collected=[host for host, _ in sources],
         failures=failures,
     )

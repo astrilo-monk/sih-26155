@@ -46,11 +46,31 @@ export function VerifyList({ checks }) {
   );
 }
 
+// Device commands, one per line, in the order they are entered
+export function CliBlock({ lines, file, caption }) {
+  return (
+    <figure className="diff">
+      <figcaption className="diff-head">
+        <span className="diff-file">{file}</span>
+        {caption && <span className="diff-caption">{caption}</span>}
+      </figcaption>
+      <pre className="diff-body cli-body mono">{lines.join('\n')}</pre>
+    </figure>
+  );
+}
+
 // The generated change and its rescan checks, for people who want to see them
 function ChangeDetails({ rem, summary = 'Show the change' }) {
-  if (!rem?.diff && !rem?.checks?.length) return null;
+  if (!rem?.diff && !rem?.checks?.length && !rem?.reference_cli?.length) return null;
   return (
     <Disclosure summary={summary}>
+      {rem.cli?.length > 0 && <CliBlock lines={rem.cli} file={rem.device_hostname} caption={`Device commands · phase ${rem.phase}: ${rem.phase_name}`} />}
+      {rem.reference_cli?.length > 0 && (
+        <>
+          <CliBlock lines={rem.reference_cli} file={rem.reference_source} caption="Reference commands, not verified against your file" />
+          <p className="small muted">From the vendor’s command set, not checked against this configuration. Replace each &lt;value&gt; with yours and review before use.</p>
+        </>
+      )}
       {rem.diff && <FileDiff diff={rem.diff} file={rem.device_hostname} caption="Proposed change" />}
       {rem.checks?.length > 0 && <VerifyList checks={rem.checks} />}
       {rem.explanation && <p className="small muted">{rem.explanation}</p>}
@@ -640,6 +660,15 @@ export default function Fix({ scan, audit, labels, onOpen, onTeach }) {
         <p className="small muted prose">
           The vendor of {joinWords(unconfirmed.map((d) => labels[d.config_index] ?? d.device_hostname))} isn’t confirmed. NetAuditAI writes a fix by itself only where the reviewed recognizer that read the failing line can write its secure form, in this configuration’s own syntax, and a rescan verifies it. For anything else you can propose a command or have AI draft one -each is checked against the configuration you uploaded before you confirm it. It never connects to the device.
         </p>
+      )}
+
+      {plan && !final && devices.some((d) => d.cli?.length) && (
+        <Disclosure summary="Device commands, step by step">
+          <p className="small muted prose">Every verified fix as the commands that make it, secure access first and management restrictions last, so entering them top to bottom never cuts your own session.</p>
+          {devices.filter((d) => d.cli?.length).map((d) => (
+            <CliBlock key={d.config_index} lines={d.cli} file={labels[d.config_index] ?? d.device_hostname} caption="verified on a copy" />
+          ))}
+        </Disclosure>
       )}
 
       {plan && !final && devices.some((d) => d.fixed_diff) && (

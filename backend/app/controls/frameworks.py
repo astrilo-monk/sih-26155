@@ -2,7 +2,7 @@
 Framework views (Phase 9): control results regrouped by framework requirement.
 
 Nothing is evaluated here. Each requirement lists the catalog controls mapped to it
-(``controls/catalog.py``, exact framework version) and their results as scanned:
+(``data/controls.json``, exact framework version) and their results as scanned:
 
 * FAIL           any mapped control FAILs on decisive evidence
 * PASS           every applicable mapped control PASSes on decisive evidence

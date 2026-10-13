@@ -31,6 +31,7 @@ from __future__ import annotations
 import ipaddress
 import socket
 from dataclasses import dataclass, field, replace
+from typing import NamedTuple
 
 
 class CollectionError(RuntimeError):
@@ -38,6 +39,16 @@ class CollectionError(RuntimeError):
 
     Carries an operator-facing message only: the cause is summarized without echoing credentials.
     """
+
+
+class Collected(NamedTuple):
+    """What one session read: the configuration, and what the device says about its own identity."""
+
+    config: str
+    # output of the identity commands (or NAPALM facts); empty when the device reported none
+    identity: str = ""
+    # how ``identity`` was obtained, for the report: "'show version' on 10.0.0.1"
+    identity_source: str = ""
 
 
 @dataclass(frozen=True)
@@ -53,6 +64,8 @@ class Platform:
     setup: tuple[str, ...] = ()
     # NAPALM driver, where one exists for this platform
     napalm: str = ""
+    # Read-only commands whose output states the serial number and hardware (app.facts.identity)
+    identity: tuple[str, ...] = ()
 
 
 # Platforms a device can be collected from. The engine itself is vendor-agnostic -only three vendors
@@ -60,20 +73,28 @@ class Platform:
 # wider than the parser set: a Junos or MikroTik device is worth collecting even though its verdicts
 # come from recognizers and heuristics rather than a parser.
 PLATFORMS: dict[str, Platform] = {
-    "cisco_ios": Platform("Cisco IOS / IOS-XE", "cisco_ios", "show running-config", napalm="ios"),
-    "cisco_nxos": Platform("Cisco NX-OS", "cisco_nxos", "show running-config", napalm="nxos_ssh"),
-    "cisco_xr": Platform("Cisco IOS-XR", "cisco_xr", "show running-config", napalm="iosxr"),
-    "arista_eos": Platform("Arista EOS", "arista_eos", "show running-config", napalm="eos"),
-    "juniper_junos": Platform("Juniper Junos", "juniper_junos", "show configuration", napalm="junos"),
-    "fortinet": Platform("Fortinet FortiGate", "fortinet", "show full-configuration"),
+    "cisco_ios": Platform("Cisco IOS / IOS-XE", "cisco_ios", "show running-config", napalm="ios",
+                          identity=("show version",)),
+    "cisco_nxos": Platform("Cisco NX-OS", "cisco_nxos", "show running-config", napalm="nxos_ssh",
+                           identity=("show version",)),
+    "cisco_xr": Platform("Cisco IOS-XR", "cisco_xr", "show running-config", napalm="iosxr",
+                          identity=("show version", "show inventory")),
+    "arista_eos": Platform("Arista EOS", "arista_eos", "show running-config", napalm="eos",
+                            identity=("show version",)),
+    "juniper_junos": Platform("Juniper Junos", "juniper_junos", "show configuration", napalm="junos",
+                               identity=("show version", "show chassis hardware")),
+    "fortinet": Platform("Fortinet FortiGate", "fortinet", "show full-configuration",
+                         identity=("get system status",)),
     # PAN-OS prints XML unless the session is switched to the `set` syntax the parser reads
     "paloalto_panos": Platform("Palo Alto PAN-OS", "paloalto_panos", "show config running",
-                               setup=("set cli config-output-format set",)),
+                               setup=("set cli config-output-format set",), identity=("show system info",)),
     "aruba_aoscx": Platform("HPE Aruba AOS-CX", "aruba_aoscx", "show running-config"),
-    "huawei_vrp": Platform("Huawei VRP", "huawei", "display current-configuration"),
+    "huawei_vrp": Platform("Huawei VRP", "huawei", "display current-configuration",
+                           identity=("display version", "display esn")),
     "checkpoint_gaia": Platform("Check Point Gaia", "checkpoint_gaia", "show configuration"),
     "extreme_exos": Platform("Extreme EXOS", "extreme_exos", "show configuration"),
-    "mikrotik_routeros": Platform("MikroTik RouterOS", "mikrotik_routeros", "/export"),
+    "mikrotik_routeros": Platform("MikroTik RouterOS", "mikrotik_routeros", "/export",
+                                   identity=("/system routerboard print",)),
 }
 
 # Collection methods, in the order ``auto`` prefers them
@@ -199,7 +220,7 @@ def _vetted_address(host: str, policy: str) -> str:
     return str(addresses[0])
 
 
-def _collect_napalm(target: Target) -> str:
+def _collect_napalm(target: Target) -> Collected:
     import napalm
 
     driver = napalm.get_network_driver(target.spec.napalm)
@@ -213,13 +234,21 @@ def _collect_napalm(target: Target) -> str:
     device.open()
     try:
         config = device.get_config(retrieve="running")
+        try:
+            facts = device.get_facts()
+        except Exception:  # identity is extra: a driver that cannot report it never fails the collection
+            facts = {}
     finally:
         device.close()
+    # written as the "key: value" lines show-version output uses, so it is read like any other output
+    identity = "\n".join(f"{label}: {facts[key]}" for key, label in (
+        ("serial_number", "Serial number"), ("model", "Model"), ("os_version", "Software version"))
+        if facts.get(key) and facts[key] != "Unknown")
     # Some drivers answer with the startup or candidate config when the running one is empty
-    return config.get("running") or config.get("startup") or ""
+    return Collected(config.get("running") or config.get("startup") or "", identity, "NAPALM get_facts")
 
 
-def _collect_netmiko(target: Target) -> str:
+def _collect_netmiko(target: Target) -> Collected:
     from netmiko import ConnectHandler
 
     spec = target.spec
@@ -238,13 +267,21 @@ def _collect_netmiko(target: Target) -> str:
         for command in spec.setup:
             connection.send_command(command)
         # A full configuration takes longer than the default read window on a busy device
-        return connection.send_command(spec.command, read_timeout=max(target.timeout, 60))
+        config = connection.send_command(spec.command, read_timeout=max(target.timeout, 60))
+        outputs = []
+        for command in spec.identity:
+            try:
+                outputs.append(connection.send_command(command))
+            except Exception:  # identity is extra: a command the platform refuses never fails the collection
+                pass
+        return Collected(config, "\n".join(outputs), " + ".join(f"'{c}'" for c in spec.identity))
     finally:
         connection.disconnect()
 
 
-def collect(target: Target) -> str:
-    """The device's running configuration as text, ready to scan.
+def collect(target: Target) -> Collected:
+    """The device's running configuration as text, ready to scan, and the output of its identity commands
+    (serial number, model, OS version; empty when the device reports none).
 
     Raises ``CollectionError`` with an operator-facing message for every failure -unreachable host,
     rejected credentials, a command the platform did not accept. The underlying exception is summarized
@@ -264,7 +301,7 @@ def collect(target: Target) -> str:
 
     collector = _collect_napalm if method == "napalm" else _collect_netmiko
     try:
-        config = collector(target)
+        collected = collector(target)
     except CollectionError:
         raise
     except Exception as e:
@@ -272,12 +309,12 @@ def collect(target: Target) -> str:
             f"Could not collect from {named} over {method}: {type(e).__name__}"
         ) from None
 
-    if not config.strip():
+    if not collected.config.strip():
         raise CollectionError(
             f"{named} returned an empty configuration. The account may lack the privilege to "
             f"read it -'{target.spec.command}' printed nothing."
         )
-    return config
+    return collected._replace(identity_source=f"{collected.identity_source} on {named}")
 
 
 def platform_choices() -> list[dict]:
@@ -290,6 +327,7 @@ def platform_choices() -> list[dict]:
             "platform": key,
             "label": spec.label,
             "command": spec.command,
+            "identity_commands": list(spec.identity),
             "napalm_driver": spec.napalm or None,
             "methods": methods,
             "available": bool(methods),

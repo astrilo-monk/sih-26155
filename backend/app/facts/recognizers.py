@@ -30,6 +30,7 @@ from app.adaptive.matcher import (
     ANY_TOKEN, EXTRACTION_RECOGNIZER, NEGATION_SLOT, REST_TOKEN, PatternError, compile_pattern, match_recognizer,
     normalize_line, recognizer_slot, strip_terminator,
 )
+from app.controls.catalog import DECLARED_PREDICATES
 from app.facts import lexicon as L
 from app.facts.heuristics import (
     _Candidate, _interfaces, _polarity, _version, combine, external_interfaces, heuristic_candidates, state_lines,
@@ -49,7 +50,7 @@ BOOL_PREDICATES = frozenset({
     PROTOCOL_ENABLED, SOURCE_RESTRICTED, CENTRAL_AAA, NTP_AUTHENTICATED, LOGIN_BANNER, SOURCE_ROUTING,
     DISCOVERY_PROTOCOL, PERMIT_ANY, PASSWORD_ENCRYPTION_SERVICE, MGMT_EXPOSED, MGMT_WEAK_CRYPTO, RULE_LOGGING,
     ROUTER_UNSAFE_SERVICE, ROOT_LOGIN,
-})
+}) | frozenset(DECLARED_PREDICATES)  # a boolean a check in data/controls.json declares: no code to read it
 # Settings a configuration states by *naming a thing*: the line exists only to configure them, so the
 # address or name it carries is which instance, not whether the setting is on. No dialect writes
 # "source restriction: on" -it writes ``permitted-ip 10.0.0.0/24`` or ``allow-address …``, and the

@@ -254,6 +254,8 @@ class ScanResultResponse(BaseModel):
     frameworks: list[FrameworkViewSchema] = []
     # Uploaded files holding no recognizable configuration at all: they are reported, never scored
     unreadable_configs: list[int] = []
+    # uploaded command outputs (show version ...) that match no single configuration, by file name
+    unpaired_outputs: list[str] = []
     # Controls that decided PASS or FAIL from decisive evidence, and the applicable ones that did not
     assessed_count: int = 0
     unresolved_count: int = 0
@@ -305,6 +307,15 @@ class PostureSummarySchema(BaseModel):
 class RemediationResponse(BaseModel):
     rule_id: str
     title: str
+    # fix phase (data/controls.json): plans list fixes in this order so applying them never locks you out
+    phase: int = 1
+    phase_name: str = ""
+    # a verified fix as device commands in the configuration's dialect; empty when unverified or not a CLI
+    cli: list[str] = []
+    # when nothing was verified: the vendor's reference commands (data/controls.json), NOT checked against this
+    # file; a <placeholder> is a value you supply. reference_source names the dialect they are written for.
+    reference_cli: list[str] = []
+    reference_source: str = ""
     device_hostname: str
     vendor: str
     config_index: int = 0
@@ -402,6 +413,8 @@ class DeviceRemediationPlanSchema(BaseModel):
     fixed_config: Optional[str] = None
     # the uploaded file against fixed_config as a redacted unified diff: what the download changes
     fixed_diff: str = ""
+    # every verified fix as one command sequence for the device, in fix-phase order
+    cli: list[str] = []
 
 
 class RemediationPlanResponse(BaseModel):

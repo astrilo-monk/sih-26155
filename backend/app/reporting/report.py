@@ -99,6 +99,8 @@ def identification_block(scan, index: int) -> list[Block]:
         ["Hardware model", device.get("model") or "not stated in the configuration"],
         ["Serial number", device.get("serial") or "not stated in the uploaded file"],
     ]
+    if device.get("identity_source"):
+        rows.append(["Identity read from", device["identity_source"]])
     if identification is not None and identification.parse_coverage is not None:
         rows.append(["Parse coverage", f"{round(identification.parse_coverage * 100)}% of lines read by the parser "
                                        f"({identification.uncovered_lines} outside its grammar)"])
@@ -110,8 +112,9 @@ def identification_block(scan, index: int) -> list[Block]:
         blocks.append(("table", (["CVE", "CVSS", "Summary"],
                                  [[f"{c['id']} ({c['url']})", str(c["score"]), c["summary"]] for c in cves["top"]])))
     if not device.get("serial"):
-        blocks.append(("note", "A configuration file rarely carries the serial number: upload it together with "
-                               "'show version' or 'show inventory' output to have it reported. NetAuditAI states only "
+        blocks.append(("note", "A configuration file rarely carries the serial number: upload 'show version' or "
+                               "'show inventory' output in the same upload (or collect the device live) to have it "
+                               "reported. NetAuditAI states only "
                                "what the uploaded file states."))
     return blocks
 
@@ -253,19 +256,6 @@ def frameworks_block(scan, index: int) -> list[Block]:
     return blocks
 
 
-def _diff_commands(diff: str) -> list[str]:
-    """The added / removed configuration lines of a unified diff, as a command sequence."""
-    lines = []
-    for line in (diff or "").split("\n"):
-        if line.startswith("+++") or line.startswith("---") or line.startswith("@@"):
-            continue
-        if line.startswith("+"):
-            lines.append(f"  {line[1:].strip()}")
-        elif line.startswith("-"):
-            lines.append(f"  no {line[1:].strip()}" if not line[1:].strip().startswith("no ") else f"  {line[1:].strip()}")
-    return lines
-
-
 def remediation_block(plan, index: int) -> list[Block]:
     """Remediation paths: the deterministic change per failing control, or why there is none."""
     blocks: list[Block] = [("h2", "5. Remediation")]
@@ -278,14 +268,23 @@ def remediation_block(plan, index: int) -> list[Block]:
         blocks.append(("p", "Nothing to remediate: no decisive failure was found for this device."))
         return blocks
 
+    if getattr(plan, "cli", None):
+        blocks.append(("h3", "Step by step: every verified fix as device commands"))
+        blocks.append(("p", "Each change below was applied to a copy of the uploaded configuration and rescanned. The "
+                            "order is by phase, not severity: secure access first, then hardening, then switching off "
+                            "what it replaced, and management restrictions last, so entering the commands top to "
+                            "bottom never cuts your own session. NetAuditAI never runs a command on a device."))
+        blocks.append(("mono", plan.cli))
     if plan.vendor_status != "confirmed":
-        blocks.append(("note", f"The vendor of {plan.device_hostname} is not confirmed, so NetAuditAI generates no "
-                               "vendor commands for it. Each problem is stated with what to change; you "
-                               "can propose a command in the application, where it is checked against this "
-                               "configuration before anything is accepted."))
-    for item in items:
+        blocks.append(("note", f"The vendor of {plan.device_hostname} is not confirmed by a dedicated parser. A fix is "
+                               "listed as verified only when a reviewed recognizer wrote it and the rescan shows the "
+                               "check passing; for the rest, the vendor's reference commands are shown, marked as not "
+                               "checked against this file."))
+    for item in sorted(items, key=lambda i: getattr(i, "phase", 1)):
         blocks.append(("h3", f"{item.rule_id} -{item.title}"))
         rows = [["Status", REMEDIATION_WORDS.get(item.status, item.status)]]
+        if getattr(item, "phase_name", ""):
+            rows.append(["Fix phase", f"{item.phase}. {item.phase_name}"])
         if item.scopes:
             rows.append(["Scope", ", ".join(item.scopes)])
         if item.evidence.line_numbers:
@@ -298,11 +297,14 @@ def remediation_block(plan, index: int) -> list[Block]:
         blocks.append(("table", (["Item", "Value"], rows)))
         if item.explanation or item.reason:
             blocks.append(("p", item.explanation or item.reason))
-        commands = _diff_commands(item.diff)
-        if commands:
-            blocks.append(("p", "Configuration change (verified against a copy of the uploaded file, never executed "
+        if getattr(item, "cli", None):
+            blocks.append(("p", "Device commands (verified against a copy of the uploaded file, never executed "
                                 "on a device):"))
-            blocks.append(("mono", commands))
+            blocks.append(("mono", item.cli))
+        elif getattr(item, "reference_cli", None):
+            blocks.append(("p", f"Reference commands for {item.reference_source}, NOT verified against this file. "
+                                "Replace each <value> with yours and review before use:"))
+            blocks.append(("mono", item.reference_cli))
         for check in item.checks:
             blocks.append(("p", f"{'PASSED' if check.passed else 'FAILED'} -{check.name}: {check.detail}"))
     return blocks
@@ -488,6 +490,9 @@ def device_report_pdf(scan, index: int, plan=None, generated_at: Optional[dateti
     blocks = (executive_blocks if executive else report_blocks)(scan, index, plan, generated_at)
     if ledger_entry:
         blocks.append(("note", f"Audit ledger: the scan behind this report is entry #{ledger_entry['seq']} "
-                               f"(hash {ledger_entry['hash'][:16]}…). This PDF's own SHA-256 is recorded when it is "
-                               "generated: any copy can be checked with POST /api/ledger/verify-report."))
+                               f"(hash {ledger_entry['hash'][:16]}…"
+                               + (f", signed with Ed25519 key {ledger_entry['key_id']}" if ledger_entry.get("key_id")
+                                  else "") +
+                               "). This PDF's own SHA-256 is recorded when it is generated: any copy can be checked "
+                               "with POST /api/ledger/verify-report."))
     return render_pdf(blocks, title=f"Compliance report -{device.get('hostname') or 'device'}")

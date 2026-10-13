@@ -24,8 +24,21 @@ async def list_entries(limit: int = 100):
 
 @router.get("/verify")
 async def verify_chain():
-    """Recompute every hash: ``ok`` False names the first entry that no longer checks out."""
+    """Recompute every hash and signature: ``ok`` False names the first entry that no longer checks out."""
     return ledger.verify()
+
+
+@router.get("/public-key")
+async def public_key():
+    """The key every entry is signed with. Keep a copy somewhere else: checking an export needs it, and only a
+    copy kept apart from the database proves anything."""
+    return {"public_key": ledger.public_key(), "key_id": ledger.key_id(ledger.public_key()), "algorithm": "Ed25519"}
+
+
+@router.get("/export")
+async def export_ledger():
+    """Every entry, for an offline check: ``python -m app.cli ledger-verify export.json --public-key <hex>``."""
+    return ledger.export()
 
 
 def _reports(content: bytes) -> list[tuple[str, bytes]]:
