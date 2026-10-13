@@ -51,14 +51,14 @@ _OUTPUT_IDENTITY = {
     )],
     "model": [re.compile(p, re.IGNORECASE) for p in (
         r"^Chassis\s+[A-Z0-9]{8,}\s+(\S+)",
-        r"^\s*Version:\s*(Forti\w+-\w+)\s+v",                           # FortiOS get system status
+        r"^ *Version: *(Forti\w+-\w+) +v",                              # FortiOS get system status
         r"^Arista\s+((?:DCS|CCS)-\S+)",                                 # Arista show version
         r"^HUAWEI\s+(\S+)\s+uptime is",
     )],
     "os_version": [re.compile(p, re.IGNORECASE) for p in (
-        r"^Cisco .*Software.*,\s*Version\s+([0-9][\w.()]*)",           # IOS, IOS-XE, IOS-XR
-        r"^\s*NXOS:\s*version\s+([0-9][\w.()]*)",
-        r"^\s*Version:\s*Forti\S+\s+v([0-9][\w.]*)",
+        r"^Cisco [^,]*Software[^,]*(?:,[^,]*)*?, Version ([0-9][\w.()]*)", # IOS, IOS-XE, IOS-XR
+        r"^ *NXOS: *version +([0-9][\w.()]*)",
+        r"^ *Version: *Forti\S+ +v([0-9][\w.]*)",
         r"^Software image version:\s*([0-9][\w.]*)",
         r"^VRP \(R\) software, Version\s+([0-9][\w.]*)",
     )],
@@ -68,19 +68,21 @@ _OUTPUT_IDENTITY = {
 _OUTPUT_SIGNATURES = re.compile("|".join((
     r"^\S+ uptime is ",                                  # Cisco, Huawei show/display version
     r"^Cisco (?:IOS|Nexus|Adaptive Security).*Software",
-    r"^\s*Processor board ID ",
-    r"^NAME: \".*\",\s*DESCR: ",                        # show inventory
+    r"^[ \t]*Processor board ID ",
+    r"^NAME: \"[^\"\n]*\",[ \t]*DESCR: ",               # show inventory
     r"^Hardware inventory:",                             # Junos show chassis hardware
-    r"^Model: \S+\s*$(?=[\s\S]*^Junos: )",               # Junos show version
+    r"^Junos: [0-9]",                                    # Junos show version
     r"^sw-version: ",                                    # PAN-OS show system info
     r"^Version: Forti",                                  # FortiOS get system status
     r"^Software image version: ",                        # Arista
     r"^Huawei Versatile Routing Platform",
     r"^ESN of ",
-    r"^\s*routerboard: yes",                             # MikroTik /system routerboard print
+    r"^[ \t]*routerboard: yes",                          # MikroTik /system routerboard print
 )), _I)
 
-_OUTPUT_HOSTNAME = (re.compile(r"^(\S+) uptime is ", _I), re.compile(r"^\s*hostname\s*:\s*(\S+)\s*$", _I))
+_OUTPUT_HOSTNAME = (re.compile(r"^(\S+) uptime is ", _I), re.compile(r"^[ \t]*hostname[ \t]*:[ \t]*(\S+)[ \t]*$", _I))
+# Identity lines are short: a longer line is not one, and reading only this much keeps every pattern linear
+_MAX_LINE = 300
 
 # Extensions a configuration or an output is commonly saved with; dropped before names are compared
 _EXTENSIONS = {".cfg", ".conf", ".config", ".txt", ".log", ".rsc", ".xml", ".json", ".tf", ".set", ".out"}
@@ -93,10 +95,18 @@ def stated_identity(raw_lines: list[str], output: bool = False) -> dict[str, str
     tables = (_IDENTITY, _OUTPUT_IDENTITY) if output else (_IDENTITY,)
     found: dict[str, str] = {}
     for line in raw_lines:
+        line = line[:_MAX_LINE]
+        if not line.strip():
+            continue
         for table in tables:
             for item, patterns in table.items():
-                if item not in found and (m := next((p.search(line) for p in patterns if p.search(line)), None)):
+                if item in found:
+                    continue
+                m = next(filter(None, (p.search(line) for p in patterns)), None)
+                if m:
                     found[item] = m.group(1).strip("\"';,")
+        if len(found) == len(_IDENTITY):
+            break
     return found
 
 

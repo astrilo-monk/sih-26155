@@ -180,3 +180,20 @@ def test_every_identity_command_is_read_only():
         for command in spec.identity:
             assert command.split()[0] in ("show", "get", "display", "/system"), command
             assert "print" in command or not command.startswith("/"), command
+
+
+@pytest.mark.parametrize("text", [
+    "\n" * 2_000_000,                         # a pattern that crossed newlines rescanned the rest per line
+    "Model: x\n" * 200_000,                   # a lookahead over the whole file per matching line
+    "Cisco " + "Software, " * 200_000,        # two unbounded runs on one line
+    "model" + " " * 2_000_000,                # adjacent whitespace quantifiers on one long line
+], ids=["blank-lines", "model-lines", "cisco-line", "long-line"])
+def test_a_hostile_upload_is_read_in_linear_time(text):
+    """2 MB is the upload limit; every path through the identity patterns must stay linear in it."""
+    import time
+
+    start = time.perf_counter()
+    is_command_output(text)
+    output_hostname(text)
+    stated_identity(text.splitlines(), output=True)
+    assert time.perf_counter() - start < 20
